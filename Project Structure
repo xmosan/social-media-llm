@@ -1,0 +1,23 @@
+social_poster/
+  app/
+    __init__.py
+    main.py
+    config.py
+    db.py
+    models.py
+    schemas.py
+    routes/
+      __init__.py
+      posts.py
+    services/
+      __init__.py
+      llm.py
+      policy.py
+      publisher.py
+      scheduler.py
+  uploads/
+  requirements.txt
+  README.md
+  .env
+
+  
