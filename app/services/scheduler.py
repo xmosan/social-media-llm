@@ -6,7 +6,7 @@ from app.config import settings
 from app.models import Post
 from app.services.publisher import publish_to_instagram
 
-def publish_due_posts(db: Session) -> int:
+def start_scheduler(db: Session):
     """Publishes scheduled posts whose scheduled_time <= now (UTC). Returns count."""
     now = datetime.now(timezone.utc)
 
@@ -53,4 +53,3 @@ def publish_due_posts(db: Session) -> int:
             db.commit()
 
     return published
-    

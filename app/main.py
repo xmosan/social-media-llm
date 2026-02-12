@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .db import engine, SessionLocal, Base
-from .routes.posts import router as posts_router
+from .routes.posts import router as posts_router    
 from .services.scheduler import start_scheduler
 
 app = FastAPI(title="Social Poster MVP", version="0.2.0")
