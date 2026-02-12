@@ -6,7 +6,17 @@ from app.config import settings
 from app.models import Post
 from app.services.publisher import publish_to_instagram
 
-def start_scheduler(db: Session):
+from typing import Callable
+
+def start_scheduler(db_factory: Callable[[], Session]):
+    db = db_factory()
+    try:
+        # keep your existing DB logic here, but use `db`
+        stmt = select(Post).where(Post.status == "scheduled")
+        posts = db.execute(stmt).scalars().all()
+        # ... rest of your logic ...
+    finally:
+        db.close()
     """Publishes scheduled posts whose scheduled_time <= now (UTC). Returns count."""
     now = datetime.now(timezone.utc)
 
