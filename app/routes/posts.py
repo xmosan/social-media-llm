@@ -10,6 +10,7 @@ from ..models import Post
 from ..schemas import PostOut, ApproveIn, GenerateOut
 from ..services.llm import generate_draft
 from ..services.policy import keyword_flags
+from app.services.publisher import publish_to_instagram
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
@@ -112,4 +113,4 @@ def approve_and_publish(post_id: int, payload: ApproveIn, db: Session = Depends(
     db.commit()
     db.refresh(post)
     return post
-    
+
