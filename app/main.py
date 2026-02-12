@@ -9,6 +9,10 @@ from .services.scheduler import start_scheduler
 
 app = FastAPI(title="Social Poster MVP", version="0.2.0")
 
+@app.get("/")
+def root():
+    return {"status": "Social Media LLM API is running"}
+
 Base.metadata.create_all(bind=engine)
 app.include_router(posts_router)
 
