@@ -25,7 +25,7 @@ class PostOut(BaseModel):
         from_attributes = True
 
 class ApproveIn(BaseModel):
-    scheduled_time: datetime
+    scheduled_time: datetime | None = None
     approve_anyway: bool = False
 
 class GenerateOut(BaseModel):
