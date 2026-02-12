@@ -79,38 +79,37 @@ def generate_for_post(post_id: int, db: Session = Depends(get_db)):
     }
 
 @router.post("/{post_id}/approve", response_model=PostOut)
-def approve_and_schedule(post_id: int, payload: ApproveIn, db: Session = Depends(get_db)):
+def approve_and_publish(post_id: int, payload: ApproveIn, db: Session = Depends(get_db)):
     post = db.get(Post, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
     flags = post.flags or {}
     if flags.get("needs_review") and not payload.approve_anyway:
-        raise HTTPException(status_code=400, detail="Flagged (music/politics). Set approve_anyway=true or edit first.")
+        raise HTTPException(
+            status_code=400,
+            detail="Flagged (music/politics). Set approve_anyway=true or edit first."
+        )
 
     if not post.caption or not post.media_url:
         raise HTTPException(status_code=400, detail="Missing caption or media_url")
 
-    scheduled = payload.scheduled_time
-    if scheduled.tzinfo is None:
-        scheduled = scheduled.replace(tzinfo=timezone.utc)
+    # ✅ Publish immediately to Instagram
+    result = publish_to_instagram(caption=post.caption, media_url=post.media_url)
 
-    post.scheduled_time = scheduled.astimezone(timezone.utc)
-    post.status = "scheduled"
+    if not result.get("ok"):
+        # Bubble up Meta/IG error
+        raise HTTPException(status_code=502, detail=result.get("error", result))
+
+    # ✅ Mark as published in DB
+    post.status = "published"
+    post.published_time = datetime.now(timezone.utc)
+    post.scheduled_time = None  # optional, since we're not scheduling anymore
+
+    # If your Post model has a field for remote IG id, save it:
+    # post.remote_id = result.get("remote_id")
+
     db.commit()
     db.refresh(post)
     return post
-
-@router.get("", response_model=list[PostOut])
-def list_posts(status: str | None = None, db: Session = Depends(get_db)):
-    stmt = select(Post).order_by(Post.created_at.desc())
-    if status:
-        stmt = stmt.where(Post.status == status)
-    return db.execute(stmt).scalars().all()
-
-@router.get("/{post_id}", response_model=PostOut)
-def get_post(post_id: int, db: Session = Depends(get_db)):
-    post = db.get(Post, post_id)
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-    return post
+    

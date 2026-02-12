@@ -1,55 +1,56 @@
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.interval import IntervalTrigger
-from sqlalchemy.orm import Session
-from sqlalchemy import select
 from datetime import datetime, timezone
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from ..models import Post
-from .publisher import publish_to_instagram
+from app.config import settings
+from app.models import Post
+from app.services.publisher import publish_to_instagram
 
-def _utcnow():
-    return datetime.now(timezone.utc)
+def publish_due_posts(db: Session) -> int:
+    """Publishes scheduled posts whose scheduled_time <= now (UTC). Returns count."""
+    now = datetime.now(timezone.utc)
 
-def run_due_posts(db_factory):
-    db: Session = db_factory()
-    try:
-        now = _utcnow()
-        stmt = select(Post).where(
-            Post.status == "scheduled",
-            Post.scheduled_time.is_not(None),
-            Post.scheduled_time <= now
-        )
-        due = db.execute(stmt).scalars().all()
-
-        for post in due:
-            try:
-                if not post.media_url:
-                    raise ValueError("No media_url set (must be public https URL)")
-                result = publish_to_instagram(caption=post.caption or "", media_url=post.media_url)
-                if result.get("ok"):
-                    post.status = "published"
-                    post.published_time = now
-                else:
-                    post.status = "failed"
-                    post.flags = {**(post.flags or {}), "publish_error": result}
-            except Exception as e:
-                post.status = "failed"
-                post.flags = {**(post.flags or {}), "publish_error": str(e)}
-
-        db.commit()
-    finally:
-        db.close()
-
-def start_scheduler(db_factory):
-    sched = BackgroundScheduler()
-    sched.add_job(
-        func=run_due_posts,
-        trigger=IntervalTrigger(seconds=60),
-        args=[db_factory],
-        id="publish_due_posts",
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
+    stmt = (
+        select(Post)
+        .where(Post.status == "scheduled")
+        .where(Post.scheduled_time != None)  # noqa: E711
+        .where(Post.scheduled_time <= now)
+        .order_by(Post.scheduled_time.asc())
     )
-    sched.start()
-    return sched
+
+    posts = db.execute(stmt).scalars().all()
+    if not posts:
+        return 0
+
+    if not settings.ig_access_token or not settings.ig_user_id:
+        # fail loudly so you notice misconfig
+        raise RuntimeError("Missing IG_ACCESS_TOKEN or IG_USER_ID")
+
+    published = 0
+    for post in posts:
+        if not post.caption or not post.media_url:
+            post.status = "failed"
+            db.commit()
+            continue
+
+        caption_full = post.caption
+        if post.hashtags:
+            caption_full += "\n\n" + " ".join(post.hashtags)
+
+        try:
+            publish_to_instagram(
+                ig_user_id=settings.ig_user_id,
+                access_token=settings.ig_access_token,
+                image_url=post.media_url,
+                caption=caption_full,
+            )
+            post.status = "published"
+            post.published_time = now
+            db.commit()
+            published += 1
+        except Exception:
+            post.status = "failed"
+            db.commit()
+
+    return published
+    

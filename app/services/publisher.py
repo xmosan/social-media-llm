@@ -33,9 +33,14 @@ def publish_to_instagram(*, caption: str, media_url: str) -> dict:
         },
         timeout=30,
     )
+
     j2 = r2.json()
+
+    if r2.status_code >= 400:
+        return {"ok": False, "error": {"step": "media_publish", "meta_error": j2}}
+
     if "id" not in j2:
-        return {"ok": False, "error": {"step": "media_publish", "response": j2}}
+        return {"ok": False, "error": {"step": "media_publish", "meta_error": j2}}
 
     return {
         "ok": True,
