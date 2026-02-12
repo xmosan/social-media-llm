@@ -44,7 +44,7 @@ def intake_post(
         status="submitted",
         source_type=source_type,
         source_text=source_text,
-        media_url=public_url,
+        media_url = f"{settings.public_base_url}/uploads/{filename}",
         flags={},
         hashtags=None,
     )

@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import os
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -8,7 +9,7 @@ class Settings(BaseSettings):
     uploads_dir: str = "uploads"
 
     # MUST be set in production so image URLs are public for Instagram
-    public_base_url: str = "http://localhost:8000"
+    public_base_url: str = os.getenv("BASE_URL", "http://localhost:8000")
 
     ig_access_token: str | None = None
     ig_user_id: str | None = None
