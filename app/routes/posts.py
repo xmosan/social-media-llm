@@ -11,6 +11,20 @@ from ..schemas import PostOut, ApproveIn, GenerateOut
 from ..services.llm import generate_draft
 from ..services.policy import keyword_flags
 from app.services.publisher import publish_to_instagram
+from fastapi import HTTPException
+import traceback
+
+# inside approve_and_publish, around publish_to_instagram:
+try:
+    result = publish_to_instagram(caption=post.caption, media_url=post.media_url)
+except Exception as e:
+    raise HTTPException(
+        status_code=502,
+        detail={"step": "publish_to_instagram", "error": str(e)}
+    )
+
+if not isinstance(result, dict) or not result.get("ok"):
+    raise HTTPException(status_code=502, detail=result)
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
