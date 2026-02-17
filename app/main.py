@@ -3,11 +3,10 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
-from .db import engine, SessionLocal
 from .models import Base
 from .routes.posts import router as posts_router    
 from .services.scheduler import start_scheduler
-
+from .db import engine, SessionLocal
 @app.get("/debug/db")
 def debug_db():
     url = str(engine.url)
