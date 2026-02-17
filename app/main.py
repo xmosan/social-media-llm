@@ -8,6 +8,13 @@ from .models import Base
 from .routes.posts import router as posts_router    
 from .services.scheduler import start_scheduler
 
+@app.get("/debug/db")
+def debug_db():
+    url = str(engine.url)
+    # hide password
+    safe = url.replace(engine.url.password or "", "***") if engine.url.password else url
+    return {"db_url": safe}
+
 app = FastAPI(title="Social Poster MVP", version="0.2.0")
 
 @app.get("/")
