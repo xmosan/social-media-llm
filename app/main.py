@@ -7,6 +7,7 @@ from .db import engine, SessionLocal
 from .models import Base
 from .routes.posts import router as posts_router
 from .services.scheduler import start_scheduler
+from .routes.admin import router as admin_router
 
 app = FastAPI(title="Social Poster MVP", version="0.2.0")
 
