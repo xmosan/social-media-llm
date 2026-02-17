@@ -20,15 +20,18 @@ app.include_router(posts_router)
 os.makedirs(settings.uploads_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.uploads_dir), name="uploads")
 
-def db_factory():
-    return SessionLocal()
-
 @app.on_event("startup")
 def on_startup():
-    app.state.scheduler = start_scheduler(db_factory)
+    Base.metadata.create_all(bind=engine)
+    app.state.scheduler = start_scheduler(SessionLocal)  # pass factory, not a session
+
 
 @app.on_event("shutdown")
 def on_shutdown():
     sched = getattr(app.state, "scheduler", None)
     if sched:
         sched.shutdown(wait=False)
+@app.get("/debug/ping")
+def debug_ping():
+    return {"ok": True}
+    
