@@ -25,6 +25,10 @@ def publish_to_instagram(*, caption: str, media_url: str) -> dict:
     creation_id = j1["id"]
 
     # Step 2: publish container
+  import time
+
+# Try publishing up to 10 times (media sometimes takes a few seconds)
+for attempt in range(10):
     r2 = requests.post(
         f"{GRAPH_URL}/{settings.ig_user_id}/media_publish",
         data={
@@ -33,6 +37,36 @@ def publish_to_instagram(*, caption: str, media_url: str) -> dict:
         },
         timeout=30,
     )
+
+    j2 = r2.json()
+
+    # Success
+    if r2.status_code < 400 and "id" in j2:
+        return {
+            "ok": True,
+            "platform": "instagram",
+            "published_at": datetime.now(timezone.utc).isoformat(),
+            "remote_id": j2["id"],
+        }
+
+    # Media not ready yet → retry
+    error = j2.get("error", {})
+    if error.get("code") == 9007:
+        time.sleep(4)
+        continue
+
+    # Any other error → fail immediately
+    return {"ok": False, "error": {"step": "media_publish", "meta_error": j2}}
+
+# If loop exits → it never became ready
+return {
+    "ok": False,
+    "error": {
+        "step": "media_publish",
+        "message": "Media never became ready after retries"
+    },
+}
+
 
     j2 = r2.json()
 
