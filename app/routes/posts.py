@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-
+from sqlalchemy import func
 from ..db import get_db
 from ..config import settings
 from ..models import Post
@@ -21,6 +21,22 @@ def _utcnow():
 
 def _ensure_uploads_dir():
     os.makedirs(settings.uploads_dir, exist_ok=True)
+@router.get("/stats")
+def post_stats(db: Session = Depends(get_db)):
+    rows = (
+        db.execute(
+            select(Post.status, func.count(Post.id)).group_by(Post.status)
+        )
+        .all()
+    )
+    return {"counts": {status: count for status, count in rows}}
+
+@router.get("/{post_id}", response_model=PostOut)
+def get_post(post_id: int, db: Session = Depends(get_db)):
+    post = db.get(Post, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return post
 
 @router.post("/intake", response_model=PostOut)
 def intake_post(
