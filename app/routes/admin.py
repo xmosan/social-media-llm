@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-router = APIRouter(tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"])
 
 HTML = """
 <!doctype html>
@@ -261,4 +261,3 @@ refreshAll();
 @router.get("/admin", response_class=HTMLResponse)
 def admin_page(request: Request):
     return HTML
-    
