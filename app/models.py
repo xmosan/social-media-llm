@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime
-from sqlalchemy.dialects.sqlite import JSON as SQLiteJSON
+from sqlalchemy import Column, Integer, String, Text, DateTime, JSON
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
+
 Base = declarative_base()
 
 class Post(Base):
@@ -17,10 +17,10 @@ class Post(Base):
     media_url = Column(Text, nullable=True)
 
     caption = Column(Text, nullable=True)
-    hashtags = Column(SQLiteJSON, nullable=True)
+    hashtags = Column(JSON, nullable=True)
     alt_text = Column(Text, nullable=True)
 
-    flags = Column(SQLiteJSON, nullable=False, default=dict)
+    flags = Column(JSON, nullable=False, default=dict)
 
     scheduled_time = Column(DateTime(timezone=True), nullable=True)
     published_time = Column(DateTime(timezone=True), nullable=True)
