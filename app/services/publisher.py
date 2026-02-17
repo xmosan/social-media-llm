@@ -52,6 +52,7 @@ for attempt in range(10):
     # Media not ready yet → retry
     error = j2.get("error", {})
     if error.get("code") == 9007:
+        print(f"media_publish not ready, retrying... attempt={attempt+1}", j2)
         time.sleep(4)
         continue
 
