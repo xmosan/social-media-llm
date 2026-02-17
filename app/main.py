@@ -23,7 +23,7 @@ app.mount("/uploads", StaticFiles(directory=settings.uploads_dir), name="uploads
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
-    app.state.scheduler = start_scheduler(SessionLocal)  # pass factory, not a session
+    app.state.scheduler = start_scheduler(SessionLocal)
 
 
 @app.on_event("shutdown")

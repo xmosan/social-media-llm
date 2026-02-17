@@ -1,22 +1,14 @@
 from datetime import datetime, timezone
+from typing import Callable
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.models import Post
 from app.services.publisher import publish_to_instagram
 
-from typing import Callable
 
-def start_scheduler(db_factory: Callable[[], Session]):
-    db = db_factory()
-    try:
-        # keep your existing DB logic here, but use `db`
-        stmt = select(Post).where(Post.status == "scheduled")
-        posts = db.execute(stmt).scalars().all()
-        # ... rest of your logic ...
-    finally:
-        db.close()
+def run_due_posts(db: Session) -> int:
     """Publishes scheduled posts whose scheduled_time <= now (UTC). Returns count."""
     now = datetime.now(timezone.utc)
 
@@ -32,10 +24,6 @@ def start_scheduler(db_factory: Callable[[], Session]):
     if not posts:
         return 0
 
-    if not settings.ig_access_token or not settings.ig_user_id:
-        # fail loudly so you notice misconfig
-        raise RuntimeError("Missing IG_ACCESS_TOKEN or IG_USER_ID")
-
     published = 0
     for post in posts:
         if not post.caption or not post.media_url:
@@ -48,18 +36,33 @@ def start_scheduler(db_factory: Callable[[], Session]):
             caption_full += "\n\n" + " ".join(post.hashtags)
 
         try:
-            publish_to_instagram(
-                ig_user_id=settings.ig_user_id,
-                access_token=settings.ig_access_token,
-                image_url=post.media_url,
-                caption=caption_full,
-            )
-            post.status = "published"
-            post.published_time = now
-            db.commit()
-            published += 1
-        except Exception:
+            result = publish_to_instagram(caption=caption_full, media_url=post.media_url)
+
+            if isinstance(result, dict) and result.get("ok"):
+                post.status = "published"
+                post.published_time = now
+                db.commit()
+                published += 1
+            else:
+                post.status = "failed"
+                post.flags = {**(post.flags or {}), "publish_error": result}
+                db.commit()
+
+        except Exception as e:
             post.status = "failed"
+            post.flags = {**(post.flags or {}), "publish_exception": str(e)}
             db.commit()
 
     return published
+
+
+def start_scheduler(db_factory: Callable[[], Session]):
+    """
+    MVP scheduler: runs once at startup.
+    Later we can replace this with APScheduler/Cron worker.
+    """
+    db = db_factory()
+    try:
+        return run_due_posts(db)
+    finally:
+        db.close()
