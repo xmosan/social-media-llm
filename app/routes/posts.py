@@ -81,6 +81,22 @@ def generate_for_post(post_id: int, db: Session = Depends(get_db)):
         "flags": post.flags or {},
         "status": post.status,
     }
+@router.get("", response_model=list[PostOut])
+def list_posts(
+    status: str | None = None,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+):
+    stmt = select(Post).order_by(Post.created_at.desc())
+
+    if status:
+        stmt = stmt.where(Post.status == status)
+
+    # safety bounds
+    limit = max(1, min(limit, 200))
+    stmt = stmt.limit(limit)
+
+    return db.execute(stmt).scalars().all()
 
 @router.get("/{post_id}", response_model=PostOut)
 def get_post(post_id: int, db: Session = Depends(get_db)):
@@ -123,20 +139,4 @@ def approve_post(post_id: int, payload: ApproveIn, db: Session = Depends(get_db)
     db.commit()
     db.refresh(post)
     return post
-@router.get("", response_model=list[PostOut])
-def list_posts(
-    status: str | None = None,
-    limit: int = 50,
-    db: Session = Depends(get_db),
-):
-    stmt = select(Post).order_by(Post.created_at.desc())
-
-    if status:
-        stmt = stmt.where(Post.status == status)
-
-    # safety bounds
-    limit = max(1, min(limit, 200))
-    stmt = stmt.limit(limit)
-
-    return db.execute(stmt).scalars().all()
 
