@@ -1,7 +1,8 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime
 from sqlalchemy.dialects.sqlite import JSON as SQLiteJSON
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
-from .db import Base
+Base = declarative_base()
 
 class Post(Base):
     __tablename__ = "posts"
