@@ -28,6 +28,7 @@ def intake_post(
     source_text: str = Form(""),
     source_type: str = Form("form"),
     image: UploadFile = File(...),
+    
 ):
     _ensure_uploads_dir()
 
@@ -81,8 +82,15 @@ def generate_for_post(post_id: int, db: Session = Depends(get_db)):
         "status": post.status,
     }
 
+@router.get("/{post_id}", response_model=PostOut)
+def get_post(post_id: int, db: Session = Depends(get_db)):
+    post = db.get(Post, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return post
+
 @router.post("/{post_id}/approve", response_model=PostOut)
-def approve_and_publish(post_id: int, payload: ApproveIn, db: Session = Depends(get_db)):
+def approve_post(post_id: int, payload: ApproveIn, db: Session = Depends(get_db)):
     post = db.get(Post, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
@@ -115,4 +123,20 @@ def approve_and_publish(post_id: int, payload: ApproveIn, db: Session = Depends(
     db.commit()
     db.refresh(post)
     return post
+@router.get("", response_model=list[PostOut])
+def list_posts(
+    status: str | None = None,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+):
+    stmt = select(Post).order_by(Post.created_at.desc())
+
+    if status:
+        stmt = stmt.where(Post.status == status)
+
+    # safety bounds
+    limit = max(1, min(limit, 200))
+    stmt = stmt.limit(limit)
+
+    return db.execute(stmt).scalars().all()
 
