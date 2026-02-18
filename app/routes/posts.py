@@ -10,7 +10,8 @@ from ..models import Post
 from ..schemas import PostOut, ApproveIn, GenerateOut
 from ..services.llm import generate_draft
 from ..services.policy import keyword_flags
-from app.services.publisher import publish_to_instagram
+from ..services.publisher import publish_to_instagram
+from ..security import require_api_key
 from fastapi import HTTPException
 import traceback
 
@@ -28,7 +29,7 @@ def intake_post(
     source_text: str = Form(""),
     source_type: str = Form("form"),
     image: UploadFile = File(...),
-    
+    _auth: str = Depends(require_api_key),
 ):
     _ensure_uploads_dir()
 
@@ -58,7 +59,11 @@ def intake_post(
     return post
 
 @router.post("/{post_id}/generate", response_model=GenerateOut)
-def generate_for_post(post_id: int, db: Session = Depends(get_db)):
+def generate_for_post(
+    post_id: int, 
+    db: Session = Depends(get_db),
+    _auth: str = Depends(require_api_key),
+):
     post = db.get(Post, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
@@ -86,6 +91,7 @@ def list_posts(
     status: str | None = None,
     limit: int = 50,
     db: Session = Depends(get_db),
+    _auth: str = Depends(require_api_key),
 ):
     stmt = select(Post).order_by(Post.created_at.desc())
 
@@ -99,7 +105,10 @@ def list_posts(
     return db.execute(stmt).scalars().all()
 
 @router.get("/stats")
-def post_stats(db: Session = Depends(get_db)):
+def post_stats(
+    db: Session = Depends(get_db),
+    _auth: str = Depends(require_api_key),
+):
     rows = (
         db.execute(
             select(Post.status, func.count(Post.id)).group_by(Post.status)
@@ -109,14 +118,23 @@ def post_stats(db: Session = Depends(get_db)):
     return {"counts": {status: count for status, count in rows}}
 
 @router.get("/{post_id}", response_model=PostOut)
-def get_post(post_id: int, db: Session = Depends(get_db)):
+def get_post(
+    post_id: int, 
+    db: Session = Depends(get_db),
+    _auth: str = Depends(require_api_key),
+):
     post = db.get(Post, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     return post
 
 @router.post("/{post_id}/approve", response_model=PostOut)
-def approve_post(post_id: int, payload: ApproveIn, db: Session = Depends(get_db)):
+def approve_post(
+    post_id: int, 
+    payload: ApproveIn, 
+    db: Session = Depends(get_db),
+    _auth: str = Depends(require_api_key),
+):
     post = db.get(Post, post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
@@ -134,6 +152,32 @@ def approve_post(post_id: int, payload: ApproveIn, db: Session = Depends(get_db)
     # ✅ Publish immediately to Instagram
     # Instead of publishing immediately, schedule it
     post.status = "scheduled"
+    db.commit()
+    db.refresh(post)
+    return post
+
+@router.post("/{post_id}/publish", response_model=PostOut)
+def publish_post(
+    post_id: int, 
+    db: Session = Depends(get_db),
+    _auth: str = Depends(require_api_key),
+):
+    post = db.get(Post, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    if not post.caption or not post.media_url:
+        raise HTTPException(status_code=400, detail="Missing caption or media_url")
+
+    res = publish_to_instagram(caption=post.caption, media_url=post.media_url)
+    if not res.get("ok"):
+        post.status = "failed"
+        post.flags = {**(post.flags or {}), "publish_error": res.get("error")}
+        db.commit()
+        raise HTTPException(status_code=502, detail=f"Publish failed: {res.get('error')}")
+
+    post.status = "published"
+    post.published_time = _utcnow()
     db.commit()
     db.refresh(post)
     return post
