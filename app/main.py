@@ -16,10 +16,8 @@ import os
 
 @app.get("/debug/version")
 def debug_version():
-    return {
-        "railway_git_sha": os.getenv("RAILWAY_GIT_COMMIT_SHA"),
-        "note": "debug-version-1"
-    }
+    return {"note": "debug-version-1"}
+
 @app.get("/")
 def root():
     return {"status": "Social Media LLM API is running"}
