@@ -132,20 +132,8 @@ def approve_post(post_id: int, payload: ApproveIn, db: Session = Depends(get_db)
         raise HTTPException(status_code=400, detail="Missing caption or media_url")
 
     # ✅ Publish immediately to Instagram
-    result = publish_to_instagram(caption=post.caption, media_url=post.media_url)
-
-    if not result.get("ok"):
-        # Bubble up Meta/IG error
-        raise HTTPException(status_code=502, detail=result.get("error", result))
-
-    # ✅ Mark as published in DB
-    post.status = "published"
-    post.published_time = datetime.now(timezone.utc)
-    post.scheduled_time = None  # optional, since we're not scheduling anymore
-
-    # If your Post model has a field for remote IG id, save it:
-    # post.remote_id = result.get("remote_id")
-
+    # Instead of publishing immediately, schedule it
+    post.status = "scheduled"
     db.commit()
     db.refresh(post)
     return post
