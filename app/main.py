@@ -7,14 +7,17 @@ from .db import engine, SessionLocal
 from .models import Base
 from .services.scheduler import start_scheduler
 from .routes.admin import router as admin_router
-app.include_router(admin_router)
+from .routes.posts import router as posts_router  # (if you use it)
 
 app = FastAPI(title="Social Poster MVP", version="0.2.0")
+
+# ✅ include routers AFTER app exists
+app.include_router(posts_router)
+app.include_router(admin_router)
 
 @app.get("/")
 def root():
     return {"status": "Social Media LLM API is running"}
-
 @app.get("/debug/ping")
 def debug_ping():
     return {"ok": True}
