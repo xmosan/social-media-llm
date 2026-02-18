@@ -19,22 +19,11 @@ def root():
 def debug_ping():
     return {"ok": True}
 
-# (optional) debug db endpoint — MUST be below app creation
-from .db import engine as _engine
-
-@app.get("/debug/db")
-def debug_db():
-    url = str(_engine.url)
-    pwd = _engine.url.password
-    if pwd:
-        url = url.replace(pwd, "***")
-    return {"db_url": url}
-
-# Serve /uploads publicly
+# uploads
 os.makedirs(settings.uploads_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.uploads_dir), name="uploads")
 
-# ✅ Routers (include once)
+# routers
 app.include_router(posts_router)
 app.include_router(admin_router)
 

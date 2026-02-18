@@ -3,6 +3,10 @@ from fastapi.responses import HTMLResponse
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
+@router.get("", response_class=HTMLResponse)
+def admin_page():
+    return "<h1>Admin works ✅</h1>"
+  
 HTML = """
 <!doctype html>
 <html>
