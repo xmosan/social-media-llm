@@ -9,7 +9,7 @@ HTML = r"""
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Social Media LLM Admin</title>
+  <title>Social Media LLM Admin — v2</title>
   <style>
     body { font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial; margin: 24px; }
     h1 { margin: 0 0 8px; }
