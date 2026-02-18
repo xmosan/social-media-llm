@@ -12,6 +12,14 @@ from .routes.admin import router as admin_router
 
 app = FastAPI(title="Social Poster MVP", version="0.2.0")
 
+import os
+
+@app.get("/debug/version")
+def debug_version():
+    return {
+        "railway_git_sha": os.getenv("RAILWAY_GIT_COMMIT_SHA"),
+        "note": "debug-version-1"
+    }
 @app.get("/")
 def root():
     return {"status": "Social Media LLM API is running"}
