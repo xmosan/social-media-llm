@@ -3,11 +3,6 @@ from fastapi.responses import HTMLResponse
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-@router.get("", response_class=HTMLResponse)
-def admin_home():
-    return "<h1>Admin works ✅</h1>"
-
-
 HTML = """
 <!doctype html>
 <html>
@@ -25,7 +20,6 @@ HTML = """
     input[type="file"] { width: 100%; }
     button { padding: 8px 12px; border-radius: 8px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
     button.primary { background: #111; color: #fff; border-color: #111; }
-    button.danger { background: #b00020; color: #fff; border-color: #b00020; }
     .muted { color: #666; font-size: 0.92em; }
     .pill { display:inline-block; padding: 2px 8px; border:1px solid #ddd; border-radius: 999px; font-size: 0.85em; }
     .list { display: grid; gap: 10px; }
@@ -42,15 +36,15 @@ HTML = """
 </head>
 <body>
   <h1>Social Media LLM — Admin</h1>
-  <div class="muted">Upload → Generate → Approve (schedule) → Daily scheduler posts automatically.</div>
+  <div class="muted">Upload → Generate → Approve (publish) → Done.</div>
 
   <div class="row" style="margin-top:16px;">
     <div class="card">
       <h2 style="margin-top:0;">1) Upload new post</h2>
-      <div class="muted">Image + short source text. (You can paste a reminder/quote/topic.)</div>
+      <div class="muted">Image + short source text.</div>
       <div style="height:10px;"></div>
       <label>Source text</label>
-      <textarea id="source_text" placeholder="Example: Reminder about صلاة / a short Islamic reminder..."></textarea>
+      <textarea id="source_text" placeholder="Example: Islamic reminder..."></textarea>
       <div style="height:10px;"></div>
       <label>Image</label>
       <input id="image" type="file" accept="image/png,image/jpeg,image/webp" />
@@ -168,7 +162,7 @@ function renderPost(p) {
       ${flags}
       <div class="actions">
         <button onclick="generate(${p.id})">Generate</button>
-        <button class="primary" onclick="approve(${p.id})">Approve (schedule)</button>
+        <button class="primary" onclick="approve(${p.id})">Approve (publish)</button>
         <button onclick="view(${p.id})">Reload</button>
       </div>
       <div class="muted" id="msg-${p.id}"></div>
@@ -237,7 +231,7 @@ async function approve(id) {
     });
     const j = await r.json();
     if (!r.ok) throw new Error(JSON.stringify(j));
-    setMsg(id, "Approved ✓ (scheduled)");
+    setMsg(id, "Approved ✓");
     await refreshAll();
   } catch (e) {
     setMsg(id, "Approve failed: " + e, false);
@@ -263,6 +257,7 @@ refreshAll();
 </html>
 """
 
-@router.get("/admin", response_class=HTMLResponse)
-def admin_page(request: Request):
+# ✅ IMPORTANT: with prefix="/admin", this is the correct path for "/admin"
+@router.get("", response_class=HTMLResponse)
+def admin_page():
     return HTML
