@@ -29,3 +29,4 @@ uvloop==0.22.1
 watchfiles==1.1.1
 websockets==16.0
 psycopg2-binary
+openai

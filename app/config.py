@@ -1,21 +1,21 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-import os
+from pydantic import Field
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(extra="ignore")
 
-    database_url: str = "sqlite:///./app.db"
-    timezone: str = "America/Detroit"
-    uploads_dir: str = "uploads"
+    database_url: str = Field(default="sqlite:///./saas.db", alias="DATABASE_URL")
+    timezone: str = Field(default="America/Detroit", alias="TIMEZONE")
+    uploads_dir: str = Field(default="uploads", alias="UPLOADS_DIR")
 
-    # MUST be set in production so image URLs are public for Instagram
-    public_base_url: str = os.getenv("BASE_URL", "http://localhost:8000")
+    # In production (Railway), BASE_URL env var will override this
+    public_base_url: str = Field(default="http://localhost:8000", alias="BASE_URL")
 
-    ig_access_token: str | None = os.getenv("IG_ACCESS_TOKEN")
-    ig_user_id: str | None = os.getenv("IG_USER_ID")
-    fb_page_id: str | None = os.getenv("FB_PAGE_ID")
+    ig_access_token: str | None = Field(default=None, alias="IG_ACCESS_TOKEN")
+    ig_user_id: str | None = Field(default=None, alias="IG_USER_ID")
+    fb_page_id: str | None = Field(default=None, alias="FB_PAGE_ID")
 
-    admin_api_key: str | None = os.getenv("ADMIN_API_KEY")
+    admin_api_key: str | None = Field(default=None, alias="ADMIN_API_KEY")
+    openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
 
 settings = Settings()

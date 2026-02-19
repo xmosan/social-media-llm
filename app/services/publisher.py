@@ -5,17 +5,23 @@ from app.config import settings
 
 GRAPH_URL = "https://graph.facebook.com/v24.0"
 
-def publish_to_instagram(*, caption: str, media_url: str) -> dict:
-    if not settings.ig_user_id or not settings.ig_access_token:
-        return {"ok": False, "error": "Missing IG_USER_ID or IG_ACCESS_TOKEN in .env"}
+def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, access_token: str) -> dict:
+    if not ig_user_id or not access_token:
+        return {"ok": False, "error": "Missing ig_user_id or access_token"}
+
+    if "localhost" in media_url or "127.0.0.1" in media_url:
+        return {
+            "ok": False, 
+            "error": "Instagram cannot fetch images from 'localhost'. You must use a public HTTPS URL (e.g., via ngrok or production deployment) for the BASE_URL."
+        }
 
     # Step 1: create media container
     r1 = requests.post(
-        f"{GRAPH_URL}/{settings.ig_user_id}/media",
+        f"{GRAPH_URL}/{ig_user_id}/media",
         data={
             "image_url": media_url,
             "caption": caption,
-            "access_token": settings.ig_access_token,
+            "access_token": access_token,
         },
         timeout=30,
     )
@@ -26,13 +32,12 @@ def publish_to_instagram(*, caption: str, media_url: str) -> dict:
     creation_id = j1["id"]
 
     # Step 2: publish container
-    # Try publishing up to 10 times (media sometimes takes a few seconds)
     for attempt in range(10):
         r2 = requests.post(
-            f"{GRAPH_URL}/{settings.ig_user_id}/media_publish",
+            f"{GRAPH_URL}/{ig_user_id}/media_publish",
             data={
                 "creation_id": creation_id,
-                "access_token": settings.ig_access_token,
+                "access_token": access_token,
             },
             timeout=30,
         )
@@ -58,7 +63,6 @@ def publish_to_instagram(*, caption: str, media_url: str) -> dict:
         # Any other error → fail immediately
         return {"ok": False, "error": {"step": "media_publish", "meta_error": j2}}
 
-    # If loop exits → it never became ready
     return {
         "ok": False,
         "error": {

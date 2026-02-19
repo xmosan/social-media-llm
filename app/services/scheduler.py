@@ -1,81 +1,144 @@
 from datetime import datetime, timezone
 from typing import Callable
+import pytz
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.config import settings
-from app.models import Post
+from app.models import Post, IGAccount, TopicAutomation
 from app.services.publisher import publish_to_instagram
+from app.services.automation_runner import run_automation_once
 
+def run_automation_job(db_factory: Callable[[], Session], automation_id: int):
+    """Execution wrapper for background automation jobs."""
+    db = db_factory()
+    try:
+        run_automation_once(db, automation_id)
+    finally:
+        db.close()
 
-def publish_daily(db_factory: Callable[[], Session], max_posts: int = 1) -> int:
+def sync_automation_jobs(sched: BackgroundScheduler, db_factory: Callable[[], Session]):
     """
-    Publish up to `max_posts` scheduled posts.
-    Runs once per day.
+    Syncs the scheduler with all enabled TopicAutomations in the database.
+    Removes existing auto jobs and re-adds them.
+    """
+    import time
+    t0 = time.time()
+    
+    # 1. Clean up old jobs
+    for job in list(sched.get_jobs()):
+        if job.id.startswith("auto_"):
+            sched.remove_job(job.id)
+
+    # 2. Add enabled jobs
+    db = db_factory()
+    try:
+        enabled_autos = db.query(TopicAutomation).filter(TopicAutomation.enabled == True).all()
+        for auto in enabled_autos:
+            acc = db.query(IGAccount).get(auto.ig_account_id)
+            if not acc: continue
+            
+            time_str = auto.post_time_local or acc.daily_post_time or "09:00"
+            tz_str = auto.timezone or acc.timezone or "UTC"
+            try:
+                hour, minute = map(int, time_str.split(":"))
+                sched.add_job(
+                    run_automation_job,
+                    trigger=CronTrigger(hour=hour, minute=minute, timezone=tz_str),
+                    args=[db_factory, auto.id],
+                    id=f"auto_{auto.id}",
+                    replace_existing=True,
+                    max_instances=1
+                )
+            except Exception as e:
+                print(f"FAILED TO SCHEDULE AUTO {auto.id}: {e}")
+    finally:
+        db.close()
+        print(f"DIAGNOSTIC: sync_automation_jobs took {time.time()-t0:.4f}s")
+
+def publish_due_posts(db_factory: Callable[[], Session]) -> int:
+    """
+    Check for any scheduled posts that are due (scheduled_time <= now).
+    This runs every minute to handle all accounts/orgs.
     """
     db = db_factory()
     try:
+        now = datetime.now(timezone.utc)
         stmt = (
             select(Post)
             .where(Post.status == "scheduled")
-            .order_by(Post.created_at.asc())
-            .limit(max_posts)
+            .where(Post.scheduled_time <= now)
+            .order_by(Post.scheduled_time.asc())
         )
         posts = db.execute(stmt).scalars().all()
+        
         if not posts:
             return 0
 
-        if not settings.ig_access_token or not settings.ig_user_id:
-            raise RuntimeError("Missing IG_ACCESS_TOKEN or IG_USER_ID")
-
         published = 0
-        now = datetime.now(timezone.utc)
-
         for post in posts:
-            if not post.caption or not post.media_url:
-                post.status = "failed"
-                db.commit()
+            acc = db.get(IGAccount, post.ig_account_id)
+            if not acc or not acc.active:
                 continue
 
-            caption_full = post.caption
+            caption_full = post.caption or ""
             if post.hashtags:
                 caption_full += "\n\n" + " ".join(post.hashtags)
 
-            result = publish_to_instagram(caption=caption_full, media_url=post.media_url)
+            result = publish_to_instagram(
+                caption=caption_full, 
+                media_url=post.media_url,
+                ig_user_id=acc.ig_user_id,
+                access_token=acc.access_token
+            )
 
-            if not isinstance(result, dict) or not result.get("ok"):
-                post.status = "failed"
+            if isinstance(result, dict) and result.get("ok"):
+                post.status = "published"
+                post.published_time = datetime.now(timezone.utc)
                 db.commit()
-                continue
-
-            post.status = "published"
-            post.published_time = now
-            db.commit()
-            published += 1
+                published += 1
+            else:
+                post.status = "failed"
+                error_info = result.get("error") if isinstance(result, dict) else str(result)
+                post.flags = {**(post.flags or {}), "publish_error": error_info}
+                db.commit()
 
         return published
     finally:
         db.close()
 
+# Global reference to scheduler for reloading
+_global_scheduler = None
 
 def start_scheduler(db_factory: Callable[[], Session]):
-    # run once daily at 9:00 AM Detroit time
-    sched = BackgroundScheduler(timezone="America/Detroit")
-
+    """
+    Start a BackgroundScheduler that checks for due posts every minute 
+    and handles topic automations.
+    """
+    global _global_scheduler
+    sched = BackgroundScheduler()
+    
+    # 1. Standard per-minute publishing check
     sched.add_job(
-        publish_daily,
-        trigger=CronTrigger(hour=9, minute=0),
+        publish_due_posts,
+        trigger="interval",
+        minutes=1,
         args=[db_factory],
-        kwargs={"max_posts": 1},
-        id="daily_publish",
+        id="check_due_posts",
         replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-        misfire_grace_time=60 * 60,  # 1 hour grace
+        max_instances=1
     )
 
+    # 2. Daily Automation Jobs
+    sync_automation_jobs(sched, db_factory)
+
     sched.start()
+    _global_scheduler = sched
     return sched
+
+def reload_automation_jobs(db_factory: Callable[[], Session]):
+    """Helper to refresh automation jobs when settings change in UI."""
+    if _global_scheduler:
+        sync_automation_jobs(_global_scheduler, db_factory)

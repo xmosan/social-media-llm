@@ -5,6 +5,20 @@ Token.env
 __pycache__/
 *.pyc
 
+*.sqlite
 *.sqlite3
 app.db
+saas.db
+saas.db-shm
+saas.db-wal
 uploads/
+
+# Tunnels & Logs
+ngrok
+*.log
+*.js.map
+debug_script.js
+served_script*.js
+lt.log
+tunnel.log
+!*.py
