@@ -74,7 +74,9 @@ def bootstrap_saas():
 def on_startup():
     # In multi-tenant, we typically drop/create in DEV but use migrations in PROD.
     # For this MVP, we ensure tables exist.
+    print("STARTUP: Creating/verifying database tables...")
     Base.metadata.create_all(bind=engine)
+    print(f"STARTUP: Tables ready. Engine URL prefix: {str(engine.url)[:30]}...")
     
     # Run bootstrap
     bootstrap_saas()
