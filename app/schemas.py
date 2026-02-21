@@ -91,6 +91,9 @@ class TopicAutomationOut(BaseModel):
     avoid_repeat_days: int
     content_type: str | None
     include_arabic: bool
+    image_mode: str
+    posting_mode: str
+    approval_mode: str
     class Config:
         from_attributes = True
 
