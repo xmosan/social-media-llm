@@ -159,7 +159,29 @@ HTML = """<!doctype html>
                         <input type="time" id="auto_time" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none" value="09:00"/>
                     </div>
                 </div>
-                <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-4">
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" id="auto_use_library" class="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" checked/>
+                        <label for="auto_use_library" class="text-sm font-black text-indigo-900">Use Content Library</label>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 pl-8">
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Image Mode</label>
+                            <select id="auto_image_mode" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold bg-white">
+                                <option value="reuse_last_upload">Reuse Last Upload</option>
+                                <option value="quote_card">Generate Quote Card</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Lookback (Days)</label>
+                            <input type="number" id="auto_lookback" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold" value="30"/>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 pl-8">
+                        <input type="checkbox" id="auto_arabic" class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"/>
+                        <label for="auto_arabic" class="text-xs font-bold text-slate-600">Include Arabic Text</label>
+                    </div>
+                    <div class="h-px bg-indigo-100 mx-[-1rem]"></div>
                     <div class="flex items-center gap-3">
                         <input type="checkbox" id="auto_enabled" class="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" checked/>
                         <label for="auto_enabled" class="text-sm font-black text-indigo-900">Enable Automation Immediately</label>
@@ -220,6 +242,9 @@ HTML = """<!doctype html>
                 <button onclick="switchTab('automations')" id="tab_automations" class="text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2">
                     Automations
                 </button>
+                <button onclick="switchTab('library')" id="tab_library" class="text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2">
+                    Library
+                </button>
             </div>
             <div id="feed_controls" class="flex items-center gap-2">
                 <select id="status_filter" onchange="refreshAll()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:ring-indigo-500 outline-none bg-slate-50 cursor-pointer">
@@ -240,6 +265,14 @@ HTML = """<!doctype html>
             <div id="auto_controls" class="hidden flex items-center gap-2">
                 <button onclick="showCreateAuto()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">New Automation</button>
             </div>
+            <div id="library_controls" class="hidden flex items-center gap-2">
+                <input type="text" id="library_search" oninput="loadLibrary()" placeholder="Search Library..." class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:ring-indigo-500 outline-none bg-slate-50"/>
+                <button onclick="seedDemoContent()" class="bg-indigo-100 text-indigo-700 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-200 transition-all">Seed Demo</button>
+                <label class="bg-slate-900 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-slate-800 transition-all">
+                    Import
+                    <input type="file" class="hidden" onchange="importLibrary(this)"/>
+                </label>
+            </div>
         </div>
         <div id="feed_view">
             <div id="stats" class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-10"></div>
@@ -248,6 +281,9 @@ HTML = """<!doctype html>
         </div>
         <div id="automations_view" class="hidden space-y-8">
             <div id="auto_list" class="grid grid-cols-1 gap-6"></div>
+        </div>
+        <div id="library_view" class="hidden space-y-8">
+            <div id="library_list" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
         </div>
       </section>
     </div>
@@ -262,11 +298,15 @@ function switchTab(t) {
     ACTIVE_TAB = t;
     document.getElementById("feed_view").classList.toggle("hidden", t !== 'feed');
     document.getElementById("automations_view").classList.toggle("hidden", t !== 'automations');
+    document.getElementById("library_view").classList.toggle("hidden", t !== 'library');
+    
     document.getElementById("feed_controls").classList.toggle("hidden", t !== 'feed');
     document.getElementById("auto_controls").classList.toggle("hidden", t !== 'automations');
+    document.getElementById("library_controls").classList.toggle("hidden", t !== 'library');
     
     document.getElementById("tab_feed").className = t === 'feed' ? "text-2xl font-black flex items-center gap-3 border-b-4 border-slate-900 pb-2" : "text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2";
     document.getElementById("tab_automations").className = t === 'automations' ? "text-2xl font-black flex items-center gap-3 border-b-4 border-slate-900 pb-2" : "text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2";
+    document.getElementById("tab_library").className = t === 'library' ? "text-2xl font-black flex items-center gap-3 border-b-4 border-slate-900 pb-2" : "text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2";
     
     refreshAll();
 }
@@ -330,8 +370,10 @@ async function refreshAll() {
         if (ACTIVE_ACCOUNT_ID) {
             if (ACTIVE_TAB === 'feed') {
                 await Promise.all([loadStats(), loadPosts()]);
-            } else {
+            } else if (ACTIVE_TAB === 'automations') {
                 await loadAutomations();
+            } else {
+                await loadLibrary();
             }
         } else {
             showEmptyState("no_accounts");
@@ -406,7 +448,11 @@ async function saveAutomation() {
         tone: document.getElementById("auto_tone").value,
         language: document.getElementById("auto_lang").value,
         post_time_local: document.getElementById("auto_time").value,
-        enabled: document.getElementById("auto_enabled").checked
+        enabled: document.getElementById("auto_enabled").checked,
+        use_content_library: document.getElementById("auto_use_library").checked,
+        image_mode: document.getElementById("auto_image_mode").value,
+        avoid_repeat_days: parseInt(document.getElementById("auto_lookback").value) || 30,
+        include_arabic: document.getElementById("auto_arabic").checked
     };
     try {
         await request(id ? `/automations/${id}` : "/automations", {
@@ -479,7 +525,83 @@ function editAuto(a) {
     document.getElementById("auto_lang").value = a.language || "english";
     document.getElementById("auto_time").value = a.post_time_local || "09:00";
     document.getElementById("auto_enabled").checked = a.enabled;
+    
+    // Phase 6 new fields
+    const useLib = document.getElementById("auto_use_library");
+    if(useLib) useLib.checked = !!a.use_content_library;
+    
+    const imgMode = document.getElementById("auto_image_mode");
+    if(imgMode) imgMode.value = a.image_mode || "reuse_last_upload";
+    
+    const lookback = document.getElementById("auto_lookback");
+    if(lookback) lookback.value = a.avoid_repeat_days || 30;
+    
+    const arabic = document.getElementById("auto_arabic");
+    if(arabic) arabic.checked = !!a.include_arabic;
+
     document.getElementById("auto_modal").classList.remove("hidden");
+}
+
+async function loadLibrary() {
+    const list = document.getElementById("library_list");
+    const query = document.getElementById("library_search")?.value || "";
+    list.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-black uppercase text-xs animate-pulse">Browsing Archive...</div>`;
+    try {
+        const j = await request(`/library?topic=${encodeURIComponent(query)}`);
+        if (!j.length) {
+            list.innerHTML = `
+            <div class="col-span-full py-24 text-center border-2 border-dashed border-slate-200 rounded-3xl">
+                <p class="text-sm text-slate-400 font-black uppercase">Archive Empty</p>
+                <p class="text-[10px] text-slate-400 mt-2">Upload or Seed some content to start.</p>
+            </div>`;
+            return;
+        }
+        list.innerHTML = j.map(item => `
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 hover:bg-white hover:shadow-lg transition-all">
+            <div class="flex justify-between items-start mb-3">
+                <span class="px-2 py-0.5 rounded-lg bg-indigo-100 text-indigo-700 text-[8px] font-black uppercase tracking-widest">${esc(item.type)}</span>
+                <span class="text-[9px] font-bold text-slate-400">${item.topics.join(", ")}</span>
+            </div>
+            <h5 class="text-sm font-black text-slate-800 mb-2 line-clamp-1">${esc(item.title || 'Untitled')}</h5>
+            <p class="text-xs text-slate-500 line-clamp-3 mb-4 italic">"${esc(item.text_en)}"</p>
+            <div class="flex justify-between items-center pt-3 border-t border-slate-100">
+                <span class="text-[9px] font-bold text-slate-400">${esc(item.source_name || 'Personal')}</span>
+                <button onclick="deleteLibraryItem(${item.id})" class="text-slate-300 hover:text-red-500 transition-colors">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                </button>
+            </div>
+        </div>`).join("");
+    } catch(e) { setError("Library Error: " + e.message); }
+}
+
+async function seedDemoContent() {
+    if(!confirm("Seed database with demo Islamic content?")) return;
+    try {
+        await request("/library/seed-demo", { method: "POST" });
+        await loadLibrary();
+        alert("Demo content seeded successfully.");
+    } catch(e) { alert("Seed Failed: " + e.message); }
+}
+
+async function importLibrary(input) {
+    const file = input.files[0];
+    if(!file) return;
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+        await request("/library/import", { method: "POST", body: fd });
+        await loadLibrary();
+        alert("Import Successful!");
+    } catch(e) { alert("Import Failed: " + e.message); }
+    input.value = "";
+}
+
+async function deleteLibraryItem(id) {
+    if(!confirm("Remove this item from library?")) return;
+    try {
+        await request(`/library/${id}`, { method: "DELETE" });
+        await loadLibrary();
+    } catch(e) { alert(e.message); }
 }
 function updateKeyStatus() {
     const el = document.getElementById("api_key_status");
