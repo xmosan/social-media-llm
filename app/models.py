@@ -14,6 +14,8 @@ class Org(Base):
     api_keys = relationship("ApiKey", back_populates="org")
     ig_accounts = relationship("IGAccount", back_populates="org")
     posts = relationship("Post", back_populates="org")
+    content_items = relationship("ContentItem", back_populates="org")
+    content_usages = relationship("ContentUsage", back_populates="org")
 
 class User(Base):
     __tablename__ = "users"
@@ -67,6 +69,7 @@ class IGAccount(Base):
 
     org = relationship("Org", back_populates="ig_accounts")
     posts = relationship("Post", back_populates="ig_account")
+    content_usages = relationship("ContentUsage", back_populates="ig_account")
 
 class Post(Base):
     __tablename__ = "posts"
@@ -82,6 +85,9 @@ class Post(Base):
     status = Column(String, nullable=False, default="submitted", index=True)
     source_type = Column(String, nullable=False, default="form")
     source_text = Column(Text, nullable=True)
+
+    # NEW: Link to Content Library
+    content_item_id = Column(Integer, ForeignKey("content_items.id"), nullable=True)
 
     # MUST be a public https URL for Instagram publishing
     media_url = Column(Text, nullable=True)
@@ -101,6 +107,8 @@ class Post(Base):
     org = relationship("Org", back_populates="posts")
     ig_account = relationship("IGAccount", back_populates="posts")
     automation = relationship("TopicAutomation", back_populates="generated_posts")
+    content_item = relationship("ContentItem", back_populates="posts")
+    content_usage = relationship("ContentUsage", back_populates="post", uselist=False)
 
 class TopicAutomation(Base):
     __tablename__ = "topic_automations"
@@ -123,7 +131,13 @@ class TopicAutomation(Base):
     
     posting_mode = Column(String, default="schedule") # "publish_now" | "schedule"
     approval_mode = Column(String, default="auto_approve") # "auto_approve" | "needs_manual_approve"
-    image_mode = Column(String, default="reuse_last_upload") # "reuse_last_upload" | "none_placeholder"
+    image_mode = Column(String, default="reuse_last_upload") # "reuse_last_upload" | "none_placeholder" | "quote_card"
+    
+    # NEW: Content Library Settings
+    use_content_library = Column(Boolean, default=True)
+    avoid_repeat_days = Column(Integer, default=30)
+    content_type = Column(String, nullable=True) # "hadith", "quote", etc.
+    include_arabic = Column(Boolean, default=False)
     
     post_time_local = Column(String, nullable=True) # "HH:MM"
     timezone = Column(String, nullable=True) 
@@ -139,3 +153,47 @@ class TopicAutomation(Base):
     org = relationship("Org")
     ig_account = relationship("IGAccount")
     generated_posts = relationship("Post", back_populates="automation")
+    content_usages = relationship("ContentUsage", back_populates="automation")
+
+class ContentItem(Base):
+    __tablename__ = "content_items"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("orgs.id"), nullable=False)
+    
+    type = Column(String, default="hadith") # hadith, quote, verse, reminder
+    title = Column(String, nullable=True)
+    text_en = Column(Text, nullable=False)
+    text_ar = Column(Text, nullable=True)
+    source_name = Column(String, nullable=True)
+    reference = Column(String, nullable=True)
+    url = Column(Text, nullable=True)
+    grade = Column(String, nullable=True)
+    
+    topics = Column(JSON, nullable=False, default=list) # List of normalized strings
+    language = Column(String, default="english")
+    enabled = Column(Boolean, default=True)
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    org = relationship("Org", back_populates="content_items")
+    posts = relationship("Post", back_populates="content_item")
+    usages = relationship("ContentUsage", back_populates="content_item")
+
+class ContentUsage(Base):
+    __tablename__ = "content_usages"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("orgs.id"), nullable=False)
+    ig_account_id = Column(Integer, ForeignKey("ig_accounts.id"), nullable=False)
+    automation_id = Column(Integer, ForeignKey("topic_automations.id"), nullable=True)
+    post_id = Column(Integer, ForeignKey("posts.id"), nullable=True)
+    content_item_id = Column(Integer, ForeignKey("content_items.id"), nullable=False)
+    
+    used_at = Column(DateTime(timezone=True), server_default=func.now())
+    status = Column(String) # selected, published, failed
+
+    org = relationship("Org", back_populates="content_usages")
+    ig_account = relationship("IGAccount", back_populates="content_usages")
+    automation = relationship("TopicAutomation", back_populates="content_usages")
+    post = relationship("Post", back_populates="content_usage")
+    content_item = relationship("ContentItem", back_populates="usages")

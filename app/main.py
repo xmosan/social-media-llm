@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from .db import engine, SessionLocal
 from .models import Base, Org, ApiKey, IGAccount
 from .security import hash_api_key
-from .routes import posts, admin, orgs, ig_accounts, automations
+from .routes import posts, admin, orgs, ig_accounts, automations, library
 from .services.scheduler import start_scheduler
 from .config import settings
 
@@ -23,6 +23,7 @@ app.include_router(admin.router)
 app.include_router(orgs.router)
 app.include_router(ig_accounts.router)
 app.include_router(automations.router)
+app.include_router(library.router)
 
 def bootstrap_saas():
     """Seed initial Org and API Key for development/first run."""

@@ -94,3 +94,95 @@ def generate_topic_caption(
         result["hashtags"] = []
 
     return result
+
+def generate_caption_from_content_item(
+    content_item: Any, # Use Any because of circular import risk with models
+    style: str = "islamic_reminder",
+    tone: str = "medium",
+    language: str = "english",
+    banned_phrases: list[str] | None = None,
+    include_arabic: bool = False,
+    extra_hashtag_set: list[str] | None = None
+) -> dict[str, Any]:
+    """
+    Asks LLM to generate a reflection and hashtags for a specific DB content item.
+    Enforces verbatim text usage by constructing the final caption on server side.
+    """
+    client = get_client()
+    
+    # 1. Prepare Content Snippet for LLM
+    text_to_show = content_item.text_en
+    if include_arabic and content_item.text_ar:
+        text_to_show = f"{content_item.text_ar}\n\n{text_to_show}"
+        
+    prompt = f"""
+    Content Item (verbatim): {text_to_show}
+    Topic: {content_item.topics[0] if content_item.topics else "general"}
+    Source: {content_item.source_name or "Unknown"} ({content_item.reference or "No ref"})
+    Style: {style}
+    Tone: {tone}
+    Language: {language}
+    {f"Banned phrases (AVOID): {', '.join(banned_phrases)}" if banned_phrases else ""}
+
+    Your Task:
+    1. Write a 1-2 sentence meaningful reflection about this specific piece of content. 
+    2. Do NOT change the content text above. Just reflect on it.
+    3. Suggest relevant hashtags.
+    4. Provide an alt-text description for the content.
+
+    Return JSON format:
+    {{
+        "reflection": "Your 1-2 sentence reflection here",
+        "hashtags": ["hashtag1", "hashtag2"],
+        "alt_text": "description for screen readers"
+    }}
+    """
+    
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a professional social media manager. You write brief, powerful reflections for authentic narrations and quotes."},
+            {"role": "user", "content": prompt}
+        ],
+        response_format={"type": "json_object"}
+    )
+    
+    result = json.loads(response.choices[0].message.content)
+    
+    # 2. Server-side Assembly (Enforce Verbatim)
+    # We do NOT let the LLM provide the "caption" field to avoid edits to the hadith text.
+    reflection = result.get("reflection", "").strip()
+    
+    final_caption = f'"{text_to_show}"'
+    if reflection:
+        final_caption += f"\n\n{reflection}"
+        
+    # Append attribution
+    attribution = ""
+    if content_item.source_name:
+        attribution = content_item.source_name
+        if content_item.reference:
+            attribution += f" ({content_item.reference})"
+    
+    if attribution:
+        final_caption += f"\n\n— {attribution}"
+        
+    if content_item.url:
+        final_caption += f"\nSource: {content_item.url}"
+        
+    # Merge hashtags
+    suggested_hashtags = result.get("hashtags", [])
+    if not isinstance(suggested_hashtags, list):
+        suggested_hashtags = []
+        
+    all_hashtags = suggested_hashtags
+    if extra_hashtag_set:
+        # Avoid duplicates
+        all_hashtags = list(set(all_hashtags + extra_hashtag_set))
+
+    return {
+        "caption": final_caption,
+        "hashtags": all_hashtags,
+        "alt_text": result.get("alt_text", "Image describing religious content"),
+        "reflection": reflection # Original for debugging
+    }
