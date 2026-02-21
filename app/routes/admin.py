@@ -386,7 +386,7 @@ async function loadAutomations() {
     const list = document.getElementById("auto_list");
     list.innerHTML = `<div class="py-12 text-center text-slate-400 font-black uppercase text-xs animate-pulse">Scanning Robotics...</div>`;
     try {
-        const j = await request(`/automations?ig_account_id=${ACTIVE_ACCOUNT_ID}`);
+        const j = await request(`/automations/?ig_account_id=${ACTIVE_ACCOUNT_ID}`);
         if (!j.length) {
             list.innerHTML = `
             <div class="py-24 text-center border-2 border-dashed border-slate-200 rounded-3xl">
@@ -547,7 +547,7 @@ async function loadLibrary() {
     const query = document.getElementById("library_search")?.value || "";
     list.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-black uppercase text-xs animate-pulse">Browsing Archive...</div>`;
     try {
-        const j = await request(`/library?topic=${encodeURIComponent(query)}`);
+        const j = await request(`/library/?topic=${encodeURIComponent(query)}`);
         if (!j.length) {
             list.innerHTML = `
             <div class="col-span-full py-24 text-center border-2 border-dashed border-slate-200 rounded-3xl">
@@ -577,7 +577,7 @@ async function loadLibrary() {
 async function seedDemoContent() {
     if(!confirm("Seed database with demo Islamic content?")) return;
     try {
-        await request("/library/seed-demo", { method: "POST" });
+        await request("/library/seed-demo/", { method: "POST" });
         await loadLibrary();
         alert("Demo content seeded successfully.");
     } catch(e) { alert("Seed Failed: " + e.message); }
@@ -589,7 +589,7 @@ async function importLibrary(input) {
     const fd = new FormData();
     fd.append("file", file);
     try {
-        await request("/library/import", { method: "POST", body: fd });
+        await request("/library/import/", { method: "POST", body: fd });
         await loadLibrary();
         alert("Import Successful!");
     } catch(e) { alert("Import Failed: " + e.message); }

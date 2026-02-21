@@ -3,6 +3,7 @@ import time
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from .db import engine, SessionLocal
 from .models import Base, Org, ApiKey, IGAccount
@@ -12,6 +13,7 @@ from .services.scheduler import start_scheduler
 from .config import settings
 
 app = FastAPI(title="Social Media LLM - Multi-tenant SaaS")
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # Serve uploads
 os.makedirs(settings.uploads_dir, exist_ok=True)
