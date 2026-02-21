@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.db import SessionLocal
 from app.models import ContentItem, Org
 from app.schemas import ContentItemOut, ContentItemCreate, ContentItemUpdate
-from app.security import get_current_org
+from app.security import require_api_key
 from app.services.content_library import normalize_topic
 
 router = APIRouter(prefix="/library", tags=["library"])
@@ -31,9 +31,9 @@ def list_library(
     type: str | None = Query(None),
     limit: int = 50,
     db: Session = Depends(get_db),
-    org: Org = Depends(get_current_org)
+    org_id: int = Depends(require_api_key)
 ):
-    query = db.query(ContentItem).filter(ContentItem.org_id == org.id)
+    query = db.query(ContentItem).filter(ContentItem.org_id == org_id)
     
     if topic:
         norm_topic = normalize_topic(topic)
@@ -51,7 +51,7 @@ def list_library(
 async def import_content(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    org: Org = Depends(get_current_org)
+    org_id: int = Depends(require_api_key)
 ):
     """
     Import content items from JSON or CSV.
@@ -76,7 +76,7 @@ async def import_content(
                     topics = [normalize_topic(str(t)) for t in topics]
                     
                 items_to_add.append({
-                    "org_id": org.id,
+                    "org_id": org_id,
                     "type": d.get("type", "hadith"),
                     "title": d.get("title"),
                     "text_en": d.get("text_en"),
@@ -98,7 +98,7 @@ async def import_content(
             for row in reader:
                 topics = [normalize_topic(t) for t in row.get("topics", "").split(",") if t.strip()]
                 items_to_add.append({
-                    "org_id": org.id,
+                    "org_id": org_id,
                     "type": row.get("type", "hadith"),
                     "title": row.get("title"),
                     "text_en": row.get("text_en"),
@@ -123,7 +123,7 @@ async def import_content(
             
         # Check if exists
         exists = db.query(ContentItem).filter(
-            ContentItem.org_id == org.id,
+            ContentItem.org_id == org_id,
             ContentItem.text_en == item_data["text_en"],
             ContentItem.source_name == item_data["source_name"],
             ContentItem.reference == item_data["reference"]
@@ -138,7 +138,7 @@ async def import_content(
     return {"status": "success", "imported": count}
 
 @router.post("/seed-demo")
-def seed_demo(db: Session = Depends(get_db), org: Org = Depends(get_current_org)):
+def seed_demo(db: Session = Depends(get_db), org_id: int = Depends(require_api_key)):
     """Seeds some sample Hadiths for testing."""
     samples = [
         {
@@ -165,11 +165,11 @@ def seed_demo(db: Session = Depends(get_db), org: Org = Depends(get_current_org)
     count = 0
     for s in samples:
         exists = db.query(ContentItem).filter(
-            ContentItem.org_id == org.id,
+            ContentItem.org_id == org_id,
             ContentItem.text_en == s["text_en"]
         ).first()
         if not exists:
-            s["org_id"] = org.id
+            s["org_id"] = org_id
             s["topics"] = [normalize_topic(t) for t in s["topics"]]
             db.add(ContentItem(**s))
             count += 1
@@ -177,8 +177,8 @@ def seed_demo(db: Session = Depends(get_db), org: Org = Depends(get_current_org)
     return {"status": "seeded", "count": count}
 
 @router.get("/{item_id}", response_model=ContentItemOut)
-def get_item(item_id: int, db: Session = Depends(get_db), org: Org = Depends(get_current_org)):
-    item = db.query(ContentItem).filter(ContentItem.id == item_id, ContentItem.org_id == org.id).first()
+def get_item(item_id: int, db: Session = Depends(get_db), org_id: int = Depends(require_api_key)):
+    item = db.query(ContentItem).filter(ContentItem.id == item_id, ContentItem.org_id == org_id).first()
     if not item:
         raise HTTPException(404, "Not found")
     return item
