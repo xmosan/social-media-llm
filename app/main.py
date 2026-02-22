@@ -113,4 +113,11 @@ def on_startup():
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "mode": "multi-tenant"}
+    import datetime
+    return {
+        "status": "ok", 
+        "mode": "multi-tenant", 
+        "version": "1.0.1", 
+        "now": datetime.datetime.now().isoformat(),
+        "openai_key_configured": bool(settings.openai_api_key)
+    }
