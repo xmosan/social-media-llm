@@ -1,6 +1,74 @@
-from fastapi import APIRouter
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from app.security.auth import get_current_user
+
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+LOGIN_HTML = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login | Social Media LLM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style> body { font-family: 'Inter', sans-serif; } </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-6">
+  <div class="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 border border-slate-100">
+    <div class="text-center mb-8">
+      <h1 class="text-2xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Social SaaS</h1>
+      <p class="text-sm text-slate-500 mt-2 font-medium">Sign in to your dashboard</p>
+    </div>
+    <form id="loginForm" class="space-y-6">
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Email</label>
+        <input type="email" id="email" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all" placeholder="name@company.com">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Password</label>
+        <input type="password" id="password" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all" placeholder="••••••••">
+      </div>
+      <div id="errorMsg" class="hidden text-xs font-bold text-red-600 text-center bg-red-50 p-3 rounded-lg border border-red-100"></div>
+      <button type="submit" class="w-full bg-indigo-600 text-white rounded-xl py-3.5 font-black hover:bg-indigo-700 transition-all text-sm shadow-lg shadow-indigo-200 active:scale-[0.98]">
+        Authenticate
+      </button>
+    </form>
+  </div>
+  <script>
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const errorMsg = document.getElementById("errorMsg");
+      
+      try {
+        const formData = new URLSearchParams();
+        formData.append("username", email);
+        formData.append("password", password);
+        
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: formData
+        });
+        
+        if (res.ok) {
+          window.location.href = "/admin";
+        } else {
+          const data = await res.json();
+          errorMsg.textContent = data.detail || "Authentication failed";
+          errorMsg.classList.remove("hidden");
+        }
+      } catch (err) {
+        errorMsg.textContent = "Network error occurred";
+        errorMsg.classList.remove("hidden");
+      }
+    });
+  </script>
+</body>
+</html>
+"""
 HTML = """<!doctype html>
 <html lang="en">
 <head>
@@ -37,9 +105,12 @@ HTML = """<!doctype html>
           </div>
       </div>
       <div class="flex items-center gap-4">
-        <div id="api_key_status" class="text-xs font-bold px-2 py-1 rounded border border-slate-200 bg-slate-100 text-slate-500">
-          Not Authenticated
-        </div>
+        <button onclick="logout()" class="flex items-center gap-2 bg-white text-slate-700 px-4 py-2 rounded-xl border border-slate-200 shadow-sm text-sm font-bold hover:bg-slate-50 transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          Sign Out
+        </button>
         <button onclick="toggleSettings()" class="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl border border-indigo-700 shadow-md text-sm font-bold hover:bg-indigo-700 transition-all">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -66,17 +137,13 @@ HTML = """<!doctype html>
                 </button>
             </div>
             <div class="space-y-10">
-                <!-- STEP 1: AUTH -->
-                <section class="p-5 bg-indigo-50/50 rounded-2xl border border-indigo-100">
+                <!-- STEP 1: AUTH (Superseded by Cookie Login) -->
+                <section class="p-5 bg-emerald-50/50 rounded-2xl border border-emerald-100 hidden">
                     <div class="flex items-center gap-3 mb-4">
-                        <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">1</span>
-                        <h3 class="text-sm font-black text-indigo-900 uppercase tracking-widest">Master Authentication</h3>
+                        <span class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">✓</span>
+                        <h3 class="text-sm font-black text-emerald-900 uppercase tracking-widest">Authenticated Securely</h3>
                     </div>
-                    <p class="text-[11px] text-indigo-600/70 mb-4 leading-relaxed font-semibold italic">REQUIRED: Enter your organization key (e.g., SaaS_Secret_123) to enable the dashboard.</p>
-                    <div class="space-y-3">
-                        <input type="password" id="admin_key_input" class="w-full px-4 py-3 rounded-xl border border-indigo-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-mono" placeholder="Paste X-API-Key here" />
-                        <button onclick="saveApiKey()" class="w-full bg-indigo-600 text-white rounded-xl py-3 font-bold hover:bg-indigo-700 transition-all text-sm shadow-lg active:scale-95">Verify & Sync</button>
-                    </div>
+                    <p class="text-[11px] text-emerald-600/70 mb-4 leading-relaxed font-semibold italic">You are logged in via secure session cookie. API Key entry is no longer required.</p>
                 </section>
                 <div class="h-px bg-slate-100"></div>
                 
@@ -398,7 +465,11 @@ HTML = """<!doctype html>
     </div>
   </main>
 <script>
-let API_KEY = localStorage.getItem("social_admin_key") || "";
+async function logout() {
+    await request("/api/auth/logout", { method: "POST" });
+    window.location.href = "/admin/login";
+}
+
 let ACCOUNTS = [];
 let ACTIVE_ACCOUNT_ID = localStorage.getItem("active_ig_id") || null;
 let ACTIVE_TAB = "feed";
@@ -433,10 +504,8 @@ function updateFileName(input) {
     }
 }
 async function request(url, opts = {}) {
-    if (!API_KEY) throw new Error("API Key required");
     opts.headers = { 
         ...opts.headers, 
-        "X-API-Key": API_KEY,
         "ngrok-skip-browser-warning": "69420"
     };
     const r = await fetch(url, opts);
@@ -445,12 +514,10 @@ async function request(url, opts = {}) {
     
     if (!r.ok) {
         if (r.status === 401) {
-            setError("Session Expired or Invalid Key");
-            document.getElementById("settings_panel").classList.remove("hidden");
-            document.getElementById("auth_error_box").classList.remove("hidden");
-            document.getElementById("auth_error_box").textContent = "AUTH ERROR: " + (j.detail || "Invalid Key");
+            document.getElementById("auth_error_box").textContent = "Redirecting to login...";
+            window.location.href = "/admin/login";
         }
-        throw new Error(j.detail || JSON.stringify(j));
+        throw new Error(j.detail || "Server Error " + r.status);
     }
     document.getElementById("auth_error_box").classList.add("hidden");
     return j;
@@ -1273,13 +1340,18 @@ async function approvePost(id) {
     try { await request(`/posts/${id}/approve`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({approve_anyway: true}) }); await refreshAll(); } catch(e) { if(el) { el.textContent = "FAIL"; el.className = "mt-4 text-[9px] text-center font-black text-red-600"; } alert(e.message); }
 }
 document.addEventListener("DOMContentLoaded", () => {
-    if(API_KEY) document.getElementById("admin_key_input").value = API_KEY;
     refreshAll();
 });
 </script>
 </body>
 </html>
 """
+@router.get("/login", response_class=HTMLResponse)
+def login_page():
+    return LOGIN_HTML
+
 @router.get("", response_class=HTMLResponse)
-def admin_page():
+def admin_page(request: Request, user = Depends(get_current_user)):
+    if not user:
+        return RedirectResponse(url="/admin/login", status_code=303)
     return HTML

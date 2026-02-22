@@ -18,4 +18,9 @@ class Settings(BaseSettings):
     admin_api_key: str | None = Field(default=None, alias="ADMIN_API_KEY")
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
 
+    # Auth & security
+    secret_key: str = Field(default="change-me-in-production-for-jwt", alias="SECRET_KEY")
+    superadmin_email: str | None = Field(default=None, alias="SUPERADMIN_EMAIL")
+    superadmin_password: str | None = Field(default=None, alias="SUPERADMIN_PASSWORD")
+
 settings = Settings()

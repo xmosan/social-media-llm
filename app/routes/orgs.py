@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import Org
-from ..security import require_api_key
+from ..security.rbac import get_current_org_id
 from ..schemas import OrgOut
 
 router = APIRouter(prefix="/orgs", tags=["orgs"])
@@ -10,7 +10,7 @@ router = APIRouter(prefix="/orgs", tags=["orgs"])
 @router.get("/me", response_model=OrgOut)
 def get_current_org(
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key)
+    org_id: int = Depends(get_current_org_id)
 ):
     """Return the organization associated with the API key."""
     org = db.get(Org, org_id)

@@ -7,9 +7,9 @@ from sqlalchemy.orm import Session
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from .db import engine, SessionLocal
-from .models import Base, Org, ApiKey, IGAccount
-from .security import hash_api_key, require_api_key
-from .routes import posts, admin, orgs, ig_accounts, automations, library, media
+from .models import Base, Org, ApiKey, IGAccount, User, OrgMember
+from .security.auth import get_password_hash
+from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth
 from .services.scheduler import start_scheduler
 from .config import settings
 
@@ -46,14 +46,30 @@ app.include_router(ig_accounts.router)
 app.include_router(automations.router)
 app.include_router(library.router)
 app.include_router(media.router)
+app.include_router(auth.router)
 
 def bootstrap_saas():
-    """Seed initial Org and API Key for development/first run."""
+    """Seed initial Org, API Key, and Superadmin User."""
     print("DIAGNOSTIC: Bootstrapping SaaS...")
     db = SessionLocal()
     try:
-        # 1. Check if any Org exists
+        # SUPERADMIN BOOTSTRAP
+        if not db.query(User).filter(User.is_superadmin == True).first():
+            if settings.superadmin_email and settings.superadmin_password:
+                print(f"Bootstrap: Creating superadmin {settings.superadmin_email}...")
+                superadmin = User(
+                    email=settings.superadmin_email,
+                    password_hash=get_password_hash(settings.superadmin_password),
+                    is_superadmin=True,
+                    is_active=True,
+                    name="Platform Superadmin"
+                )
+                db.add(superadmin)
+                db.flush()
+
+        # Check if any Org exists
         if db.query(Org).first():
+            db.commit()
             return
 
         print("Bootstrap: Seeding initial multi-tenant data...")
@@ -65,12 +81,19 @@ def bootstrap_saas():
 
         # 3. Create initial API Key
         raw_key = os.getenv("INITIAL_API_KEY", settings.admin_api_key or "SaaS_Secret_123")
+        import hashlib
         api_key = ApiKey(
             org_id=org.id,
             name="Default Key",
-            key_hash=hash_api_key(raw_key)
+            key_hash=hashlib.sha256(raw_key.encode()).hexdigest()
         )
         db.add(api_key)
+
+        # 3.5 Ensure superadmin is in the default org if just created
+        superadmin = db.query(User).filter(User.is_superadmin == True).first()
+        if superadmin:
+            member = OrgMember(org_id=org.id, user_id=superadmin.id, role="owner")
+            db.add(member)
 
         # 4. (Optional) Create initial IG Account from existing env
         if settings.ig_user_id and settings.ig_access_token:

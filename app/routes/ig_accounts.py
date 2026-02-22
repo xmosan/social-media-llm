@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import IGAccount
-from ..security import require_api_key
+from ..security.rbac import get_current_org_id
 from ..schemas import IGAccountOut, AccountCreate, AccountUpdate
 
 router = APIRouter(prefix="/ig-accounts", tags=["ig-accounts"])
@@ -10,7 +10,7 @@ router = APIRouter(prefix="/ig-accounts", tags=["ig-accounts"])
 @router.get("", response_model=list[IGAccountOut])
 def list_accounts(
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key)
+    org_id: int = Depends(get_current_org_id)
 ):
     """List all IG accounts for the organization."""
     return db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
@@ -19,7 +19,7 @@ def list_accounts(
 def create_account(
     payload: AccountCreate,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key)
+    org_id: int = Depends(get_current_org_id)
 ):
     """Add a new IG account to the organization."""
     acc = IGAccount(
@@ -41,7 +41,7 @@ def update_account(
     account_id: int,
     payload: AccountUpdate,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key)
+    org_id: int = Depends(get_current_org_id)
 ):
     """Update an IG account's settings."""
     acc = db.query(IGAccount).filter(
@@ -64,7 +64,7 @@ def update_account(
 def toggle_account(
     account_id: int,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key)
+    org_id: int = Depends(get_current_org_id)
 ):
     """Enable/Disable an IG account."""
     acc = db.query(IGAccount).filter(
@@ -84,7 +84,7 @@ def toggle_account(
 def delete_account(
     account_id: int,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key)
+    org_id: int = Depends(get_current_org_id)
 ):
     """Remove an IG account."""
     acc = db.query(IGAccount).filter(

@@ -12,7 +12,7 @@ from ..services.llm import generate_draft
 from ..services.policy import keyword_flags
 from ..services.publisher import publish_to_instagram
 from ..services.automation_runner import resolve_media_url
-from ..security import require_api_key
+from ..security.rbac import get_current_org_id
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
@@ -43,7 +43,7 @@ def intake_post(
     source_type: str = Form("form"),
     ig_account_id: int = Form(...),
     image: UploadFile = File(...),
-    org_id: int = Depends(require_api_key),
+    org_id: int = Depends(get_current_org_id),
 ):
     print(f"DEBUG: Intake attempt - Account={ig_account_id}, File={image.filename}, Type={image.content_type}")
     _ensure_uploads_dir()
@@ -84,7 +84,7 @@ def intake_post(
 def generate_for_post(
     post_id: int, 
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key),
+    org_id: int = Depends(get_current_org_id),
 ):
     post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
     if not post:
@@ -115,7 +115,7 @@ def list_posts(
     ig_account_id: int | None = None,
     limit: int = 50,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key),
+    org_id: int = Depends(get_current_org_id),
 ):
     stmt = select(Post).where(Post.org_id == org_id).order_by(Post.created_at.desc())
 
@@ -133,7 +133,7 @@ def list_posts(
 def post_stats(
     ig_account_id: int | None = None,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key),
+    org_id: int = Depends(get_current_org_id),
 ):
     stmt = select(Post.status, func.count(Post.id)).where(Post.org_id == org_id).group_by(Post.status)
     if ig_account_id:
@@ -146,7 +146,7 @@ def post_stats(
 def get_post(
     post_id: int, 
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key),
+    org_id: int = Depends(get_current_org_id),
 ):
     post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
     if not post:
@@ -158,7 +158,7 @@ def update_post(
     post_id: int,
     payload: PostUpdate,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key),
+    org_id: int = Depends(get_current_org_id),
 ):
     post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
     if not post:
@@ -177,7 +177,7 @@ def regenerate_caption(
     post_id: int,
     instructions: str | None = None,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key),
+    org_id: int = Depends(get_current_org_id),
 ):
     post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
     if not post:
@@ -207,7 +207,7 @@ def regenerate_image(
     post_id: int,
     image_mode: str | None = None,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key),
+    org_id: int = Depends(get_current_org_id),
 ):
     post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
     if not post:
@@ -237,7 +237,7 @@ def attach_media(
     post_id: int,
     image: UploadFile = File(...),
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key),
+    org_id: int = Depends(get_current_org_id),
 ):
     post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
     if not post:
@@ -262,7 +262,7 @@ def approve_post(
     post_id: int, 
     payload: ApproveIn, 
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key),
+    org_id: int = Depends(get_current_org_id),
 ):
     post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
     if not post:
@@ -295,7 +295,7 @@ def approve_post(
 def publish_post(
     post_id: int, 
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key),
+    org_id: int = Depends(get_current_org_id),
 ):
     post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
     if not post:
@@ -332,7 +332,7 @@ def publish_post(
 def delete_post(
     post_id: int,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key),
+    org_id: int = Depends(get_current_org_id),
 ):
     post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
     if not post:

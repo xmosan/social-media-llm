@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.db import SessionLocal
 from app.models import ContentItem, Org
 from app.schemas import ContentItemOut, ContentItemCreate, ContentItemUpdate
-from app.security import require_api_key
+from app.security.rbac import get_current_org_id
 from app.services.content_library import normalize_topic
 
 router = APIRouter(prefix="/library", tags=["library"])
@@ -31,7 +31,7 @@ def list_library(
     type: str | None = Query(None),
     limit: int = 50,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key)
+    org_id: int = Depends(get_current_org_id)
 ):
     query = db.query(ContentItem).filter(ContentItem.org_id == org_id)
     
@@ -51,7 +51,7 @@ def list_library(
 async def import_content(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key)
+    org_id: int = Depends(get_current_org_id)
 ):
     """
     Import content items from JSON or CSV.
@@ -138,7 +138,7 @@ async def import_content(
     return {"status": "success", "imported": count}
 
 @router.post("/seed-demo/")
-def seed_demo(db: Session = Depends(get_db), org_id: int = Depends(require_api_key)):
+def seed_demo(db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
     """Seeds some sample Hadiths for testing."""
     samples = [
         {
@@ -177,7 +177,7 @@ def seed_demo(db: Session = Depends(get_db), org_id: int = Depends(require_api_k
     return {"status": "seeded", "count": count}
 
 @router.get("/{item_id}", response_model=ContentItemOut)
-def get_item(item_id: int, db: Session = Depends(get_db), org_id: int = Depends(require_api_key)):
+def get_item(item_id: int, db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
     item = db.query(ContentItem).filter(ContentItem.id == item_id, ContentItem.org_id == org_id).first()
     if not item:
         raise HTTPException(404, "Not found")

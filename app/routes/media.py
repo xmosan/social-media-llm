@@ -6,7 +6,7 @@ from ..db import get_db
 from ..config import settings
 from ..models import MediaAsset
 from ..schemas import MediaAssetOut, MediaAssetCreate
-from ..security import require_api_key
+from ..security.rbac import get_current_org_id
 from datetime import datetime, timezone
 
 router = APIRouter(prefix="/media-assets", tags=["media"])
@@ -22,7 +22,7 @@ def list_media(
     ig_account_id: int | None = None,
     tag: str | None = None,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key),
+    org_id: int = Depends(get_current_org_id),
 ):
     stmt = select(MediaAsset).where(MediaAsset.org_id == org_id).order_by(MediaAsset.created_at.desc())
     
@@ -42,7 +42,7 @@ def upload_media_asset(
     ig_account_id: int | None = Form(None),
     tags: str = Form("[]"), # JSON string
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key),
+    org_id: int = Depends(get_current_org_id),
 ):
     import json
     _ensure_uploads_dir()
@@ -76,7 +76,7 @@ def upload_media_asset(
 def delete_media_asset(
     asset_id: int,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key),
+    org_id: int = Depends(get_current_org_id),
 ):
     asset = db.query(MediaAsset).filter(MediaAsset.id == asset_id, MediaAsset.org_id == org_id).first()
     if not asset:

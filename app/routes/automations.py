@@ -4,7 +4,7 @@ from typing import List
 from app.db import get_db
 from app.models import TopicAutomation, IGAccount
 from app.schemas import TopicAutomationOut, TopicAutomationCreate, TopicAutomationUpdate, PostOut
-from app.security import require_api_key
+from app.security.rbac import get_current_org_id
 from app.services.automation_runner import run_automation_once
 from app.services.scheduler import reload_automation_jobs
 from app.services.llm import generate_topic_caption
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/automations", tags=["automations"])
 def list_automations(
     ig_account_id: int | None = None,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key)
+    org_id: int = Depends(get_current_org_id)
 ):
     query = db.query(TopicAutomation).filter(TopicAutomation.org_id == org_id)
     if ig_account_id:
@@ -26,7 +26,7 @@ def list_automations(
 def create_automation(
     data: TopicAutomationCreate,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key)
+    org_id: int = Depends(get_current_org_id)
 ):
     # Verify account ownership
     acc = db.query(IGAccount).filter(IGAccount.id == data.ig_account_id, IGAccount.org_id == org_id).first()
@@ -47,7 +47,7 @@ def create_automation(
 def get_automation(
     id: int,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key)
+    org_id: int = Depends(get_current_org_id)
 ):
     auto = db.query(TopicAutomation).filter(TopicAutomation.id == id, TopicAutomation.org_id == org_id).first()
     if not auto:
@@ -59,7 +59,7 @@ def update_automation(
     id: int,
     data: TopicAutomationUpdate,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key)
+    org_id: int = Depends(get_current_org_id)
 ):
     auto = db.query(TopicAutomation).filter(TopicAutomation.id == id, TopicAutomation.org_id == org_id).first()
     if not auto:
@@ -78,7 +78,7 @@ def update_automation(
 def delete_automation(
     id: int,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key)
+    org_id: int = Depends(get_current_org_id)
 ):
     auto = db.query(TopicAutomation).filter(TopicAutomation.id == id, TopicAutomation.org_id == org_id).first()
     if not auto:
@@ -93,7 +93,7 @@ def delete_automation(
 def trigger_automation(
     id: int,
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key)
+    org_id: int = Depends(get_current_org_id)
 ):
     auto = db.query(TopicAutomation).filter(TopicAutomation.id == id, TopicAutomation.org_id == org_id).first()
     if not auto:
@@ -111,7 +111,7 @@ def debug_llm_test(
     topic: str,
     style: str = "islamic_reminder",
     db: Session = Depends(get_db),
-    org_id: int = Depends(require_api_key)
+    org_id: int = Depends(get_current_org_id)
 ):
     """Smoke test for LLM generation."""
     try:
