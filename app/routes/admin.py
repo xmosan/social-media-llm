@@ -246,11 +246,25 @@ HTML = """<!doctype html>
                         </div>
                         <div class="grid grid-cols-1 gap-5">
                             <div>
-                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">IG User ID</label>
+                                <label class="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                                    IG User ID
+                                    <button onclick="toggleGuideModal()" class="text-indigo-400 hover:text-indigo-600 transition-colors" title="How to find your ID">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </button>
+                                </label>
                                 <input id="new_acc_ig_id" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-indigo-500 outline-none font-mono" placeholder="Numerical ID (e.g. 1784...)"/>
                             </div>
                             <div>
-                                <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Access Token</label>
+                                <label class="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                                    Access Token
+                                    <button onclick="toggleGuideModal()" class="text-indigo-400 hover:text-indigo-600 transition-colors" title="How to generate your Token">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </button>
+                                </label>
                                 <textarea id="new_acc_token" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-indigo-500 outline-none font-mono min-h-[100px]" placeholder="Paste long-lived token here..."></textarea>
                             </div>
                         </div>
@@ -260,6 +274,85 @@ HTML = """<!doctype html>
                 </section>
                 
                 <div id="auth_error_box" class="hidden p-4 bg-red-50 text-red-600 rounded-xl text-[11px] font-bold border border-red-100"></div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- Instagram Setup Guide Modal -->
+    <div id="guide_modal" class="hidden fixed inset-0 bg-black/60 z-[200] backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-indigo-50">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-black text-slate-800">Connection Guide</h3>
+                        <p class="text-[11px] font-bold tracking-widest text-indigo-500 uppercase">Instagram Setup Instructions</p>
+                    </div>
+                </div>
+                <button onclick="toggleGuideModal()" class="w-8 h-8 rounded-full bg-white text-slate-400 hover:text-slate-600 hover:shadow-md flex items-center justify-center transition-all">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <div class="p-8 overflow-y-auto space-y-8 bg-slate-50/50">
+                
+                <div class="flex gap-4">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 text-slate-600 font-black flex items-center justify-center text-sm shadow-inner">1</div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-base mb-1">Create a Meta Developer App</h4>
+                        <p class="text-sm text-slate-600 leading-relaxed mb-3">Go to <a href="https://developers.facebook.com/" target="_blank" class="text-indigo-600 font-semibold hover:underline">developers.facebook.com</a>. Log in with your Facebook account and create a new App. Select "Other" then "Business".</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-4">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 text-slate-600 font-black flex items-center justify-center text-sm shadow-inner">2</div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-base mb-1">Set up Instagram Graph API</h4>
+                        <p class="text-sm text-slate-600 leading-relaxed mb-3">In the App Dashboard, scroll down to "Add products to your app" and set up the <b>Instagram Graph API</b> (not Basic Display). You will need a functioning Facebook Page linked to an Instagram Professional Account.</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-4">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 text-slate-600 font-black flex items-center justify-center text-sm shadow-inner">3</div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-base mb-1">Generate Access Token</h4>
+                        <p class="text-sm text-slate-600 leading-relaxed mb-3">Navigate to <b>Tools > Graph API Explorer</b> in the top navigation bar. In the right panel, generate a User Token with these specific permissions:</p>
+                        <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-xl text-xs font-mono text-indigo-800 leading-loose">
+                            instagram_basic, instagram_content_publish, pages_show_list, pages_read_engagement
+                        </div>
+                        <p class="text-sm text-slate-600 leading-relaxed mt-3">Click Generate and approve the Facebook popups to link your specific page.</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-4">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 text-slate-600 font-black flex items-center justify-center text-sm shadow-inner">4</div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-base mb-1">Extend Access Token</h4>
+                        <p class="text-sm text-slate-600 leading-relaxed mb-3">The first token expires in an hour. Tap the small `(i)` info icon next to the Access Token box in the Explorer. Click <b>"Open in Access Token Tool"</b>, then scroll down and click <b>"Extend Access Token"</b> to generate a Long-Lived token (valid for 60 days).</p>
+                        <p class="text-sm font-bold text-slate-800">Copy this Long-Lived Token and paste it into the dashboard.</p>
+                    </div>
+                </div>
+
+                <div class="flex gap-4">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 text-slate-600 font-black flex items-center justify-center text-sm shadow-inner">5</div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-base mb-1">Find your Instagram User ID</h4>
+                        <p class="text-sm text-slate-600 leading-relaxed mb-3">Still in the Graph API Explorer, paste the Long-Lived Token you just generated into the empty Access Token box. In the query bar at the top, type exactly:</p>
+                        <div class="bg-slate-900 border border-slate-700 p-3 rounded-xl text-xs font-mono text-green-400 shadow-inner">
+                            me/accounts?fields=instagram_business_account
+                        </div>
+                        <p class="text-sm text-slate-600 leading-relaxed mt-3">Hit Submit. Look in the JSON response for the <code>instagram_business_account.id</code> string (a long number like <code class="bg-slate-200 px-1 rounded">178414...</code>). Paste this numerical ID into the dashboard!</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-6 bg-white border-t border-slate-100 flex justify-end">
+                <button onclick="toggleGuideModal()" class="px-6 py-2.5 bg-indigo-600 text-white text-sm font-black rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">
+                    I Understand
+                </button>
             </div>
         </div>
     </div>
@@ -611,6 +704,10 @@ function togglePlatformPanel() {
     } else {
         el.classList.add("hidden");
     }
+}
+
+function toggleGuideModal() {
+    document.getElementById("guide_modal").classList.toggle("hidden");
 }
 
 async function loadPlatformUsers() {
