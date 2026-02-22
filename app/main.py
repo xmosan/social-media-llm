@@ -154,6 +154,20 @@ def on_startup():
                     print(f"Migration: Checked/Added column {col} to posts")
                 except Exception as e:
                     print(f"Migration (posts) status: {e}")
+            # 3. Update users table for auth migration
+            user_cols = [
+                ("name", "VARCHAR"),
+                ("is_active", "BOOLEAN DEFAULT TRUE"),
+                ("is_superadmin", "BOOLEAN DEFAULT FALSE"),
+                ("updated_at", "TIMESTAMP WITH TIME ZONE")
+            ]
+            for col, col_def in user_cols:
+                try:
+                    stmt = f"ALTER TABLE users ADD COLUMN {'IF NOT EXISTS' if is_postgres else ''} {col} {col_def}"
+                    conn.execute(text(stmt))
+                    print(f"Migration: Checked/Added column {col} to users")
+                except Exception as e:
+                    pass
     except Exception as e:
         print(f"CRITICAL Migration Error: {e}")
     
