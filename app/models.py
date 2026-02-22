@@ -147,6 +147,12 @@ class TopicAutomation(Base):
     last_post_id = Column(Integer, nullable=True)
     last_error = Column(Text, nullable=True)
     
+    enrich_with_hadith = Column(Boolean, default=False)
+    hadith_topic = Column(String, nullable=True)
+    hadith_source_id = Column(Integer, ForeignKey("content_sources.id"), nullable=True)
+    hadith_append_style = Column(String, default="short") # "short" | "medium"
+    hadith_max_len = Column(Integer, default=450)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -196,4 +202,25 @@ class ContentUsage(Base):
     ig_account = relationship("IGAccount", back_populates="content_usages")
     automation = relationship("TopicAutomation", back_populates="content_usages")
     post = relationship("Post", back_populates="content_usage")
-    content_item = relationship("ContentItem", back_populates="usages")
+    content_item = relationship("Item", back_populates="usages")
+
+class ContentSource(Base):
+    __tablename__ = "content_sources"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False) # e.g. "Sunnah.com"
+    type = Column(String, default="sunnah")
+    base_url = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class SourceItem(Base):
+    __tablename__ = "source_items"
+    id = Column(Integer, primary_key=True, index=True)
+    source_id = Column(Integer, ForeignKey("content_sources.id"), nullable=False)
+    topic = Column(String, index=True, nullable=False)
+    content_text = Column(Text, nullable=False)
+    reference = Column(String, nullable=True)
+    url = Column(Text, nullable=True)
+    hash = Column(String, unique=True, index=True) # For deduping
+    
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

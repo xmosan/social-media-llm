@@ -6,6 +6,7 @@ from app.services.llm import generate_topic_caption, generate_caption_from_conte
 from app.services.publisher import publish_to_instagram
 from app.services.content_library import pick_content_item
 from app.services.image_card import create_quote_card
+from app.services.sources.sunnah import pick_hadith_for_topic
 from app.config import settings
 import pytz
 import os
@@ -115,6 +116,34 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             hashtags = automation.hashtag_set
             
         alt_text = result.get("alt_text", "")
+        
+        # 2.5 Optional Enrichment: Hadith
+        if automation.enrich_with_hadith:
+            try:
+                hadith_topic = automation.hadith_topic or automation.topic_prompt
+                print(f"[AUTO] Enrichment enabled. Topic: {hadith_topic}")
+                
+                hadith = pick_hadith_for_topic(db, hadith_topic)
+                if hadith:
+                    # Truncate if needed
+                    text = hadith.content_text
+                    max_len = automation.hadith_max_len or 450
+                    if len(text) > max_len:
+                        text = text[:max_len-3] + "..."
+                    
+                    enrichment_text = f"\n\n📜 Hadith:\n{text}\n"
+                    if hadith.reference:
+                        enrichment_text += f"Source: {hadith.reference}"
+                    if hadith.url:
+                        enrichment_text += f" ({hadith.url})"
+                        
+                    caption += enrichment_text
+                    print(f"[AUTO] Appended hadith from {hadith.reference}")
+                else:
+                    print(f"[AUTO] No hadith found for topic '{hadith_topic}'")
+            except Exception as enrich_e:
+                print(f"[AUTO] Enrichment ERROR (skipping): {enrich_e}")
+                logger.error(f"Enrichment failed for automation {automation.id}: {enrich_e}")
         
         # 3. Media Selection / Generation
         media_url = pick_media_url(db, automation.org_id, automation.ig_account_id, automation.image_mode)

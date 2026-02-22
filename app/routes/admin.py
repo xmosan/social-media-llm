@@ -188,6 +188,23 @@ HTML = """<!doctype html>
                         <label for="auto_enabled" class="text-sm font-black text-indigo-900">Enable Automation Immediately</label>
                     </div>
                 </div>
+                <!-- Hadith Enrichment Section -->
+                <div class="p-4 bg-purple-50 rounded-2xl border border-purple-100 space-y-4">
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" id="auto_enrich_hadith" class="w-5 h-5 rounded border-slate-300 text-purple-600 focus:ring-purple-500"/>
+                        <label for="auto_enrich_hadith" class="text-sm font-black text-purple-900">Enrich with Hadith (Sunnah.com)</label>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 pl-8">
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Hadith Topic (Optional)</label>
+                            <input type="text" id="auto_hadith_topic" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold bg-white" placeholder="Leave empty to use main topic"/>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Max Length</label>
+                            <input type="number" id="auto_hadith_maxlen" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold" value="450"/>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="p-8 border-t border-slate-100 bg-slate-50 flex gap-4">
                 <button onclick="hideCreateAuto()" class="flex-1 px-6 py-4 rounded-xl border border-slate-200 bg-white font-bold text-slate-600 hover:bg-slate-100">Cancel</button>
@@ -409,6 +426,7 @@ function renderAuto(a) {
                 <div class="flex items-center gap-3 mb-2">
                     <h4 class="text-lg font-black text-slate-800">${esc(a.name)}</h4>
                     <span class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter ${a.enabled ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-slate-200 text-slate-500 border border-slate-300'}">${a.enabled ? 'Enabled' : 'Paused'}</span>
+                    ${a.enrich_with_hadith ? '<span class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter bg-purple-100 text-purple-700 border border-purple-200">Enriched</span>' : ''}
                 </div>
                 <p class="text-xs text-slate-500 font-medium line-clamp-1 italic">Prompt: "${esc(a.topic_prompt)}"</p>
                 ${err}
@@ -453,7 +471,10 @@ async function saveAutomation() {
         use_content_library: document.getElementById("auto_use_library").checked,
         image_mode: document.getElementById("auto_image_mode").value,
         avoid_repeat_days: parseInt(document.getElementById("auto_lookback").value) || 30,
-        include_arabic: document.getElementById("auto_arabic").checked
+        include_arabic: document.getElementById("auto_arabic").checked,
+        enrich_with_hadith: document.getElementById("auto_enrich_hadith").checked,
+        hadith_topic: document.getElementById("auto_hadith_topic").value,
+        hadith_max_len: parseInt(document.getElementById("auto_hadith_maxlen").value) || 450
     };
     try {
         await request(id ? `/automations/${id}` : "/automations", {
@@ -539,6 +560,16 @@ function editAuto(a) {
     
     const arabic = document.getElementById("auto_arabic");
     if(arabic) arabic.checked = !!a.include_arabic;
+
+    // Hadith Enrichment
+    const enrich = document.getElementById("auto_enrich_hadith");
+    if(enrich) enrich.checked = !!a.enrich_with_hadith;
+    
+    const hTopic = document.getElementById("auto_hadith_topic");
+    if(hTopic) hTopic.value = a.hadith_topic || "";
+    
+    const hMax = document.getElementById("auto_hadith_maxlen");
+    if(hMax) hMax.value = a.hadith_max_len || 450;
 
     document.getElementById("auto_modal").classList.remove("hidden");
 }

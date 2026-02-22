@@ -94,6 +94,12 @@ class TopicAutomationOut(BaseModel):
     image_mode: str
     posting_mode: str
     approval_mode: str
+
+    # Hadith Enrichment fields
+    enrich_with_hadith: bool
+    hadith_topic: str | None
+    hadith_append_style: str
+    hadith_max_len: int
     class Config:
         from_attributes = True
 
@@ -118,6 +124,12 @@ class TopicAutomationCreate(BaseModel):
     timezone: str | None = None
     enabled: bool = False
 
+    # Hadith Enrichment fields
+    enrich_with_hadith: bool = False
+    hadith_topic: str | None = None
+    hadith_append_style: str = "short"
+    hadith_max_len: int = 450
+
 class TopicAutomationUpdate(BaseModel):
     name: str | None = None
     topic_prompt: str | None = None
@@ -136,6 +148,12 @@ class TopicAutomationUpdate(BaseModel):
     post_time_local: str | None = None
     timezone: str | None = None
     enabled: bool | None = None
+
+    # Hadith Enrichment fields
+    enrich_with_hadith: bool | None = None
+    hadith_topic: str | None = None
+    hadith_append_style: str | None = None
+    hadith_max_len: int | None = None
 
 class ContentItemOut(BaseModel):
     id: int

@@ -100,6 +100,29 @@ def on_startup():
     print("STARTUP: Creating/verifying database tables...")
     Base.metadata.create_all(bind=engine)
     
+    # NEW: Manual migration for existing topic_automations table
+    from sqlalchemy import text
+    print("STARTUP: Running hadith enrichment migration...")
+    try:
+        with engine.connect() as conn:
+            new_cols = [
+                ("enrich_with_hadith", "BOOLEAN DEFAULT FALSE"),
+                ("hadith_topic", "VARCHAR"),
+                ("hadith_source_id", "INTEGER"),
+                ("hadith_append_style", "VARCHAR DEFAULT 'short'"),
+                ("hadith_max_len", "INTEGER DEFAULT 450")
+            ]
+            for col, col_def in new_cols:
+                try:
+                    conn.execute(text(f"ALTER TABLE topic_automations ADD COLUMN {col} {col_def}"))
+                    conn.commit()
+                    print(f"Migration: Added column {col}")
+                except Exception:
+                    # Column likely already exists
+                    pass
+    except Exception as e:
+        print(f"Migration Error: {e}")
+    
     # Debug OpenAI Key presence
     key = settings.openai_api_key
     if key:
