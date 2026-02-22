@@ -32,5 +32,5 @@ psycopg2-binary
 openai
 Pillow
 beautifulsoup4
-passlib[bcrypt]
+bcrypt
 PyJWT
