@@ -32,12 +32,10 @@ def pick_content_item(
     )
     
     # Filter by topic: iterate and check if norm_topic is in the list
-    # SQLite/Postgres JSON compatibility check
-    if db.bind.dialect.name == 'postgresql':
-        query = query.filter(ContentItem.topics.contains([norm_topic]))
-    else:
-        # For SQLite, we might need a more manual check since it stores JSON as text
-        query = query.filter(ContentItem.topics.like(f'%"{norm_topic}"%'))
+    from sqlalchemy.types import String
+    from sqlalchemy import cast
+    # Cast the JSON column to String so LIKE works universally
+    query = query.filter(cast(ContentItem.topics, String).like(f'%"{norm_topic}"%'))
         
     if content_type:
         query = query.filter(ContentItem.type == content_type)
