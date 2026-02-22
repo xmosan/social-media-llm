@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(extra="ignore")
+    model_config = SettingsConfigDict(extra="ignore", case_sensitive=False)
 
     database_url: str = Field(default="sqlite:///./saas.db", alias="DATABASE_URL")
     timezone: str = Field(default="America/Detroit", alias="TIMEZONE")

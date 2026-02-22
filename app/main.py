@@ -27,7 +27,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 @app.get("/debug-env")
-def debug_env(org_id: int = Depends(require_api_key)):
+def debug_env():
     return {
         "openai_api_key_set": bool(settings.openai_api_key),
         "openai_api_key_len": len(settings.openai_api_key) if settings.openai_api_key else 0,
@@ -99,6 +99,15 @@ def on_startup():
     # For this MVP, we ensure tables exist.
     print("STARTUP: Creating/verifying database tables...")
     Base.metadata.create_all(bind=engine)
+    
+    # Debug OpenAI Key presence
+    key = settings.openai_api_key
+    if key:
+        masked = key[:6] + "..." + key[-4:] if len(key) > 10 else "***"
+        print(f"STARTUP: OpenAI API Key detected: {masked}")
+    else:
+        print("STARTUP: WARNING: OpenAI API Key is MISSING!")
+
     print(f"STARTUP: Tables ready. Engine URL prefix: {str(engine.url)[:30]}...")
     
     # Run bootstrap
@@ -117,7 +126,7 @@ def health():
     return {
         "status": "ok", 
         "mode": "multi-tenant", 
-        "version": "1.0.1", 
+        "version": "1.0.2", 
         "now": datetime.datetime.now().isoformat(),
         "openai_key_configured": bool(settings.openai_api_key)
     }
