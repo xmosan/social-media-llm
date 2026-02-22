@@ -1,6 +1,10 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
+from sqlalchemy.orm import Session
+from app.db import get_db
+from app.models import User, Org, OrgMember
 from app.security.auth import get_current_user
+from app.security.rbac import require_superadmin
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -181,6 +185,12 @@ HTML = """<!doctype html>
           </div>
       </div>
       <div class="flex items-center gap-4">
+        <button id="platform_btn" onclick="togglePlatformPanel()" class="hidden items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl shadow-md text-sm font-bold hover:bg-emerald-700 transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          Platform Management
+        </button>
         <button onclick="logout()" class="flex items-center gap-2 bg-white text-slate-700 px-4 py-2 rounded-xl border border-slate-200 shadow-sm text-sm font-bold hover:bg-slate-50 transition-all">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -539,11 +549,103 @@ HTML = """<!doctype html>
         </div>
       </section>
     </div>
+
+    <!-- Platform Drawer -->
+    <div id="platform_panel" class="hidden fixed inset-0 bg-black/40 z-[100] backdrop-blur-sm flex justify-end" onclick="if(event.target === this) togglePlatformPanel()">
+        <div class="w-full max-w-4xl bg-white h-full shadow-2xl p-8 flex flex-col overflow-y-auto" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-8">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-900">Platform Users</h2>
+                    <p class="text-sm text-slate-500 mt-1">Manage global access and workspaces</p>
+                </div>
+                <button onclick="togglePlatformPanel()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="overflow-x-auto rounded-xl border border-slate-200">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200">
+                            <th class="py-3 px-4 flex-1 text-xs font-black uppercase tracking-widest text-slate-500">User</th>
+                            <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-slate-500">Contact</th>
+                            <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-slate-500">Workspaces</th>
+                            <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-slate-500 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="platform_user_table" class="divide-y divide-slate-100 text-sm font-medium text-slate-700">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
   </main>
 <script>
 async function logout() {
     await request("/auth/logout", { method: "POST" });
     window.location.href = "/admin/login";
+}
+
+let IS_SUPERADMIN = false;
+
+async function loadProfile() {
+    try {
+        const j = await request("/auth/me");
+        IS_SUPERADMIN = j.is_superadmin;
+        if (IS_SUPERADMIN) {
+            const btn = document.getElementById("platform_btn");
+            btn.classList.remove("hidden");
+            btn.classList.add("flex");
+        }
+    } catch(e) { console.error("Profile load failed", e); }
+}
+
+function togglePlatformPanel() {
+    const el = document.getElementById("platform_panel");
+    const isHidden = el.classList.contains("hidden");
+    if (isHidden) {
+        el.classList.remove("hidden");
+        loadPlatformUsers();
+    } else {
+        el.classList.add("hidden");
+    }
+}
+
+async function loadPlatformUsers() {
+    const tbody = document.getElementById("platform_user_table");
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-400 font-bold uppercase tracking-widest text-xs animate-pulse">Loading Platform Data...</td></tr>`;
+    try {
+        const users = await request("/admin/users");
+        if (users.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-400 font-bold uppercase">No users found</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = users.map(u => `
+            <tr class="hover:bg-slate-50 transition-colors">
+                <td class="py-4 px-4 font-black text-slate-900 flex items-center gap-2">
+                    ${u.is_superadmin ? '<span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[9px] uppercase tracking-widest">Admin</span>' : ''}
+                    ${esc(u.name)}
+                </td>
+                <td class="py-4 px-4">${esc(u.email)}</td>
+                <td class="py-4 px-4 text-[10px] font-semibold tracking-wider text-slate-500">${esc(u.orgs || 'None')}</td>
+                <td class="py-4 px-4 text-right">
+                    ${!u.is_superadmin ? `<button onclick="deleteUser(${u.id})" class="text-xs font-black uppercase tracking-widest text-red-500 hover:text-red-700 hover:underline">Delete</button>` : ''}
+                </td>
+            </tr>
+        `).join("");
+    } catch(e) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-500 font-bold">${e.message}</td></tr>`;
+    }
+}
+
+async function deleteUser(id) {
+    if(!confirm("MANDATORY WARNING: Are you sure you want to completely erase this user? This cannot be undone.")) return;
+    try {
+        await request(`/admin/users/${id}`, { method: "DELETE" });
+        await loadPlatformUsers();
+    } catch(e) { alert("Delete failed: " + e.message); }
 }
 
 let ACCOUNTS = [];
@@ -1415,7 +1517,8 @@ async function approvePost(id) {
     if(el) { el.textContent = "✔️ ADDING TO QUEUE..."; el.className = "mt-4 text-[9px] text-center font-black text-emerald-500 animate-pulse"; }
     try { await request(`/posts/${id}/approve`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({approve_anyway: true}) }); await refreshAll(); } catch(e) { if(el) { el.textContent = "FAIL"; el.className = "mt-4 text-[9px] text-center font-black text-red-600"; } alert(e.message); }
 }
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+    await loadProfile();
     refreshAll();
 });
 </script>
@@ -1435,3 +1538,51 @@ def admin_page(request: Request, user = Depends(get_current_user)):
     if not user:
         return RedirectResponse(url="/admin/login", status_code=303)
     return HTML
+
+@router.get("/users")
+def list_users(
+    user: User = Depends(require_superadmin),
+    db: Session = Depends(get_db)
+):
+    users = db.query(User).order_by(User.id.desc()).all()
+    results = []
+    for u in users:
+        # get orgs
+        memberships = db.query(OrgMember).filter(OrgMember.user_id == u.id).all()
+        org_names = []
+        for m in memberships:
+            org = db.query(Org).filter(Org.id == m.org_id).first()
+            if org:
+                org_names.append(f"{org.name} ({m.role})")
+                
+        results.append({
+            "id": u.id,
+            "name": u.name,
+            "email": u.email,
+            "is_superadmin": u.is_superadmin,
+            "is_active": u.is_active,
+            "created_at": u.created_at,
+            "orgs": ", ".join(org_names)
+        })
+    return results
+
+@router.delete("/users/{target_id}")
+def delete_user(
+    target_id: int,
+    user: User = Depends(require_superadmin),
+    db: Session = Depends(get_db)
+):
+    if target_id == user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account.")
+        
+    target_user = db.query(User).filter(User.id == target_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found.")
+        
+    # Delete memberships first
+    db.query(OrgMember).filter(OrgMember.user_id == target_id).delete()
+    
+    # Actually delete the user
+    db.delete(target_user)
+    db.commit()
+    return {"status": "ok"}

@@ -61,3 +61,14 @@ def get_current_org_id(
         )
         
     return first_membership.org_id
+
+def require_superadmin(user: User = Depends(require_user)) -> User:
+    """
+    Dependency that enforces the user must be a superadmin.
+    """
+    if not user.is_superadmin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You must be a platform superadmin to perform this action."
+        )
+    return user
