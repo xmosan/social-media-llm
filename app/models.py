@@ -202,7 +202,7 @@ class ContentUsage(Base):
     ig_account = relationship("IGAccount", back_populates="content_usages")
     automation = relationship("TopicAutomation", back_populates="content_usages")
     post = relationship("Post", back_populates="content_usage")
-    content_item = relationship("Item", back_populates="usages")
+    content_item = relationship("ContentItem", back_populates="usages")
 
 class ContentSource(Base):
     __tablename__ = "content_sources"
