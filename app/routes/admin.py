@@ -170,6 +170,7 @@ HTML = """<!doctype html>
                             <select id="auto_image_mode" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold bg-white">
                                 <option value="reuse_last_upload">Reuse Last Upload</option>
                                 <option value="quote_card">Generate Quote Card</option>
+                                <option value="ai_generated">AI Generated Image (Nature/Calligraphy)</option>
                             </select>
                         </div>
                         <div>

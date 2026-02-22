@@ -186,3 +186,20 @@ def generate_caption_from_content_item(
         "alt_text": result.get("alt_text", "Image describing religious content"),
         "reflection": reflection # Original for debugging
     }
+
+def generate_ai_image(prompt_text: str) -> str | None:
+    """Generates an image using DALL-E 3 based on the prompt."""
+    client = get_client()
+    try:
+        print(f"[LLM] Requesting DALL-E 3 image for concept: {prompt_text[:50]}...")
+        response = client.images.generate(
+            model="dall-e-3",
+            prompt=f"Generate a highly realistic nature photograph or elegant Islamic calligraphy representing this concept: {prompt_text[:500]}. Do not include any English text or random letters. Ensure the image is beautiful, serene, and has cinematic lighting.",
+            size="1024x1024",
+            quality="standard",
+            n=1,
+        )
+        return response.data[0].url
+    except Exception as e:
+        print(f"[LLM] Error generating AI image: {e}")
+        return None

@@ -2,13 +2,14 @@ import logging
 from datetime import datetime, timezone as dt_timezone, timedelta
 from sqlalchemy.orm import Session
 from app.models import TopicAutomation, Post, IGAccount, ContentUsage
-from app.services.llm import generate_topic_caption, generate_caption_from_content_item
+from app.services.llm import generate_topic_caption, generate_caption_from_content_item, generate_ai_image
 from app.services.publisher import publish_to_instagram
 from app.services.content_library import pick_content_item
 from app.services.image_card import create_quote_card
 from app.config import settings
 import pytz
 import os
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +119,28 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         # 3. Media Selection / Generation
         media_url = pick_media_url(db, automation.org_id, automation.ig_account_id, automation.image_mode)
         
-        if automation.image_mode == "quote_card" or (media_url is None and automation.image_mode != "none_placeholder"):
+        if automation.image_mode == "ai_generated":
+            prompt_for_image = topic
+            if content_item and content_item.topics:
+                prompt_for_image += f" (Concept: {content_item.topics[0]})"
+            
+            generated_url = generate_ai_image(prompt_for_image)
+            if generated_url:
+                filename = f"ai_{automation.id}_{int(datetime.now().timestamp())}.jpg"
+                file_path = os.path.join(settings.uploads_dir, filename)
+                try:
+                    res = requests.get(generated_url, timeout=30)
+                    if res.status_code == 200:
+                        with open(file_path, "wb") as f:
+                            f.write(res.content)
+                        media_url = f"{settings.public_base_url.rstrip('/')}/uploads/{filename}"
+                        print(f"[AUTO] AI Image generated and saved: {media_url}")
+                    else:
+                        print(f"[AUTO] FAILED downloading DALL-E image, HTTP {res.status_code}")
+                except Exception as down_e:
+                    print(f"[AUTO] ERROR downloading DALL-E image: {down_e}")
+
+        elif automation.image_mode == "quote_card" or (media_url is None and automation.image_mode != "none_placeholder"):
             if content_item:
                 # Generate a quote card
                 filename = f"quote_{automation.id}_{int(datetime.now().timestamp())}.jpg"
