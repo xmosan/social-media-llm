@@ -98,6 +98,7 @@ def on_startup():
     
     from sqlalchemy import text
     print("STARTUP: Running Admin Enhancements migration...")
+    is_postgres = "postgresql" in str(engine.url)
     try:
         with engine.begin() as conn:
             # 1. Update topic_automations
@@ -113,10 +114,11 @@ def on_startup():
             ]
             for col, col_def in auto_cols:
                 try:
-                    conn.execute(text(f"ALTER TABLE topic_automations ADD COLUMN {col} {col_def}"))
-                    print(f"Migration: Added column {col} to topic_automations")
+                    stmt = f"ALTER TABLE topic_automations ADD COLUMN {'IF NOT EXISTS' if is_postgres else ''} {col} {col_def}"
+                    conn.execute(text(stmt))
+                    print(f"Migration: Checked/Added column {col} to topic_automations")
                 except Exception:
-                    pass # Probably exists
+                    pass
             
             # 2. Update posts
             post_cols = [
@@ -124,8 +126,9 @@ def on_startup():
             ]
             for col, col_def in post_cols:
                 try:
-                    conn.execute(text(f"ALTER TABLE posts ADD COLUMN {col} {col_def}"))
-                    print(f"Migration: Added column {col} to posts")
+                    stmt = f"ALTER TABLE posts ADD COLUMN {'IF NOT EXISTS' if is_postgres else ''} {col} {col_def}"
+                    conn.execute(text(stmt))
+                    print(f"Migration: Checked/Added column {col} to posts")
                 except Exception as e:
                     print(f"Migration (posts) status: {e}")
     except Exception as e:
