@@ -34,10 +34,14 @@ def compute_next_run_time(ig_account: IGAccount, automation: TopicAutomation) ->
         
     return scheduled_next.astimezone(pytz.UTC)
 
-def pick_media_url(db: Session, org_id: int, ig_account_id: int, automation: TopicAutomation) -> str | None:
-    image_mode = automation.image_mode
-    
-    if image_mode == "reuse_last_upload":
+def pick_media_url(db: Session, org_id: int, ig_account_id: int, automation: Any) -> str | None:
+    """
+    Deprecated: Use resolve_media_url instead. 
+    Kept for backward compatibility but made robust to strings.
+    """
+    mode = automation if isinstance(automation, str) else automation.image_mode
+    # For backward compat, we just handle library and reuse
+    if mode == "reuse_last_upload":
         last_post = (
             db.query(Post)
             .filter(Post.org_id == org_id, Post.ig_account_id == ig_account_id, Post.media_url != None)
@@ -46,29 +50,121 @@ def pick_media_url(db: Session, org_id: int, ig_account_id: int, automation: Top
         )
         return last_post.media_url if last_post else None
         
-    if image_mode in ["use_library_image", "library_fixed", "library_tag"]:
+    if mode in ["use_library_image", "library_fixed", "library_tag"]:
+        # If it's a string, we can't do library lookups without more info.
+        # But this function is being replaced by the better one below.
+        if isinstance(automation, str): return None
+        
         if automation.media_asset_id:
             asset = db.get(MediaAsset, automation.media_asset_id)
             if asset: return asset.url
             
         if automation.media_tag_query:
-            # automation.media_tag_query is now a list of strings (from JSON)
             query = db.query(MediaAsset).filter(MediaAsset.org_id == org_id)
             assets = query.all()
-            
             requested_tags = [t.lower() for t in (automation.media_tag_query or [])]
-            
             matching = []
             for a in assets:
                 asset_tags = [at.lower() for at in (a.tags or [])]
                 if any(rt in asset_tags for rt in requested_tags):
                     matching.append(a)
-            
             if matching:
                 import random
                 asset = random.choice(matching)
                 return asset.url
+    return None
 
+def resolve_media_url(
+    db: Session, 
+    org_id: int, 
+    ig_account_id: int, 
+    image_mode: str, 
+    topic: str = "general",
+    automation_id: int | None = None,
+    media_asset_id: int | None = None,
+    media_tag_query: list[str] | None = None,
+    content_concept: str | None = None
+) -> str | None:
+    """
+    One-stop shop for finding or generating a media URL.
+    Handles library, reuse, and AI generation.
+    """
+    # 1. Reuse logic
+    if image_mode == "reuse_last_upload":
+        last_post = (
+            db.query(Post)
+            .filter(Post.org_id == org_id, Post.ig_account_id == ig_account_id, Post.media_url != None)
+            .order_by(Post.created_at.desc())
+            .first()
+        )
+        return last_post.media_url if last_post else None
+
+    # 2. Library logic
+    if image_mode in ["use_library_image", "library_fixed", "library_tag"]:
+        if media_asset_id:
+            asset = db.get(MediaAsset, media_asset_id)
+            if asset: return asset.url
+            
+        if media_tag_query:
+            query = db.query(MediaAsset).filter(MediaAsset.org_id == org_id)
+            assets = query.all()
+            requested_tags = [t.lower() for t in (media_tag_query or [])]
+            matching = []
+            for a in assets:
+                asset_tags = [at.lower() for at in (a.tags or [])]
+                if any(rt in asset_tags for rt in requested_tags):
+                    matching.append(a)
+            if matching:
+                import random
+                asset = random.choice(matching)
+                return asset.url
+        return None
+
+    # 3. AI Generation logic
+    ai_modes = [
+        "ai_generated", "ai_nature_photo", "ai_islamic_pattern", 
+        "ai_calligraphy_no_text", "ai_minimal_gradient"
+    ]
+    if image_mode in ai_modes:
+        mode_prompts = {
+            "ai_nature_photo": "Realistic high-quality nature photography of ",
+            "ai_islamic_pattern": "Elegant seamless Islamic geometric pattern with colors of ",
+            "ai_calligraphy_no_text": "Artistic Islamic abstract calligraphy art without readable text, theme of ",
+            "ai_minimal_gradient": "Modern minimal soft gradient background with colors of ",
+            "ai_generated": ""
+        }
+        
+        base_prompt = mode_prompts.get(image_mode, "")
+        prompt_for_image = base_prompt + topic
+        if content_concept:
+            prompt_for_image += f" (Concept: {content_concept})"
+        
+        generated_url = generate_ai_image(prompt_for_image)
+        if generated_url:
+            # Save it locally and to library
+            filename = f"ai_{automation_id or 'manual'}_{int(datetime.now().timestamp())}.jpg"
+            file_path = os.path.join(settings.uploads_dir, filename)
+            try:
+                res = requests.get(generated_url, timeout=30)
+                if res.status_code == 200:
+                    with open(file_path, "wb") as f:
+                        f.write(res.content)
+                    final_url = f"{settings.public_base_url.rstrip('/')}/uploads/{filename}"
+                    
+                    # Also register it in Media Library for future reuse/filter
+                    new_asset = MediaAsset(
+                        org_id=org_id,
+                        ig_account_id=ig_account_id,
+                        url=final_url,
+                        storage_path=file_path,
+                        tags=["ai_generated", image_mode, topic[:30]]
+                    )
+                    db.add(new_asset)
+                    db.commit()
+                    return final_url
+            except Exception as e:
+                print(f"[MEDIA] Error downloading AI image: {e}")
+                
     return None
 
 def run_automation_once(db: Session, automation_id: int) -> Post | None:
@@ -172,56 +268,21 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 logger.error(f"Enrichment failed for automation {automation.id}: {enrich_e}")
         
         # 3. Media Selection / Generation
-        media_url = pick_media_url(db, automation.org_id, automation.ig_account_id, automation)
+        concepts = content_item.topics[0] if content_item and content_item.topics else None
+        media_url = resolve_media_url(
+            db=db,
+            org_id=automation.org_id,
+            ig_account_id=automation.ig_account_id,
+            image_mode=automation.image_mode,
+            topic=topic,
+            automation_id=automation.id,
+            media_asset_id=automation.media_asset_id,
+            media_tag_query=automation.media_tag_query,
+            content_concept=concepts
+        )
         
-        ai_modes = [
-            "ai_generated", "ai_nature_photo", "ai_islamic_pattern", 
-            "ai_calligraphy_no_text", "ai_minimal_gradient"
-        ]
-        
-        if automation.image_mode in ai_modes:
-            mode_prompts = {
-                "ai_nature_photo": "Realistic high-quality nature photography of ",
-                "ai_islamic_pattern": "Elegant seamless Islamic geometric pattern with colors of ",
-                "ai_calligraphy_no_text": "Artistic Islamic abstract calligraphy art without readable text, theme of ",
-                "ai_minimal_gradient": "Modern minimal soft gradient background with colors of ",
-                "ai_generated": ""
-            }
-            
-            base_prompt = mode_prompts.get(automation.image_mode, "")
-            prompt_for_image = base_prompt + topic
-            if content_item and content_item.topics:
-                prompt_for_image += f" (Concept: {content_item.topics[0]})"
-            
-            generated_url = generate_ai_image(prompt_for_image)
-            if generated_url:
-                filename = f"ai_{automation.id}_{int(datetime.now().timestamp())}.jpg"
-                file_path = os.path.join(settings.uploads_dir, filename)
-                try:
-                    res = requests.get(generated_url, timeout=30)
-                    if res.status_code == 200:
-                        with open(file_path, "wb") as f:
-                            f.write(res.content)
-                        media_url = f"{settings.public_base_url.rstrip('/')}/uploads/{filename}"
-                        print(f"[AUTO] AI Image generated and saved: {media_url}")
-                        
-                        # Save to Media Library
-                        new_asset = MediaAsset(
-                            org_id=automation.org_id,
-                            ig_account_id=automation.ig_account_id,
-                            url=media_url,
-                            storage_path=file_path,
-                            tags=["ai_generated", automation.image_mode] + (content_item.topics if content_item else [])
-                        )
-                        db.add(new_asset)
-                        db.flush() # get asset id
-                        automation.last_error = None # Clear any previous image errors
-                    else:
-                        print(f"[AUTO] FAILED downloading DALL-E image, HTTP {res.status_code}")
-                except Exception as down_e:
-                    print(f"[AUTO] ERROR downloading DALL-E image: {down_e}")
-
-        elif automation.image_mode == "quote_card" or (media_url is None and automation.image_mode != "none_placeholder"):
+        # 4. Final Post Creation
+        if automation.image_mode == "quote_card" or (media_url is None and automation.image_mode != "none_placeholder"):
             if content_item:
                 # Generate a quote card
                 filename = f"quote_{automation.id}_{int(datetime.now().timestamp())}.jpg"

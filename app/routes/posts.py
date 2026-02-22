@@ -11,7 +11,7 @@ from ..schemas import PostOut, ApproveIn, GenerateOut, PostUpdate
 from ..services.llm import generate_draft
 from ..services.policy import keyword_flags
 from ..services.publisher import publish_to_instagram
-from ..services.automation_runner import pick_media_url
+from ..services.automation_runner import resolve_media_url
 from ..security import require_api_key
 
 router = APIRouter(prefix="/posts", tags=["posts"])
@@ -213,12 +213,18 @@ def regenerate_image(
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     
-    mode = image_mode or "ai_nature_photo" # Default if not specified
+    mode = image_mode or "ai_nature_photo"
     
-    # Use existing helper to get a new URL
-    # Note: pick_media_url might need the automation object if it was auto-generated
-    # But for a manual regeneration, we can pass what we have.
-    new_url = pick_media_url(db, post.org_id, post.ig_account_id, mode)
+    # Use the new robust resolver
+    from app.services.automation_runner import resolve_media_url
+    new_url = resolve_media_url(
+        db=db,
+        org_id=post.org_id,
+        ig_account_id=post.ig_account_id,
+        image_mode=mode,
+        topic=post.source_text or "general"
+    )
+    
     if new_url:
         post.media_url = new_url
     
