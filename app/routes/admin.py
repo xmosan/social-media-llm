@@ -682,8 +682,17 @@ function updateFileName(input) {
     }
 }
 async function request(url, opts = {}) {
+    let orgHeader = {};
+    if (typeof ACTIVE_ACCOUNT_ID !== 'undefined' && ACTIVE_ACCOUNT_ID && typeof ACCOUNTS !== 'undefined') {
+        const acc = ACCOUNTS.find(a => a.id == ACTIVE_ACCOUNT_ID);
+        if (acc && acc.org_id) {
+            orgHeader = { "X-Org-Id": acc.org_id.toString() };
+        }
+    }
+
     opts.headers = { 
         ...opts.headers, 
+        ...orgHeader,
         "ngrok-skip-browser-warning": "69420"
     };
     const r = await fetch(url, opts);

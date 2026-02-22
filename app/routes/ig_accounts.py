@@ -3,16 +3,24 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import IGAccount
 from ..security.rbac import get_current_org_id
+from ..security.auth import require_user
 from ..schemas import IGAccountOut, AccountCreate, AccountUpdate
 
 router = APIRouter(prefix="/ig-accounts", tags=["ig-accounts"])
 
 @router.get("", response_model=list[IGAccountOut])
 def list_accounts(
+    request: Request,
     db: Session = Depends(get_db),
-    org_id: int = Depends(get_current_org_id)
+    user = Depends(require_user)
 ):
-    """List all IG accounts for the organization."""
+    """List all IG accounts for the organization (or all for superadmin)."""
+    org_id_header = request.headers.get("X-Org-Id")
+    
+    if user.is_superadmin and not org_id_header:
+        return db.query(IGAccount).all()
+        
+    org_id = get_current_org_id(request=request, user=user, org_id=org_id_header, db=db)
     return db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
 
 @router.post("", response_model=IGAccountOut)

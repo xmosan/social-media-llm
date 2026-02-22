@@ -16,6 +16,7 @@ class OrgOut(BaseModel):
 
 class IGAccountOut(BaseModel):
     id: int
+    org_id: int
     name: str
     ig_user_id: str
     active: bool
