@@ -31,3 +31,4 @@ websockets==16.0
 psycopg2-binary
 openai
 Pillow
+beautifulsoup4
