@@ -177,14 +177,18 @@ HTML = """<!doctype html>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Lookback / Tag Query</label>
-                            <input type="text" id="auto_media_tag_query" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold" placeholder="e.g. nature, sunnah"/>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Lookback (Days)</label>
+                            <input type="number" id="auto_lookback" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold" value="30"/>
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 pl-8">
-                         <div>
-                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Fixed Asset ID (Optional)</label>
-                            <input type="number" id="auto_media_asset_id" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold" placeholder="Media ID from Gallery"/>
+                    <div class="grid grid-cols-2 gap-4 pl-8">
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tag Query (CSV)</label>
+                            <input type="text" id="auto_media_tag_query" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold" placeholder="e.g. nature, sunnah"/>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Fixed Asset ID</label>
+                            <input type="number" id="auto_media_asset_id" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold" placeholder="Optional ID"/>
                         </div>
                     </div>
                     <div class="flex items-center gap-3 pl-8">
@@ -555,25 +559,28 @@ function hideCreateAuto() { document.getElementById("auto_modal").classList.add(
 
 async function saveAutomation() {
     const id = document.getElementById("edit_auto_id").value;
+    const getVal = (id) => document.getElementById(id)?.value || "";
+    const getNum = (id) => parseInt(document.getElementById(id)?.value) || 0;
+    const getCheck = (id) => document.getElementById(id)?.checked || false;
+
     const payload = {
         ig_account_id: parseInt(ACTIVE_ACCOUNT_ID),
-        name: document.getElementById("auto_name").value,
-        topic_prompt: document.getElementById("auto_topic").value,
-        style_preset: document.getElementById("auto_style").value,
-        tone: document.getElementById("auto_tone").value,
-        language: document.getElementById("auto_lang").value,
-        post_time_local: document.getElementById("auto_time").value,
-        enabled: document.getElementById("auto_enabled").checked,
-        use_content_library: document.getElementById("auto_use_library").checked,
-        image_mode: document.getElementById("auto_image_mode").value,
-        avoid_repeat_days: parseInt(document.getElementById("auto_lookback").value) || 30,
-        include_arabic: document.getElementById("auto_arabic").checked,
-        enrich_with_hadith: document.getElementById("auto_enrich_hadith").checked,
-        hadith_topic: document.getElementById("auto_hadith_topic").value,
-        hadith_max_len: parseInt(document.getElementById("auto_hadith_maxlen").value) || 450,
-        // New Media Library fields
-        media_asset_id: parseInt(document.getElementById("auto_media_asset_id").value) || null,
-        media_tag_query: document.getElementById("auto_media_tag_query").value.split(",").map(t => t.trim()).filter(t => t),
+        name: getVal("auto_name"),
+        topic_prompt: getVal("auto_topic"),
+        style_preset: getVal("auto_style") || "islamic_reminder",
+        tone: getVal("auto_tone") || "medium",
+        language: getVal("auto_lang") || "english",
+        post_time_local: getVal("auto_time") || "09:00",
+        enabled: getCheck("auto_enabled"),
+        use_content_library: getCheck("auto_use_library"),
+        image_mode: getVal("auto_image_mode") || "reuse_last_upload",
+        avoid_repeat_days: getNum("auto_lookback") || 30,
+        include_arabic: getCheck("auto_arabic"),
+        enrich_with_hadith: getCheck("auto_enrich_hadith"),
+        hadith_topic: getVal("auto_hadith_topic"),
+        hadith_max_len: getNum("auto_hadith_maxlen") || 450,
+        media_asset_id: getNum("auto_media_asset_id") || null,
+        media_tag_query: getVal("auto_media_tag_query").split(",").map(t => t.trim()).filter(t => t),
         media_rotation_mode: "random"
     };
     try {
