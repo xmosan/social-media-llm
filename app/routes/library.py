@@ -47,7 +47,7 @@ def list_library(
         
     return query.limit(limit).all()
 
-@router.post("/import")
+@router.post("/import/")
 async def import_content(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -137,7 +137,7 @@ async def import_content(
     db.commit()
     return {"status": "success", "imported": count}
 
-@router.post("/seed-demo")
+@router.post("/seed-demo/")
 def seed_demo(db: Session = Depends(get_db), org_id: int = Depends(require_api_key)):
     """Seeds some sample Hadiths for testing."""
     samples = [

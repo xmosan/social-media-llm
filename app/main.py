@@ -1,19 +1,39 @@
 import os
 import time
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from .db import engine, SessionLocal
 from .models import Base, Org, ApiKey, IGAccount
-from .security import hash_api_key
+from .security import hash_api_key, require_api_key
 from .routes import posts, admin, orgs, ig_accounts, automations, library
 from .services.scheduler import start_scheduler
 from .config import settings
 
 app = FastAPI(title="Social Media LLM - Multi-tenant SaaS")
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    print(f"GLOBAL ERROR: {exc}")
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Internal Server Error: {str(exc)}", "type": type(exc).__name__},
+    )
+
+@app.get("/debug-env")
+def debug_env(org_id: int = Depends(require_api_key)):
+    return {
+        "openai_api_key_set": bool(settings.openai_api_key),
+        "openai_api_key_len": len(settings.openai_api_key) if settings.openai_api_key else 0,
+        "database_url_scheme": settings.database_url.split(":")[0] if settings.database_url else None,
+        "org_id": org_id
+    }
 
 # Serve uploads
 os.makedirs(settings.uploads_dir, exist_ok=True)
