@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from datetime import datetime
 from typing import Any
 
@@ -147,10 +147,19 @@ class TopicAutomationCreate(BaseModel):
     hadith_append_style: str = "short"
     hadith_max_len: int = 450
 
-    # Media Library fields
     media_asset_id: int | None = None
     media_tag_query: list[str] | None = None
     media_rotation_mode: str = "random"
+
+    @validator("media_tag_query", pre=True)
+    def parse_media_tag_query(cls, v):
+        if isinstance(v, str):
+            try:
+                import json
+                return json.loads(v)
+            except:
+                return []
+        return v
 
 class TopicAutomationUpdate(BaseModel):
     name: str | None = None
@@ -177,10 +186,19 @@ class TopicAutomationUpdate(BaseModel):
     hadith_append_style: str | None = None
     hadith_max_len: int | None = None
 
-    # Media Library fields
     media_asset_id: int | None = None
     media_tag_query: list[str] | None = None
     media_rotation_mode: str | None = None
+
+    @validator("media_tag_query", pre=True)
+    def parse_media_tag_query(cls, v):
+        if isinstance(v, str):
+            try:
+                import json
+                return json.loads(v)
+            except:
+                return []
+        return v
 
 class ContentItemOut(BaseModel):
     id: int
@@ -235,6 +253,17 @@ class MediaAssetOut(BaseModel):
     storage_path: str | None = None
     tags: list[str] = Field(default_factory=list)
     created_at: datetime
+
+    @validator("tags", pre=True)
+    def parse_tags(cls, v):
+        if isinstance(v, str):
+            try:
+                import json
+                return json.loads(v)
+            except:
+                return []
+        return v
+
     class Config:
         from_attributes = True
 
@@ -243,6 +272,16 @@ class MediaAssetCreate(BaseModel):
     url: str
     storage_path: str | None = None
     tags: list[str] = Field(default_factory=list)
+
+    @validator("tags", pre=True)
+    def parse_tags(cls, v):
+        if isinstance(v, str):
+            try:
+                import json
+                return json.loads(v)
+            except:
+                return []
+        return v
 
 class PostUpdate(BaseModel):
     caption: str | None = None
