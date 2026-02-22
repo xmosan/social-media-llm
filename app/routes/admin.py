@@ -24,8 +24,8 @@ HTML = """<!doctype html>
   <nav class="glass sticky top-0 z-50 border-b border-slate-200 bg-white/80 px-6 py-4 mb-8">
     <div class="max-w-7xl mx-auto flex justify-between items-center">
       <div class="flex items-center gap-6">
-          <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            Social SaaS <span class="text-slate-400 font-light">Admin</span>
+            <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            Social SaaS <span class="text-slate-400 font-light">Admin v1.0.2</span>
           </h1>
           <div class="h-6 w-px bg-slate-200"></div>
           <div class="flex items-center gap-2">
