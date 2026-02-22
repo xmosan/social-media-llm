@@ -14,7 +14,8 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ) -> dict[str, Any]:
-    user = db.query(User).filter(User.email == form_data.username).first()
+    from sqlalchemy import func
+    user = db.query(User).filter(func.lower(User.email) == func.lower(form_data.username.strip())).first()
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
