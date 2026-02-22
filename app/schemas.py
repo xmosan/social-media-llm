@@ -2,6 +2,11 @@ from pydantic import BaseModel, Field, validator
 from datetime import datetime
 from typing import Any
 
+class UserCreate(BaseModel):
+    name: str
+    email: str
+    password: str
+
 class OrgOut(BaseModel):
     id: int
     name: str

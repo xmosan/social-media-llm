@@ -3,7 +3,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import User, OrgMember, Org
-from app.security.auth import verify_password, create_access_token, get_current_user, require_user
+from app.schemas import UserCreate
+from app.security.auth import verify_password, create_access_token, get_current_user, require_user, get_password_hash
 from typing import Any
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -35,6 +36,55 @@ def login(
         max_age=7 * 24 * 60 * 60 # 7 days
     )
     
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/register")
+def register(
+    user_in: UserCreate,
+    response: Response,
+    db: Session = Depends(get_db)
+) -> dict[str, Any]:
+    # 1. Check if user already exists
+    existing_user = db.query(User).filter(func.lower(User.email) == func.lower(user_in.email.strip())).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A user with this email already exists."
+        )
+
+    # 2. Create the User
+    new_user = User(
+        email=user_in.email.strip(),
+        name=user_in.name.strip(),
+        password_hash=get_password_hash(user_in.password),
+        is_active=True,
+        is_superadmin=False
+    )
+    db.add(new_user)
+    db.flush() # get user ID
+
+    # 3. Auto-provision a default Workspace (Org)
+    new_org = Org(name=f"{new_user.name}'s Workspace")
+    db.add(new_org)
+    db.flush() # get org ID
+
+    # 4. Bind the user to the new workspace as owner
+    membership = OrgMember(org_id=new_org.id, user_id=new_user.id, role="owner")
+    db.add(membership)
+    db.commit()
+
+    # 5. Automatically log them in (Session Cookie)
+    access_token = create_access_token(data={"sub": str(new_user.id)})
+    
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        samesite="lax",
+        secure=True,
+        max_age=7 * 24 * 60 * 60 # 7 days
+    )
+
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/logout")

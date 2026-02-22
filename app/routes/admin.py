@@ -33,6 +33,9 @@ LOGIN_HTML = """<!doctype html>
       <button type="submit" class="w-full bg-indigo-600 text-white rounded-xl py-3.5 font-black hover:bg-indigo-700 transition-all text-sm shadow-lg shadow-indigo-200 active:scale-[0.98]">
         Authenticate
       </button>
+      <div class="text-center mt-4">
+        <a href="/admin/register" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline">Don't have an account? Sign up</a>
+      </div>
     </form>
   </div>
   <script>
@@ -68,7 +71,80 @@ LOGIN_HTML = """<!doctype html>
   </script>
 </body>
 </html>
+</html>
 """
+
+REGISTER_HTML = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Register | Social Media LLM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style> body { font-family: 'Inter', sans-serif; } </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-6">
+  <div class="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 border border-slate-100">
+    <div class="text-center mb-8">
+      <h1 class="text-2xl font-black bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Join Social SaaS</h1>
+      <p class="text-sm text-slate-500 mt-2 font-medium">Create your workspace</p>
+    </div>
+    <form id="registerForm" class="space-y-6">
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Full Name</label>
+        <input type="text" id="name" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none text-sm transition-all" placeholder="Jane Doe">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Email</label>
+        <input type="email" id="email" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none text-sm transition-all" placeholder="name@company.com">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Password</label>
+        <input type="password" id="password" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none text-sm transition-all" placeholder="••••••••">
+      </div>
+      <div id="errorMsg" class="hidden text-xs font-bold text-red-600 text-center bg-red-50 p-3 rounded-lg border border-red-100"></div>
+      <button type="submit" class="w-full bg-emerald-600 text-white rounded-xl py-3.5 font-black hover:bg-emerald-700 transition-all text-sm shadow-lg shadow-emerald-200 active:scale-[0.98]">
+        Create Account
+      </button>
+      <div class="text-center mt-4">
+        <a href="/admin/login" class="text-xs text-emerald-600 hover:text-emerald-800 font-bold hover:underline">Already have an account? Log in</a>
+      </div>
+    </form>
+  </div>
+  <script>
+    document.getElementById("registerForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("name").value;
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const errorMsg = document.getElementById("errorMsg");
+      
+      try {
+        const payload = { name, email, password };
+        const res = await fetch("/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        
+        if (res.ok) {
+          window.location.href = "/admin";
+        } else {
+          const data = await res.json();
+          errorMsg.textContent = data.detail || "Registration failed";
+          errorMsg.classList.remove("hidden");
+        }
+      } catch (err) {
+        errorMsg.textContent = "Network error occurred";
+        errorMsg.classList.remove("hidden");
+      }
+    });
+  </script>
+</body>
+</html>
+"""
+
 HTML = """<!doctype html>
 <html lang="en">
 <head>
@@ -1349,6 +1425,10 @@ document.addEventListener("DOMContentLoaded", () => {
 @router.get("/login", response_class=HTMLResponse)
 def login_page():
     return LOGIN_HTML
+
+@router.get("/register", response_class=HTMLResponse)
+def register_page():
+    return REGISTER_HTML
 
 @router.get("", response_class=HTMLResponse)
 def admin_page(request: Request, user = Depends(get_current_user)):
