@@ -47,7 +47,7 @@ LOGIN_HTML = """<!doctype html>
         formData.append("username", email);
         formData.append("password", password);
         
-        const res = await fetch("/api/auth/login", {
+        const res = await fetch("/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
           body: formData
@@ -466,7 +466,7 @@ HTML = """<!doctype html>
   </main>
 <script>
 async function logout() {
-    await request("/api/auth/logout", { method: "POST" });
+    await request("/auth/logout", { method: "POST" });
     window.location.href = "/admin/login";
 }
 
