@@ -28,6 +28,7 @@ class PostOut(BaseModel):
     source_type: str
     source_text: str | None = None
     media_url: str | None = None
+    media_asset_id: int | None = None
     content_item_id: int | None = None
 
     caption: str | None = None
@@ -100,6 +101,11 @@ class TopicAutomationOut(BaseModel):
     hadith_topic: str | None
     hadith_append_style: str
     hadith_max_len: int
+
+    # Media Library fields
+    media_asset_id: int | None = None
+    media_tag_query: list[str] | None = None
+    media_rotation_mode: str | None = None
     class Config:
         from_attributes = True
 
@@ -130,6 +136,11 @@ class TopicAutomationCreate(BaseModel):
     hadith_append_style: str = "short"
     hadith_max_len: int = 450
 
+    # Media Library fields
+    media_asset_id: int | None = None
+    media_tag_query: list[str] | None = None
+    media_rotation_mode: str = "random"
+
 class TopicAutomationUpdate(BaseModel):
     name: str | None = None
     topic_prompt: str | None = None
@@ -154,6 +165,11 @@ class TopicAutomationUpdate(BaseModel):
     hadith_topic: str | None = None
     hadith_append_style: str | None = None
     hadith_max_len: int | None = None
+
+    # Media Library fields
+    media_asset_id: int | None = None
+    media_tag_query: list[str] | None = None
+    media_rotation_mode: str | None = None
 
 class ContentItemOut(BaseModel):
     id: int
@@ -199,3 +215,31 @@ class ContentItemUpdate(BaseModel):
     topics: list[str] | None = None
     language: str | None = None
     enabled: bool | None = None
+
+class MediaAssetOut(BaseModel):
+    id: int
+    org_id: int
+    ig_account_id: int | None = None
+    url: str
+    storage_path: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class MediaAssetCreate(BaseModel):
+    ig_account_id: int | None = None
+    url: str
+    storage_path: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+class PostUpdate(BaseModel):
+    caption: str | None = None
+    hashtags: list[str] | None = None
+    alt_text: str | None = None
+    scheduled_time: datetime | None = None
+    status: str | None = None
+    source_text: str | None = None
+    media_url: str | None = None
+    media_asset_id: int | None = None
+    flags: dict[str, Any] | None = None

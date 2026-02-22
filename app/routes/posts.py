@@ -7,10 +7,11 @@ from sqlalchemy import select, func
 from ..db import get_db
 from ..config import settings
 from ..models import Post, IGAccount
-from ..schemas import PostOut, ApproveIn, GenerateOut
+from ..schemas import PostOut, ApproveIn, GenerateOut, PostUpdate
 from ..services.llm import generate_draft
 from ..services.policy import keyword_flags
 from ..services.publisher import publish_to_instagram
+from ..services.automation_runner import pick_media_url
 from ..security import require_api_key
 
 router = APIRouter(prefix="/posts", tags=["posts"])
@@ -150,6 +151,104 @@ def get_post(
     post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+    return post
+
+@router.patch("/{post_id}", response_model=PostOut)
+def update_post(
+    post_id: int,
+    payload: PostUpdate,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(require_api_key),
+):
+    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    data = payload.dict(exclude_unset=True)
+    for k, v in data.items():
+        setattr(post, k, v)
+    
+    db.commit()
+    db.refresh(post)
+    return post
+
+@router.post("/{post_id}/regenerate-caption", response_model=PostOut)
+def regenerate_caption(
+    post_id: int,
+    instructions: str | None = None,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(require_api_key),
+):
+    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    prompt = post.source_text or ""
+    if instructions:
+        prompt += f"\n\nAdditional Instructions: {instructions}"
+    
+    draft = generate_draft(prompt)
+    post.caption = draft["caption"]
+    post.hashtags = draft["hashtags"]
+    post.alt_text = draft["alt_text"]
+    
+    # Re-run policy check
+    flags = keyword_flags(post.caption)
+    post.flags = flags
+    if flags.get("needs_review"):
+        post.status = "needs_review"
+    
+    db.commit()
+    db.refresh(post)
+    return post
+
+@router.post("/{post_id}/regenerate-image", response_model=PostOut)
+def regenerate_image(
+    post_id: int,
+    image_mode: str | None = None,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(require_api_key),
+):
+    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    mode = image_mode or "ai_nature_photo" # Default if not specified
+    
+    # Use existing helper to get a new URL
+    # Note: pick_media_url might need the automation object if it was auto-generated
+    # But for a manual regeneration, we can pass what we have.
+    new_url = pick_media_url(db, post.org_id, post.ig_account_id, mode)
+    if new_url:
+        post.media_url = new_url
+    
+    db.commit()
+    db.refresh(post)
+    return post
+
+@router.post("/{post_id}/attach-media", response_model=PostOut)
+def attach_media(
+    post_id: int,
+    image: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    org_id: int = Depends(require_api_key),
+):
+    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    _ensure_uploads_dir()
+    filename = f"manual_{int(_utcnow().timestamp())}_{image.filename}"
+    local_path = os.path.join(settings.uploads_dir, filename)
+
+    with open(local_path, "wb") as f:
+        shutil.copyfileobj(image.file, f)
+
+    public_url = f"{settings.public_base_url}/uploads/{filename}"
+    post.media_url = public_url
+    
+    db.commit()
+    db.refresh(post)
     return post
 
 @router.post("/{post_id}/approve", response_model=PostOut)

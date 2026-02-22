@@ -9,6 +9,7 @@ HTML = """<!doctype html>
   <title>SaaS Dashboard | Social Media LLM</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
   <style>
     body { font-family: 'Inter', sans-serif; }
     .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); }
@@ -171,11 +172,19 @@ HTML = """<!doctype html>
                                 <option value="reuse_last_upload">Reuse Last Upload</option>
                                 <option value="quote_card">Generate Quote Card</option>
                                 <option value="ai_generated">AI Generated Image (Nature/Calligraphy)</option>
+                                <option value="library_fixed">Fixed Library Asset</option>
+                                <option value="library_tag">Library Asset by Tag</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Lookback (Days)</label>
-                            <input type="number" id="auto_lookback" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold" value="30"/>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Lookback / Tag Query</label>
+                            <input type="text" id="auto_media_tag_query" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold" placeholder="e.g. nature, sunnah"/>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 pl-8">
+                         <div>
+                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Fixed Asset ID (Optional)</label>
+                            <input type="number" id="auto_media_asset_id" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold" placeholder="Media ID from Gallery"/>
                         </div>
                     </div>
                     <div class="flex items-center gap-3 pl-8">
@@ -211,6 +220,69 @@ HTML = """<!doctype html>
                 <button onclick="saveAutomation()" class="flex-1 px-6 py-4 rounded-xl bg-indigo-600 text-white font-black hover:bg-indigo-700 shadow-xl shadow-indigo-100">Save Intelligence</button>
             </div>
         </div>
+    <!-- Post Editor Modal -->
+    <div id="post_modal" class="hidden fixed inset-0 bg-black/40 z-[120] backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div class="flex items-center gap-4">
+                    <h3 class="text-xl font-black text-slate-800">Post Editor</h3>
+                    <span id="post_edit_status" class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-slate-200 text-slate-600">Draft</span>
+                </div>
+                <button onclick="hidePostEditor()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="flex-1 overflow-hidden flex flex-col lg:flex-row">
+                <!-- Media Preview -->
+                <div class="lg:w-1/2 bg-slate-900 flex items-center justify-center p-4 group relative">
+                    <img id="post_edit_img" src="" class="max-w-full max-h-full object-contain shadow-2xl rounded-lg"/>
+                    <div class="absolute bottom-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="regeneratePostImage()" class="bg-indigo-600/90 text-white px-4 py-2 rounded-xl text-xs font-bold backdrop-blur-sm hover:bg-indigo-600">Regenerate AI Image</button>
+                        <label class="bg-white/90 text-slate-900 px-4 py-2 rounded-xl text-xs font-bold backdrop-blur-sm hover:bg-white cursor-pointer">
+                            Replace File
+                            <input type="file" id="post_media_replace" class="hidden" onchange="attachMediaToPost(this)"/>
+                        </label>
+                    </div>
+                </div>
+                <!-- Content Editor -->
+                <div class="lg:w-1/2 p-8 overflow-y-auto space-y-6 bg-white">
+                    <input type="hidden" id="post_edit_id" value=""/>
+                    <div>
+                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Caption Content</label>
+                        <textarea id="post_edit_caption" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 min-h-[180px] text-sm leading-relaxed" placeholder="Write your caption here..."></textarea>
+                        <div class="flex justify-end mt-2">
+                           <button onclick="regeneratePostCaption()" class="text-[10px] font-black text-indigo-600 uppercase tracking-wider hover:underline">✨ Regenerate with AI</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Hashtags</label>
+                        <textarea id="post_edit_hashtags" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-mono" placeholder="#faith #islam #daily"></textarea>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Alt Text</label>
+                            <input id="post_edit_alt" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none text-sm" placeholder="Describe image for accessibility"/>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Scheduled Time (UTC)</label>
+                            <input type="datetime-local" id="post_edit_time" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none text-sm"/>
+                        </div>
+                    </div>
+                    <div id="post_edit_flags" class="flex flex-wrap gap-2"></div>
+                </div>
+            </div>
+            <div class="p-8 border-t border-slate-100 bg-slate-50 flex gap-4 justify-between items-center">
+                <div class="flex gap-2">
+                    <button onclick="deletePostUI()" class="px-6 py-4 rounded-xl border border-red-200 bg-white font-bold text-red-500 hover:bg-red-50">Delete</button>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="hidePostEditor()" class="px-6 py-4 rounded-xl border border-slate-200 bg-white font-bold text-slate-600 hover:bg-slate-100">Cancel</button>
+                    <button id="post_publish_now_btn" onclick="publishPostNow()" class="hidden px-6 py-4 rounded-xl border border-slate-900 bg-slate-900 text-white font-black hover:bg-slate-800">Publish Now</button>
+                    <button onclick="savePost()" class="px-8 py-4 rounded-xl bg-indigo-600 text-white font-black hover:bg-indigo-700 shadow-xl shadow-indigo-100">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
     </div>
     <!-- 1) Upload Section -->
     <div class="lg:col-span-4 lg:sticky lg:top-28 h-fit space-y-6">
@@ -257,11 +329,17 @@ HTML = """<!doctype html>
                 <button onclick="switchTab('feed')" id="tab_feed" class="text-2xl font-black flex items-center gap-3 border-b-4 border-slate-900 pb-2">
                     Feed
                 </button>
+                <button onclick="switchTab('calendar')" id="tab_calendar" class="text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2">
+                    Calendar
+                </button>
                 <button onclick="switchTab('automations')" id="tab_automations" class="text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2">
                     Automations
                 </button>
                 <button onclick="switchTab('library')" id="tab_library" class="text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2">
                     Library
+                </button>
+                <button onclick="switchTab('media')" id="tab_media" class="text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2">
+                    Media
                 </button>
             </div>
             <div id="feed_controls" class="flex items-center gap-2">
@@ -274,10 +352,11 @@ HTML = """<!doctype html>
                     <option value="published">4. Published</option>
                     <option value="failed">Error Trace</option>
                 </select>
-                <button onclick="refreshAll()" class="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all hover:rotate-180 duration-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
+                </button>
+            </div>
+            <div id="calendar_controls" class="hidden flex items-center gap-2">
+                <button onclick="refreshAll()" class="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all">
+                    <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                 </button>
             </div>
             <div id="auto_controls" class="hidden flex items-center gap-2">
@@ -286,9 +365,12 @@ HTML = """<!doctype html>
             <div id="library_controls" class="hidden flex items-center gap-2">
                 <input type="text" id="library_search" oninput="loadLibrary()" placeholder="Search Library..." class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:ring-indigo-500 outline-none bg-slate-50"/>
                 <button onclick="seedDemoContent()" class="bg-indigo-100 text-indigo-700 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-200 transition-all">Seed Demo</button>
-                <label class="bg-slate-900 text-white px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:bg-slate-800 transition-all">
-                    Import
-                    <input type="file" class="hidden" onchange="importLibrary(this)"/>
+                </label>
+            </div>
+            <div id="media_controls" class="hidden flex items-center gap-2">
+                <label class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest cursor-pointer shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
+                    Upload Asset
+                    <input type="file" id="media_upload_input" class="hidden" onchange="uploadMedia(this)"/>
                 </label>
             </div>
         </div>
@@ -300,8 +382,14 @@ HTML = """<!doctype html>
         <div id="automations_view" class="hidden space-y-8">
             <div id="auto_list" class="grid grid-cols-1 gap-6"></div>
         </div>
+        <div id="calendar_view" class="hidden">
+            <div id="calendar_el" class="bg-white p-4 rounded-2xl min-h-[600px]"></div>
+        </div>
         <div id="library_view" class="hidden space-y-8">
             <div id="library_list" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+        </div>
+        <div id="media_view" class="hidden space-y-8">
+            <div id="media_list" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
         </div>
       </section>
     </div>
@@ -311,21 +399,23 @@ let API_KEY = localStorage.getItem("social_admin_key") || "";
 let ACCOUNTS = [];
 let ACTIVE_ACCOUNT_ID = localStorage.getItem("active_ig_id") || null;
 let ACTIVE_TAB = "feed";
+let calendar = null;
 
 function switchTab(t) {
     ACTIVE_TAB = t;
-    document.getElementById("feed_view").classList.toggle("hidden", t !== 'feed');
-    document.getElementById("automations_view").classList.toggle("hidden", t !== 'automations');
-    document.getElementById("library_view").classList.toggle("hidden", t !== 'library');
+    const views = ['feed', 'automations', 'library', 'media', 'calendar'];
+    views.forEach(v => {
+        const el = document.getElementById(v + "_view");
+        if(el) el.classList.toggle("hidden", v !== t);
+        const ctrl = document.getElementById(v + "_controls");
+        if(ctrl) ctrl.classList.toggle("hidden", v !== t);
+        const tab = document.getElementById("tab_" + v);
+        if(tab) tab.className = v === t ? "text-2xl font-black flex items-center gap-3 border-b-4 border-slate-900 pb-2" : "text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2";
+    });
     
-    document.getElementById("feed_controls").classList.toggle("hidden", t !== 'feed');
-    document.getElementById("auto_controls").classList.toggle("hidden", t !== 'automations');
-    document.getElementById("library_controls").classList.toggle("hidden", t !== 'library');
-    
-    document.getElementById("tab_feed").className = t === 'feed' ? "text-2xl font-black flex items-center gap-3 border-b-4 border-slate-900 pb-2" : "text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2";
-    document.getElementById("tab_automations").className = t === 'automations' ? "text-2xl font-black flex items-center gap-3 border-b-4 border-slate-900 pb-2" : "text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2";
-    document.getElementById("tab_library").className = t === 'library' ? "text-2xl font-black flex items-center gap-3 border-b-4 border-slate-900 pb-2" : "text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2";
-    
+    if (t === 'calendar') {
+        initCalendar();
+    }
     refreshAll();
 }
 function esc(s) { return (s ?? "").toString().replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"); }
@@ -390,6 +480,10 @@ async function refreshAll() {
                 await Promise.all([loadStats(), loadPosts()]);
             } else if (ACTIVE_TAB === 'automations') {
                 await loadAutomations();
+            } else if (ACTIVE_TAB === 'calendar') {
+                await loadCalendarEvents();
+            } else if (ACTIVE_TAB === 'media') {
+                await loadMediaLibrary();
             } else {
                 await loadLibrary();
             }
@@ -474,7 +568,11 @@ async function saveAutomation() {
         include_arabic: document.getElementById("auto_arabic").checked,
         enrich_with_hadith: document.getElementById("auto_enrich_hadith").checked,
         hadith_topic: document.getElementById("auto_hadith_topic").value,
-        hadith_max_len: parseInt(document.getElementById("auto_hadith_maxlen").value) || 450
+        hadith_max_len: parseInt(document.getElementById("auto_hadith_maxlen").value) || 450,
+        // New Media Library fields
+        media_asset_id: parseInt(document.getElementById("auto_media_asset_id").value) || null,
+        media_tag_query: document.getElementById("auto_media_tag_query").value || null,
+        media_rotation_mode: "random"
     };
     try {
         await request(id ? `/automations/${id}` : "/automations", {
@@ -530,6 +628,299 @@ async function testLLM(id, topic, style) {
     }
 }
 
+async function initCalendar() {
+    if (calendar) return;
+    const calendarEl = document.getElementById('calendar_el');
+    calendar = new FullCalendar.Calendar(calendarEl, {
+      initialView: 'dayGridMonth',
+      headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'dayGridMonth,timeGridWeek'
+      },
+      editable: true,
+      eventClick: function(info) {
+        openPostEditor(info.event.id);
+      },
+      eventDrop: async function(info) {
+        if(!confirm(`Reschedule to ${info.event.start.toISOString()}?`)) {
+            info.revert();
+            return;
+        }
+        try {
+            await request(`/posts/${info.event.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scheduled_time: info.event.start.toISOString() })
+            });
+            refreshAll();
+        } catch(e) { 
+            alert(e.message); 
+            info.revert();
+        }
+      }
+    });
+    calendar.render();
+}
+
+async function loadCalendarEvents() {
+    if (!calendar) return;
+    try {
+        const j = await request(`/posts?ig_account_id=${ACTIVE_ACCOUNT_ID}&limit=200`);
+        const events = j.map(p => ({
+            id: p.id,
+            title: (p.caption || 'Untitled').substring(0, 30) + '...',
+            start: p.scheduled_time || p.created_at,
+            backgroundColor: getPostColor(p.status),
+            borderColor: 'transparent'
+        }));
+        calendar.removeAllEvents();
+        calendar.addEventSource(events);
+    } catch(e) { console.error(e); }
+}
+
+function getPostColor(status) {
+    const colors = {
+        published: '#10b981',
+        scheduled: '#6366f1',
+        needs_review: '#f43f5e',
+        drafted: '#3b82f6',
+        failed: '#94a3b8'
+    };
+    return colors[status] || '#94a3b8';
+}
+
+// --- CALENDAR LOGIC ---
+async function initCalendar() {
+    if (calendar) return;
+    const calendarEl = document.getElementById('calendar_el');
+    calendar = new FullCalendar.Calendar(calendarEl, {
+      initialView: 'dayGridMonth',
+      headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'dayGridMonth,timeGridWeek'
+      },
+      editable: true,
+      eventClick: function(info) {
+        openPostEditor(info.event.id);
+      },
+      eventDrop: async function(info) {
+        if(!confirm(`Reschedule to ${info.event.start.toISOString()}?`)) {
+            info.revert();
+            return;
+        }
+        try {
+            await request(`/posts/${info.event.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scheduled_time: info.event.start.toISOString() })
+            });
+            refreshAll();
+        } catch(e) { 
+            alert(e.message); 
+            info.revert();
+        }
+      }
+    });
+    calendar.render();
+}
+
+async function loadCalendarEvents() {
+    if (!calendar) return;
+    try {
+        const j = await request(`/posts?ig_account_id=${ACTIVE_ACCOUNT_ID}&limit=200`);
+        const events = j.map(p => ({
+            id: p.id,
+            title: (p.caption || 'Untitled').substring(0, 30) + '...',
+            start: p.scheduled_time || p.created_at,
+            backgroundColor: getPostColor(p.status),
+            borderColor: 'transparent'
+        }));
+        calendar.removeAllEvents();
+        calendar.addEventSource(events);
+    } catch(e) { console.error(e); }
+}
+
+function getPostColor(status) {
+    const colors = {
+        published: '#10b981',
+        scheduled: '#6366f1',
+        needs_review: '#f43f5e',
+        drafted: '#3b82f6',
+        failed: '#94a3b8'
+    };
+    return colors[status] || '#94a3b8';
+}
+
+// --- POST EDITOR LOGIC ---
+async function openPostEditor(postId) {
+    try {
+        const p = await request(`/posts/${postId}`);
+        document.getElementById("post_edit_id").value = p.id;
+        document.getElementById("post_edit_caption").value = p.caption || "";
+        document.getElementById("post_edit_hashtags").value = (p.hashtags || []).join(" ");
+        document.getElementById("post_edit_alt").value = p.alt_text || "";
+        document.getElementById("post_edit_img").src = p.media_url || "";
+        
+        const statusEl = document.getElementById("post_edit_status");
+        statusEl.textContent = p.status.toUpperCase();
+        statusEl.className = `px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getPostColor(p.status).includes('#') ? 'bg-slate-200 text-slate-600' : ''}`;
+        
+        if (p.scheduled_time) {
+            const d = new Date(p.scheduled_time);
+            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+            document.getElementById("post_edit_time").value = d.toISOString().slice(0, 16);
+        } else {
+            document.getElementById("post_edit_time").value = "";
+        }
+        
+        const flagsEl = document.getElementById("post_edit_flags");
+        flagsEl.innerHTML = Object.entries(p.flags || {}).map(([k,v]) => `
+            <span class="px-2 py-1 bg-red-50 text-red-600 border border-red-100 rounded text-[9px] font-bold uppercase">${esc(k)}</span>
+        `).join("");
+        
+        document.getElementById("post_publish_now_btn").classList.toggle("hidden", p.status === 'published');
+        document.getElementById("post_modal").classList.remove("hidden");
+    } catch(e) { alert("Load Failed: " + e.message); }
+}
+
+function hidePostEditor() { document.getElementById("post_modal").classList.add("hidden"); }
+
+async function savePost() {
+    const id = document.getElementById("post_edit_id").value;
+    const payload = {
+        caption: document.getElementById("post_edit_caption").value,
+        hashtags: document.getElementById("post_edit_hashtags").value.trim().split(/\s+/).filter(t => t.startsWith("#")),
+        alt_text: document.getElementById("post_edit_alt").value,
+        scheduled_time: document.getElementById("post_edit_time").value || null
+    };
+    // If it was drafted/needs_review, move to scheduled if time is set
+    if (payload.scheduled_time) {
+        payload.status = "scheduled";
+    }
+    
+    try {
+        await request(`/posts/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        hidePostEditor();
+        refreshAll();
+    } catch(e) { alert("Save Failed: " + e.message); }
+}
+
+async function regeneratePostCaption() {
+    const id = document.getElementById("post_edit_id").value;
+    const inst = prompt("Any special instructions for the AI? (e.g. 'make it shorter', 'more poetic')");
+    try {
+        const p = await request(`/posts/${id}/regenerate-caption`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ instructions: inst })
+        });
+        document.getElementById("post_edit_caption").value = p.caption;
+        document.getElementById("post_edit_hashtags").value = (p.hashtags || []).join(" ");
+    } catch(e) { alert(e.message); }
+}
+
+async function regeneratePostImage() {
+    const id = document.getElementById("post_edit_id").value;
+    const mode = prompt("Image Mode? (ai_nature_photo, ai_islamic_pattern, ai_calligraphy_no_text, ai_minimal_gradient)", "ai_nature_photo");
+    if (!mode) return;
+    try {
+        const p = await request(`/posts/${id}/regenerate-image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image_mode: mode })
+        });
+        document.getElementById("post_edit_img").src = p.media_url;
+    } catch(e) { alert(e.message); }
+}
+
+async function attachMediaToPost(input) {
+    const id = document.getElementById("post_edit_id").value;
+    const file = input.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("image", file);
+    try {
+        const p = await request(`/posts/${id}/attach-media`, { method: "POST", body: fd });
+        document.getElementById("post_edit_img").src = p.media_url;
+    } catch(e) { alert(e.message); }
+}
+
+async function publishPostNow() {
+    const id = document.getElementById("post_edit_id").value;
+    if (!confirm("Publish this to Instagram immediately?")) return;
+    try {
+        await request(`/posts/${id}/publish`, { method: "POST" });
+        hidePostEditor();
+        refreshAll();
+    } catch(e) { alert(e.message); }
+}
+
+async function deletePostUI() {
+    const id = document.getElementById("post_edit_id").value;
+    if (!confirm("Discard this post entry forever?")) return;
+    try {
+        await request(`/posts/${id}`, { method: "DELETE" });
+        hidePostEditor();
+        refreshAll();
+    } catch(e) { alert(e.message); }
+}
+
+// --- MEDIA LIBRARY LOGIC ---
+async function loadMediaLibrary() {
+    const list = document.getElementById("media_list");
+    list.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-black uppercase text-xs animate-pulse">Consulting Gallery...</div>`;
+    try {
+        const j = await request("/media-assets");
+        if (!j.length) {
+            list.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-bold">No assets found. Upload some!</div>`;
+            return;
+        }
+        list.innerHTML = j.map(m => `
+            <div class="relative group rounded-2xl overflow-hidden aspect-square border border-slate-200 bg-slate-100">
+                <img src="${m.url}" class="w-full h-full object-cover"/>
+                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3 gap-2">
+                    <div class="flex flex-wrap gap-1 mb-auto">
+                        ${(m.tags || []).map(t => `<span class="px-1.5 py-0.5 bg-white/20 backdrop-blur-md rounded text-[8px] text-white font-bold uppercase">${esc(t)}</span>`).join("")}
+                    </div>
+                    <button onclick="deleteMedia(${m.id})" class="bg-red-500 text-white w-full py-2 rounded-xl text-[10px] font-black uppercase">Delete</button>
+                </div>
+            </div>
+        `).join("");
+    } catch(e) { console.error(e); }
+}
+
+async function uploadMedia(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const tags = prompt("Enter tags (comma separated)", "nature, islamic");
+    const tagsArray = tags ? tags.split(",").map(t => t.trim()) : [];
+    
+    const fd = new FormData();
+    fd.append("image", file);
+    fd.append("tags", JSON.stringify(tagsArray));
+    if (ACTIVE_ACCOUNT_ID) fd.append("ig_account_id", ACTIVE_ACCOUNT_ID);
+    
+    try {
+        await request("/media-assets", { method: "POST", body: fd });
+        loadMediaLibrary();
+    } catch(e) { alert(e.message); }
+    input.value = "";
+}
+
+async function deleteMedia(id) {
+    if(!confirm("Remove this asset from library?")) return;
+    try {
+        await request(`/media-assets/${id}`, { method: "DELETE" });
+        loadMediaLibrary();
+    } catch(e) { alert(e.message); }
+}
+
 async function deleteAuto(id) {
     if(!confirm("Remove this automation forever?")) return;
     try {
@@ -570,6 +961,12 @@ function editAuto(a) {
     
     const hMax = document.getElementById("auto_hadith_maxlen");
     if(hMax) hMax.value = a.hadith_max_len || 450;
+    
+    const mAsset = document.getElementById("auto_media_asset_id");
+    if(mAsset) mAsset.value = a.media_asset_id || "";
+    
+    const mTag = document.getElementById("auto_media_tag_query");
+    if(mTag) mTag.value = a.media_tag_query || "";
 
     document.getElementById("auto_modal").classList.remove("hidden");
 }
@@ -801,26 +1198,27 @@ function renderPost(p) {
         published: "bg-emerald-50 text-emerald-600 border-emerald-200", 
         failed: "bg-red-50 text-red-600 border-red-200" 
     };
+    const c = colors[p.status] || "bg-slate-100 text-slate-500 border-slate-200";
+    
     return `
-    <div class="bg-white border border-slate-200 rounded-3xl p-6 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 fade-in group">
-        <div class="flex justify-between items-center mb-5">
-            <span class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">${esc(new Date(p.created_at).toLocaleString())}</span>
-            <span class="px-3 py-1 rounded-full text-[9px] font-black uppercase border-2 ${colors[p.status] || ''}">${esc(p.status)}</span>
-        </div>
-        ${p.media_url ? `<div class="rounded-2xl overflow-hidden mb-5 aspect-square bg-slate-100 border border-slate-100"><img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" src="${esc(p.media_url)}"/></div>` : ''}
-        <div class="text-xs text-slate-500 leading-relaxed mb-6 italic pl-4 border-l-2 border-slate-100 line-clamp-3">"${esc(p.source_text)}"</div>
-        
-        <!-- ACTION BUTTONS -->
-        <div class="flex flex-col gap-2">
-            <div class="flex gap-2">
-                <button onclick="generate(${p.id})" class="flex-1 text-[10px] font-black py-3 rounded-xl border border-slate-200 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-600 transition-all uppercase tracking-widest bg-white">1. Generate AI</button>
-                <button onclick="approve(${p.id})" class="flex-1 text-[10px] font-black py-3 rounded-xl border border-slate-200 hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-600 transition-all uppercase tracking-widest bg-white">2. Approve</button>
+    <div class="bg-white border border-slate-200 rounded-3xl overflow-hidden flex flex-col group hover:shadow-2xl hover:border-indigo-100 transition-all duration-500 fade-in">
+        <div class="relative aspect-square bg-slate-100 overflow-hidden cursor-pointer" onclick="openPostEditor(${p.id})">
+            <img src="${p.media_url}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" onerror="this.src='https://placehold.co/600x600?text=Media+Missing'"/>
+            <div class="absolute top-4 left-4 right-4 flex justify-between items-start">
+               <span class="px-3 py-1.5 rounded-xl border backdrop-blur-md text-[9px] font-black uppercase tracking-widest shadow-lg ${c}">${esc(p.status)}</span>
+               <div class="p-2 rounded-xl bg-white/90 border border-slate-200 text-slate-900 shadow-xl opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+               </div>
             </div>
-            <button onclick="publishNow(${p.id})" class="w-full bg-slate-900 text-white text-[11px] font-black py-4 rounded-xl hover:bg-indigo-600 transition-all uppercase tracking-widest shadow-xl active:scale-95">⚡ Publish to Instagram</button>
-            <button onclick="deletePost(${p.id})" class="text-[10px] font-bold text-slate-400 hover:text-red-500 transition-colors mx-auto mt-2">Discard Entry</button>
+            ${p.scheduled_time ? `<div class="absolute bottom-4 left-4 px-3 py-1 bg-indigo-600 text-white rounded-lg text-[8px] font-black uppercase tracking-tighter shadow-lg">Due: ${new Date(p.scheduled_time).toLocaleString()}</div>` : ''}
         </div>
-        
-        <div id="msg-${p.id}" class="mt-4 text-[9px] text-center font-black uppercase tracking-widest h-3"></div>
+        <div class="p-5 flex flex-col flex-1">
+            <p class="text-[12px] text-slate-700 leading-relaxed font-medium mb-4 line-clamp-2">${esc(p.caption || '(No Caption Generated)')}</p>
+            <div class="mt-auto flex items-center justify-between border-t border-slate-100 pt-4">
+                <span class="text-[10px] font-bold text-slate-300 uppercase italic">${esc(p.source_type)}</span>
+                <button onclick="openPostEditor(${p.id})" class="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Manage Post</button>
+            </div>
+        </div>
     </div>`;
 }
 async function uploadPost() {
@@ -855,24 +1253,15 @@ function resetUpload() {
     updateFileName(document.getElementById("image"));
     setError("");
 }
-async function generate(id) {
+async function generatePost(id) {
     const el = document.getElementById(`msg-${id}`);
     if(el) { el.textContent = "🧠 AI ANALYZING..."; el.className = "mt-4 text-[9px] text-center font-black text-indigo-500 animate-pulse"; }
     try { await request(`/posts/${id}/generate`, { method: "POST" }); await refreshAll(); } catch(e) { if(el) { el.textContent = "AI FAILED"; el.className = "mt-4 text-[9px] text-center font-black text-red-600"; } alert(e.message); }
 }
-async function approve(id) {
+async function approvePost(id) {
     const el = document.getElementById(`msg-${id}`);
     if(el) { el.textContent = "✔️ ADDING TO QUEUE..."; el.className = "mt-4 text-[9px] text-center font-black text-emerald-500 animate-pulse"; }
     try { await request(`/posts/${id}/approve`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({approve_anyway: true}) }); await refreshAll(); } catch(e) { if(el) { el.textContent = "FAIL"; el.className = "mt-4 text-[9px] text-center font-black text-red-600"; } alert(e.message); }
-}
-async function publishNow(id) {
-    const el = document.getElementById(`msg-${id}`);
-    if(el) { el.textContent = "🚀 FIRING TO INSTAGRAM..."; el.className = "mt-4 text-[9px] text-center font-black text-indigo-600 animate-pulse"; }
-    try { await request(`/posts/${id}/publish`, { method: "POST" }); await refreshAll(); } catch(e) { if(el) { el.textContent = "REJECTED"; el.className = "mt-4 text-[9px] text-center font-black text-red-600"; } alert("Publish Failed: " + e.message); }
-}
-async function deletePost(id) {
-    if (!confirm("Permanently remove this entry?")) return;
-    try { await request(`/posts/${id}`, { method: "DELETE" }); await refreshAll(); } catch(e) { alert(e.message); }
 }
 document.addEventListener("DOMContentLoaded", () => {
     if(API_KEY) document.getElementById("admin_key_input").value = API_KEY;

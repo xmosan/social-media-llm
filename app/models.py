@@ -16,6 +16,7 @@ class Org(Base):
     posts = relationship("Post", back_populates="org")
     content_items = relationship("ContentItem", back_populates="org")
     content_usages = relationship("ContentUsage", back_populates="org")
+    media_assets = relationship("MediaAsset", back_populates="org")
 
 class User(Base):
     __tablename__ = "users"
@@ -70,6 +71,7 @@ class IGAccount(Base):
     org = relationship("Org", back_populates="ig_accounts")
     posts = relationship("Post", back_populates="ig_account")
     content_usages = relationship("ContentUsage", back_populates="ig_account")
+    media_assets = relationship("MediaAsset", back_populates="ig_account")
 
 class Post(Base):
     __tablename__ = "posts"
@@ -88,6 +90,7 @@ class Post(Base):
 
     # NEW: Link to Content Library
     content_item_id = Column(Integer, ForeignKey("content_items.id"), nullable=True)
+    media_asset_id = Column(Integer, ForeignKey("media_assets.id"), nullable=True)
 
     # MUST be a public https URL for Instagram publishing
     media_url = Column(Text, nullable=True)
@@ -108,6 +111,7 @@ class Post(Base):
     ig_account = relationship("IGAccount", back_populates="posts")
     automation = relationship("TopicAutomation", back_populates="generated_posts")
     content_item = relationship("ContentItem", back_populates="posts")
+    media_asset = relationship("MediaAsset", back_populates="posts")
     content_usage = relationship("ContentUsage", back_populates="post", uselist=False)
 
 class TopicAutomation(Base):
@@ -153,6 +157,11 @@ class TopicAutomation(Base):
     hadith_append_style = Column(String, default="short") # "short" | "medium"
     hadith_max_len = Column(Integer, default=450)
 
+    # NEW: Media Library Fields
+    media_asset_id = Column(Integer, ForeignKey("media_assets.id"), nullable=True)
+    media_tag_query = Column(JSON, nullable=True) # e.g. ["ramadan","masjid"]
+    media_rotation_mode = Column(String, default="random") # "random" | "round_robin"
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -160,6 +169,7 @@ class TopicAutomation(Base):
     ig_account = relationship("IGAccount")
     generated_posts = relationship("Post", back_populates="automation")
     content_usages = relationship("ContentUsage", back_populates="automation")
+    media_asset = relationship("MediaAsset")
 
 class ContentItem(Base):
     __tablename__ = "content_items"
@@ -224,3 +234,19 @@ class SourceItem(Base):
     
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class MediaAsset(Base):
+    __tablename__ = "media_assets"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("orgs.id"), nullable=False)
+    ig_account_id = Column(Integer, ForeignKey("ig_accounts.id"), nullable=True)
+    
+    url = Column(Text, nullable=False) # Public path
+    storage_path = Column(Text, nullable=True) # Internal path
+    tags = Column(JSON, nullable=False, default=list) # e.g. ["nature", "islamic"]
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    org = relationship("Org", back_populates="media_assets")
+    ig_account = relationship("IGAccount", back_populates="media_assets")
+    posts = relationship("Post", back_populates="media_asset")

@@ -9,7 +9,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from .db import engine, SessionLocal
 from .models import Base, Org, ApiKey, IGAccount
 from .security import hash_api_key, require_api_key
-from .routes import posts, admin, orgs, ig_accounts, automations, library
+from .routes import posts, admin, orgs, ig_accounts, automations, library, media
 from .services.scheduler import start_scheduler
 from .config import settings
 
@@ -46,6 +46,7 @@ app.include_router(orgs.router)
 app.include_router(ig_accounts.router)
 app.include_router(automations.router)
 app.include_router(library.router)
+app.include_router(media.router)
 
 def bootstrap_saas():
     """Seed initial Org and API Key for development/first run."""
@@ -100,25 +101,40 @@ def on_startup():
     print("STARTUP: Creating/verifying database tables...")
     Base.metadata.create_all(bind=engine)
     
-    # NEW: Manual migration for existing topic_automations table
+    # NEW: Manual migration for Admin Enhancements
     from sqlalchemy import text
-    print("STARTUP: Running hadith enrichment migration...")
+    print("STARTUP: Running Admin Enhancements migration...")
     try:
         with engine.connect() as conn:
-            new_cols = [
+            # 1. Update topic_automations
+            auto_cols = [
                 ("enrich_with_hadith", "BOOLEAN DEFAULT FALSE"),
                 ("hadith_topic", "VARCHAR"),
                 ("hadith_source_id", "INTEGER"),
                 ("hadith_append_style", "VARCHAR DEFAULT 'short'"),
-                ("hadith_max_len", "INTEGER DEFAULT 450")
+                ("hadith_max_len", "INTEGER DEFAULT 450"),
+                ("media_asset_id", "INTEGER"),
+                ("media_tag_query", "JSON"),
+                ("media_rotation_mode", "VARCHAR DEFAULT 'random'")
             ]
-            for col, col_def in new_cols:
+            for col, col_def in auto_cols:
                 try:
                     conn.execute(text(f"ALTER TABLE topic_automations ADD COLUMN {col} {col_def}"))
                     conn.commit()
-                    print(f"Migration: Added column {col}")
+                    print(f"Migration: Added column {col} to topic_automations")
                 except Exception:
-                    # Column likely already exists
+                    pass
+            
+            # 2. Update posts
+            post_cols = [
+                ("media_asset_id", "INTEGER")
+            ]
+            for col, col_def in post_cols:
+                try:
+                    conn.execute(text(f"ALTER TABLE posts ADD COLUMN {col} {col_def}"))
+                    conn.commit()
+                    print(f"Migration: Added column {col} to posts")
+                except Exception:
                     pass
     except Exception as e:
         print(f"Migration Error: {e}")

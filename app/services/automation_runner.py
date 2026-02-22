@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone as dt_timezone, timedelta
 from sqlalchemy.orm import Session
-from app.models import TopicAutomation, Post, IGAccount, ContentUsage
+from app.models import TopicAutomation, Post, IGAccount, ContentUsage, MediaAsset, ContentItem
 from app.services.llm import generate_topic_caption, generate_caption_from_content_item, generate_ai_image
 from app.services.publisher import publish_to_instagram
 from app.services.content_library import pick_content_item
@@ -34,7 +34,9 @@ def compute_next_run_time(ig_account: IGAccount, automation: TopicAutomation) ->
         
     return scheduled_next.astimezone(pytz.UTC)
 
-def pick_media_url(db: Session, org_id: int, ig_account_id: int, image_mode: str) -> str | None:
+def pick_media_url(db: Session, org_id: int, ig_account_id: int, automation: TopicAutomation) -> str | None:
+    image_mode = automation.image_mode
+    
     if image_mode == "reuse_last_upload":
         last_post = (
             db.query(Post)
@@ -43,6 +45,31 @@ def pick_media_url(db: Session, org_id: int, ig_account_id: int, image_mode: str
             .first()
         )
         return last_post.media_url if last_post else None
+        
+    if image_mode in ["use_library_image", "library_fixed", "library_tag"]:
+        if automation.media_asset_id:
+            asset = db.get(MediaAsset, automation.media_asset_id)
+            if asset: return asset.url
+            
+        if automation.media_tag_query:
+            # automation.media_tag_query is a string of tags (comma-separated or just one)
+            # MediaAsset.tags is a list of strings
+            query = db.query(MediaAsset).filter(MediaAsset.org_id == org_id)
+            assets = query.all()
+            
+            requested_tags = [t.strip().lower() for t in automation.media_tag_query.split(",") if t.strip()]
+            
+            matching = []
+            for a in assets:
+                asset_tags = [at.lower() for at in (a.tags or [])]
+                if any(rt in asset_tags for rt in requested_tags):
+                    matching.append(a)
+            
+            if matching:
+                import random
+                asset = random.choice(matching)
+                return asset.url
+
     return None
 
 def run_automation_once(db: Session, automation_id: int) -> Post | None:
@@ -146,10 +173,24 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 logger.error(f"Enrichment failed for automation {automation.id}: {enrich_e}")
         
         # 3. Media Selection / Generation
-        media_url = pick_media_url(db, automation.org_id, automation.ig_account_id, automation.image_mode)
+        media_url = pick_media_url(db, automation.org_id, automation.ig_account_id, automation)
         
-        if automation.image_mode == "ai_generated":
-            prompt_for_image = topic
+        ai_modes = [
+            "ai_generated", "ai_nature_photo", "ai_islamic_pattern", 
+            "ai_calligraphy_no_text", "ai_minimal_gradient"
+        ]
+        
+        if automation.image_mode in ai_modes:
+            mode_prompts = {
+                "ai_nature_photo": "Realistic high-quality nature photography of ",
+                "ai_islamic_pattern": "Elegant seamless Islamic geometric pattern with colors of ",
+                "ai_calligraphy_no_text": "Artistic Islamic abstract calligraphy art without readable text, theme of ",
+                "ai_minimal_gradient": "Modern minimal soft gradient background with colors of ",
+                "ai_generated": ""
+            }
+            
+            base_prompt = mode_prompts.get(automation.image_mode, "")
+            prompt_for_image = base_prompt + topic
             if content_item and content_item.topics:
                 prompt_for_image += f" (Concept: {content_item.topics[0]})"
             
@@ -164,6 +205,18 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                             f.write(res.content)
                         media_url = f"{settings.public_base_url.rstrip('/')}/uploads/{filename}"
                         print(f"[AUTO] AI Image generated and saved: {media_url}")
+                        
+                        # Save to Media Library
+                        new_asset = MediaAsset(
+                            org_id=automation.org_id,
+                            ig_account_id=automation.ig_account_id,
+                            url=media_url,
+                            storage_path=file_path,
+                            tags=["ai_generated", automation.image_mode] + (content_item.topics if content_item else [])
+                        )
+                        db.add(new_asset)
+                        db.flush() # get asset id
+                        automation.last_error = None # Clear any previous image errors
                     else:
                         print(f"[AUTO] FAILED downloading DALL-E image, HTTP {res.status_code}")
                 except Exception as down_e:
