@@ -220,6 +220,7 @@ HTML = """<!doctype html>
                 <button onclick="saveAutomation()" class="flex-1 px-6 py-4 rounded-xl bg-indigo-600 text-white font-black hover:bg-indigo-700 shadow-xl shadow-indigo-100">Save Intelligence</button>
             </div>
         </div>
+    </div>
     <!-- Post Editor Modal -->
     <div id="post_modal" class="hidden fixed inset-0 bg-black/40 z-[120] backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -282,7 +283,6 @@ HTML = """<!doctype html>
                 </div>
             </div>
         </div>
-    </div>
     </div>
     <!-- 1) Upload Section -->
     <div class="lg:col-span-4 lg:sticky lg:top-28 h-fit space-y-6">
