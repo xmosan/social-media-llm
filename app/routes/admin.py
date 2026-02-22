@@ -571,7 +571,7 @@ async function saveAutomation() {
         hadith_max_len: parseInt(document.getElementById("auto_hadith_maxlen").value) || 450,
         // New Media Library fields
         media_asset_id: parseInt(document.getElementById("auto_media_asset_id").value) || null,
-        media_tag_query: document.getElementById("auto_media_tag_query").value || null,
+        media_tag_query: document.getElementById("auto_media_tag_query").value.split(",").map(t => t.trim()).filter(t => t),
         media_rotation_mode: "random"
     };
     try {
@@ -966,7 +966,7 @@ function editAuto(a) {
     if(mAsset) mAsset.value = a.media_asset_id || "";
     
     const mTag = document.getElementById("auto_media_tag_query");
-    if(mTag) mTag.value = a.media_tag_query || "";
+    if(mTag) mTag.value = (a.media_tag_query || []).join(", ");
 
     document.getElementById("auto_modal").classList.remove("hidden");
 }

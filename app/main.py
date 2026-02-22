@@ -31,8 +31,7 @@ def debug_env():
     return {
         "openai_api_key_set": bool(settings.openai_api_key),
         "openai_api_key_len": len(settings.openai_api_key) if settings.openai_api_key else 0,
-        "database_url_scheme": settings.database_url.split(":")[0] if settings.database_url else None,
-        "org_id": org_id
+        "database_url_scheme": settings.database_url.split(":")[0] if settings.database_url else None
     }
 
 # Serve uploads
@@ -51,7 +50,6 @@ app.include_router(media.router)
 def bootstrap_saas():
     """Seed initial Org and API Key for development/first run."""
     print("DIAGNOSTIC: Bootstrapping SaaS...")
-    t0 = time.time()
     db = SessionLocal()
     try:
         # 1. Check if any Org exists
@@ -66,7 +64,6 @@ def bootstrap_saas():
         db.flush() # get ID
 
         # 3. Create initial API Key
-        # If INITIAL_API_KEY is not in env, we use settings.admin_api_key as a fallback
         raw_key = os.getenv("INITIAL_API_KEY", settings.admin_api_key or "SaaS_Secret_123")
         api_key = ApiKey(
             org_id=org.id,
@@ -96,16 +93,13 @@ def bootstrap_saas():
 
 @app.on_event("startup")
 def on_startup():
-    # In multi-tenant, we typically drop/create in DEV but use migrations in PROD.
-    # For this MVP, we ensure tables exist.
     print("STARTUP: Creating/verifying database tables...")
     Base.metadata.create_all(bind=engine)
     
-    # NEW: Manual migration for Admin Enhancements
     from sqlalchemy import text
     print("STARTUP: Running Admin Enhancements migration...")
     try:
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             # 1. Update topic_automations
             auto_cols = [
                 ("enrich_with_hadith", "BOOLEAN DEFAULT FALSE"),
@@ -114,16 +108,15 @@ def on_startup():
                 ("hadith_append_style", "VARCHAR DEFAULT 'short'"),
                 ("hadith_max_len", "INTEGER DEFAULT 450"),
                 ("media_asset_id", "INTEGER"),
-                ("media_tag_query", "JSON"),
+                ("media_tag_query", "TEXT"),
                 ("media_rotation_mode", "VARCHAR DEFAULT 'random'")
             ]
             for col, col_def in auto_cols:
                 try:
                     conn.execute(text(f"ALTER TABLE topic_automations ADD COLUMN {col} {col_def}"))
-                    conn.commit()
                     print(f"Migration: Added column {col} to topic_automations")
                 except Exception:
-                    pass
+                    pass # Probably exists
             
             # 2. Update posts
             post_cols = [
@@ -132,27 +125,21 @@ def on_startup():
             for col, col_def in post_cols:
                 try:
                     conn.execute(text(f"ALTER TABLE posts ADD COLUMN {col} {col_def}"))
-                    conn.commit()
                     print(f"Migration: Added column {col} to posts")
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"Migration (posts) status: {e}")
     except Exception as e:
-        print(f"Migration Error: {e}")
+        print(f"CRITICAL Migration Error: {e}")
     
     # Debug OpenAI Key presence
     key = settings.openai_api_key
     if key:
-        masked = key[:6] + "..." + key[-4:] if len(key) > 10 else "***"
-        print(f"STARTUP: OpenAI API Key detected: {masked}")
+        print(f"STARTUP: OpenAI API Key detected")
     else:
         print("STARTUP: WARNING: OpenAI API Key is MISSING!")
 
-    print(f"STARTUP: Tables ready. Engine URL prefix: {str(engine.url)[:30]}...")
-    
-    # Run bootstrap
     bootstrap_saas()
     
-    # Start Scheduler
     try:
         app.state.scheduler = start_scheduler(SessionLocal)
     except Exception as e:
@@ -164,8 +151,6 @@ def health():
     import datetime
     return {
         "status": "ok", 
-        "mode": "multi-tenant", 
-        "version": "1.0.2", 
-        "now": datetime.datetime.now().isoformat(),
-        "openai_key_configured": bool(settings.openai_api_key)
+        "version": "1.0.3", 
+        "now": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }

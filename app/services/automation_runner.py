@@ -52,12 +52,11 @@ def pick_media_url(db: Session, org_id: int, ig_account_id: int, automation: Top
             if asset: return asset.url
             
         if automation.media_tag_query:
-            # automation.media_tag_query is a string of tags (comma-separated or just one)
-            # MediaAsset.tags is a list of strings
+            # automation.media_tag_query is now a list of strings (from JSON)
             query = db.query(MediaAsset).filter(MediaAsset.org_id == org_id)
             assets = query.all()
             
-            requested_tags = [t.strip().lower() for t in automation.media_tag_query.split(",") if t.strip()]
+            requested_tags = [t.lower() for t in (automation.media_tag_query or [])]
             
             matching = []
             for a in assets:
