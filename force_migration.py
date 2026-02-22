@@ -24,7 +24,7 @@ def run_migration():
             ("hadith_append_style", "VARCHAR DEFAULT 'short'"),
             ("hadith_max_len", "INTEGER DEFAULT 450"),
             ("media_asset_id", "INTEGER"),
-            ("media_tag_query", "TEXT"),
+            ("media_tag_query", "JSONB"),
             ("media_rotation_mode", "VARCHAR DEFAULT 'random'")
         ]
         print("Migrating topic_automations...")

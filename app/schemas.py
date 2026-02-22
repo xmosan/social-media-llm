@@ -106,6 +106,17 @@ class TopicAutomationOut(BaseModel):
     media_asset_id: int | None = None
     media_tag_query: list[str] | None = None
     media_rotation_mode: str | None = None
+
+    @validator("media_tag_query", pre=True)
+    def parse_media_tag_query(cls, v):
+        if isinstance(v, str):
+            try:
+                import json
+                return json.loads(v)
+            except:
+                return []
+        return v
+
     class Config:
         from_attributes = True
 
