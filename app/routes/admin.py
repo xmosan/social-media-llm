@@ -914,22 +914,9 @@ function setError(msg) {
   el.classList.toggle("hidden", !msg);
   el.textContent = msg || "";
 }
-async function saveApiKey() {
-    const val = document.getElementById("admin_key_input").value.trim();
-    if(!val) return alert("Enter your Workspace API Key");
-    API_KEY = val;
-    localStorage.setItem("social_admin_key", val);
-    await refreshAll();
-    alert("Identity Confirmed. Account list synchronized.");
-}
 async function refreshAll() {
     setError("");
-    updateKeyStatus();
     checkLocalhost();
-    if (!API_KEY) {
-        showEmptyState("not_authenticated");
-        return;
-    }
     try {
         await loadAccounts();
         if (ACTIVE_ACCOUNT_ID) {
@@ -1658,12 +1645,6 @@ async function deleteLibraryItem(id) {
         await loadLibrary();
     } catch(e) { alert(e.message); }
 }
-function updateKeyStatus() {
-    const el = document.getElementById("api_key_status");
-    const active = API_KEY.length > 5;
-    el.className = active ? "text-xs font-bold px-3 py-1 rounded-full border border-green-200 bg-green-50 text-green-700 shadow-sm" : "text-xs font-bold px-3 py-1 rounded-full border border-slate-200 bg-white text-slate-400";
-    el.textContent = active ? "● Workspace Link Active" : "○ Identity Needed";
-}
 function checkLocalhost() {
     const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
     document.getElementById("localhost_warning").classList.toggle("hidden", !isLocal);
@@ -1712,17 +1693,7 @@ function showEmptyState(type) {
     stats.innerHTML = "";
     
     let html = "";
-    if (type === "not_authenticated") {
-        html = `
-        <div class="col-span-full py-24 text-center">
-            <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
-            </div>
-            <h3 class="text-xl font-black text-slate-800 mb-2">Workspace Locked</h3>
-            <p class="text-sm text-slate-500 max-w-xs mx-auto mb-8">Click <b>Account Settings</b> to enter your organization's API Key and begin.</p>
-            <button onclick="toggleSettings()" class="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">Setup Identity</button>
-        </div>`;
-    } else if (type === "no_accounts") {
+    if (type === "no_accounts") {
         html = `
         <div class="col-span-full py-24 text-center">
             <div class="w-16 h-16 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center mx-auto mb-6">
