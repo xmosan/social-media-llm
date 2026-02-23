@@ -119,3 +119,15 @@ def debug_llm_test(
         return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/run-scheduler-now")
+def run_scheduler_now(
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
+):
+    from app.services.scheduler import publish_due_posts
+    try:
+        count = publish_due_posts(lambda: db)
+        return {"ok": True, "published": count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

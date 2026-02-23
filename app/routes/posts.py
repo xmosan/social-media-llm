@@ -1,7 +1,7 @@
 import os, shutil
 from datetime import datetime, timezone, timedelta
 import pytz
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Request, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from ..db import get_db
@@ -145,6 +145,31 @@ def post_stats(
         
     rows = db.execute(stmt).all()
     return {"counts": {status: count for status, count in rows}}
+
+@router.get("/calendar", response_model=list[PostOut])
+def get_calendar_posts(
+    start_date: str = Query(..., alias="from"),
+    end_date: str = Query(..., alias="to"),
+    ig_account_id: int | None = None,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id),
+):
+    from datetime import datetime
+    try:
+        dt_from = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+        dt_to = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use ISO 8601")
+
+    stmt = select(Post).where(
+        Post.org_id == org_id,
+        Post.scheduled_time >= dt_from,
+        Post.scheduled_time <= dt_to
+    )
+    if ig_account_id:
+        stmt = stmt.where(Post.ig_account_id == ig_account_id)
+        
+    return db.execute(stmt).scalars().all()
 
 @router.get("/{post_id}", response_model=PostOut)
 def get_post(

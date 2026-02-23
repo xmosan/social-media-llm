@@ -203,6 +203,12 @@ HTML = """<!doctype html>
           </svg>
           Account Settings
         </button>
+        <button id="run_scheduler_btn" onclick="runGlobalScheduler()" class="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl border border-emerald-700 shadow-md text-sm font-bold hover:bg-emerald-700 transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          Run Scheduler
+        </button>
       </div>
     </div>
   </nav>
@@ -1056,6 +1062,27 @@ async function triggerAuto(id) {
             refreshAll();
         }
     } catch(e) { alert("Execution Failed: " + e.message); }
+}
+
+async function runGlobalScheduler() {
+    if(!confirm("Force the global scheduler to run immediately? This will check for due posts and publish them to Instagram.")) return;
+    const btn = document.getElementById("run_scheduler_btn");
+    const originalHtml = btn.innerHTML;
+    try {
+        btn.innerHTML = `<svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> Running...`;
+        btn.disabled = true;
+
+        const j = await request(`/automations/run-scheduler-now`, { method: "POST" });
+        alert(`Success! Published ${j.published} items.`);
+        
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+        refreshAll();
+    } catch(e) { 
+        alert("Scheduler Failed: " + e.message); 
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    }
 }
 
 async function testLLM(id, topic, style) {
