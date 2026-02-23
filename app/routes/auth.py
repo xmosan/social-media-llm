@@ -166,5 +166,6 @@ def get_current_user_profile(
         "email": current_user.email,
         "name": current_user.name,
         "is_superadmin": current_user.is_superadmin,
+        "onboarding_complete": current_user.onboarding_complete,
         "orgs": orgs
     }

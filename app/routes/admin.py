@@ -182,9 +182,23 @@ HTML = """<!doctype html>
   </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen pb-12">
-  <!-- Localhost Warning Banner -->
   <div id="localhost_warning" class="hidden bg-amber-500 text-white px-6 py-2 text-center text-xs font-black uppercase tracking-widest shadow-lg fade-in">
       ⚠️ ENVIRONMENT WARNING: LOCALHOST DETECTED. Instagram publishing will fail. Use ngrok for public tunnel.
+  </div>
+  <!-- Onboarding Banner -->
+  <div id="onboarding_banner" class="hidden bg-indigo-600 text-white px-6 py-3 shadow-lg fade-in">
+      <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+          <div class="flex items-center gap-3">
+              <div class="bg-indigo-500 p-2 rounded-lg">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              </div>
+              <div>
+                  <div class="text-sm font-bold">Your AI Content Engine isn't tailored yet!</div>
+                  <div class="text-[10px] opacity-80 font-medium">Complete the 2-minute onboarding to get better AI captions and tailored media.</div>
+              </div>
+          </div>
+          <a href="/admin/onboarding" class="bg-white text-indigo-600 px-6 py-2 rounded-xl text-xs font-black shadow-md hover:bg-slate-100 transition-all uppercase tracking-widest">Start Setup &rarr;</a>
+      </div>
   </div>
   <nav class="glass sticky top-0 z-50 border-b border-slate-200 bg-white/80 px-6 py-4 mb-8">
     <div class="max-w-7xl mx-auto flex justify-between items-center">
@@ -1950,6 +1964,13 @@ async function loadMe() {
             document.getElementById("platform_btn").classList.add("flex");
         }
         
+        const welcomeBanner = document.getElementById("onboarding_banner");
+        if (!ME.onboarding_complete) {
+            welcomeBanner.classList.remove("hidden");
+        } else {
+            welcomeBanner.classList.add("hidden");
+        }
+        
         const sel = document.getElementById("org_selector");
         if(ME.orgs.length === 0) {
             sel.innerHTML = `<option value="">No Workspaces</option>`;
@@ -1994,8 +2015,6 @@ def register_page():
 def admin_page(request: Request, user = Depends(get_current_user)):
     if not user:
         return RedirectResponse(url="/admin/login", status_code=303)
-    if not user.onboarding_complete:
-        return RedirectResponse(url="/admin/onboarding", status_code=303)
     return HTML
 
 ONBOARDING_HTML = """<!doctype html>
