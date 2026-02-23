@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Request, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from app.db import get_db
-from app.models import User, Org, OrgMember
+from app.models import User, Org, OrgMember, ContactMessage
 from app.security.auth import get_current_user
 from app.security.rbac import require_superadmin
 
@@ -786,8 +786,11 @@ HTML = """<!doctype html>
         <div class="w-full max-w-4xl bg-white h-full shadow-2xl p-8 flex flex-col overflow-y-auto" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-8">
                 <div>
-                    <h2 class="text-2xl font-black text-slate-900">Platform Users</h2>
-                    <p class="text-sm text-slate-500 mt-1">Manage global access and workspaces</p>
+                    <h2 class="text-2xl font-black text-slate-900">Platform Management</h2>
+                    <div class="flex gap-4 mt-2">
+                        <button id="tab_btn_users" onclick="switchPlatformTab('users')" class="text-xs font-black uppercase tracking-widest border-b-2 border-slate-900 pb-1">Users</button>
+                        <button id="tab_btn_inquiries" onclick="switchPlatformTab('inquiries')" class="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors pb-1">Inquiries</button>
+                    </div>
                 </div>
                 <button onclick="togglePlatformPanel()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -809,6 +812,24 @@ HTML = """<!doctype html>
                     <tbody id="platform_user_table" class="divide-y divide-slate-100 text-sm font-medium text-slate-700">
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Inquiries View -->
+            <div id="inquiries_container" class="hidden">
+                <div class="overflow-x-auto rounded-xl border border-slate-200">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200">
+                                <th class="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-500">Sender</th>
+                                <th class="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-500">Contact</th>
+                                <th class="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-500">Message</th>
+                                <th class="py-3 px-4 text-xs font-black uppercase tracking-widest text-slate-500 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="platform_inquiry_table" class="divide-y divide-slate-100 text-sm font-medium text-slate-700">
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -906,9 +927,30 @@ function togglePlatformPanel() {
     const isHidden = el.classList.contains("hidden");
     if (isHidden) {
         el.classList.remove("hidden");
-        loadPlatformUsers();
+        switchPlatformTab('users');
     } else {
         el.classList.add("hidden");
+    }
+}
+
+function switchPlatformTab(tab) {
+    const usersTable = document.querySelector("#platform_user_table").closest('.overflow-x-auto');
+    const inquiriesContainer = document.getElementById("inquiries_container");
+    const btnUsers = document.getElementById("tab_btn_users");
+    const btnInquiries = document.getElementById("tab_btn_inquiries");
+
+    if (tab === 'users') {
+        usersTable.classList.remove("hidden");
+        inquiriesContainer.classList.add("hidden");
+        btnUsers.className = "text-xs font-black uppercase tracking-widest border-b-2 border-slate-900 pb-1";
+        btnInquiries.className = "text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors pb-1";
+        loadPlatformUsers();
+    } else {
+        usersTable.classList.add("hidden");
+        inquiriesContainer.classList.remove("hidden");
+        btnUsers.className = "text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors pb-1";
+        btnInquiries.className = "text-xs font-black uppercase tracking-widest border-b-2 border-slate-900 pb-1";
+        loadPlatformInquiries();
     }
 }
 
@@ -941,6 +983,43 @@ async function loadPlatformUsers() {
     } catch(e) {
         tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-500 font-bold">${e.message}</td></tr>`;
     }
+}
+
+async function loadPlatformInquiries() {
+    const tbody = document.getElementById("platform_inquiry_table");
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-400 font-bold uppercase tracking-widest text-xs animate-pulse">Scanning Inbox...</td></tr>`;
+    try {
+        const data = await request("/admin/inquiries");
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-400 font-bold uppercase tracking-widest text-[10px]">No messages yet</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = data.map(m => `
+            <tr class="hover:bg-slate-50 transition-colors group">
+                <td class="py-4 px-4 align-top">
+                    <div class="font-black text-slate-900">${esc(m.name)}</div>
+                    <div class="text-[9px] text-slate-400 uppercase tracking-widest font-bold">${new Date(m.created_at).toLocaleString()}</div>
+                </td>
+                <td class="py-4 px-4 align-top text-xs font-semibold text-indigo-600">${esc(m.email)}</td>
+                <td class="py-4 px-4 align-top">
+                    <p class="text-slate-600 leading-relaxed max-w-lg italic">"${esc(m.message)}"</p>
+                </td>
+                <td class="py-4 px-4 align-top text-right">
+                    <button onclick="deleteInquiry(${m.id})" class="text-[10px] font-black uppercase tracking-widest text-slate-300 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100">Delete</button>
+                </td>
+            </tr>
+        `).join("");
+    } catch(e) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-500 font-bold">${e.message}</td></tr>`;
+    }
+}
+
+async function deleteInquiry(id) {
+    if(!confirm("Are you sure you want to delete this inquiry?")) return;
+    try {
+        await request(`/admin/inquiries/${id}`, { method: "DELETE" });
+        await loadPlatformInquiries();
+    } catch(e) { alert("Delete failed: " + e.message); }
 }
 
 async function deleteUser(id) {
@@ -2248,6 +2327,27 @@ def delete_user(
     
     # Actually delete the user
     db.delete(target_user)
+    db.commit()
+    return {"status": "ok"}
+
+@router.get("/inquiries")
+def list_inquiries(
+    user: User = Depends(require_superadmin),
+    db: Session = Depends(get_db)
+):
+    msgs = db.query(ContactMessage).order_by(ContactMessage.created_at.desc()).all()
+    return msgs
+
+@router.delete("/inquiries/{id}")
+def delete_inquiry(
+    id: int,
+    user: User = Depends(require_superadmin),
+    db: Session = Depends(get_db)
+):
+    msg = db.query(ContactMessage).filter(ContactMessage.id == id).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Inquiry not found")
+    db.delete(msg)
     db.commit()
     return {"status": "ok"}
 
