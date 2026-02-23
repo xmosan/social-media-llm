@@ -70,6 +70,9 @@ LANDING_HTML = """<!doctype html>
       border: 1px solid var(--border);
     }
     .text-gradient {
+      display: inline-block;
+      padding-right: 0.15em;
+      padding-bottom: 0.1em;
       background: linear-gradient(to right, #818cf8, #c084fc);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -109,16 +112,16 @@ LANDING_HTML = """<!doctype html>
     <!-- Actions -->
     <div class="flex flex-wrap justify-center gap-4 fade-in" style="animation-delay: 2s;">
       {% if authenticated %}
-        <a href="/admin" class="px-10 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-black text-sm transition-all shadow-2xl shadow-indigo-900/40 uppercase tracking-widest">Go to Dashboard &rarr;</a>
+        <a href="/admin" class="px-10 py-4 bg-brand hover:opacity-90 rounded-2xl font-black text-sm transition-all shadow-2xl shadow-brand/40 uppercase tracking-widest text-white">Go to Dashboard &rarr;</a>
       {% else %}
-        <a href="/login" class="px-10 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-2xl font-black text-sm transition-all shadow-2xl shadow-indigo-900/40 uppercase tracking-widest">Sign In</a>
+        <a href="/login" class="px-10 py-4 bg-brand hover:opacity-90 rounded-2xl font-black text-sm transition-all shadow-2xl shadow-brand/40 uppercase tracking-widest text-white">Sign In</a>
         <a href="/register" class="px-10 py-4 bg-white/5 hover:bg-white/10 rounded-2xl font-black text-sm transition-all border border-white/10 uppercase tracking-widest">Create Account</a>
       {% endif %}
     </div>
 
-    <div class="flex justify-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-500 fade-in" style="animation-delay: 2.2s;">
-      <a href="/contact" class="hover:text-indigo-400 transition-colors">Contact</a>
-      <a href="/auth/google/start" class="hover:text-indigo-400 transition-colors font-bold text-slate-400">Continue with Google</a>
+    <div class="flex justify-center gap-8 text-[10px] font-black uppercase tracking-widest text-muted fade-in" style="animation-delay: 2.2s;">
+      <a href="/contact" class="hover:text-brand transition-colors">Contact</a>
+      <a href="/auth/google/start" class="hover:text-brand transition-colors font-bold text-muted">Continue with Google</a>
     </div>
   </div>
 
@@ -154,7 +157,7 @@ LANDING_HTML = """<!doctype html>
         <div class="fade-in space-y-4">
           <h3 class="text-2xl md:text-3xl font-black text-main">${slide.title}</h3>
           <ul class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-muted text-sm font-medium">
-            ${slide.bullets.map(b => `<li class="flex items-center gap-2"><div class="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>${b}</li>`).join('')}
+            ${slide.bullets.map(b => `<li class="flex items-center gap-2"><div class="w-1.5 h-1.5 rounded-full bg-brand"></div>${b}</li>`).join('')}
           </ul>
         </div>
       `;
@@ -200,7 +203,7 @@ LOGIN_HTML = """<!doctype html>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', sans-serif; background: #020617; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg-main, #020617); color: var(--text-main, #ffffff); transition: all 0.3s ease; }
     .ai-bg {
       background: radial-gradient(circle at top right, #312e81, #0f172a, #020617);
     }
@@ -211,14 +214,30 @@ LOGIN_HTML = """<!doctype html>
       border: 1px solid rgba(255, 255, 255, 0.1); 
     }
     .text-gradient {
+      display: inline-block;
+      padding-right: 0.15em;
+      padding-bottom: 0.1em;
       background: linear-gradient(to right, #818cf8, #c084fc);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
       color: transparent;
     }
+    [data-theme='enterprise'] {
+      --bg-main: #f8fafc;
+      --text-main: #0f172a;
+      --border: #e2e8f0;
+      --surface: #ffffff;
+    }
   </style>
+  <script>
+    (function() {
+      const saved = localStorage.getItem('admin_theme') || 'startup';
+      document.documentElement.setAttribute('data-theme', saved);
+    })();
+  </script>
 </head>
+<body class="ai-bg text-main min-h-screen flex items-center justify-center p-6">
   <div class="max-w-md w-full glass rounded-[2.5rem] p-10 space-y-8">
     <div class="text-center space-y-2">
       <h1 class="text-2xl font-black italic tracking-tighter text-gradient">Social Media LLM</h1>
@@ -315,15 +334,30 @@ REGISTER_HTML = """<!doctype html>
       border: 1px solid rgba(255, 255, 255, 0.1); 
     }
     .text-gradient {
+      display: inline-block;
+      padding-right: 0.15em;
+      padding-bottom: 0.1em;
       background: linear-gradient(to right, #818cf8, #c084fc);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
       color: transparent;
     }
+    [data-theme='enterprise'] {
+      --bg-main: #f8fafc;
+      --text-main: #0f172a;
+      --border: #e2e8f0;
+      --surface: #ffffff;
+    }
   </style>
+  <script>
+    (function() {
+      const saved = localStorage.getItem('admin_theme') || 'startup';
+      document.documentElement.setAttribute('data-theme', saved);
+    })();
+  </script>
 </head>
-<body class="ai-bg text-white min-h-screen flex items-center justify-center p-6">
+<body class="ai-bg text-main min-h-screen flex items-center justify-center p-6">
   <div class="max-w-md w-full glass rounded-[2.5rem] p-10 space-y-8">
     <div class="text-center space-y-2">
       <h1 class="text-2xl font-black italic tracking-tighter text-gradient">Social Media LLM</h1>
@@ -424,13 +458,28 @@ CONTACT_HTML = """<!doctype html>
       border: 1px solid rgba(255, 255, 255, 0.1); 
     }
     .text-gradient {
+      display: inline-block;
+      padding-right: 0.15em;
+      padding-bottom: 0.1em;
       background: linear-gradient(to right, #818cf8, #c084fc);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
       color: transparent;
     }
+    [data-theme='enterprise'] {
+      --bg-main: #f8fafc;
+      --text-main: #0f172a;
+      --border: #e2e8f0;
+      --surface: #ffffff;
+    }
   </style>
+  <script>
+    (function() {
+      const saved = localStorage.getItem('admin_theme') || 'startup';
+      document.documentElement.setAttribute('data-theme', saved);
+    })();
+  </script>
 </head>
 <body class="ai-bg text-main min-h-screen flex items-center justify-center p-6">
   <div class="max-w-2xl w-full glass rounded-[2.5rem] p-10 space-y-12">

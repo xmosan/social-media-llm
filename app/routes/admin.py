@@ -18,11 +18,11 @@ LOGIN_HTML = """<!doctype html>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style> body { font-family: 'Inter', sans-serif; } </style>
 </head>
-<body class="bg-main min-h-screen flex items-center justify-center p-6 text-main">
-  <div class="max-w-md w-full bg-surface rounded-[2.5rem] shadow-2xl p-10 border border-border transition-all">
+<body class="bg-main min-h-screen flex py-12 px-6 justify-center text-main">
+  <div class="max-w-md w-full bg-surface rounded-[2.5rem] shadow-2xl p-10 border border-border">
     <div class="text-center mb-10">
-      <h1 class="text-3xl font-black italic tracking-tighter text-gradient pb-1">Social Matrix</h1>
-      <p class="text-[11px] font-black text-muted uppercase tracking-widest mt-2">Neural Authentication Protocol</p>
+      <h1 class="text-3xl font-black italic tracking-tighter text-gradient">Social Media LLM</h1>
+      <p class="text-[11px] font-black text-muted uppercase tracking-widest mt-2 italic">Neural Authentication</p>
     </div>
     <form id="loginForm" class="space-y-8">
       <div>
@@ -42,10 +42,10 @@ LOGIN_HTML = """<!doctype html>
         <a href="/admin/register" class="text-xs text-indigo-600 hover:text-indigo-800 font-bold hover:underline">Don't have an account? Sign up</a>
       </div>
       <div class="relative py-2">
-        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
-        <div class="relative flex justify-center text-xs"><span class="bg-white px-2 text-slate-500">Or</span></div>
+        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-border"></div></div>
+        <div class="relative flex justify-center text-xs"><span class="bg-surface px-2 text-muted">Or</span></div>
       </div>
-      <a href="/auth/google/start" class="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white py-3.5 text-sm font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98]">
+      <a href="/auth/google/start" class="flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-white/5 py-3.5 text-sm font-bold text-main shadow-sm transition-all hover:bg-white/10 active:scale-[0.98]">
         <svg class="h-5 w-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
         Continue with Google
       </a>
@@ -98,10 +98,10 @@ REGISTER_HTML = """<!doctype html>
   <style> body { font-family: 'Inter', sans-serif; } </style>
 </head>
 <body class="bg-main min-h-screen flex items-center justify-center p-6 text-main">
-  <div class="max-w-md w-full bg-surface rounded-[2.5rem] shadow-2xl p-10 border border-border transition-all">
+  <div class="max-w-md w-full bg-surface rounded-[2.5rem] shadow-2xl p-10 border border-border">
     <div class="text-center mb-10">
-      <h1 class="text-3xl font-black italic tracking-tighter text-gradient pb-1">Join the Matrix</h1>
-      <p class="text-[11px] font-black text-muted uppercase tracking-widest mt-2">Initialize Architectural Node</p>
+      <h1 class="text-3xl font-black italic tracking-tighter text-gradient">Social Media LLM</h1>
+      <p class="text-[11px] font-black text-muted uppercase tracking-widest mt-2 italic">Neural Authentication</p>
     </div>
     <form id="registerForm" class="space-y-8">
       <div>
@@ -125,10 +125,10 @@ REGISTER_HTML = """<!doctype html>
         <a href="/admin/login" class="text-xs text-emerald-600 hover:text-emerald-800 font-bold hover:underline">Already have an account? Log in</a>
       </div>
       <div class="relative py-2">
-        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
-        <div class="relative flex justify-center text-xs"><span class="bg-white px-2 text-slate-500">Or</span></div>
+        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-border"></div></div>
+        <div class="relative flex justify-center text-xs"><span class="bg-surface px-2 text-muted">Or</span></div>
       </div>
-      <a href="/auth/google/start" class="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white py-3.5 text-sm font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-[0.98]">
+      <a href="/auth/google/start" class="flex w-full items-center justify-center gap-3 rounded-xl border border-border bg-white/5 py-3.5 text-sm font-bold text-main shadow-sm transition-all hover:bg-white/10 active:scale-[0.98]">
         <svg class="h-5 w-5" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
         Sign up with Google
       </a>
@@ -271,6 +271,9 @@ HTML = """<!doctype html>
     }
 
     .text-gradient {
+      display: inline-block;
+      padding-right: 0.15em;
+      padding-bottom: 0.1em;
       background-clip: text;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -360,7 +363,7 @@ HTML = """<!doctype html>
   <aside class="sidebar">
     <div class="mb-10 flex items-center gap-3">
         <div class="w-9 h-9 bg-brand rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-indigo-500/20">S</div>
-        <span class="font-black text-xl tracking-tighter italic text-gradient pb-1">Social Media LLM</span>
+        <span class="font-black text-xl tracking-tighter italic text-gradient">Social Media LLM</span>
     </div>
 
     <nav class="flex-1 space-y-2">
@@ -457,15 +460,15 @@ HTML = """<!doctype html>
             <div class="tool-card">
                  <h3 class="font-bold text-lg mb-4">Quick Actions</h3>
                  <div class="space-y-2">
-                    <button onclick="switchTab('feed')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-white/5 border border-border text-sm font-medium transition-all">Create New Post</button>
-                    <button onclick="switchTab('automations')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-white/5 border border-border text-sm font-medium transition-all">Setup Automation</button>
-                    <button onclick="toggleSettings()" class="w-full text-left px-4 py-3 rounded-lg hover:bg-white/5 border border-border text-sm font-medium transition-all">Workspace Settings</button>
+                    <button onclick="switchTab('feed')" class="w-full text-left px-5 py-4 rounded-2xl hover:bg-brand/10 hover:text-brand hover:border-brand/40 border border-border text-xs font-black uppercase tracking-widest transition-all">Create New Post</button>
+                    <button onclick="switchTab('automations')" class="w-full text-left px-5 py-4 rounded-2xl hover:bg-brand/10 hover:text-brand hover:border-brand/40 border border-border text-xs font-black uppercase tracking-widest transition-all">Setup Automation</button>
+                    <button onclick="toggleSettings()" class="w-full text-left px-5 py-4 rounded-2xl hover:bg-brand/10 hover:text-brand hover:border-brand/40 border border-border text-xs font-black uppercase tracking-widest transition-all">Workspace Settings</button>
                  </div>
             </div>
         </div>
       </div>
 
-    
+
     <!-- Settings Drawer -->
     <div id="settings_panel" class="hidden fixed inset-0 bg-black/60 z-[200] backdrop-blur-md flex justify-end" onclick="if(event.target === this) toggleSettings()">
         <div class="w-full max-w-md bg-[var(--bg-main)] h-full shadow-2xl p-8 flex flex-col overflow-y-auto border-l border-border" onclick="event.stopPropagation()">
@@ -504,10 +507,10 @@ HTML = """<!doctype html>
                             </div>
                         </button>
                         <button onclick="setTheme('enterprise')" class="p-5 rounded-[2rem] border border-border bg-white/5 hover:border-brand transition-all text-left flex flex-col gap-3 group">
-                            <div class="w-full h-20 rounded-2xl bg-[#f8fafc] border border-slate-200 relative overflow-hidden shadow-inner">
+                            <div class="w-full h-20 rounded-2xl bg-[#f8fafc] border border-border relative overflow-hidden shadow-inner">
                                 <div class="absolute bottom-2 left-2 flex gap-1">
                                     <div class="w-4 h-1 bg-slate-900 rounded-full"></div>
-                                    <div class="w-2 h-1 bg-slate-200 rounded-full"></div>
+                                    <div class="w-2 h-1 bg-border rounded-full"></div>
                                 </div>
                             </div>
                             <div>
@@ -555,7 +558,7 @@ HTML = """<!doctype html>
                             </div>
                             <div>
                                 <label class="flex items-center gap-2 text-[10px] font-black text-muted uppercase tracking-widest mb-3 ml-1">
-                                    Access Token
+                                    Access Key
                                     <button onclick="toggleGuideModal()" class="text-brand hover:text-white transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                     </button>
@@ -651,7 +654,7 @@ HTML = """<!doctype html>
     <div id="auto_modal" class="hidden fixed inset-0 bg-black/60 z-[110] backdrop-blur-md flex items-center justify-center p-4">
         <div class="tool-card w-full max-w-xl flex flex-col max-h-[90vh] overflow-hidden">
             <div class="px-8 py-7 border-b border-border flex justify-between items-center bg-white/5">
-                <h3 class="text-xl font-black text-main italic tracking-tighter text-gradient pb-1">Content Automation Matrix</h3>
+                <h3 class="text-xl font-black text-main italic tracking-tighter text-gradient">Content Automation Matrix</h3>
                 <button onclick="hideCreateAuto()" class="w-10 h-10 rounded-xl bg-white/5 text-text-muted hover:text-main hover:bg-white/10 flex items-center justify-center transition-all border border-border">
                     <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
@@ -732,7 +735,7 @@ HTML = """<!doctype html>
                         </div>
                         <div>
                             <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Entropy Lookback</label>
-                            <input type="number" id="auto_lookback" class="w-full px-5 py-4 rounded-xl border border-border outline-none text-[10px] font-black bg-white/5 text-main" value="30"/>
+                            <input type="number" id="auto_lookback" class="w-full px-5 py-4 rounded-xl border border-border bg-white/5 text-main" value="30"/>
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
@@ -777,7 +780,7 @@ HTML = """<!doctype html>
         <div class="tool-card w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
             <div class="px-8 py-7 border-b border-border flex justify-between items-center bg-white/5">
                 <div class="flex items-center gap-4">
-                    <h3 class="text-xl font-black text-main italic tracking-tighter text-gradient pb-1">Post Intelligence Lab</h3>
+                    <h3 class="text-xl font-black text-main italic tracking-tighter text-gradient">Post Intelligence Lab</h3>
                     <span id="post_edit_status" class="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-brand/10 text-brand border border-brand/20">Active Node</span>
                 </div>
                 <button onclick="hidePostEditor()" class="w-10 h-10 rounded-xl bg-white/5 text-text-muted hover:text-main hover:bg-white/10 flex items-center justify-center transition-all border border-border">
@@ -912,7 +915,7 @@ HTML = """<!doctype html>
             <!-- Feed Section (Right) -->
             <div class="lg:col-span-8 space-y-8">
                 <div class="flex items-center justify-between">
-                    <h2 class="text-lg font-black italic tracking-tighter text-gradient pb-1">Intelligence Stream</h2>
+                    <h2 class="text-lg font-black italic tracking-tighter text-gradient">Intelligence Stream</h2>
                     <div class="flex items-center gap-3">
                         <select id="status_filter" onchange="refreshAll()" class="px-4 py-2 rounded-xl border border-border bg-white/5 text-xs font-black uppercase tracking-widest outline-none focus:ring-1 focus:ring-brand text-muted">
                             <option value="">All Streams</option>
@@ -943,7 +946,7 @@ HTML = """<!doctype html>
       <!-- Automations Tab -->
       <div id="tab_automations" class="hidden space-y-6 fade-in">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-black text-main italic tracking-tighter text-gradient pb-1">Content Automations</h2>
+            <h2 class="text-xl font-black text-main italic tracking-tighter text-gradient">Content Automations</h2>
             <button onclick="showCreateAuto()" class="btn-primary py-4 px-8 text-[10px] tracking-widest uppercase italic">New Stream</button>
         </div>
         <div id="auto_list" class="grid grid-cols-1 gap-4"></div>
@@ -952,7 +955,7 @@ HTML = """<!doctype html>
       <!-- Profiles Tab -->
       <div id="tab_profiles" class="hidden space-y-6 fade-in">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-black text-main italic tracking-tighter text-gradient pb-1">Neural DNA Profiles</h2>
+            <h2 class="text-xl font-black text-main italic tracking-tighter text-gradient">Neural DNA Profiles</h2>
             <button onclick="showCreateProfile()" class="btn-primary py-4 px-8 text-[10px] tracking-widest uppercase italic">New Identity</button>
         </div>
         <div id="profile_list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
@@ -961,7 +964,7 @@ HTML = """<!doctype html>
       <!-- Media Tab -->
       <div id="tab_media" class="hidden space-y-6 fade-in">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-black text-main italic tracking-tighter text-gradient pb-1">Asset Repository</h2>
+            <h2 class="text-xl font-black text-main italic tracking-tighter text-gradient">Asset Repository</h2>
             <label class="btn-primary cursor-pointer hover:opacity-90 transition-all py-4 px-8 text-[10px] tracking-widest uppercase italic">
                 Siphon Asset
                 <input type="file" id="media_upload_input" class="hidden" onchange="uploadMedia(this)"/>
@@ -977,7 +980,7 @@ HTML = """<!doctype html>
         <div class="w-full max-w-4xl bg-surface h-full shadow-2xl p-10 flex flex-col overflow-y-auto border-l border-border" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-10">
                 <div>
-                    <h2 class="text-3xl font-black text-main italic tracking-tighter text-gradient pb-1">Platform OS</h2>
+                    <h2 class="text-3xl font-black text-main italic tracking-tighter text-gradient">Platform OS</h2>
                     <div class="flex gap-8 mt-6">
                         <button id="tab_btn_users" onclick="switchPlatformTab('users')" class="text-[10px] font-black uppercase tracking-widest border-b-2 border-brand pb-2 text-main">Neural Network Users</button>
                         <button id="tab_btn_inquiries" onclick="switchPlatformTab('inquiries')" class="text-[10px] font-black uppercase tracking-widest text-muted hover:text-main transition-colors pb-2">External Inquiries</button>
@@ -1035,7 +1038,7 @@ HTML = """<!doctype html>
                         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                     </div>
                     <div>
-                        <h3 class="text-xl font-black text-main italic tracking-tighter pb-1">Content DNA Profile</h3>
+                        <h3 class="text-xl font-black text-main italic tracking-tighter text-gradient">Content DNA Profile</h3>
                         <p class="text-[10px] font-black text-muted uppercase tracking-widest mt-0.5">Define Neural Voice & Constraints</p>
                     </div>
                 </div>
@@ -1166,14 +1169,14 @@ function switchPlatformTab(tab) {
     if (tab === 'users') {
         usersTable.classList.remove("hidden");
         inquiriesContainer.classList.add("hidden");
-        btnUsers.className = "text-[10px] font-black uppercase tracking-widest border-b-2 border-brand pb-1 text-white";
-        btnInquiries.className = "text-[10px] font-black uppercase tracking-widest text-text-muted hover:text-white transition-colors pb-1";
+        btnUsers.className = "text-[10px] font-black uppercase tracking-widest border-b-2 border-brand pb-1 text-main";
+        btnInquiries.className = "text-[10px] font-black uppercase tracking-widest text-muted hover:text-main transition-colors pb-1";
         loadPlatformUsers();
     } else {
         usersTable.classList.add("hidden");
         inquiriesContainer.classList.remove("hidden");
-        btnUsers.className = "text-[10px] font-black uppercase tracking-widest text-text-muted hover:text-white transition-colors pb-1";
-        btnInquiries.className = "text-[10px] font-black uppercase tracking-widest border-b-2 border-brand pb-1 text-white";
+        btnUsers.className = "text-[10px] font-black uppercase tracking-widest text-muted hover:text-main transition-colors pb-1";
+        btnInquiries.className = "text-[10px] font-black uppercase tracking-widest border-b-2 border-brand pb-1 text-main";
         loadPlatformInquiries();
     }
 }
@@ -1185,59 +1188,59 @@ function toggleGuideModal() {
 
 async function loadPlatformUsers() {
     const tbody = document.getElementById("platform_user_table");
-    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-400 font-bold uppercase tracking-widest text-xs animate-pulse">Loading Platform Data...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-muted font-bold uppercase tracking-widest text-xs animate-pulse">Loading Platform Data...</td></tr>`;
     try {
         const users = await request("/admin/users");
         if (users.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-400 font-bold uppercase">No users found</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-muted font-bold uppercase">No users found</td></tr>`;
             return;
         }
         tbody.innerHTML = users.map(u => `
             <tr class="hover:bg-white/5 transition-colors">
-                <td class="py-4 px-4 font-black text-white flex items-center gap-2">
+                <td class="py-4 px-4 font-black text-main flex items-center gap-2">
                     ${u.is_superadmin ? '<span class="px-2 py-0.5 bg-brand/10 text-brand border border-brand/20 rounded text-[9px] uppercase tracking-widest">Admin</span>' : ''}
                     ${esc(u.name)}
                 </td>
-                <td class="py-4 px-4 text-text-muted">${esc(u.email)}</td>
-                <td class="py-4 px-4 text-[10px] font-black uppercase tracking-widest text-text-muted opacity-60">${esc(u.orgs || 'None')}</td>
+                <td class="py-4 px-4 text-muted">${esc(u.email)}</td>
+                <td class="py-4 px-4 text-[10px] font-black uppercase tracking-widest text-muted opacity-60">${esc(u.orgs || 'None')}</td>
 
                 <td class="py-4 px-4 text-right">
-                    ${!u.is_superadmin ? `<button onclick="deleteUser(${u.id})" class="text-xs font-black uppercase tracking-widest text-red-500 hover:text-red-700 hover:underline">Delete</button>` : ''}
+                    ${!u.is_superadmin ? `<button onclick="deleteUser(${u.id})" class="text-xs font-black uppercase tracking-widest text-rose-500 hover:text-rose-700 hover:underline">Delete</button>` : ''}
                 </td>
             </tr>
         `).join("");
     } catch(e) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-500 font-bold">${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-rose-500 font-bold">${e.message}</td></tr>`;
     }
 }
 
 async function loadPlatformInquiries() {
     const tbody = document.getElementById("platform_inquiry_table");
-    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-400 font-bold uppercase tracking-widest text-xs animate-pulse">Scanning Inbox...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-muted font-bold uppercase tracking-widest text-xs animate-pulse">Scanning Inbox...</td></tr>`;
     try {
         const data = await request("/admin/inquiries");
         if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-400 font-bold uppercase tracking-widest text-[10px]">No messages yet</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-muted font-bold uppercase tracking-widest text-[10px]">No messages yet</td></tr>`;
             return;
         }
     tbody.innerHTML = data.map(m => `
         <tr class="hover:bg-white/5 transition-colors group">
             <td class="py-6 px-6 align-top">
-                <div class="font-black text-white italic tracking-tight">${esc(m.name)}</div>
-                <div class="text-[9px] text-text-muted uppercase tracking-widest font-black mt-1">${new Date(m.created_at).toLocaleString()}</div>
+                <div class="font-black text-main italic tracking-tight">${esc(m.name)}</div>
+                <div class="text-[9px] text-muted uppercase tracking-widest font-black mt-1">${new Date(m.created_at).toLocaleString()}</div>
             </td>
             <td class="py-6 px-6 align-top text-xs font-black text-brand uppercase tracking-widest">${esc(m.email)}</td>
             <td class="py-6 px-6 align-top">
-                <p class="text-text-muted leading-relaxed max-w-lg text-sm italic font-medium">"${esc(m.message)}"</p>
+                <p class="text-muted leading-relaxed max-w-lg text-sm italic font-medium">"${esc(m.message)}"</p>
             </td>
             <td class="py-6 px-6 align-top text-right">
-                <button onclick="deleteInquiry(${m.id})" class="text-[10px] font-black uppercase tracking-widest text-text-muted hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100">Delete</button>
+                <button onclick="deleteInquiry(${m.id})" class="text-[10px] font-black uppercase tracking-widest text-muted hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100">Delete</button>
             </td>
         </tr>
     `).join("");
 
     } catch(e) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-500 font-bold">${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-rose-500 font-bold">${e.message}</td></tr>`;
     }
 }
 
@@ -1297,7 +1300,7 @@ function updateFileName(input) {
         console.log(`DEBUG: Selected file - ${file.name}, Size: ${file.size} bytes, Type: ${file.type}`);
         document.getElementById("file_name_display").textContent = file.name;
     } else {
-        document.getElementById("file_name_display").textContent = "Upload your own file here";
+        document.getElementById("file_name_display").textContent = "Inject Reference Image";
     }
 }
 async function request(url, opts = {}) {
@@ -1358,7 +1361,7 @@ async function refreshAll() {
 
 async function loadAutomations() {
     const list = document.getElementById("auto_list");
-    list.innerHTML = `<div class="py-12 text-center text-slate-400 font-black uppercase text-xs animate-pulse">Scanning Robotics...</div>`;
+    list.innerHTML = `<div class="py-12 text-center text-muted font-black uppercase text-xs animate-pulse">Scanning Robotics...</div>`;
     try {
         const j = await request(`/automations/?ig_account_id=${ACTIVE_ACCOUNT_ID}`);
         if (!j.length) {
@@ -1398,15 +1401,15 @@ function renderAuto(a) {
                 <button onclick="testLLM(${a.id}, '${esc(a.topic_prompt)}', '${a.style_preset}')" class="p-3 rounded-2xl bg-white/5 border border-border text-muted hover:text-brand hover:border-brand hover:shadow-lg transition-all" title="Test AI Generation">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.341A8.001 8.001 0 0012 4a8.001 8.001 0 00-7.428 11.341c.142.311.23.642.23.978V19a2 2 0 002 2h9a2 2 0 002-2v-2.681c0-.336.088-.667.23-.978z" /></svg>
                 </button>
-                <button onclick="editAuto(${JSON.stringify(a).replaceAll('"', '&quot;')})" class="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 hover:shadow-lg transition-all" title="Edit Automation Settings">
+                <button onclick="editAuto(${JSON.stringify(a).replaceAll('"', '&quot;')})" class="p-3 rounded-2xl bg-white/5 border border-border text-muted hover:text-brand hover:border-brand hover:shadow-lg transition-all" title="Edit Automation Settings">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                 </button>
-                <button onclick="deleteAuto(${a.id})" class="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:shadow-lg transition-all" title="Delete Automation">
+                <button onclick="deleteAuto(${a.id})" class="p-3 rounded-2xl bg-white/5 border border-border text-muted hover:text-rose-500 hover:border-rose-500 transition-all" title="Delete Automation">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
             </div>
         </div>
-        <div class="flex flex-wrap gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400 border-t border-slate-100 pt-4">
+        <div class="flex flex-wrap gap-4 text-[10px] font-black uppercase tracking-widest text-muted border-t border-border pt-4">
             <span class="flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> ${a.post_time_local || '09:00'}</span>
             <span class="flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg> ${a.style_preset} (${a.tone})</span>
             <span class="flex items-center gap-1.5 text-indigo-500">Last Run: ${a.last_run_at ? new Date(a.last_run_at).toLocaleDateString() : 'Never'}</span>
@@ -1660,7 +1663,7 @@ async function openPostEditor(postId) {
         
         const statusEl = document.getElementById("post_edit_status");
         statusEl.textContent = p.status.toUpperCase();
-        statusEl.className = `px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getPostColor(p.status).includes('#') ? 'bg-slate-200 text-slate-600' : ''}`;
+        statusEl.className = `px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getPostColor(p.status).includes('#') ? 'bg-white/5 text-main' : ''}`;
         
         if (p.scheduled_time) {
             const d = new Date(p.scheduled_time);
@@ -1770,22 +1773,22 @@ async function deletePostUI() {
 async function loadMediaLibrary() {
     const list = document.getElementById("media_list");
     list.innerHTML = `<div class="col-span-full py-24 text-center">
-        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
-            <svg class="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <div class="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <svg class="w-8 h-8 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
         </div>
-        <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">Archiving Assets...</div>
+        <div class="text-[10px] font-black uppercase tracking-widest text-muted">Archiving Assets...</div>
     </div>`;
     try {
         const j = await request("/media-assets");
         if (!j.length) {
             list.innerHTML = `
-                <div class="col-span-full py-32 text-center border-2 border-dashed border-slate-100 rounded-[2rem] bg-slate-50/30">
-                    <div class="text-slate-300 mb-6">
+                <div class="col-span-full py-32 text-center border-2 border-dashed border-border rounded-[2rem] bg-white/5">
+                    <div class="text-muted mb-6">
                         <svg class="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                     </div>
-                    <div class="text-sm font-black text-slate-800">No media found</div>
-                    <div class="text-[10px] text-slate-400 font-bold uppercase mt-2 mb-8">Upload your assets to power the engine.</div>
-                    <label class="btn-brand px-8 py-3 rounded-2xl text-[10px] uppercase tracking-widest cursor-pointer hover:opacity-90">
+                    <div class="text-sm font-black text-main">No media found</div>
+                    <div class="text-[10px] text-muted font-bold uppercase mt-2 mb-8">Upload your assets to power the engine.</div>
+                    <label class="btn-primary px-8 py-3 rounded-2xl text-[10px] uppercase tracking-widest cursor-pointer hover:opacity-90">
                         Select First Asset
                         <input type="file" onchange="uploadMedia(this)" class="hidden"/>
                     </label>
@@ -1794,9 +1797,9 @@ async function loadMediaLibrary() {
             return;
         }
         list.innerHTML = j.map(m => `
-            <div class="relative group rounded-[1.5rem] overflow-hidden aspect-square border-4 border-white bg-slate-50 shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
+            <div class="relative group rounded-[1.5rem] overflow-hidden aspect-square border-4 border-white/5 bg-white/5 shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
                 <img src="${m.url}" class="w-full h-full object-cover"/>
-                <div class="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-4">
+                <div class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-4">
                     <div class="flex flex-wrap gap-1 mb-auto">
                         ${(m.tags || []).map(t => `<span class="px-2 py-1 bg-white/20 backdrop-blur-md rounded-lg text-[8px] text-white font-black uppercase tracking-widest">${esc(t)}</span>`).join("")}
                     </div>
@@ -1804,7 +1807,7 @@ async function loadMediaLibrary() {
                         <button onclick="window.open('${m.url}', '_blank')" class="flex-1 bg-white/10 hover:bg-white/20 text-white p-2 rounded-xl backdrop-blur-md transition-all">
                             <svg class="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                         </button>
-                        <button onclick="deleteMedia(${m.id})" class="flex-1 bg-red-500/80 hover:bg-red-600 text-white p-2 rounded-xl backdrop-blur-md transition-all">
+                        <button onclick="deleteMedia(${m.id})" class="flex-1 bg-rose-500/80 hover:bg-rose-600 text-white p-2 rounded-xl backdrop-blur-md transition-all">
                             <svg class="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                         </button>
                     </div>
@@ -1902,7 +1905,7 @@ function editAuto(a) {
 
 async function loadProfiles() {
     const list = document.getElementById("profile_list");
-    list.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-black uppercase text-xs animate-pulse">Loading Profiles...</div>`;
+    list.innerHTML = `<div class="col-span-full py-12 text-center text-muted font-black uppercase text-xs animate-pulse">Loading Profiles...</div>`;
     
     const select = document.getElementById("auto_profile_id");
     if(select) {
@@ -1920,9 +1923,9 @@ async function loadProfiles() {
         
         if (!j.length) {
             list.innerHTML = `
-            <div class="col-span-full py-24 text-center border-2 border-dashed border-slate-200 rounded-3xl">
-                <p class="text-sm text-slate-400 font-black uppercase mb-4">No Profiles Found</p>
-                <button onclick="showCreateProfile()" class="bg-indigo-600 text-white px-6 py-2 rounded-xl text-xs font-black">Create First Profile</button>
+            <div class="col-span-full py-24 text-center border-2 border-dashed border-border rounded-3xl bg-white/5">
+                <p class="text-sm text-muted font-black uppercase mb-4">No Profiles Found</p>
+                <button onclick="showCreateProfile()" class="btn-primary px-6 py-2 rounded-xl text-xs font-black">Create First Profile</button>
             </div>`;
             return;
         }
@@ -1946,7 +1949,7 @@ async function loadProfiles() {
             </div>`;
         }).join("");
     } catch(e) { 
-        list.innerHTML = `<div class="col-span-full text-center text-red-500 font-bold">${e.message}</div>`;
+        list.innerHTML = `<div class="col-span-full text-center text-rose-500 font-bold">${e.message}</div>`;
     }
 }
 
@@ -2031,28 +2034,28 @@ async function seedProfile(presetName) {
 async function loadLibrary() {
     const list = document.getElementById("library_list");
     const query = document.getElementById("library_search")?.value || "";
-    list.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-black uppercase text-xs animate-pulse">Browsing Archive...</div>`;
+    list.innerHTML = `<div class="col-span-full py-12 text-center text-muted font-black uppercase text-xs animate-pulse">Browsing Archive...</div>`;
     try {
         const j = await request(`/library/?topic=${encodeURIComponent(query)}`);
         if (!j.length) {
             list.innerHTML = `
-            <div class="col-span-full py-24 text-center border-2 border-dashed border-slate-200 rounded-3xl">
-                <p class="text-sm text-slate-400 font-black uppercase">Archive Empty</p>
-                <p class="text-[10px] text-slate-400 mt-2">Upload or Seed some content to start.</p>
+            <div class="col-span-full py-24 text-center border-2 border-dashed border-border rounded-3xl bg-white/5">
+                <p class="text-sm text-muted font-black uppercase">Archive Empty</p>
+                <p class="text-[10px] text-muted mt-2">Upload or Seed some content to start.</p>
             </div>`;
             return;
         }
         list.innerHTML = j.map(item => `
-        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 hover:bg-white hover:shadow-lg transition-all">
+        <div class="bg-white/5 border border-border rounded-2xl p-5 hover:bg-white/10 hover:shadow-lg transition-all">
             <div class="flex justify-between items-start mb-3">
-                <span class="px-2 py-0.5 rounded-lg bg-indigo-100 text-indigo-700 text-[8px] font-black uppercase tracking-widest">${esc(item.type)}</span>
-                <span class="text-[9px] font-bold text-slate-400">${item.topics.join(", ")}</span>
+                <span class="px-2 py-0.5 rounded-lg bg-brand/10 text-brand text-[8px] font-black uppercase tracking-widest">${esc(item.type)}</span>
+                <span class="text-[9px] font-bold text-muted">${item.topics.join(", ")}</span>
             </div>
-            <h5 class="text-sm font-black text-slate-800 mb-2 line-clamp-1">${esc(item.title || 'Untitled')}</h5>
-            <p class="text-xs text-slate-500 line-clamp-3 mb-4 italic">"${esc(item.text_en)}"</p>
-            <div class="flex justify-between items-center pt-3 border-t border-slate-100">
-                <span class="text-[9px] font-bold text-slate-400">${esc(item.source_name || 'Personal')}</span>
-                <button onclick="deleteLibraryItem(${item.id})" class="text-slate-300 hover:text-red-500 transition-colors">
+            <h5 class="text-sm font-black text-main mb-2 line-clamp-1">${esc(item.title || 'Untitled')}</h5>
+            <p class="text-xs text-muted line-clamp-3 mb-4 italic">"${esc(item.text_en)}"</p>
+            <div class="flex justify-between items-center pt-3 border-t border-border">
+                <span class="text-[9px] font-bold text-muted">${esc(item.source_name || 'Personal')}</span>
+                <button onclick="deleteLibraryItem(${item.id})" class="text-muted hover:text-rose-500 transition-colors">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
             </div>
@@ -2124,12 +2127,12 @@ function updateAccountHeader() {
     
     if (acc) {
         display.textContent = acc.name;
-        display.className = "text-sm font-black text-indigo-700 uppercase fade-in";
-        box.className = "p-4 bg-indigo-50 border border-indigo-200 rounded-2xl shadow-inner";
+        display.className = "text-sm font-black text-brand uppercase fade-in";
+        box.className = "p-4 bg-brand/5 border border-brand/20 rounded-2xl shadow-inner";
     } else {
         display.textContent = "Please Setup Account →";
-        display.className = "text-sm font-black text-slate-400 italic";
-        box.className = "p-4 bg-slate-50 border border-slate-200 rounded-2xl shadow-none";
+        display.className = "text-sm font-black text-muted italic";
+        box.className = "p-4 bg-white/5 border border-border rounded-2xl shadow-none";
     }
 }
 function showEmptyState(type) {
@@ -2140,26 +2143,22 @@ function showEmptyState(type) {
     let html = "";
     if (type === "no_accounts") {
         html = `
-        <div class="col-span-full py-32 text-center border-2 border-dashed border-slate-100 rounded-[2.5rem] bg-slate-50/20 fade-in max-w-2xl mx-auto">
-            <div class="w-20 h-20 bg-white rounded-3xl shadow-xl shadow-slate-200/50 flex items-center justify-center mx-auto mb-8 border border-slate-50">
+        <div class="col-span-full py-32 text-center border-2 border-dashed border-border rounded-[2.5rem] bg-white/5 fade-in max-w-2xl mx-auto">
+            <div class="w-20 h-20 bg-white/5 rounded-3xl shadow-xl flex items-center justify-center mx-auto mb-8 border border-border">
                 <svg class="w-10 h-10 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
-            <h3 class="text-lg font-black text-slate-900 mb-2">No Social Profiles</h3>
-            <p class="text-[11px] text-slate-400 font-bold uppercase tracking-widest max-w-xs mx-auto leading-relaxed mb-10">Connect an Instagram account to start using the content engine.</p>
-            <button onclick="toggleSettings()" class="btn-brand px-10 py-4 text-[11px] font-black uppercase tracking-widest transition-all">Setup First Workspace</button>
+            <h3 class="text-lg font-black text-main mb-2">No Social Profiles</h3>
+            <p class="text-[11px] text-muted font-bold uppercase tracking-widest max-w-xs mx-auto leading-relaxed mb-10">Connect an Instagram account to start using the content engine.</p>
+            <button onclick="toggleSettings()" class="btn-primary px-10 py-4 text-[11px] font-black uppercase tracking-widest transition-all">Setup First Workspace</button>
         </div>`;
     } else if (type === "no_posts") {
         html = `
-        <div class="col-span-full py-32 text-center border-2 border-dashed border-slate-100 rounded-[2.5rem] bg-slate-50/20 fade-in max-w-2xl mx-auto">
-            <div class="w-20 h-20 bg-white rounded-3xl shadow-xl shadow-slate-200/50 flex items-center justify-center mx-auto mb-8 border border-slate-50">
-                <svg class="w-10 h-10 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+        <div class="col-span-full py-32 text-center border-2 border-dashed border-border rounded-[2.5rem] bg-white/5 fade-in max-w-2xl mx-auto">
+            <div class="w-16 h-16 bg-white/5 rounded-3xl shadow-xl flex items-center justify-center mx-auto mb-8 border border-border">
+                <svg class="w-8 h-8 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
             </div>
-            <h3 class="text-lg font-black text-slate-900 mb-2">Empty Content Stream</h3>
-            <p class="text-[11px] text-slate-400 font-bold uppercase tracking-widest max-w-xs mx-auto leading-relaxed mb-6">Your content pipeline is empty. Use the generator on the left to start.</p>
-            <div class="flex items-center justify-center gap-2 text-indigo-600 font-black text-[10px] uppercase tracking-tighter animate-bounce mt-4">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
-                Begin at Step 1
-            </div>
+            <h3 class="text-sm font-black text-main mb-2 uppercase tracking-widest">No Intelligence Nodes Found</h3>
+            <p class="text-[10px] text-muted font-bold uppercase tracking-widest max-w-xs mx-auto mb-8">Post intake required to generate neural streams.</p>
         </div>`;
     }
     list.innerHTML = html;
@@ -2186,7 +2185,7 @@ async function addAccount() {
         });
         
         msg.textContent = "✅ EXTENSION ACTIVE!";
-        msg.className = "mt-4 text-[10px] font-black tracking-widest text-green-600";
+        msg.className = "mt-4 text-[10px] font-black tracking-widest text-emerald-600";
         
         document.getElementById("new_acc_name").value = "";
         document.getElementById("new_acc_ig_id").value = "";
@@ -2199,7 +2198,7 @@ async function addAccount() {
         setTimeout(() => { toggleSettings(); msg.textContent = ""; }, 1500);
     } catch(e) { 
         msg.textContent = "❌ ERROR"; 
-        msg.className = "mt-4 text-[10px] font-black tracking-widest text-red-600";
+        msg.className = "mt-4 text-[10px] font-black tracking-widest text-rose-600";
         alert("Registration Failed: " + e.message); 
     } finally { btn.disabled = false; }
 }
@@ -2222,19 +2221,22 @@ function renderSettingsAccounts() {
     const list = document.getElementById("settings_accounts_list");
     if(!list) return;
     if(ACCOUNTS.length === 0) {
-        list.innerHTML = `<div class="text-xs text-slate-400 font-bold italic text-center py-4 bg-slate-50 rounded-xl">No accounts linked yet.</div>`;
+        list.innerHTML = `<div class="text-xs text-muted font-bold italic text-center py-4 bg-white/5 rounded-xl border border-border">No accounts linked yet.</div>`;
         return;
     }
     list.innerHTML = ACCOUNTS.map(a => `
-        <div class="flex justify-between items-center p-3 rounded-xl border border-slate-200 bg-slate-50">
-            <div>
-                <div class="text-sm font-bold text-slate-800">${esc(a.name)}</div>
-                <div class="text-[10px] text-slate-500 font-mono mt-0.5">ID: ${esc(a.ig_user_id)}</div>
+            <div class="flex justify-between items-center p-3 rounded-xl border border-border bg-white/5">
+                <div class="flex items-center gap-3">
+                    <img src="${a.profile_picture_url}" class="w-10 h-10 rounded-full border border-border" onerror="this.src='https://placehold.co/100x100?text=IG'"/>
+                    <div>
+                        <p class="text-xs font-black text-main underline cursor-pointer" onclick="window.open('https://instagram.com/${a.username}', '_blank')">@${esc(a.username)}</p>
+                        <p class="text-[8px] font-black uppercase text-brand tracking-widest">${esc(a.full_name || 'Instagram User')}</p>
+                    </div>
+                </div>
+                <button onclick="deleteAccount(${a.id})" class="p-2 text-muted hover:text-rose-500 transition-colors">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7M4 7h16" /></svg>
+                </button>
             </div>
-            <button onclick="deleteAccount(${a.id})" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete Account">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-            </button>
-        </div>
     `).join("");
 }
 async function loadStats() {
@@ -2264,7 +2266,7 @@ async function loadStats() {
 
 async function loadPosts() {
     const list = document.getElementById("list");
-    list.innerHTML = `<div class="col-span-full py-24 text-center"><div class="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto mb-4"></div><p class="text-xs font-black uppercase text-slate-400">Synchronizing History...</p></div>`;
+    list.innerHTML = `<div class="col-span-full py-24 text-center"><div class="animate-spin h-8 w-8 border-4 border-brand border-t-transparent rounded-full mx-auto mb-4"></div><p class="text-xs font-black uppercase text-muted">Synchronizing History...</p></div>`;
     try {
         const status = document.getElementById("status_filter").value;
         const qs = new URLSearchParams();
@@ -2324,7 +2326,7 @@ async function uploadPost() {
     try {
         btn.disabled = true;
         msg.textContent = "📡 UPLOADING CONTENT...";
-        msg.className = "text-center text-[10px] font-black text-indigo-500 animate-pulse";
+        msg.className = "text-center text-[10px] font-black text-brand animate-pulse";
         await request("/posts/intake", { method: "POST", body: fd });
         msg.textContent = "SUCCESS!";
         msg.className = "text-center text-[10px] font-black text-green-600";
@@ -2345,7 +2347,7 @@ function resetUpload() {
 }
 async function generatePost(id) {
     const el = document.getElementById(`msg-${id}`);
-    if(el) { el.textContent = "🧠 AI ANALYZING..."; el.className = "mt-4 text-[9px] text-center font-black text-indigo-500 animate-pulse"; }
+    if(el) { el.textContent = "🧠 AI ANALYZING..."; el.className = "mt-4 text-[9px] text-center font-black text-brand animate-pulse"; }
     try { await request(`/posts/${id}/generate`, { method: "POST" }); await refreshAll(); } catch(e) { if(el) { el.textContent = "AI FAILED"; el.className = "mt-4 text-[9px] text-center font-black text-red-600"; } alert(e.message); }
 }
 async function approvePost(id) {
@@ -2433,26 +2435,31 @@ ONBOARDING_HTML = """<!doctype html>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style> body { font-family: 'Inter', sans-serif; } </style>
 </head>
-<body class="bg-slate-50 min-h-screen flex py-12 px-6 justify-center">
-  <div class="max-w-2xl w-full bg-white rounded-3xl shadow-xl p-8 lg:p-12 border border-slate-100">
-    <div class="text-center mb-10">
-      <h1 class="text-3xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Welcome to Social SaaS</h1>
-      <p class="text-sm text-slate-500 mt-3 font-medium">Let's set up your first AI Content strategy. This will tailor how the system generates captions and media for your brand.</p>
+<body class="bg-main min-h-screen flex py-12 px-6 justify-center text-main">
+  <div class="max-w-2xl w-full bg-surface rounded-3xl shadow-xl p-8 lg:p-12 border border-border transition-all">
+    <div class="mb-10 flex items-center gap-3">
+        <div class="w-10 h-10 bg-brand rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-brand/20">S</div>
+        <h1 class="text-3xl font-black italic tracking-tighter text-gradient">Social Media LLM</h1>
+    </div>
+    <div class="mb-10">
+      <h2 class="text-2xl font-black text-main italic">Strategic Initialization</h2>
+      <p class="text-sm text-muted mt-3 font-medium">Let's set up your first AI Content strategy. This will tailor how the system generates captions and media for your brand.</p>
     </div>
     
     <form id="onboardingForm" class="space-y-8">
       <!-- Business Info -->
       <div class="space-y-6">
-        <h3 class="text-lg font-black text-slate-800 border-b border-slate-100 pb-2">Business Profile</h3>
         
+      <div class="space-y-6 pt-4 border-t border-border">
+        <h3 class="text-lg font-black text-main border-b border-border pb-2 italic">Business Context</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Workspace Name</label>
-                <input type="text" id="name" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all" placeholder="e.g. Apex Fitness, John's Real Estate">
+                <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Workspace Identity</label>
+                <input type="text" id="edit_org_name" required class="w-full bg-white/5 border border-border rounded-xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="e.g. Apex Fitness">
             </div>
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Niche / Category</label>
-                <select id="niche_category" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white">
+                <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Niche Architecture</label>
+                 <select id="edit_org_niche" class="w-full bg-white/5 border border-border rounded-xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none text-main cursor-pointer">
                     <option value="ecommerce">E-Commerce Brand</option>
                     <option value="real_estate">Real Estate</option>
                     <option value="fitness">Fitness Coaching</option>
@@ -2460,23 +2467,23 @@ ONBOARDING_HTML = """<!doctype html>
                     <option value="personal_creator">Personal Brand / Creator</option>
                     <option value="b2b_saas">B2B SaaS / Tech</option>
                     <option value="other">Other / Custom</option>
-                </select>
+                 </select>
             </div>
         </div>
         
         <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Content Strategy & Goals</label>
-            <textarea id="content_goals" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm min-h-[100px]" placeholder="What is the goal of your page? (e.g. 'Educate local homebuyers and showcase premium listings to generate leads')"></textarea>
+            <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Strategic Objectives</label>
+            <textarea id="edit_org_goals" required class="w-full bg-white/5 border border-border rounded-xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none text-main min-h-[100px]" placeholder="What is the goal of your page?"></textarea>
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Tone & Style</label>
-                <input type="text" id="tone_style" required class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm transition-all" placeholder="e.g. Professional, Witty, High-Energy">
+                <label class="block text-xs font-bold text-muted uppercase tracking-widest mb-2">Tone & Style</label>
+                <input type="text" id="tone_style" required class="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-brand outline-none text-sm transition-all text-main" placeholder="e.g. Professional, Witty, High-Energy">
             </div>
             <div>
-                <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Language</label>
-                 <select id="language" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white">
+                <label class="block text-xs font-bold text-muted uppercase tracking-widest mb-2">Language</label>
+                 <select id="language" class="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-brand outline-none text-sm bg-white text-main cursor-pointer">
                     <option value="english">English</option>
                     <option value="spanish">Spanish</option>
                     <option value="french">French</option>
@@ -2487,21 +2494,23 @@ ONBOARDING_HTML = """<!doctype html>
       </div>
       
       <!-- AI Boundaries -->
-      <div class="space-y-6 pt-4 border-t border-slate-100">
-        <h3 class="text-lg font-black text-slate-800 border-b border-slate-100 pb-2">AI Boundaries</h3>
-        
-        <div>
-            <label class="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2">Banned Topics / Phrases (Optional)</label>
-            <textarea id="banned_topics" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm min-h-[80px]" placeholder="e.g. 'Never mention competitors, avoid politics, don't use the word cheap'"></textarea>
-            <p class="text-[10px] text-slate-400 font-medium mt-1">The AI will strictly avoid these concepts when generating content.</p>
+      <div class="space-y-6 pt-4 border-t border-border">
+        <h3 class="text-lg font-black text-main border-b border-border pb-2 italic">Neural Boundaries</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Restricted Concepts</label>
+                <input type="text" id="edit_org_restricted" class="w-full bg-white/5 border border-border rounded-xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="e.g. politics, competitors">
+            </div>
+            <div>
+                <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Preferred Lexicon</label>
+                <input type="text" id="edit_org_lexicon" class="w-full bg-white/5 border border-border rounded-xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="e.g. luxury, bespoke, exclusive">
+            </div>
         </div>
       </div>
 
       <div id="errorMsg" class="hidden text-xs font-bold text-red-600 text-center bg-red-50 p-3 rounded-lg border border-red-100"></div>
       
-      <button type="submit" class="w-full bg-indigo-600 text-white rounded-xl py-4 font-black hover:bg-indigo-700 transition-all text-sm shadow-xl shadow-indigo-200 active:scale-[0.98]">
-        Initialize Workspace &rarr;
-      </button>
+      <button type="submit" class="w-full bg-brand text-white rounded-xl py-4 font-black hover:opacity-90 transition-all text-sm shadow-xl shadow-brand/20 active:scale-[0.98]">COMPLETE INITIALIZATION &rarr;</button>
     </form>
   </div>
   
