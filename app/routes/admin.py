@@ -377,6 +377,26 @@ HTML = """<!doctype html>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Content Profile Strategy</label>
+                        <select id="auto_profile_id" class="w-full px-4 py-3 rounded-xl border border-indigo-200 outline-none bg-indigo-50 text-indigo-900 font-bold shadow-sm">
+                            <option value="">-- Generic Setup (No Profile) --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex justify-between">
+                            <span>Creative Intensity</span>
+                            <span id="creativity_val" class="text-indigo-600 font-black">3 / 5</span>
+                        </label>
+                        <div class="pt-3">
+                            <input type="range" id="auto_creativity" min="1" max="5" value="3" class="w-full accent-indigo-600" oninput="document.getElementById('creativity_val').textContent = this.value + ' / 5'">
+                            <div class="flex justify-between text-[8px] font-bold text-slate-300 px-1 uppercase tracking-widest mt-2">
+                                <span>1 (Strict)</span><span>3</span><span>5 (Wild)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
                         <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Style Preset</label>
                         <select id="auto_style" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none bg-slate-50">
                             <option value="islamic_reminder">Islamic Reminder</option>
@@ -585,6 +605,9 @@ HTML = """<!doctype html>
                 <button onclick="switchTab('automations')" id="tab_automations" class="text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2">
                     Automations
                 </button>
+                <button onclick="switchTab('profiles')" id="tab_profiles" class="text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2">
+                    Profiles
+                </button>
                 <button onclick="switchTab('library')" id="tab_library" class="text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2">
                     Library
                 </button>
@@ -611,6 +634,9 @@ HTML = """<!doctype html>
             <div id="automations_controls" class="hidden flex items-center gap-2">
                 <button onclick="showCreateAuto()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">New Automation</button>
             </div>
+            <div id="profiles_controls" class="hidden flex items-center gap-2">
+                <button onclick="showCreateProfile()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">New Profile</button>
+            </div>
             <div id="library_controls" class="hidden flex items-center gap-2">
                 <input type="text" id="library_search" oninput="loadLibrary()" placeholder="Search Library..." class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:ring-indigo-500 outline-none bg-slate-50"/>
                 <button onclick="seedDemoContent()" class="bg-indigo-100 text-indigo-700 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-200 transition-all">Seed Demo</button>
@@ -630,6 +656,9 @@ HTML = """<!doctype html>
         </div>
         <div id="automations_view" class="hidden space-y-8">
             <div id="auto_list" class="grid grid-cols-1 gap-6"></div>
+        </div>
+        <div id="profiles_view" class="hidden space-y-8">
+            <div id="profile_list" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
         </div>
         <div id="calendar_view" class="hidden">
             <div id="calendar_el" class="bg-white p-4 rounded-2xl min-h-[600px]"></div>
@@ -671,6 +700,74 @@ HTML = """<!doctype html>
                     <tbody id="platform_user_table" class="divide-y divide-slate-100 text-sm font-medium text-slate-700">
                     </tbody>
                 </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Profile Modal -->
+    <div id="profile_modal" class="hidden fixed inset-0 bg-black/40 z-[110] backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="text-xl font-black text-slate-800">Content Profile</h3>
+                <button onclick="hideCreateProfile()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="p-8 overflow-y-auto space-y-6">
+                <input type="hidden" id="edit_profile_id" value=""/>
+                
+                <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
+                    <label class="block text-[10px] font-black text-indigo-900 uppercase tracking-widest mb-3">Load Starter Preset Quick-Fill</label>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="seedProfile('islamic_education')" class="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg hover:bg-indigo-600 hover:text-white transition-colors">Islamic Education</button>
+                        <button onclick="seedProfile('fitness_coach')" class="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg hover:bg-indigo-600 hover:text-white transition-colors">Fitness</button>
+                        <button onclick="seedProfile('real_estate')" class="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg hover:bg-indigo-600 hover:text-white transition-colors">Real Estate Market</button>
+                        <button onclick="seedProfile('small_business')" class="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg hover:bg-indigo-600 hover:text-white transition-colors">E-Commerce</button>
+                        <button onclick="seedProfile('personal_branding')" class="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg hover:bg-indigo-600 hover:text-white transition-colors">Personal Creator</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Profile Name</label>
+                        <input id="prof_name" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. My Brand Strategy"/>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Niche Category</label>
+                        <input id="prof_niche" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. real_estate, fitness"/>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Focus Description (What to post)</label>
+                    <textarea id="prof_focus" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 min-h-[80px]" placeholder="Specific focus..."></textarea>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Content Goals</label>
+                        <textarea id="prof_goals" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 min-h-[80px]" placeholder="Educate, Sell..."></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tone & Style</label>
+                        <textarea id="prof_tone" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 min-h-[80px]" placeholder="Professional..."></textarea>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Allowed Topics (CSV)</label>
+                        <input id="prof_allowed" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none text-xs" placeholder="topic1, topic2"/>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Banned Topics (CSV)</label>
+                        <input id="prof_banned" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none text-xs" placeholder="politics, drama"/>
+                    </div>
+                </div>
+            </div>
+            <div class="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                <button onclick="hideCreateProfile()" class="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition-colors">Cancel</button>
+                <button onclick="saveProfileWrapper()" class="px-8 py-3 bg-indigo-600 text-white rounded-xl font-black shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-transform active:scale-95">Save Profile</button>
             </div>
         </div>
     </div>
@@ -752,7 +849,7 @@ let calendar = null;
 
 function switchTab(t) {
     ACTIVE_TAB = t;
-    const views = ['feed', 'automations', 'library', 'media', 'calendar'];
+    const views = ['feed', 'automations', 'profiles', 'library', 'media', 'calendar'];
     views.forEach(v => {
         const el = document.getElementById(v + "_view");
         if(el) el.classList.toggle("hidden", v !== t);
@@ -834,6 +931,8 @@ async function refreshAll() {
                 await Promise.all([loadStats(), loadPosts()]);
             } else if (ACTIVE_TAB === 'automations') {
                 await loadAutomations();
+            } else if (ACTIVE_TAB === 'profiles') {
+                await loadProfiles();
             } else if (ACTIVE_TAB === 'calendar') {
                 await loadCalendarEvents();
             } else if (ACTIVE_TAB === 'media') {
@@ -932,7 +1031,9 @@ async function saveAutomation() {
         hadith_max_len: getNum("auto_hadith_maxlen") || 450,
         media_asset_id: getNum("auto_media_asset_id") || null,
         media_tag_query: getVal("auto_media_tag_query").split(",").map(t => t.trim()).filter(t => t),
-        media_rotation_mode: "random"
+        media_rotation_mode: "random",
+        content_profile_id: getNum("auto_profile_id") || null,
+        creativity_level: getNum("auto_creativity") || 3
     };
     try {
         await request(id ? `/automations/${id}` : "/automations", {
@@ -1327,8 +1428,146 @@ function editAuto(a) {
     
     const mTag = document.getElementById("auto_media_tag_query");
     if(mTag) mTag.value = (a.media_tag_query || []).join(", ");
+    
+    const profId = document.getElementById("auto_profile_id");
+    if(profId) profId.value = a.content_profile_id || "";
+    
+    const creat = document.getElementById("auto_creativity");
+    if(creat) {
+        creat.value = a.creativity_level || 3;
+        const valSpan = document.getElementById("creativity_val");
+        if(valSpan) valSpan.textContent = creat.value + " / 5";
+    }
 
     document.getElementById("auto_modal").classList.remove("hidden");
+}
+
+async function loadProfiles() {
+    const list = document.getElementById("profile_list");
+    list.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-black uppercase text-xs animate-pulse">Loading Profiles...</div>`;
+    
+    const select = document.getElementById("auto_profile_id");
+    if(select) {
+        select.innerHTML = `<option value="">-- Generic Setup (No Profile) --</option>`;
+    }
+    
+    try {
+        const j = await request(`/profiles`);
+        
+        if(select) {
+            j.forEach(p => {
+                select.innerHTML += `<option value="${p.id}">${esc(p.name)}</option>`;
+            });
+        }
+        
+        if (!j.length) {
+            list.innerHTML = `
+            <div class="col-span-full py-24 text-center border-2 border-dashed border-slate-200 rounded-3xl">
+                <p class="text-sm text-slate-400 font-black uppercase mb-4">No Profiles Found</p>
+                <button onclick="showCreateProfile()" class="bg-indigo-600 text-white px-6 py-2 rounded-xl text-xs font-black">Create First Profile</button>
+            </div>`;
+            return;
+        }
+        
+        list.innerHTML = j.map(p => {
+            return `
+            <div class="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col items-stretch group hover:bg-slate-50 hover:shadow-xl transition-all duration-300">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-2">
+                            <h4 class="text-lg font-black text-slate-800">${esc(p.name)}</h4>
+                        </div>
+                        <p class="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-2">Niche: <span class="text-indigo-600">${esc(p.niche_category || 'N/A')}</span></p>
+                        <p class="text-xs text-slate-500 font-medium line-clamp-2">${esc(p.focus_description || 'No focus specified.')}</p>
+                    </div>
+                </div>
+                <div class="mt-auto pt-4 border-t border-slate-100 flex justify-end gap-2">
+                    <button onclick='editProfile(${JSON.stringify(p).replaceAll("'", "&apos;")})' class="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all font-bold text-xs">Edit</button>
+                    <button onclick="deleteProfile(${p.id})" class="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 transition-all font-bold text-xs">Delete</button>
+                </div>
+            </div>`;
+        }).join("");
+    } catch(e) { 
+        list.innerHTML = `<div class="col-span-full text-center text-red-500 font-bold">${e.message}</div>`;
+    }
+}
+
+function showCreateProfile() {
+    document.getElementById("edit_profile_id").value = "";
+    document.getElementById("prof_name").value = "";
+    document.getElementById("prof_niche").value = "";
+    document.getElementById("prof_focus").value = "";
+    document.getElementById("prof_goals").value = "";
+    document.getElementById("prof_tone").value = "";
+    document.getElementById("prof_allowed").value = "";
+    document.getElementById("prof_banned").value = "";
+    document.getElementById("profile_modal").classList.remove("hidden");
+}
+
+function hideCreateProfile() {
+    document.getElementById("profile_modal").classList.add("hidden");
+}
+
+function editProfile(p) {
+    document.getElementById("edit_profile_id").value = p.id;
+    document.getElementById("prof_name").value = p.name || "";
+    document.getElementById("prof_niche").value = p.niche_category || "";
+    document.getElementById("prof_focus").value = p.focus_description || "";
+    document.getElementById("prof_goals").value = p.content_goals || "";
+    document.getElementById("prof_tone").value = p.tone_style || "";
+    document.getElementById("prof_allowed").value = (p.allowed_topics || []).join(", ");
+    document.getElementById("prof_banned").value = (p.banned_topics || []).join(", ");
+    document.getElementById("profile_modal").classList.remove("hidden");
+}
+
+async function saveProfileWrapper() {
+    const id = document.getElementById("edit_profile_id").value;
+    const getVal = (id) => document.getElementById(id)?.value || null;
+    
+    // Parse CSV
+    const parseList = (val) => val ? val.split(",").map(t => t.trim()).filter(Boolean) : null;
+    
+    const payload = {
+        name: getVal("prof_name"),
+        niche_category: getVal("prof_niche"),
+        focus_description: getVal("prof_focus"),
+        content_goals: getVal("prof_goals"),
+        tone_style: getVal("prof_tone"),
+        allowed_topics: parseList(getVal("prof_allowed")),
+        banned_topics: parseList(getVal("prof_banned"))
+    };
+    
+    if(!payload.name) return alert("Profile Name is required!");
+    
+    try {
+        await request(id ? `/profiles/${id}` : "/profiles", {
+            method: id ? "PATCH" : "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        hideCreateProfile();
+        loadProfiles();
+    } catch(e) { alert("Save Failed: " + e.message); }
+}
+
+async function deleteProfile(id) {
+    if(!confirm("Remove this content profile?")) return;
+    try {
+        await request(`/profiles/${id}`, { method: "DELETE" });
+        loadProfiles();
+    } catch(e) { alert(e.message); }
+}
+
+async function seedProfile(presetName) {
+    try {
+        const res = await request(`/profiles?preset=${encodeURIComponent(presetName)}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: "New " + presetName + " Profile" })
+        });
+        hideCreateProfile();
+        loadProfiles();
+    } catch(e) { alert("Failed to apply preset: " + e.message); }
 }
 
 async function loadLibrary() {

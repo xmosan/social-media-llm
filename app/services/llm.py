@@ -38,7 +38,9 @@ def generate_topic_caption(
     style: str = "islamic_reminder",
     tone: str = "medium",
     language: str = "english",
-    banned_phrases: list[str] | None = None
+    banned_phrases: list[str] | None = None,
+    content_profile_prompt: str | None = None,
+    creativity_level: int = 3
 ) -> dict[str, Any]:
     """Generates a caption based on a topic and various style parameters using OpenAI."""
     client = get_client()
@@ -78,10 +80,13 @@ def generate_topic_caption(
 
     print(f"[DEBUG] Prompting LLM for topic: {topic}")
     
+    system_msg = content_profile_prompt if content_profile_prompt else "You are a professional social media manager specializing in high-engagement content."
+    system_msg += f" Creativity Level: {creativity_level}/5."
+    
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
-            {"role": "system", "content": "You are a professional social media manager specializing in high-engagement content."},
+            {"role": "system", "content": system_msg},
             {"role": "user", "content": prompt}
         ],
         response_format={"type": "json_object"}
@@ -102,7 +107,9 @@ def generate_caption_from_content_item(
     language: str = "english",
     banned_phrases: list[str] | None = None,
     include_arabic: bool = False,
-    extra_hashtag_set: list[str] | None = None
+    extra_hashtag_set: list[str] | None = None,
+    content_profile_prompt: str | None = None,
+    creativity_level: int = 3
 ) -> dict[str, Any]:
     """
     Asks LLM to generate a reflection and hashtags for a specific DB content item.
@@ -138,10 +145,13 @@ def generate_caption_from_content_item(
     }}
     """
     
+    system_msg = content_profile_prompt if content_profile_prompt else "You are a professional social media manager. You write brief, powerful reflections for authentic narrations and quotes."
+    system_msg += f" Creativity Level: {creativity_level}/5."
+    
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
-            {"role": "system", "content": "You are a professional social media manager. You write brief, powerful reflections for authentic narrations and quotes."},
+            {"role": "system", "content": system_msg},
             {"role": "user", "content": prompt}
         ],
         response_format={"type": "json_object"}

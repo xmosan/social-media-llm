@@ -118,6 +118,30 @@ class Post(Base):
     media_asset = relationship("MediaAsset", back_populates="posts")
     content_usage = relationship("ContentUsage", back_populates="post", uselist=False)
 
+class ContentProfile(Base):
+    __tablename__ = "content_profiles"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("orgs.id"), nullable=False, index=True)
+    
+    name = Column(String, nullable=False) # e.g. "Fitness Brand"
+    niche_category = Column(String, nullable=True) # e.g. "fitness"
+    focus_description = Column(Text, nullable=True)
+    content_goals = Column(Text, nullable=True)
+    tone_style = Column(String, nullable=True)
+    language = Column(String, default="english")
+    
+    allowed_topics = Column(JSON, nullable=True) # list
+    banned_topics = Column(JSON, nullable=True) # list
+    
+    source_mode = Column(String, default="manual")
+    source_urls = Column(JSON, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    org = relationship("Org")
+    automations = relationship("TopicAutomation", back_populates="content_profile")
+
 class TopicAutomation(Base):
     __tablename__ = "topic_automations"
     id = Column(Integer, primary_key=True, index=True)
@@ -140,6 +164,10 @@ class TopicAutomation(Base):
     posting_mode = Column(String, default="schedule") # "publish_now" | "schedule"
     approval_mode = Column(String, default="auto_approve") # "auto_approve" | "needs_manual_approve"
     image_mode = Column(String, default="reuse_last_upload") # "reuse_last_upload" | "none_placeholder" | "quote_card"
+    
+    # NEW: Content Focus Engine
+    content_profile_id = Column(Integer, ForeignKey("content_profiles.id"), nullable=True)
+    creativity_level = Column(Integer, default=3) # 1-5
     
     # NEW: Content Library Settings
     use_content_library = Column(Boolean, default=True)
@@ -174,6 +202,7 @@ class TopicAutomation(Base):
     generated_posts = relationship("Post", back_populates="automation")
     content_usages = relationship("ContentUsage", back_populates="automation")
     media_asset = relationship("MediaAsset")
+    content_profile = relationship("ContentProfile", back_populates="automations")
 
 class ContentItem(Base):
     __tablename__ = "content_items"

@@ -78,6 +78,49 @@ class AccountUpdate(BaseModel):
     daily_post_time: str | None = None
     active: bool | None = None
 
+class ContentProfileOut(BaseModel):
+    id: int
+    org_id: int
+    name: str
+    niche_category: str | None
+    focus_description: str | None
+    content_goals: str | None
+    tone_style: str | None
+    language: str
+    allowed_topics: list[str] | None
+    banned_topics: list[str] | None
+    source_mode: str
+    source_urls: list[str] | None
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class ContentProfileCreate(BaseModel):
+    name: str
+    niche_category: str | None = None
+    focus_description: str | None = None
+    content_goals: str | None = None
+    tone_style: str | None = None
+    language: str = "english"
+    allowed_topics: list[str] | None = None
+    banned_topics: list[str] | None = None
+    source_mode: str = "manual"
+    source_urls: list[str] | None = None
+
+class ContentProfileUpdate(BaseModel):
+    name: str | None = None
+    niche_category: str | None = None
+    focus_description: str | None = None
+    content_goals: str | None = None
+    tone_style: str | None = None
+    language: str | None = None
+    allowed_topics: list[str] | None = None
+    banned_topics: list[str] | None = None
+    source_mode: str | None = None
+    source_urls: list[str] | None = None
+
 class TopicAutomationOut(BaseModel):
     id: int
     org_id: int
@@ -92,6 +135,10 @@ class TopicAutomationOut(BaseModel):
     post_time_local: str | None = None
     last_run_at: datetime | None = None
     last_error: str | None = None
+
+    # New Content Focus fields
+    content_profile_id: int | None = None
+    creativity_level: int = 3
 
     # New Library fields
     use_content_library: bool
@@ -138,6 +185,9 @@ class TopicAutomationCreate(BaseModel):
     approval_mode: str = "auto_approve"
     image_mode: str = "reuse_last_upload"
     
+    content_profile_id: int | None = None
+    creativity_level: int = 3
+    
     # New Library fields
     use_content_library: bool = True
     avoid_repeat_days: int = 30
@@ -177,6 +227,9 @@ class TopicAutomationUpdate(BaseModel):
     posting_mode: str | None = None
     approval_mode: str | None = None
     image_mode: str | None = None
+    
+    content_profile_id: int | None = None
+    creativity_level: int | None = None
     
     use_content_library: bool | None = None
     avoid_repeat_days: int | None = None

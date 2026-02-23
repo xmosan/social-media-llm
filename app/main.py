@@ -11,7 +11,7 @@ import uuid
 from .db import engine, SessionLocal
 from .models import Base, Org, ApiKey, IGAccount, User, OrgMember
 from .security.auth import get_password_hash
-from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth
+from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles
 from .services.scheduler import start_scheduler
 from .config import settings
 from .logging_setup import setup_logging, request_id_var, log_event
@@ -117,6 +117,7 @@ app.include_router(automations.router)
 app.include_router(library.router)
 app.include_router(media.router)
 app.include_router(auth.router)
+app.include_router(profiles.router)
 
 def bootstrap_saas():
     """Seed initial Org, API Key, and Superadmin User."""
@@ -203,7 +204,9 @@ def on_startup():
                 ("hadith_max_len", "INTEGER DEFAULT 450"),
                 ("media_asset_id", "INTEGER"),
                 ("media_tag_query", "JSONB" if is_postgres else "TEXT"),
-                ("media_rotation_mode", "VARCHAR DEFAULT 'random'")
+                ("media_rotation_mode", "VARCHAR DEFAULT 'random'"),
+                ("content_profile_id", "INTEGER"),
+                ("creativity_level", "INTEGER DEFAULT 3")
             ]
             for col, col_def in auto_cols:
                 try:

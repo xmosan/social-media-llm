@@ -213,9 +213,33 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 db.commit()
                 return new_post
 
+        # 1.5 Content Profile Injection
+        content_profile_prompt = None
+        if getattr(automation, "content_profile_id", None):
+            from app.models import ContentProfile
+            profile = db.query(ContentProfile).filter(ContentProfile.id == automation.content_profile_id).first()
+            if profile:
+                prompt_parts = []
+                if profile.niche_category:
+                    prompt_parts.append(f"You are generating content for a {profile.niche_category} brand.")
+                if profile.focus_description:
+                    prompt_parts.append(f"Focus: {profile.focus_description}")
+                if profile.content_goals:
+                    prompt_parts.append(f"Goal: {profile.content_goals}")
+                if profile.tone_style:
+                    prompt_parts.append(f"Tone: {profile.tone_style}")
+                if profile.allowed_topics:
+                    prompt_parts.append(f"Core Topics to Discuss: {', '.join(profile.allowed_topics)}")
+                if profile.banned_topics:
+                    prompt_parts.append(f"AVOID Discussing: {', '.join(profile.banned_topics)}")
+                
+                content_profile_prompt = "\n".join(prompt_parts)
+
         # 2. Generate Content
         print(f"[AUTO] Generating for automation_id={automation.id} topic='{topic}'")
         
+        creativity_level = getattr(automation, "creativity_level", 3)
+
         if content_item:
             result = generate_caption_from_content_item(
                 content_item=content_item,
@@ -224,7 +248,9 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 language=automation.language or "english",
                 banned_phrases=automation.banned_phrases if isinstance(automation.banned_phrases, list) else None,
                 include_arabic=automation.include_arabic,
-                extra_hashtag_set=automation.hashtag_set
+                extra_hashtag_set=automation.hashtag_set,
+                content_profile_prompt=content_profile_prompt,
+                creativity_level=creativity_level
             )
         else:
             # Fallback for old mode if use_content_library is False
@@ -233,7 +259,9 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 style=automation.style_preset,
                 tone=automation.tone or "medium",
                 language=automation.language or "english",
-                banned_phrases=automation.banned_phrases if isinstance(automation.banned_phrases, list) else None
+                banned_phrases=automation.banned_phrases if isinstance(automation.banned_phrases, list) else None,
+                content_profile_prompt=content_profile_prompt,
+                creativity_level=creativity_level
             )
         
         caption = result.get("caption", "").strip()

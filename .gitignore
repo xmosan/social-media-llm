@@ -21,4 +21,4 @@ debug_script.js
 served_script*.js
 lt.log
 tunnel.log
-!*.py
+!*.py\n.venv_new
