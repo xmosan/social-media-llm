@@ -713,6 +713,52 @@ HTML = """<!doctype html>
             </div>
         </div>
         <div id="feed_view">
+            <!-- Welcome Intro Card -->
+            <div id="welcome_card" class="hidden mb-10 bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-[2rem] p-8 lg:p-10 shadow-2xl relative overflow-hidden fade-in">
+                <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[100px] -mr-32 -mt-32"></div>
+                <div class="relative z-10 flex flex-col lg:flex-row gap-10 items-center">
+                    <div class="flex-1 space-y-6">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest border border-indigo-500/30">
+                            ✨ New Arrival
+                        </div>
+                        <h2 class="text-3xl lg:text-4xl font-black leading-tight">Master your Social Media with <span class="text-indigo-400">AI Precision</span>.</h2>
+                        <p class="text-slate-400 text-sm md:text-base font-medium max-w-xl">
+                            Social SaaS is your all-in-one engine for AI-driven Instagram growth. From generating visuals to scheduling and hands-free publishing, we handle the grind so you can focus on building your brand.
+                        </p>
+                        <div class="flex flex-wrap gap-4 pt-4">
+                            <a href="/admin/onboarding" class="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3.5 rounded-2xl font-black text-sm transition-all shadow-xl shadow-indigo-900/40 active:scale-95">
+                                Start Setup &rarr;
+                            </a>
+                            <button onclick="document.getElementById('welcome_card').remove()" class="bg-white/5 hover:bg-white/10 text-white px-8 py-3.5 rounded-2xl font-black text-sm transition-all border border-white/10">
+                                Dismiss
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 w-full lg:w-[450px]">
+                        <div class="bg-white/5 p-5 rounded-2xl border border-white/10 space-y-3">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            </div>
+                            <h4 class="text-xs font-black uppercase tracking-wider">Connect</h4>
+                            <p class="text-[10px] text-slate-400 leading-relaxed font-medium">Link your Instagram accounts to start publishing.</p>
+                        </div>
+                        <div class="bg-white/5 p-5 rounded-2xl border border-white/10 space-y-3">
+                            <div class="w-8 h-8 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.364-5.636l-.707-.707M6.342 16.158l-.707.707M17.658 16.158l.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                            </div>
+                            <h4 class="text-xs font-black uppercase tracking-wider">Strategy</h4>
+                            <p class="text-[10px] text-slate-400 leading-relaxed font-medium">Define your brand's niche, tone, and goals.</p>
+                        </div>
+                        <div class="bg-white/5 p-5 rounded-2xl border border-white/10 space-y-3">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            </div>
+                            <h4 class="text-xs font-black uppercase tracking-wider">Automate</h4>
+                            <p class="text-[10px] text-slate-400 leading-relaxed font-medium">Enable daily AI generation and auto-posting.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div id="stats" class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-10"></div>
             <div id="error" class="hidden mb-6 p-5 rounded-2xl bg-red-50 text-red-600 text-[11px] font-bold border border-red-100 animate-pulse"></div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8" id="list"></div>
@@ -1965,10 +2011,14 @@ async function loadMe() {
         }
         
         const welcomeBanner = document.getElementById("onboarding_banner");
+        const welcomeCard = document.getElementById("welcome_card");
+        
         if (!ME.onboarding_complete) {
             welcomeBanner.classList.remove("hidden");
+            if (welcomeCard) welcomeCard.classList.remove("hidden");
         } else {
             welcomeBanner.classList.add("hidden");
+            if (welcomeCard) welcomeCard.classList.add("hidden");
         }
         
         const sel = document.getElementById("org_selector");
