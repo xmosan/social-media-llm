@@ -1710,3 +1710,22 @@ def export_safe_config(
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "keys_present": list(os.environ.keys())
     }
+
+@router.get("/debug/logging")
+def debug_logging(user: User = Depends(require_superadmin)):
+    import logging
+    from ..config import settings
+    
+    logger = logging.getLogger()
+    axiom_handler = None
+    for h in logger.handlers:
+        if type(h).__name__ == "AxiomHandler":
+            axiom_handler = h
+            break
+            
+    return {
+        "axiom_enabled": bool(settings.axiom_token),
+        "dataset": settings.axiom_dataset,
+        "queue_size": axiom_handler.queue.qsize() if axiom_handler else 0,
+        "last_ship_status": "active" if axiom_handler and axiom_handler.worker.is_alive() else "inactive"
+    }

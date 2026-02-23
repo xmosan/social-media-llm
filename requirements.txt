@@ -18,6 +18,10 @@ python-jose[cryptography]
 # Production Reliability
 boto3
 cryptography
+
+# Observability
+python-json-logger
+requests
 python-dotenv==1.2.1
 python-multipart==0.0.12
 pytz==2025.2

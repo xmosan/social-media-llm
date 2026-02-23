@@ -12,6 +12,7 @@ from app.config import settings
 import pytz
 import os
 import requests
+from app.logging_setup import log_event
 
 logger = logging.getLogger(__name__)
 
@@ -178,8 +179,10 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
     
     content_item = None
     try:
-        # 1. Content Selection
         topic = automation.topic_prompt
+        log_event("automation_run_start", automation_id=automation.id, topic=topic, style=automation.style_preset)
+        
+        # 1. Content Selection
         if automation.use_content_library:
             content_item = pick_content_item(
                 db=db,
@@ -239,6 +242,7 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             hashtags = automation.hashtag_set
             
         alt_text = result.get("alt_text", "")
+        log_event("automation_caption_generated", automation_id=automation.id, caption_len=len(caption), hashtags_count=len(hashtags))
         
         # 2.5 Optional Enrichment: Hadith
         if automation.enrich_with_hadith:
@@ -325,6 +329,7 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         # 5. Guardrail (simpler for library content)
         if not caption:
             print(f"[AUTO] FAILED GUARDRAIL: caption is empty.")
+            log_event("automation_guardrail_failed", automation_id=automation.id, reason="empty_caption")
             new_post.status = "failed"
             new_post.flags = {"automation_error": "LLM returned empty caption"}
             automation.last_error = "LLM returned empty caption"
@@ -349,6 +354,7 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
 
         # 7. Immediate Publishing if configured
         if automation.posting_mode == "publish_now" and automation.approval_mode == "auto_approve":
+            log_event("automation_publish_attempt", automation_id=automation.id, post_id=new_post.id)
             acc = db.get(IGAccount, automation.ig_account_id)
             pub_res = publish_to_instagram(
                 caption=f"{new_post.caption}\n\n" + " ".join(new_post.hashtags or []),
@@ -357,6 +363,7 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 access_token=acc.access_token
             )
             if pub_res.get("ok"):
+                log_event("automation_publish_success", automation_id=automation.id, post_id=new_post.id)
                 new_post.status = "published"
                 new_post.published_time = datetime.now(dt_timezone.utc)
                 if content_item:
@@ -378,6 +385,8 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         return new_post
 
     except Exception as e:
+        import traceback
+        log_event("automation_run_exception", automation_id=automation_id, error=str(e), traceback=traceback.format_exc(limit=3))
         print(f"[AUTO] ERROR in runner for automation_id={automation_id}: {repr(e)}")
         logger.error(f"Automation {automation_id} failed: {e}")
         automation.last_error = str(e)

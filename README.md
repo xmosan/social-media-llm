@@ -25,3 +25,19 @@ If the `PRIMARY_REGION` cluster is inaccessible due to a provider outage:
 2. Spin up a new Railway project or Docker host in the secondary region.
 3. Decrypt your environment variables locally using the `ENV_BACKUP_KEY` and inject them into the new host deployment's variables.
 4. Set `DATABASE_URL` to your fallback database. Alternatively, provision a fresh PostgreSQL database in the new region and restore the latest S3 SQL.gz backup to it.
+
+## Centralized Observability (Axiom)
+
+The system is instrumented with rigorous, non-blocking structured JSON logging that correlates multi-service requests via UUIDs. It ships directly to Axiom without the need for a Heavy Forwarder or Datadog agent.
+
+### Setup Instructions
+To enable remote streaming, configure the following environment variables in your `.env` or Railway project variables:
+
+- `AXIOM_TOKEN="xaat-YOUR-API-KEY"` (Required to enable shipping)
+- `AXIOM_DATASET="social-media-llm"` (Defaults to "social-media-llm")
+- `AXIOM_ORG_ID="your-org-id"` (Optional if your token already scopes to the organization)
+
+**Security Checks:**
+- Secret keys (`OPENAI_API_KEY`, Access Tokens, Authorization headers) are natively redacted before leaving the host memory.
+- If Axiom ever goes offline, the in-memory log buffer queue naturally drops logs after timing out, heavily ensuring your application will *never* crash due to an observability outage.
+- To check the health of the logging shipper, a Superadmin can visit `/admin/debug/logging`.

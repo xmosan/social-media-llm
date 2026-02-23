@@ -33,4 +33,10 @@ class Settings(BaseSettings):
     primary_region: str | None = Field(default=None, alias="PRIMARY_REGION")
     secondary_database_url: str | None = Field(default=None, alias="SECONDARY_DATABASE_URL")
 
+    # Observability (Axiom)
+    axiom_token: str | None = Field(default=None, alias="AXIOM_TOKEN")
+    axiom_dataset: str | None = Field(default="social-media-llm", alias="AXIOM_DATASET")
+    axiom_org_id: str | None = Field(default=None, alias="AXIOM_ORG_ID")
+    axiom_url: str = Field(default="https://api.axiom.co", alias="AXIOM_URL")
+
 settings = Settings()

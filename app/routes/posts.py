@@ -13,6 +13,7 @@ from ..services.policy import keyword_flags
 from ..services.publisher import publish_to_instagram
 from ..services.automation_runner import resolve_media_url
 from ..security.rbac import get_current_org_id
+from ..logging_setup import log_event
 
 router = APIRouter(prefix="/posts", tags=["posts"])
 
@@ -78,6 +79,7 @@ def intake_post(
     db.add(post)
     db.commit()
     db.refresh(post)
+    log_event("post_intake", post_id=post.id, org_id=org_id, ig_account_id=ig_account_id)
     return post
 
 @router.post("/{post_id}/generate", response_model=GenerateOut)
@@ -100,6 +102,8 @@ def generate_for_post(
 
     post.status = "needs_review" if flags.get("needs_review") else "drafted"
     db.commit()
+
+    log_event("post_generate", post_id=post.id, status=post.status)
 
     return {
         "caption": post.caption,
@@ -289,6 +293,7 @@ def approve_post(
     post.status = "scheduled"
     db.commit()
     db.refresh(post)
+    log_event("post_approve", post_id=post.id, status=post.status)
     return post
 
 @router.post("/{post_id}/publish", response_model=PostOut)
@@ -309,6 +314,7 @@ def publish_post(
     if post.hashtags:
         caption_full += "\n\n" + " ".join(post.hashtags)
 
+    log_event("post_publish_start", post_id=post.id)
     res = publish_to_instagram(
         caption=caption_full, 
         media_url=post.media_url,
@@ -320,12 +326,14 @@ def publish_post(
         post.status = "failed"
         post.flags = {**(post.flags or {}), "publish_error": res.get("error")}
         db.commit()
+        log_event("post_publish_fail", post_id=post.id, error=res.get("error"))
         raise HTTPException(status_code=502, detail=f"Publish failed: {res.get('error')}")
 
     post.status = "published"
     post.published_time = _utcnow()
     db.commit()
     db.refresh(post)
+    log_event("post_publish_success", post_id=post.id, remote_id=res.get("id"))
     return post
 
 @router.delete("/{post_id}")

@@ -5,6 +5,8 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+import uuid
 
 from .db import engine, SessionLocal
 from .models import Base, Org, ApiKey, IGAccount, User, OrgMember
@@ -12,9 +14,12 @@ from .security.auth import get_password_hash
 from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth
 from .services.scheduler import start_scheduler
 from .config import settings
+from .logging_setup import setup_logging, request_id_var, log_event
 
 import logging
 logger = logging.getLogger(__name__)
+
+setup_logging()
 
 # Startup validation checks
 REQUIRED_VARS = ["OPENAI_API_KEY", "IG_ACCESS_TOKEN", "DATABASE_URL", "JWT_SECRET"]
@@ -31,6 +36,34 @@ if missing_vars:
     logger.warning(f"CRITICAL STARTUP WARNING: Missing or unsafe required variables: {', '.join(missing_vars)}")
 
 app = FastAPI(title="Social Media LLM - Multi-tenant SaaS")
+
+class LoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+        token = request_id_var.set(req_id)
+        start_time = time.time()
+        
+        try:
+            response = await call_next(request)
+            response.headers["X-Request-ID"] = req_id
+            status_code = response.status_code
+        except Exception as e:
+            status_code = 500
+            raise e
+        finally:
+            latency = int((time.time() - start_time) * 1000)
+            log_event(
+                "http_request",
+                method=request.method,
+                path=request.url.path,
+                status_code=status_code,
+                latency_ms=latency
+            )
+            request_id_var.reset(token)
+            
+        return response
+
+app.add_middleware(LoggingMiddleware)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 @app.exception_handler(Exception)
