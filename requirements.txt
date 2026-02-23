@@ -45,3 +45,4 @@ bcrypt
 PyJWT
 authlib
 httpx
+itsdangerous
