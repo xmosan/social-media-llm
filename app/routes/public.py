@@ -31,7 +31,15 @@ LANDING_HTML = """<!doctype html>
     .glass {
       background: rgba(255, 255, 255, 0.03);
       backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .text-gradient {
+      background: linear-gradient(to right, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      color: transparent;
     }
     .slide-dot.active { background: #6366f1; width: 24px; }
     .fade-in { animation: fadeIn 0.8s ease-out forwards; }
@@ -43,7 +51,7 @@ LANDING_HTML = """<!doctype html>
   <div class="max-w-4xl w-full space-y-12">
     <!-- Header -->
     <header class="space-y-4">
-      <h1 id="typing-header" class="text-5xl md:text-7xl font-black tracking-tighter typing italic bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent"></h1>
+      <h1 id="typing-header" class="text-5xl md:text-7xl font-black tracking-tighter typing italic text-gradient"></h1>
       <p id="subheading" class="text-slate-400 font-medium text-lg md:text-xl opacity-0">The ultimate AI engine for hands-free social growth.</p>
     </header>
 
@@ -431,10 +439,15 @@ CONTACT_HTML = """<!doctype html>
 
 @router.get("/", response_class=HTMLResponse)
 def landing_page(user: Optional[User] = Depends(get_current_user)):
-    # Very basic template string replacement for simple logic
-    html = LANDING_HTML.replace("{% if authenticated %}", "" if user else "<!--")
-    html = html.replace("{% else %}", "-->" if user else "")
-    html = html.replace("{% endif %}", "")
+    html = LANDING_HTML
+    if user:
+        html = html.replace("{% if authenticated %}", "")
+        html = html.replace("{% else %}", "<!--")
+        html = html.replace("{% endif %}", "-->")
+    else:
+        html = html.replace("{% if authenticated %}", "<!--")
+        html = html.replace("{% else %}", "-->")
+        html = html.replace("{% endif %}", "")
     return html
 
 @router.get("/login", response_class=HTMLResponse)
