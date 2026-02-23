@@ -21,7 +21,12 @@ class Settings(BaseSettings):
     # Auth & security
     secret_key: str = Field(default="change-me-in-production-for-jwt", alias="SECRET_KEY")
     superadmin_email: str | None = Field(default=None, alias="SUPERADMIN_EMAIL")
+    superadmin_email: str | None = Field(default=None, alias="SUPERADMIN_EMAIL")
     superadmin_password: str | None = Field(default=None, alias="SUPERADMIN_PASSWORD")
+
+    # Google OAuth
+    google_client_id: str | None = Field(default=None, alias="GOOGLE_CLIENT_ID")
+    google_client_secret: str | None = Field(default=None, alias="GOOGLE_CLIENT_SECRET")
 
     # Backups & Reliability
     backup_storage_type: str = Field(default="local", alias="BACKUP_STORAGE_TYPE")

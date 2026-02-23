@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.db import get_db
-from app.models import User, OrgMember, Org
+from app.models import User, OrgMember, Org, ContentProfile
 from app.schemas import UserCreate
 from app.security.auth import verify_password, create_access_token, get_current_user, require_user, get_password_hash
 from typing import Any
@@ -97,6 +97,52 @@ def logout(response: Response) -> dict[str, str]:
         secure=True
     )
     return {"message": "Logged out successfully"}
+
+from pydantic import BaseModel
+class OnboardingPayload(BaseModel):
+    name: str
+    niche_category: str
+    content_goals: str
+    tone_style: str
+    language: str
+    banned_topics: list[str] = []
+
+@router.patch("/complete-onboarding")
+def complete_onboarding(
+    payload: OnboardingPayload,
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db)
+):
+    """Saves the user's initial Content Profile and marks them as onboarded."""
+    if user.onboarding_complete:
+        raise HTTPException(status_code=400, detail="User is already onboarded.")
+        
+    # Get the user's default organization
+    membership = db.query(OrgMember).filter(OrgMember.user_id == user.id).first()
+    if not membership:
+        raise HTTPException(status_code=500, detail="User has no associated organization.")
+        
+    org_id = membership.org_id
+    
+    # Check if they already have a profile
+    existing = db.query(ContentProfile).filter(ContentProfile.org_id == org_id).first()
+    if not existing:
+        profile = ContentProfile(
+            org_id=org_id,
+            name=payload.name,
+            niche_category=payload.niche_category,
+            focus_description="Initial workspace profile",
+            content_goals=payload.content_goals,
+            tone_style=payload.tone_style,
+            language=payload.language,
+            banned_topics=payload.banned_topics
+        )
+        db.add(profile)
+        
+    user.onboarding_complete = True
+    db.commit()
+    
+    return {"status": "success"}
 
 @router.get("/me")
 def get_current_user_profile(

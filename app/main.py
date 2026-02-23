@@ -6,12 +6,13 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 import uuid
 
 from .db import engine, SessionLocal
 from .models import Base, Org, ApiKey, IGAccount, User, OrgMember
 from .security.auth import get_password_hash
-from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles
+from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles, auth_google
 from .services.scheduler import start_scheduler
 from .config import settings
 from .logging_setup import setup_logging, request_id_var, log_event
@@ -117,6 +118,7 @@ app.include_router(automations.router)
 app.include_router(library.router)
 app.include_router(media.router)
 app.include_router(auth.router)
+app.include_router(auth_google.router)
 app.include_router(profiles.router)
 
 def bootstrap_saas():
@@ -232,6 +234,8 @@ def on_startup():
                 ("name", "VARCHAR"),
                 ("is_active", "BOOLEAN DEFAULT TRUE"),
                 ("is_superadmin", "BOOLEAN DEFAULT FALSE"),
+                ("onboarding_complete", "BOOLEAN DEFAULT FALSE"),
+                ("google_id", "VARCHAR"),
                 ("updated_at", "TIMESTAMP WITH TIME ZONE")
             ]
             for col, col_def in user_cols:

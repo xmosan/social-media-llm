@@ -43,3 +43,4 @@ Pillow
 beautifulsoup4
 bcrypt
 PyJWT
+authlib\nhttpx
