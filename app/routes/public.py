@@ -82,12 +82,10 @@ LANDING_HTML = """<!doctype html>
     ];
 
     let currentSlide = 0;
-    const header = document.getElementById('typing-header');
-    const subheading = document.getElementById('subheading');
-    const slidesContainer = document.getElementById('slides-container');
-    const dotsContainer = document.getElementById('slide-dots');
 
     function typeWriter(text, i, cb) {
+      const header = document.getElementById('typing-header');
+      if (!header) return;
       if (i < text.length) {
         header.innerHTML = text.substring(0, i + 1);
         setTimeout(() => typeWriter(text, i + 1, cb), 100);
@@ -98,6 +96,10 @@ LANDING_HTML = """<!doctype html>
     }
 
     function renderSlide(index) {
+      const slidesContainer = document.getElementById('slides-container');
+      const dotsContainer = document.getElementById('slide-dots');
+      if (!slidesContainer || !dotsContainer) return;
+      
       const slide = SLIDES[index];
       slidesContainer.innerHTML = `
         <div class="fade-in space-y-4">
@@ -118,14 +120,23 @@ LANDING_HTML = """<!doctype html>
       renderSlide(currentSlide);
     }
 
-    window.onload = () => {
+    function init() {
+      const subheading = document.getElementById('subheading');
       typeWriter("Social Media LLM", 0, () => {
-        subheading.classList.add('fade-in');
-        subheading.style.opacity = 1;
+        if (subheading) {
+          subheading.classList.add('fade-in');
+          subheading.style.opacity = 1;
+        }
         renderSlide(0);
         setInterval(nextSlide, 5000);
       });
-    };
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
   </script>
 </body>
 </html>
