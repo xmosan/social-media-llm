@@ -21,7 +21,7 @@ LOGIN_HTML = """<!doctype html>
 <body class="bg-main min-h-screen flex items-center justify-center p-6 text-main">
   <div class="max-w-md w-full bg-surface rounded-[2.5rem] shadow-2xl p-10 border border-border transition-all">
     <div class="text-center mb-10">
-      <h1 class="text-3xl font-black italic tracking-tighter text-gradient">Social Matrix</h1>
+      <h1 class="text-3xl font-black italic tracking-tighter text-gradient pb-1">Social Matrix</h1>
       <p class="text-[11px] font-black text-muted uppercase tracking-widest mt-2">Neural Authentication Protocol</p>
     </div>
     <form id="loginForm" class="space-y-8">
@@ -100,7 +100,7 @@ REGISTER_HTML = """<!doctype html>
 <body class="bg-main min-h-screen flex items-center justify-center p-6 text-main">
   <div class="max-w-md w-full bg-surface rounded-[2.5rem] shadow-2xl p-10 border border-border transition-all">
     <div class="text-center mb-10">
-      <h1 class="text-3xl font-black italic tracking-tighter text-gradient">Join the Matrix</h1>
+      <h1 class="text-3xl font-black italic tracking-tighter text-gradient pb-1">Join the Matrix</h1>
       <p class="text-[11px] font-black text-muted uppercase tracking-widest mt-2">Initialize Architectural Node</p>
     </div>
     <form id="registerForm" class="space-y-8">
@@ -360,7 +360,7 @@ HTML = """<!doctype html>
   <aside class="sidebar">
     <div class="mb-10 flex items-center gap-3">
         <div class="w-9 h-9 bg-brand rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-indigo-500/20">S</div>
-        <span class="font-black text-xl tracking-tighter italic text-gradient">Social Media LLM</span>
+        <span class="font-black text-xl tracking-tighter italic text-gradient pb-1">Social Media LLM</span>
     </div>
 
     <nav class="flex-1 space-y-2">
@@ -457,9 +457,9 @@ HTML = """<!doctype html>
             <div class="tool-card">
                  <h3 class="font-bold text-lg mb-4">Quick Actions</h3>
                  <div class="space-y-2">
-                    <button onclick="switchTab('feed')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-50 border border-border text-sm font-medium transition-all">Create New Post</button>
-                    <button onclick="switchTab('automations')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-50 border border-border text-sm font-medium transition-all">Setup Automation</button>
-                    <button onclick="toggleSettings()" class="w-full text-left px-4 py-3 rounded-lg hover:bg-slate-50 border border-border text-sm font-medium transition-all">Workspace Settings</button>
+                    <button onclick="switchTab('feed')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-white/5 border border-border text-sm font-medium transition-all">Create New Post</button>
+                    <button onclick="switchTab('automations')" class="w-full text-left px-4 py-3 rounded-lg hover:bg-white/5 border border-border text-sm font-medium transition-all">Setup Automation</button>
+                    <button onclick="toggleSettings()" class="w-full text-left px-4 py-3 rounded-lg hover:bg-white/5 border border-border text-sm font-medium transition-all">Workspace Settings</button>
                  </div>
             </div>
         </div>
@@ -471,7 +471,7 @@ HTML = """<!doctype html>
         <div class="w-full max-w-md bg-[var(--bg-main)] h-full shadow-2xl p-8 flex flex-col overflow-y-auto border-l border-border" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-10">
                 <div>
-                    <h2 class="text-2xl font-black text-[var(--text-main)] italic tracking-tighter text-gradient">Workspace Matrix</h2>
+                    <h2 class="text-2xl font-black text-[var(--text-main)] italic tracking-tighter text-gradient pb-1">Workspace Matrix</h2>
                     <p class="text-[11px] font-black text-text-muted uppercase tracking-widest mt-1">Operational Environment Configuration</p>
                 </div>
                 <button onclick="toggleSettings()" class="w-10 h-10 rounded-xl bg-white/5 text-text-muted hover:text-[var(--text-main)] hover:bg-white/10 flex items-center justify-center transition-all border border-border">
@@ -583,7 +583,7 @@ HTML = """<!doctype html>
                         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </div>
                     <div>
-                        <h3 class="text-xl font-black text-main italic tracking-tighter text-gradient">Neural Bridge Config</h3>
+                        <h3 class="text-xl font-black text-main italic tracking-tighter text-gradient pb-1">Neural Bridge Config</h3>
                         <p class="text-[10px] font-black tracking-widest text-brand uppercase">Meta API Integration Protocol</p>
                     </div>
                 </div>
@@ -651,7 +651,7 @@ HTML = """<!doctype html>
     <div id="auto_modal" class="hidden fixed inset-0 bg-black/60 z-[110] backdrop-blur-md flex items-center justify-center p-4">
         <div class="tool-card w-full max-w-xl flex flex-col max-h-[90vh] overflow-hidden">
             <div class="px-8 py-7 border-b border-border flex justify-between items-center bg-white/5">
-                <h3 class="text-xl font-black text-main italic tracking-tighter text-gradient">Content Automation Matrix</h3>
+                <h3 class="text-xl font-black text-main italic tracking-tighter text-gradient pb-1">Content Automation Matrix</h3>
                 <button onclick="hideCreateAuto()" class="w-10 h-10 rounded-xl bg-white/5 text-text-muted hover:text-main hover:bg-white/10 flex items-center justify-center transition-all border border-border">
                     <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
@@ -777,7 +777,7 @@ HTML = """<!doctype html>
         <div class="tool-card w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
             <div class="px-8 py-7 border-b border-border flex justify-between items-center bg-white/5">
                 <div class="flex items-center gap-4">
-                    <h3 class="text-xl font-black text-main italic tracking-tighter text-gradient">Post Intelligence Lab</h3>
+                    <h3 class="text-xl font-black text-main italic tracking-tighter text-gradient pb-1">Post Intelligence Lab</h3>
                     <span id="post_edit_status" class="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-brand/10 text-brand border border-brand/20">Active Node</span>
                 </div>
                 <button onclick="hidePostEditor()" class="w-10 h-10 rounded-xl bg-white/5 text-text-muted hover:text-main hover:bg-white/10 flex items-center justify-center transition-all border border-border">
@@ -912,7 +912,7 @@ HTML = """<!doctype html>
             <!-- Feed Section (Right) -->
             <div class="lg:col-span-8 space-y-8">
                 <div class="flex items-center justify-between">
-                    <h2 class="text-lg font-black italic tracking-tighter text-gradient">Intelligence Stream</h2>
+                    <h2 class="text-lg font-black italic tracking-tighter text-gradient pb-1">Intelligence Stream</h2>
                     <div class="flex items-center gap-3">
                         <select id="status_filter" onchange="refreshAll()" class="px-4 py-2 rounded-xl border border-border bg-white/5 text-xs font-black uppercase tracking-widest outline-none focus:ring-1 focus:ring-brand text-muted">
                             <option value="">All Streams</option>
@@ -943,7 +943,7 @@ HTML = """<!doctype html>
       <!-- Automations Tab -->
       <div id="tab_automations" class="hidden space-y-6 fade-in">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-black text-main italic tracking-tighter text-gradient">Content Automations</h2>
+            <h2 class="text-xl font-black text-main italic tracking-tighter text-gradient pb-1">Content Automations</h2>
             <button onclick="showCreateAuto()" class="btn-primary py-4 px-8 text-[10px] tracking-widest uppercase italic">New Stream</button>
         </div>
         <div id="auto_list" class="grid grid-cols-1 gap-4"></div>
@@ -952,7 +952,7 @@ HTML = """<!doctype html>
       <!-- Profiles Tab -->
       <div id="tab_profiles" class="hidden space-y-6 fade-in">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-black text-main italic tracking-tighter text-gradient">Neural DNA Profiles</h2>
+            <h2 class="text-xl font-black text-main italic tracking-tighter text-gradient pb-1">Neural DNA Profiles</h2>
             <button onclick="showCreateProfile()" class="btn-primary py-4 px-8 text-[10px] tracking-widest uppercase italic">New Identity</button>
         </div>
         <div id="profile_list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
@@ -961,7 +961,7 @@ HTML = """<!doctype html>
       <!-- Media Tab -->
       <div id="tab_media" class="hidden space-y-6 fade-in">
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-black text-main italic tracking-tighter text-gradient">Asset Repository</h2>
+            <h2 class="text-xl font-black text-main italic tracking-tighter text-gradient pb-1">Asset Repository</h2>
             <label class="btn-primary cursor-pointer hover:opacity-90 transition-all py-4 px-8 text-[10px] tracking-widest uppercase italic">
                 Siphon Asset
                 <input type="file" id="media_upload_input" class="hidden" onchange="uploadMedia(this)"/>
@@ -977,7 +977,7 @@ HTML = """<!doctype html>
         <div class="w-full max-w-4xl bg-surface h-full shadow-2xl p-10 flex flex-col overflow-y-auto border-l border-border" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-10">
                 <div>
-                    <h2 class="text-3xl font-black text-main italic tracking-tighter text-gradient">Platform OS</h2>
+                    <h2 class="text-3xl font-black text-main italic tracking-tighter text-gradient pb-1">Platform OS</h2>
                     <div class="flex gap-8 mt-6">
                         <button id="tab_btn_users" onclick="switchPlatformTab('users')" class="text-[10px] font-black uppercase tracking-widest border-b-2 border-brand pb-2 text-main">Neural Network Users</button>
                         <button id="tab_btn_inquiries" onclick="switchPlatformTab('inquiries')" class="text-[10px] font-black uppercase tracking-widest text-muted hover:text-main transition-colors pb-2">External Inquiries</button>
@@ -1035,7 +1035,7 @@ HTML = """<!doctype html>
                         <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                     </div>
                     <div>
-                        <h3 class="text-xl font-black text-main italic tracking-tighter">Content DNA Profile</h3>
+                        <h3 class="text-xl font-black text-main italic tracking-tighter pb-1">Content DNA Profile</h3>
                         <p class="text-[10px] font-black text-muted uppercase tracking-widest mt-0.5">Define Neural Voice & Constraints</p>
                     </div>
                 </div>
@@ -1193,7 +1193,7 @@ async function loadPlatformUsers() {
             return;
         }
         tbody.innerHTML = users.map(u => `
-            <tr class="hover:bg-slate-50 transition-colors">
+            <tr class="hover:bg-white/5 transition-colors">
                 <td class="py-4 px-4 font-black text-white flex items-center gap-2">
                     ${u.is_superadmin ? '<span class="px-2 py-0.5 bg-brand/10 text-brand border border-brand/20 rounded text-[9px] uppercase tracking-widest">Admin</span>' : ''}
                     ${esc(u.name)}
@@ -1363,13 +1363,13 @@ async function loadAutomations() {
         const j = await request(`/automations/?ig_account_id=${ACTIVE_ACCOUNT_ID}`);
         if (!j.length) {
             list.innerHTML = `
-            <div class="col-span-full py-24 text-center border-2 border-dashed border-slate-100 rounded-[2.5rem] bg-slate-50/20 fade-in">
-                <div class="w-16 h-16 bg-white rounded-3xl shadow-xl shadow-slate-200/50 flex items-center justify-center mx-auto mb-8 border border-slate-50">
-                    <svg class="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            <div class="col-span-full py-24 text-center border-2 border-dashed border-border rounded-[2.5rem] bg-white/5 fade-in">
+                <div class="w-16 h-16 bg-white/5 rounded-3xl shadow-xl flex items-center justify-center mx-auto mb-8 border border-border">
+                    <svg class="w-8 h-8 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                 </div>
-                <h3 class="text-sm font-black text-slate-800 mb-2 uppercase tracking-widest">No Automations Found</h3>
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest max-w-xs mx-auto mb-8">Initialize your first AI job to start auto-content delivery.</p>
-                <button onclick="showCreateAuto()" class="btn-brand px-6 py-2.5 text-[10px] font-black uppercase tracking-widest">Initialize First AI Job</button>
+                <h3 class="text-sm font-black text-main mb-2 uppercase tracking-widest">No Automations Found</h3>
+                <p class="text-[10px] text-muted font-bold uppercase tracking-widest max-w-xs mx-auto mb-8">Initialize your first AI job to start auto-content delivery.</p>
+                <button onclick="showCreateAuto()" class="btn-primary px-6 py-2.5 text-[10px] font-black uppercase tracking-widest">Initialize First AI Job</button>
             </div>`;
             return;
         }
@@ -1380,22 +1380,22 @@ async function loadAutomations() {
 function renderAuto(a) {
     const err = a.last_error ? `<p class="mt-2 text-[10px] bg-red-50 text-red-600 border border-red-100 p-2 rounded-xl font-bold uppercase tracking-tight">Error: ${esc(a.last_error)}</p>` : '';
     return `
-    <div class="bg-slate-50 border border-slate-200 rounded-3xl p-6 flex flex-col items-stretch group hover:bg-white hover:shadow-xl transition-all duration-300 fade-in">
+    <div class="bg-white/5 border border-border rounded-3xl p-6 flex flex-col items-stretch group hover:bg-white/10 hover:shadow-xl transition-all duration-300 fade-in">
         <div class="flex items-start justify-between mb-4">
             <div class="flex-1">
                 <div class="flex items-center gap-3 mb-2">
-                    <h4 class="text-lg font-black text-slate-800">${esc(a.name)}</h4>
-                    <span class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter ${a.enabled ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-slate-200 text-slate-500 border border-slate-300'}">${a.enabled ? 'Enabled' : 'Paused'}</span>
-                    ${a.enrich_with_hadith ? '<span class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter bg-purple-100 text-purple-700 border border-purple-200">Enriched</span>' : ''}
+                    <h4 class="text-lg font-black text-main">${esc(a.name)}</h4>
+                    <span class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter ${a.enabled ? 'bg-brand/10 text-brand border border-brand/20' : 'bg-white/10 text-muted border border-border'}">${a.enabled ? 'Enabled' : 'Paused'}</span>
+                    ${a.enrich_with_hadith ? '<span class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter bg-brand/10 text-brand border border-brand/20">Enriched</span>' : ''}
                 </div>
-                <p class="text-xs text-slate-500 font-medium line-clamp-1 italic">Prompt: "${esc(a.topic_prompt)}"</p>
+                <p class="text-xs text-muted font-medium line-clamp-1 italic">Prompt: "${esc(a.topic_prompt)}"</p>
                 ${err}
             </div>
             <div class="flex items-center gap-2">
-                <button onclick="triggerAuto(${a.id})" class="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:shadow-lg transition-all" title="Run Once (Create Post)">
+                <button onclick="triggerAuto(${a.id})" class="p-3 rounded-2xl bg-white/5 border border-border text-muted hover:text-brand hover:border-brand hover:shadow-lg transition-all" title="Run Once (Create Post)">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </button>
-                <button onclick="testLLM(${a.id}, '${esc(a.topic_prompt)}', '${a.style_preset}')" class="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:shadow-lg transition-all" title="Test AI Generation">
+                <button onclick="testLLM(${a.id}, '${esc(a.topic_prompt)}', '${a.style_preset}')" class="p-3 rounded-2xl bg-white/5 border border-border text-muted hover:text-brand hover:border-brand hover:shadow-lg transition-all" title="Test AI Generation">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.341A8.001 8.001 0 0012 4a8.001 8.001 0 00-7.428 11.341c.142.311.23.642.23.978V19a2 2 0 002 2h9a2 2 0 002-2v-2.681c0-.336.088-.667.23-.978z" /></svg>
                 </button>
                 <button onclick="editAuto(${JSON.stringify(a).replaceAll('"', '&quot;')})" class="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 hover:shadow-lg transition-all" title="Edit Automation Settings">
@@ -1929,19 +1929,19 @@ async function loadProfiles() {
         
         list.innerHTML = j.map(p => {
             return `
-            <div class="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col items-stretch group hover:bg-slate-50 hover:shadow-xl transition-all duration-300">
+            <div class="bg-white/5 border border-border rounded-3xl p-6 flex flex-col items-stretch group hover:bg-white/10 hover:shadow-xl transition-all duration-300">
                 <div class="flex items-start justify-between mb-4">
                     <div class="flex-1">
                         <div class="flex items-center gap-3 mb-2">
-                            <h4 class="text-lg font-black text-slate-800">${esc(p.name)}</h4>
+                            <h4 class="text-lg font-black text-main">${esc(p.name)}</h4>
                         </div>
-                        <p class="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-2">Niche: <span class="text-indigo-600">${esc(p.niche_category || 'N/A')}</span></p>
-                        <p class="text-xs text-slate-500 font-medium line-clamp-2">${esc(p.focus_description || 'No focus specified.')}</p>
+                        <p class="text-[10px] uppercase font-black tracking-widest text-muted mb-2">Niche: <span class="text-brand">${esc(p.niche_category || 'N/A')}</span></p>
+                        <p class="text-xs text-muted font-medium line-clamp-2">${esc(p.focus_description || 'No focus specified.')}</p>
                     </div>
                 </div>
-                <div class="mt-auto pt-4 border-t border-slate-100 flex justify-end gap-2">
-                    <button onclick='editProfile(${JSON.stringify(p).replaceAll("'", "&apos;")})' class="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all font-bold text-xs">Edit</button>
-                    <button onclick="deleteProfile(${p.id})" class="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 transition-all font-bold text-xs">Delete</button>
+                <div class="mt-auto pt-4 border-t border-border flex justify-end gap-2">
+                    <button onclick='editProfile(${JSON.stringify(p).replaceAll("'", "&apos;")})' class="p-3 rounded-2xl bg-white/5 border border-border text-muted hover:text-brand hover:border-brand transition-all font-bold text-xs">Edit</button>
+                    <button onclick="deleteProfile(${p.id})" class="p-3 rounded-2xl bg-white/5 border border-border text-muted hover:text-rose-500 hover:border-rose-500 transition-all font-bold text-xs">Delete</button>
                 </div>
             </div>`;
         }).join("");
@@ -2281,32 +2281,32 @@ async function loadPosts() {
 }
 function renderPost(p) {
     const colors = { 
-        submitted: "bg-slate-100 text-slate-600 border-slate-200", 
-        drafted: "bg-blue-50 text-blue-600 border-blue-200", 
-        needs_review: "bg-rose-50 text-rose-600 border-rose-200", 
-        scheduled: "bg-indigo-50 text-indigo-600 border-indigo-200", 
-        published: "bg-emerald-50 text-emerald-600 border-emerald-200", 
-        failed: "bg-red-50 text-red-600 border-red-200" 
+        submitted: "bg-white/10 text-muted border-border", 
+        drafted: "bg-brand/10 text-brand border-brand/20", 
+        needs_review: "bg-rose-500/10 text-rose-500 border-rose-500/20", 
+        scheduled: "bg-brand/10 text-brand border-brand/20", 
+        published: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20", 
+        failed: "bg-red-500/10 text-red-500 border-red-500/20" 
     };
-    const c = colors[p.status] || "bg-slate-100 text-slate-500 border-slate-200";
+    const c = colors[p.status] || "bg-white/10 text-muted border-border";
     
     return `
-    <div class="bg-white border border-slate-200 rounded-3xl overflow-hidden flex flex-col group hover:shadow-2xl hover:border-indigo-100 transition-all duration-500 fade-in">
-        <div class="relative aspect-square bg-slate-100 overflow-hidden cursor-pointer" onclick="openPostEditor(${p.id})">
+    <div class="bg-white/5 border border-border rounded-3xl overflow-hidden flex flex-col group hover:shadow-2xl hover:border-brand/40 transition-all duration-500 fade-in">
+        <div class="relative aspect-square bg-white/5 overflow-hidden cursor-pointer" onclick="openPostEditor(${p.id})">
             <img src="${p.media_url}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" onerror="this.src='https://placehold.co/600x600?text=Media+Missing'"/>
             <div class="absolute top-4 left-4 right-4 flex justify-between items-start">
-               <span class="px-3 py-1.5 rounded-xl border backdrop-blur-md text-[9px] font-black uppercase tracking-widest shadow-lg ${c}">${esc(p.status)}</span>
-               <div class="p-2 rounded-xl bg-white/90 border border-slate-200 text-slate-900 shadow-xl opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+               <span class="px-3 py-1.5 rounded-xl border border-white/10 backdrop-blur-md text-[9px] font-black uppercase tracking-widest shadow-lg ${c}">${esc(p.status)}</span>
+               <div class="p-2 rounded-xl bg-white/5 border border-border text-main shadow-xl opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                </div>
             </div>
-            ${p.scheduled_time ? `<div class="absolute bottom-4 left-4 px-3 py-1 bg-indigo-600 text-white rounded-lg text-[8px] font-black uppercase tracking-tighter shadow-lg">Due: ${new Date(p.scheduled_time).toLocaleString()}</div>` : ''}
+            ${p.scheduled_time ? `<div class="absolute bottom-4 left-4 px-3 py-1 bg-brand text-white rounded-lg text-[8px] font-black uppercase tracking-tighter shadow-lg">Due: ${new Date(p.scheduled_time).toLocaleString()}</div>` : ''}
         </div>
         <div class="p-5 flex flex-col flex-1">
-            <p class="text-[12px] text-slate-700 leading-relaxed font-medium mb-4 line-clamp-2">${esc(p.caption || '(No Caption Generated)')}</p>
-            <div class="mt-auto flex items-center justify-between border-t border-slate-100 pt-4">
-                <span class="text-[10px] font-bold text-slate-300 uppercase italic">${esc(p.source_type)}</span>
-                <button onclick="openPostEditor(${p.id})" class="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Manage Post</button>
+            <p class="text-[12px] text-main leading-relaxed font-medium mb-4 line-clamp-2">${esc(p.caption || '(No Caption Generated)')}</p>
+            <div class="mt-auto flex items-center justify-between border-t border-border pt-4">
+                <span class="text-[10px] font-bold text-muted uppercase italic">${esc(p.source_type)}</span>
+                <button onclick="openPostEditor(${p.id})" class="text-[10px] font-black text-brand uppercase tracking-widest hover:underline">Manage Post</button>
             </div>
         </div>
     </div>`;
