@@ -19,9 +19,44 @@ LANDING_HTML = """<!doctype html>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', sans-serif; overflow-x: hidden; }
+    :root {
+      --brand: #6366f1;
+      --brand-hover: #4f46e5;
+      /* AI Luxury (Default Dark) */
+      --main-bg: #020617;
+      --surface: rgba(255, 255, 255, 0.03);
+      --text-main: #ffffff;
+      --text-muted: #94a3b8;
+      --border: rgba(255, 255, 255, 0.1);
+      --card-bg: rgba(255, 255, 255, 0.03);
+    }
+
+    [data-theme='enterprise'] {
+      --main-bg: #f8fafc;
+      --surface: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --card-bg: #ffffff;
+    }
+
+    body { 
+        font-family: 'Inter', sans-serif; 
+        background-color: var(--main-bg);
+        color: var(--text-main);
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    
+    .bg-main { background-color: var(--main-bg); }
+    .bg-surface { background-color: var(--surface); }
+    .text-main { color: var(--text-main); }
+    .text-muted { color: var(--text-muted); }
+    .border-border { border-color: var(--border); }
+    .bg-brand { background-color: var(--brand); }
+    .text-brand { color: var(--brand); }
+
     .ai-bg {
-      background: radial-gradient(circle at top right, #312e81, #0f172a, #020617);
+      background: radial-gradient(circle at top right, #312e81, var(--main-bg), var(--main-bg));
     }
     .typing::after {
       content: '|';
@@ -29,10 +64,10 @@ LANDING_HTML = """<!doctype html>
     }
     @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
     .glass {
-      background: rgba(255, 255, 255, 0.03);
+      background: var(--surface);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--border);
     }
     .text-gradient {
       background: linear-gradient(to right, #818cf8, #c084fc);
@@ -41,18 +76,24 @@ LANDING_HTML = """<!doctype html>
       background-clip: text;
       color: transparent;
     }
-    .slide-dot.active { background: #6366f1; width: 24px; }
+    .slide-dot.active { background: var(--brand); width: 24px; }
     .fade-in { animation: fadeIn 0.8s ease-out forwards; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   </style>
+  <script>
+    (function() {
+      const saved = localStorage.getItem('admin_theme') || 'startup';
+      document.documentElement.setAttribute('data-theme', saved);
+    })();
+  </script>
 </head>
-<body class="ai-bg text-white min-h-screen flex flex-col items-center justify-center p-6 text-center">
+<body class="ai-bg text-main min-h-screen flex flex-col items-center justify-center p-6 text-center">
   
   <div class="max-w-4xl w-full space-y-12">
     <!-- Header -->
     <header class="space-y-4">
       <h1 id="typing-header" class="text-5xl md:text-7xl font-black tracking-tighter typing italic text-gradient"></h1>
-      <p id="subheading" class="text-slate-400 font-medium text-lg md:text-xl opacity-0">The ultimate AI engine for hands-free social growth.</p>
+      <p id="subheading" class="text-muted font-medium text-lg md:text-xl opacity-0">The ultimate AI engine for hands-free social growth.</p>
     </header>
 
     <!-- Slideshow -->
@@ -111,8 +152,8 @@ LANDING_HTML = """<!doctype html>
       const slide = SLIDES[index];
       slidesContainer.innerHTML = `
         <div class="fade-in space-y-4">
-          <h3 class="text-2xl md:text-3xl font-black text-white">${slide.title}</h3>
-          <ul class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-slate-400 text-sm font-medium">
+          <h3 class="text-2xl md:text-3xl font-black text-main">${slide.title}</h3>
+          <ul class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-muted text-sm font-medium">
             ${slide.bullets.map(b => `<li class="flex items-center gap-2"><div class="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>${b}</li>`).join('')}
           </ul>
         </div>
@@ -178,7 +219,6 @@ LOGIN_HTML = """<!doctype html>
     }
   </style>
 </head>
-<body class="ai-bg text-white min-h-screen flex items-center justify-center p-6">
   <div class="max-w-md w-full glass rounded-[2.5rem] p-10 space-y-8">
     <div class="text-center space-y-2">
       <h1 class="text-2xl font-black italic tracking-tighter text-gradient">Social Media LLM</h1>
@@ -187,35 +227,35 @@ LOGIN_HTML = """<!doctype html>
 
     <form id="loginForm" class="space-y-4">
       <div class="space-y-1">
-        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-3">Email Address</label>
-        <input type="email" id="email" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="name@company.com">
+        <label class="text-[10px] font-black uppercase tracking-widest text-muted ml-3">Email Address</label>
+        <input type="email" id="email" required class="w-full bg-white/5 border border-border rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="name@company.com">
       </div>
       <div class="space-y-1">
-        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-3">Password</label>
-        <input type="password" id="password" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="••••••••">
+        <label class="text-[10px] font-black uppercase tracking-widest text-muted ml-3">Password</label>
+        <input type="password" id="password" required class="w-full bg-white/5 border border-border rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="••••••••">
       </div>
       
-      <div id="errorMsg" class="hidden text-xs font-bold text-red-500 bg-red-500/10 p-4 rounded-xl border border-red-500/20 text-center"></div>
+      <div id="errorMsg" class="hidden text-xs font-bold text-rose-500 bg-rose-500/10 p-4 rounded-xl border border-rose-500/20 text-center"></div>
 
-      <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-indigo-900/40">Sign In</button>
+      <button type="submit" class="w-full bg-brand hover:bg-brand/90 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-brand/20 text-white">Sign In</button>
     </form>
 
     <div class="relative flex items-center justify-center py-2">
-      <div class="w-full border-t border-white/5"></div>
-      <span class="absolute bg-[#0b1021] px-4 text-[10px] font-black uppercase tracking-widest text-slate-600">OR</span>
+      <div class="w-full border-t border-border"></div>
+      <span class="absolute bg-surface px-4 text-[10px] font-black uppercase tracking-widest text-muted">OR</span>
     </div>
 
-    <a href="/auth/google/start" class="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border border-white/10">
+    <a href="/auth/google/start" class="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border border-border text-main">
       <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-5 h-5" alt="Google">
       Continue with Google
     </a>
 
-    <p class="text-center text-xs font-medium text-slate-500 mt-6">
-      Don't have an account? <a href="/register" class="text-indigo-400 font-bold hover:underline">Create one</a>
+    <p class="text-center text-xs font-medium text-muted mt-6">
+      Don't have an account? <a href="/register" class="text-brand font-bold hover:underline">Create one</a>
     </p>
 
     <div class="text-center">
-      <a href="/" class="text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-400 transition-colors">&larr; Back to Home</a>
+      <a href="/" class="text-[10px] font-black uppercase tracking-widest text-muted hover:text-main transition-colors">&larr; Back to Home</a>
     </div>
   </div>
 
@@ -292,39 +332,39 @@ REGISTER_HTML = """<!doctype html>
 
     <form id="registerForm" class="space-y-4">
       <div class="space-y-1">
-        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-3">Full Name</label>
-        <input type="text" id="name" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="John Doe">
+        <label class="text-[10px] font-black uppercase tracking-widest text-muted ml-3">Full Name</label>
+        <input type="text" id="name" required class="w-full bg-white/5 border border-border rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="John Doe">
       </div>
       <div class="space-y-1">
-        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-3">Email Address</label>
-        <input type="email" id="email" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="name@company.com">
+        <label class="text-[10px] font-black uppercase tracking-widest text-muted ml-3">Email Address</label>
+        <input type="email" id="email" required class="w-full bg-white/5 border border-border rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="name@company.com">
       </div>
       <div class="space-y-1">
-        <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-3">Password</label>
-        <input type="password" id="password" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="At least 8 characters">
+        <label class="text-[10px] font-black uppercase tracking-widest text-muted ml-3">Password</label>
+        <input type="password" id="password" required class="w-full bg-white/5 border border-border rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="At least 8 characters">
       </div>
       
-      <div id="errorMsg" class="hidden text-xs font-bold text-red-500 bg-red-500/10 p-4 rounded-xl border border-red-500/20 text-center"></div>
+      <div id="errorMsg" class="hidden text-xs font-bold text-rose-500 bg-rose-500/10 p-4 rounded-xl border border-rose-500/20 text-center"></div>
 
-      <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-indigo-900/40">Create Account</button>
+      <button type="submit" class="w-full bg-brand hover:bg-brand/90 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-brand/20 text-white">Create Account</button>
     </form>
 
     <div class="relative flex items-center justify-center py-2">
-      <div class="w-full border-t border-white/5"></div>
-      <span class="absolute bg-[#0b1021] px-4 text-[10px] font-black uppercase tracking-widest text-slate-600">OR</span>
+      <div class="w-full border-t border-border"></div>
+      <span class="absolute bg-surface px-4 text-[10px] font-black uppercase tracking-widest text-muted">OR</span>
     </div>
 
-    <a href="/auth/google/start" class="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border border-white/10">
+    <a href="/auth/google/start" class="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border border-border text-main">
       <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-5 h-5" alt="Google">
       Continue with Google
     </a>
 
-    <p class="text-center text-xs font-medium text-slate-500 mt-6">
-      Already have an account? <a href="/login" class="text-indigo-400 font-bold hover:underline">Sign in</a>
+    <p class="text-center text-xs font-medium text-muted mt-6">
+      Already have an account? <a href="/login" class="text-brand font-bold hover:underline">Sign in</a>
     </p>
 
     <div class="text-center">
-      <a href="/" class="text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-400 transition-colors">&larr; Back to Home</a>
+      <a href="/" class="text-[10px] font-black uppercase tracking-widest text-muted hover:text-main transition-colors">&larr; Back to Home</a>
     </div>
   </div>
 
@@ -392,51 +432,51 @@ CONTACT_HTML = """<!doctype html>
     }
   </style>
 </head>
-<body class="ai-bg text-white min-h-screen flex items-center justify-center p-6">
+<body class="ai-bg text-main min-h-screen flex items-center justify-center p-6">
   <div class="max-w-2xl w-full glass rounded-[2.5rem] p-10 space-y-12">
     <div class="text-center space-y-4">
-      <h1 class="text-4xl font-black italic tracking-tighter text-white">Get in <span class="text-indigo-400">touch</span>.</h1>
-      <p class="text-slate-400 font-medium">Have questions or need support? Send us a message.</p>
+      <h1 class="text-4xl font-black italic tracking-tighter text-main">Get in <span class="text-brand">touch</span>.</h1>
+      <p class="text-muted font-medium">Have questions or need support? Send us a message.</p>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
       <div class="space-y-8">
         <div class="space-y-2">
-          <h3 class="text-[10px] font-black uppercase tracking-widest text-slate-500">Contact Info</h3>
+          <h3 class="text-[10px] font-black uppercase tracking-widest text-muted">Contact Info</h3>
           <div class="space-y-4">
             <div class="flex items-center gap-4 group">
-              <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center group-hover:bg-indigo-500 transition-all group-hover:text-white">
+              <div class="w-10 h-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center group-hover:bg-brand transition-all group-hover:text-white">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
               </div>
-              <span class="text-sm font-bold text-slate-300">hello@social-llm.ai</span>
+              <span class="text-sm font-bold text-muted group-hover:text-main transition-colors">hello@social-llm.ai</span>
             </div>
             <div class="flex items-center gap-4 group">
-              <div class="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center group-hover:bg-indigo-500 transition-all group-hover:text-white">
+              <div class="w-10 h-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center group-hover:bg-brand transition-all group-hover:text-white">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
               </div>
-              <span class="text-sm font-bold text-slate-300">Remote • Detroit, MI</span>
+              <span class="text-sm font-bold text-muted group-hover:text-main transition-colors">Remote • Detroit, MI</span>
             </div>
           </div>
         </div>
 
-        <div class="p-6 rounded-2xl bg-white/5 border border-white/5">
-          <p class="text-[10px] text-slate-500 font-medium leading-relaxed uppercase tracking-widest">Typical response time is under 12 hours. We're here to help you scale.</p>
+        <div class="p-6 rounded-2xl bg-white/5 border border-border">
+          <p class="text-[10px] text-muted font-medium leading-relaxed uppercase tracking-widest">Typical response time is under 12 hours. We're here to help you scale.</p>
         </div>
       </div>
 
       <form id="contactForm" class="space-y-4">
-        <input type="text" id="name" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="Your Name">
-        <input type="email" id="email" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="Email Address">
-        <textarea id="message" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all min-h-[150px]" placeholder="How can we help?"></textarea>
+        <input type="text" id="name" required class="w-full bg-white/5 border border-border rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="Your Name">
+        <input type="email" id="email" required class="w-full bg-white/5 border border-border rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="Email Address">
+        <textarea id="message" required class="w-full bg-white/5 border border-border rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main min-h-[150px]" placeholder="How can we help?"></textarea>
         
         <div id="statusMsg" class="hidden text-xs font-bold p-4 rounded-xl text-center"></div>
 
-        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-indigo-900/40">Send Message</button>
+        <button type="submit" class="w-full bg-brand hover:bg-brand/90 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-brand/20 text-white">Send Message</button>
       </form>
     </div>
 
-    <div class="text-center pt-8 border-t border-white/5">
-      <a href="/" class="text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-400 transition-colors">&larr; Back to Home</a>
+    <div class="text-center pt-8 border-t border-border">
+      <a href="/" class="text-[10px] font-black uppercase tracking-widest text-muted hover:text-main transition-colors">&larr; Back to Home</a>
     </div>
   </div>
 
