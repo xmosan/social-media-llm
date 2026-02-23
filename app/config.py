@@ -23,4 +23,14 @@ class Settings(BaseSettings):
     superadmin_email: str | None = Field(default=None, alias="SUPERADMIN_EMAIL")
     superadmin_password: str | None = Field(default=None, alias="SUPERADMIN_PASSWORD")
 
+    # Backups & Reliability
+    backup_storage_type: str = Field(default="local", alias="BACKUP_STORAGE_TYPE")
+    s3_access_key: str | None = Field(default=None, alias="S3_ACCESS_KEY")
+    s3_secret_key: str | None = Field(default=None, alias="S3_SECRET_KEY")
+    s3_bucket_name: str | None = Field(default=None, alias="S3_BUCKET_NAME")
+    s3_region: str | None = Field(default=None, alias="S3_REGION")
+    env_backup_key: str | None = Field(default=None, alias="ENV_BACKUP_KEY")
+    primary_region: str | None = Field(default=None, alias="PRIMARY_REGION")
+    secondary_database_url: str | None = Field(default=None, alias="SECONDARY_DATABASE_URL")
+
 settings = Settings()

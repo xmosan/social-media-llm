@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.models import Post, IGAccount, TopicAutomation
 from app.services.publisher import publish_to_instagram
 from app.services.automation_runner import run_automation_once
+from app.services.backups import backup_postgres_database
 
 def run_automation_job(db_factory: Callable[[], Session], automation_id: int):
     """Execution wrapper for background automation jobs."""
@@ -133,6 +134,15 @@ def start_scheduler(db_factory: Callable[[], Session]):
 
     # 2. Daily Automation Jobs
     sync_automation_jobs(sched, db_factory)
+
+    # 3. Daily Database Backups
+    sched.add_job(
+        backup_postgres_database,
+        trigger=CronTrigger(hour=3, minute=0, timezone="UTC"),
+        id="daily_database_backup",
+        replace_existing=True,
+        max_instances=1
+    )
 
     sched.start()
     _global_scheduler = sched

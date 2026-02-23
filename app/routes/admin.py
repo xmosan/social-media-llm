@@ -1692,3 +1692,21 @@ def delete_user(
     db.delete(target_user)
     db.commit()
     return {"status": "ok"}
+
+@router.post("/backup-now")
+def trigger_manual_backup(
+    user: User = Depends(require_superadmin)
+):
+    from ..services.backups import backup_postgres_database
+    return backup_postgres_database()
+
+@router.get("/config/export")
+def export_safe_config(
+    user: User = Depends(require_superadmin)
+):
+    import os
+    from datetime import datetime, timezone
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "keys_present": list(os.environ.keys())
+    }

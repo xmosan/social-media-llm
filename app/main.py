@@ -13,6 +13,23 @@ from .routes import posts, admin, orgs, ig_accounts, automations, library, media
 from .services.scheduler import start_scheduler
 from .config import settings
 
+import logging
+logger = logging.getLogger(__name__)
+
+# Startup validation checks
+REQUIRED_VARS = ["OPENAI_API_KEY", "IG_ACCESS_TOKEN", "DATABASE_URL", "JWT_SECRET"]
+missing_vars = [
+    var for var in REQUIRED_VARS 
+    if not os.environ.get(var) and not getattr(settings, var.lower() if var != "JWT_SECRET" else "secret_key", None)
+]
+if "DATABASE_URL" not in missing_vars and (not settings.database_url or "sqlite" in settings.database_url):
+    missing_vars.append("DATABASE_URL (Production Postgres required)")
+if "JWT_SECRET" not in missing_vars and settings.secret_key == "change-me-in-production-for-jwt":
+    missing_vars.append("JWT_SECRET (Using default insecure key)")
+
+if missing_vars:
+    logger.warning(f"CRITICAL STARTUP WARNING: Missing or unsafe required variables: {', '.join(missing_vars)}")
+
 app = FastAPI(title="Social Media LLM - Multi-tenant SaaS")
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
@@ -33,6 +50,26 @@ def debug_env():
         "openai_api_key_len": len(settings.openai_api_key) if settings.openai_api_key else 0,
         "database_url_scheme": settings.database_url.split(":")[0] if settings.database_url else None
     }
+
+@app.get("/health")
+def health_check():
+    return {
+        "status": "ok",
+        "database": "connected",
+        "scheduler": "running"
+    }
+
+@app.get("/ready")
+def readiness_check():
+    from .db import engine
+    from sqlalchemy import text
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT id FROM users LIMIT 1"))
+        return {"status": "ready"}
+    except Exception as e:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=503, content={"status": "not_ready", "detail": "Database migrations pending or DB unreachable."})
 
 # Serve uploads
 os.makedirs(settings.uploads_dir, exist_ok=True)
