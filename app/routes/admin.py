@@ -239,6 +239,18 @@ HTML = """<!doctype html>
                 </section>
                 <div class="h-px bg-slate-100"></div>
                 
+                <section>
+                    <div class="flex items-center gap-3 mb-6 text-slate-900">
+                        <span class="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">1</span>
+                        <h3 class="text-sm font-black uppercase tracking-widest">Active Accounts</h3>
+                    </div>
+                    <div id="settings_accounts_list" class="space-y-3">
+                        <!-- Populated by JS -->
+                    </div>
+                </section>
+                
+                <div class="h-px bg-slate-100"></div>
+                
                 <!-- STEP 2: ADD IG -->
                 <section>
                     <div class="flex items-center gap-3 mb-6 text-slate-900">
@@ -1664,6 +1676,7 @@ async function loadAccounts() {
         }
         localStorage.setItem("active_ig_id", ACTIVE_ACCOUNT_ID);
         updateAccountHeader();
+        renderSettingsAccounts();
     } catch(e) { setError("Account Fetch Fail: " + e.message); }
 }
 function onAccountChange() {
@@ -1757,6 +1770,40 @@ async function addAccount() {
         msg.className = "mt-4 text-[10px] font-black tracking-widest text-red-600";
         alert("Registration Failed: " + e.message); 
     } finally { btn.disabled = false; }
+}
+async function deleteAccount(id) {
+    if(!confirm("Are you SURE you want to delete this Instagram account? This will also un-link it from any scheduled posts or automations!")) return;
+    try {
+        await request(`/ig-accounts/${id}`, { method: "DELETE" });
+        alert("Account deleted.");
+        // If we deleted the active account, reset ACTIVE_ACCOUNT_ID
+        if (ACTIVE_ACCOUNT_ID == id) {
+            ACTIVE_ACCOUNT_ID = null;
+        }
+        await loadAccounts();
+        await refreshAll();
+    } catch(e) {
+        alert("Deletion Failed: " + e.message);
+    }
+}
+function renderSettingsAccounts() {
+    const list = document.getElementById("settings_accounts_list");
+    if(!list) return;
+    if(ACCOUNTS.length === 0) {
+        list.innerHTML = `<div class="text-xs text-slate-400 font-bold italic text-center py-4 bg-slate-50 rounded-xl">No accounts linked yet.</div>`;
+        return;
+    }
+    list.innerHTML = ACCOUNTS.map(a => `
+        <div class="flex justify-between items-center p-3 rounded-xl border border-slate-200 bg-slate-50">
+            <div>
+                <div class="text-sm font-bold text-slate-800">${esc(a.name)}</div>
+                <div class="text-[10px] text-slate-500 font-mono mt-0.5">ID: ${esc(a.ig_user_id)}</div>
+            </div>
+            <button onclick="deleteAccount(${a.id})" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete Account">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+        </div>
+    `).join("");
 }
 async function loadStats() {
     const el = document.getElementById("stats");
