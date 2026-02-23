@@ -12,7 +12,7 @@ import uuid
 from .db import engine, SessionLocal
 from .models import Base, Org, ApiKey, IGAccount, User, OrgMember
 from .security.auth import get_password_hash
-from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles, auth_google
+from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles, auth_google, public
 from .services.scheduler import start_scheduler
 from .config import settings
 from .logging_setup import setup_logging, request_id_var, log_event
@@ -110,6 +110,7 @@ os.makedirs(settings.uploads_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.uploads_dir), name="uploads")
 
 # Include Routers
+app.include_router(public.router)
 app.include_router(posts.router)
 app.include_router(admin.router)
 app.include_router(orgs.router)
@@ -245,6 +246,21 @@ def on_startup():
                     print(f"Migration: Checked/Added column {col} to users")
                 except Exception as e:
                     pass
+            
+            # 4. Create contact_messages table if not exists
+            try:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS contact_messages (
+                        id SERIAL PRIMARY KEY,
+                        name VARCHAR NOT NULL,
+                        email VARCHAR NOT NULL,
+                        message TEXT NOT NULL,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                    )
+                """))
+                print("Migration: Ensured contact_messages table exists")
+            except Exception as e:
+                print(f"Migration (contact_messages) error: {e}")
     except Exception as e:
         print(f"CRITICAL Migration Error: {e}")
     

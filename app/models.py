@@ -285,3 +285,11 @@ class MediaAsset(Base):
     org = relationship("Org", back_populates="media_assets")
     ig_account = relationship("IGAccount", back_populates="media_assets")
     posts = relationship("Post", back_populates="media_asset")
+
+class ContactMessage(Base):
+    __tablename__ = "contact_messages"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
