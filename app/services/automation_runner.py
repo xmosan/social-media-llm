@@ -354,13 +354,14 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             scheduled_time=compute_next_run_time(db.get(IGAccount, automation.ig_account_id), automation) if status == "scheduled" else None
         )
         
-        # 5. Guardrail (simpler for library content)
-        if not caption:
-            print(f"[AUTO] FAILED GUARDRAIL: caption is empty.")
-            log_event("automation_guardrail_failed", automation_id=automation.id, reason="empty_caption")
+        # 5. Guardrail
+        auto_str = f"AUTO: {automation.name}"
+        if not caption or caption.strip() == topic.strip() or caption.strip() == auto_str:
+            print(f"[AUTO] FAILED GUARDRAIL: LLM output was invalid (empty or default).")
+            log_event("automation_guardrail_failed", automation_id=automation.id, reason="invalid_caption")
             new_post.status = "failed"
-            new_post.flags = {"automation_error": "LLM returned empty caption"}
-            automation.last_error = "LLM returned empty caption"
+            new_post.flags = {"automation_error": f"LLM returned invalid caption: {caption}"}
+            automation.last_error = "LLM returned invalid caption"
             db.add(new_post)
             db.commit()
             return new_post
