@@ -394,6 +394,10 @@ HTML = """<!doctype html>
     </nav>
 
     <div class="mt-auto pt-6 border-t border-border">
+        <div id="platform_btn" onclick="togglePlatformPanel()" class="nav-item hidden text-brand">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            Platform OS
+        </div>
         <div onclick="toggleSettings()" class="nav-item">
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             Settings
@@ -408,6 +412,10 @@ HTML = """<!doctype html>
   <main class="main-content">
     <header class="flex items-center justify-between px-10 py-6 border-b border-border bg-transparent backdrop-blur-md sticky top-0 z-40">
         <div class="flex items-center gap-6">
+            <select id="org_selector" onchange="onOrgChange()" class="bg-transparent font-black text-sm outline-none cursor-pointer text-brand">
+                <option value="">Select Workspace</option>
+            </select>
+            <div class="h-4 w-px bg-border"></div>
             <select id="account_selector" onchange="onAccountChange()" class="bg-transparent font-black text-sm outline-none cursor-pointer text-[var(--text-main)]">
                 <option value="">Select Account</option>
             </select>
@@ -427,6 +435,18 @@ HTML = """<!doctype html>
 
 
     <div class="content-area">
+      <div id="onboarding_banner" class="hidden mb-8 p-6 rounded-[2rem] bg-brand/10 border border-brand/20 flex items-center justify-between group">
+          <div class="flex items-center gap-6">
+              <div class="w-12 h-12 rounded-2xl bg-brand text-white flex items-center justify-center shadow-lg shadow-brand/20">
+                  <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              </div>
+              <div>
+                  <h3 class="text-sm font-black text-main uppercase tracking-widest">Neural Onboarding Required</h3>
+                  <p class="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">Configure your first content DNA profile to activate the engine.</p>
+              </div>
+          </div>
+          <button onclick="window.location.href='/admin/onboarding'" class="px-6 py-2.5 bg-brand text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all">Initialize Identity</button>
+      </div>
 
       <!-- Dashboard Tab (New) -->
       <div id="tab_dashboard" class="space-y-8 fade-in">
@@ -1146,7 +1166,10 @@ function goToStep(s) {
 (function() {
     const saved = localStorage.getItem('admin_theme') || 'startup';
     document.documentElement.setAttribute('data-theme', saved);
-    setTimeout(() => goToStep(1), 100);
+    setTimeout(() => {
+        goToStep(1);
+        loadProfile();
+    }, 100);
 })();
 
 function togglePlatformPanel() {
@@ -2356,44 +2379,49 @@ async function approvePost(id) {
     try { await request(`/posts/${id}/approve`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({approve_anyway: true}) }); await refreshAll(); } catch(e) { if(el) { el.textContent = "FAIL"; el.className = "mt-4 text-[9px] text-center font-black text-red-600"; } alert(e.message); }
 }
 
-async function loadMe() {
+async function initializeAdmin() {
     try {
         ME = await request("/auth/me");
-        document.getElementById("user_dropdown_name").textContent = ME.name || "User";
-        document.getElementById("user_dropdown_email").textContent = ME.email || "";
-        document.getElementById("user_avatar").textContent = (ME.name || "U")[0].toUpperCase();
+        const isAdmin = ME.is_superadmin;
         
-        if(ME.is_superadmin) {
-            document.getElementById("platform_btn").classList.remove("hidden");
-            document.getElementById("platform_btn").classList.add("flex");
+        // Update User info
+        const avatarTop = document.getElementById("user_avatar_top");
+        if (avatarTop) avatarTop.textContent = (ME.name || "U")[0].toUpperCase();
+
+        // Platform access
+        const platBtn = document.getElementById("platform_btn");
+        if (platBtn && isAdmin) {
+            platBtn.classList.remove("hidden");
+            platBtn.classList.add("flex");
         }
+
+        // Onboarding checks
+        const banner = document.getElementById("onboarding_banner");
+        if (banner) banner.classList.toggle("hidden", !!ME.onboarding_complete);
         
-        const welcomeBanner = document.getElementById("onboarding_banner");
-        const welcomeCard = document.getElementById("welcome_card");
-        
-        if (!ME.onboarding_complete) {
-            welcomeBanner.classList.remove("hidden");
-            if (welcomeCard) welcomeCard.classList.remove("hidden");
-        } else {
-            welcomeBanner.classList.add("hidden");
-            if (welcomeCard) welcomeCard.classList.add("hidden");
-        }
-        
-        const sel = document.getElementById("org_selector");
-        if(ME.orgs.length === 0) {
-            sel.innerHTML = `<option value="">No Workspaces</option>`;
-            ACTIVE_ORG_ID = null;
-        } else {
-            sel.innerHTML = ME.orgs.map(o => `<option value="${o.id}">${esc(o.name)}</option>`).join("");
-            
-            // Reconcile saved org id
-            if(!ACTIVE_ORG_ID || !ME.orgs.find(o => o.id == ACTIVE_ORG_ID)) {
-                ACTIVE_ORG_ID = ME.orgs[0].id;
+        // Organizations
+        const orgSel = document.getElementById("org_selector");
+        if (orgSel) {
+            if (ME.orgs.length === 0) {
+                orgSel.innerHTML = `<option value="">No Workspaces</option>`;
+                ACTIVE_ORG_ID = null;
+            } else {
+                orgSel.innerHTML = ME.orgs.map(o => `<option value="${o.id}" ${o.id == ACTIVE_ORG_ID ? 'selected' : ''}>${esc(o.name)}</option>`).join("");
+                if (!ACTIVE_ORG_ID || !ME.orgs.find(o => o.id == ACTIVE_ORG_ID)) {
+                    ACTIVE_ORG_ID = ME.orgs[0].id;
+                }
+                orgSel.value = ACTIVE_ORG_ID;
             }
-            sel.value = ACTIVE_ORG_ID;
+            localStorage.setItem("active_org_id", ACTIVE_ORG_ID);
         }
-        localStorage.setItem("active_org_id", ACTIVE_ORG_ID);
-    } catch(e) { console.error("Could not load user profile", e); }
+
+        // Finalize
+        refreshAll();
+
+    } catch(e) { 
+        console.error("Initialization failed", e);
+        if (e.message.includes("401")) window.location.href = "/admin/login";
+    }
 }
 
 function onOrgChange() {
@@ -2402,10 +2430,13 @@ function onOrgChange() {
     refreshAll();
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
-    await loadMe();
-    await loadProfile();
-    refreshAll();
+document.addEventListener("DOMContentLoaded", () => {
+    const saved = localStorage.getItem('admin_theme') || 'startup';
+    document.documentElement.setAttribute('data-theme', saved);
+    setTimeout(() => {
+        goToStep(1);
+        initializeAdmin();
+    }, 100);
 });
 </script>
 </body>
