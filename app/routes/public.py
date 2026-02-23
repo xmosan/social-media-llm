@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from app.db import get_db
-from app.models import ContactMessage
+from app.models import ContactMessage, User
 from app.security.auth import get_current_user
 from typing import Optional
 
