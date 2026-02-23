@@ -175,10 +175,96 @@ HTML = """<!doctype html>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
   <style>
-    body { font-family: 'Inter', sans-serif; }
-    .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); }
-    .fade-in { animation: fadeIn 0.3s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+    :root {
+      --bg-page: #f8fafc;
+      --bg-surface: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --brand-accent: #4f46e5;
+      --brand-glow: rgba(79, 70, 229, 0.1);
+      --border-color: #e2e8f0;
+      --radius-main: 18px;
+      --shadow-main: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --transition-speed: 250ms;
+    }
+
+    [data-theme="enterprise"] {
+      --bg-page: #ffffff;
+      --bg-surface: #ffffff;
+      --text-main: #000000;
+      --text-muted: #6b7280;
+      --brand-accent: #111827;
+      --brand-glow: transparent;
+      --border-color: #f3f4f6;
+      --radius-main: 8px;
+    }
+
+    [data-theme="luxury"] {
+      --bg-page: #0a0a0c;
+      --bg-surface: #141416;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --brand-accent: #8b5cf6;
+      --brand-glow: rgba(139, 92, 246, 0.3);
+      --border-color: rgba(255, 255, 255, 0.1);
+      --radius-main: 24px;
+      --shadow-main: 0 0 20px rgba(0, 0, 0, 0.5);
+    }
+
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background-color: var(--bg-page); 
+      color: var(--text-main);
+      transition: background-color var(--transition-speed), color var(--transition-speed);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .glass { 
+      background: var(--bg-surface); 
+      backdrop-filter: blur(12px); 
+      -webkit-backdrop-filter: blur(12px);
+      border-color: var(--border-color);
+    }
+
+    [data-theme="luxury"] .glass {
+      background: rgba(20, 20, 22, 0.7);
+      background-image: linear-gradient(45deg, rgba(139, 92, 246, 0.05) 0%, transparent 100%);
+      background-size: 200% 200%;
+      animation: gradientShift 10s ease infinite;
+    }
+    @keyframes gradientShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+
+    .card-premium {
+      background: var(--bg-surface);
+      border-radius: var(--radius-main);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-main);
+      transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+    }
+    .card-premium:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .fade-in { animation: fadeIn var(--transition-speed) ease-out forwards; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .btn-brand {
+      background-color: var(--brand-accent);
+      color: white;
+      border-radius: calc(var(--radius-main) * 0.7);
+      box-shadow: 0 4px 14px 0 var(--brand-glow);
+    }
+    
+    [data-theme="luxury"] .btn-brand {
+      box-shadow: 0 0 15px var(--brand-glow);
+    }
+
+    /* Typography */
+    h1 { font-size: 2rem; font-weight: 900; letter-spacing: -0.05em; }
+    h2 { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
+    .text-sm { font-size: 0.875rem; }
+    .text-xs { font-size: 0.75rem; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-900 min-h-screen pb-12">
@@ -200,60 +286,61 @@ HTML = """<!doctype html>
           <a href="/admin/onboarding" class="bg-white text-indigo-600 px-6 py-2 rounded-xl text-xs font-black shadow-md hover:bg-slate-100 transition-all uppercase tracking-widest">Start Setup &rarr;</a>
       </div>
   </div>
-  <nav class="glass sticky top-0 z-50 border-b border-slate-200 bg-white/80 px-6 py-4 mb-8">
-    <div class="max-w-7xl mx-auto flex justify-between items-center">
-      <div class="flex items-center gap-6">
-            <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            Social SaaS <span class="text-slate-400 font-light">Admin v1.0.2</span>
-          </h1>
-          <div class="h-6 w-px bg-slate-200"></div>
-          <div class="flex items-center gap-2">
-              <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Account</label>
-              <select id="account_selector" onchange="onAccountChange()" class="px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-indigo-500 outline-none bg-slate-50 font-semibold min-w-[200px]">
-                  <option value="">No Accounts Found</option>
+  <nav class="glass sticky top-0 z-50 border-b px-6 py-3 mb-8">
+    <div class="max-w-[1600px] mx-auto grid grid-cols-3 items-center">
+      <!-- Left: Logo & Branding -->
+      <div class="flex items-center gap-4">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-200">
+              <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <div class="hidden sm:block">
+            <h1 class="text-lg font-black tracking-tighter">Social SaaS</h1>
+            <div class="text-[9px] font-black text-slate-400 uppercase tracking-widest opacity-60">Admin v1.0.2</div>
+          </div>
+      </div>
+
+      <!-- Center: Switchers -->
+      <div class="flex justify-center items-center gap-3">
+          <div class="flex items-center gap-2 bg-slate-100/50 p-1 rounded-2xl border border-slate-200/50">
+              <select id="account_selector" onchange="onAccountChange()" class="px-4 py-2 rounded-xl bg-transparent text-sm font-black focus:outline-none min-w-[180px] cursor-pointer">
+                  <option value="">No Accounts</option>
+              </select>
+              <div class="h-4 w-px bg-slate-300"></div>
+              <select id="org_selector" onchange="onOrgChange()" class="px-4 py-2 rounded-xl bg-transparent text-[11px] font-black uppercase tracking-widest text-slate-500 focus:outline-none min-w-[140px] cursor-pointer">
+                  <option value="">Loading...</option>
               </select>
           </div>
       </div>
-      <div class="flex items-center gap-4">
-        <button id="platform_btn" onclick="togglePlatformPanel()" class="hidden items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl shadow-md text-sm font-bold hover:bg-emerald-700 transition-all">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          Platform Management
+
+      <!-- Right: Global Controls -->
+      <div class="flex items-center justify-end gap-3">
+        <button id="platform_btn" onclick="togglePlatformPanel()" class="hidden items-center gap-2 bg-emerald-500/10 text-emerald-600 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-white transition-all">
+          Management
         </button>
-        <div class="h-6 w-px bg-slate-200"></div>
-        <div class="flex items-center gap-2">
-            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Workspace</label>
-            <select id="org_selector" onchange="onOrgChange()" class="px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-indigo-500 outline-none bg-slate-50 font-semibold min-w-[150px]">
-                <option value="">Loading...</option>
-            </select>
-        </div>
-        <div class="h-6 w-px bg-slate-200"></div>
-        <div class="flex items-center gap-3 relative group">
-          <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xs cursor-pointer" id="user_avatar">U</div>
-          <div class="absolute right-0 top-10 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 hidden group-hover:block fade-in">
-              <div class="px-3 py-2 border-b border-slate-100 mb-2">
-                  <div class="text-xs font-black text-slate-800" id="user_dropdown_name">User</div>
-                  <div class="text-[10px] text-slate-400" id="user_dropdown_email">email@domain.com</div>
-              </div>
-              <button onclick="logout()" class="w-full text-left px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-                  Sign Out
-              </button>
-          </div>
-        </div>
-        <div class="h-6 w-px bg-slate-200"></div>
-        <button onclick="toggleSettings()" class="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl border border-indigo-700 shadow-md text-sm font-bold hover:bg-indigo-700 transition-all">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Account Settings
-        </button>
-        <button id="run_scheduler_btn" onclick="runGlobalScheduler()" class="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl border border-emerald-700 shadow-md text-sm font-bold hover:bg-emerald-700 transition-all">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
+        
+        <button id="run_scheduler_btn" onclick="runGlobalScheduler()" class="flex items-center gap-2 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all active:scale-95">
           Run Scheduler
         </button>
+
+        <div class="h-8 w-px bg-slate-200 ml-2"></div>
+
+        <div class="flex items-center gap-3 pl-2">
+            <button onclick="toggleSettings()" class="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-indigo-600 hover:text-white transition-all shadow-sm">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            </button>
+            <div class="relative group">
+                <div class="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-sm cursor-pointer shadow-sm border border-indigo-200" id="user_avatar">U</div>
+                <div class="absolute right-0 top-12 w-56 bg-white border border-slate-200 shadow-2xl rounded-2xl p-2 hidden group-hover:block fade-in z-[100]">
+                    <div class="px-4 py-3 border-b border-slate-100 mb-2">
+                        <div class="text-xs font-black text-slate-900" id="user_dropdown_name">User Name</div>
+                        <div class="text-[10px] text-slate-400 font-bold" id="user_dropdown_email">email@domain.com</div>
+                    </div>
+                    <button onclick="logout()" class="w-full text-left px-4 py-2 text-[10px] font-black uppercase tracking-widest text-red-600 hover:bg-red-50 rounded-xl transition-colors">
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+        </div>
       </div>
     </div>
   </nav>
@@ -281,6 +368,34 @@ HTML = """<!doctype html>
                         <h3 class="text-sm font-black text-emerald-900 uppercase tracking-widest">Authenticated Securely</h3>
                     </div>
                     <p class="text-[11px] text-emerald-600/70 mb-4 leading-relaxed font-semibold italic">You are logged in via secure session cookie. API Key entry is no longer required.</p>
+                </section>
+
+                <!-- Appearance / Theme Switcher -->
+                <section>
+                    <div class="flex items-center gap-3 mb-6 text-slate-900">
+                        <span class="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">A</span>
+                        <h3 class="text-sm font-black uppercase tracking-widest">Appearance</h3>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <button onclick="setTheme('startup')" class="flex flex-col items-center gap-2 p-3 rounded-2xl border-2 border-slate-100 hover:border-indigo-600 transition-all bg-slate-50 group">
+                            <div class="w-full h-12 rounded-lg bg-indigo-600/10 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white text-indigo-600 transition-all">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                            </div>
+                            <span class="text-[10px] font-black uppercase tracking-widest">Startup</span>
+                        </button>
+                        <button onclick="setTheme('enterprise')" class="flex flex-col items-center gap-2 p-3 rounded-2xl border-2 border-slate-100 hover:border-slate-900 transition-all bg-white group">
+                            <div class="w-full h-12 rounded-lg bg-slate-100 flex items-center justify-center group-hover:bg-slate-900 group-hover:text-white text-slate-800 transition-all">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                            </div>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Enterprise</span>
+                        </button>
+                        <button onclick="setTheme('luxury')" class="flex flex-col items-center gap-2 p-3 rounded-2xl border-2 border-slate-100 hover:border-violet-600 transition-all bg-slate-950 group">
+                            <div class="w-full h-12 rounded-lg bg-violet-600/20 flex items-center justify-center group-hover:bg-violet-600 group-hover:text-white text-violet-400 transition-all">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                            </div>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-violet-300">Luxury</span>
+                        </button>
+                    </div>
                 </section>
                 <div class="h-px bg-slate-100"></div>
                 
@@ -618,45 +733,82 @@ HTML = """<!doctype html>
         </div>
     </div>
     <!-- 1) Upload Section -->
-    <div class="lg:col-span-4 lg:sticky lg:top-28 h-fit space-y-6">
-      <section class="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
-        <h2 class="text-xl font-black mb-6 flex items-center gap-2">
-          <span class="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm font-bold">3</span>
-          Content Intake
+    <div class="lg:col-span-4 lg:sticky lg:top-24 h-fit space-y-8">
+      <section class="card-premium p-8">
+        <h2 class="flex items-center gap-3 mb-8">
+          <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm font-black shadow-inner">1</div>
+          Content Engine
         </h2>
-        <div class="space-y-6">
-          <div id="selected_acc_box" class="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
-            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Publishing Target</label>
-            <div id="active_account_display" class="text-sm font-black text-slate-500 italic">Please Setup Account →</div>
+        <div id="intake_steps" class="space-y-8">
+          <!-- Step 1: Target -->
+          <div id="step_1" class="space-y-4">
+            <div class="flex items-center justify-between">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Step 1: Target</label>
+                <div class="h-1 w-12 bg-indigo-600 rounded-full"></div>
+            </div>
+            <div id="selected_acc_box" class="p-6 bg-slate-50 border border-slate-100 rounded-2xl flex items-center justify-between">
+                <div>
+                    <div id="active_account_display" class="text-sm font-black text-slate-700">Select an Account</div>
+                    <div class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Publishing Destination</div>
+                </div>
+                <div class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-400">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </div>
+            </div>
+            <button onclick="goToStep(2)" class="w-full bg-slate-900 text-white rounded-2xl py-4 text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all">Next Step</button>
           </div>
-          <div>
-              <label class="block text-sm font-bold text-slate-600 mb-2">Source Instructions</label>
-              <textarea id="source_text" class="w-full px-4 py-4 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm min-h-[160px] resize-none" placeholder="What should the AI write about? (Topic, tags, style...)"></textarea>
+
+          <!-- Step 2: Instructions -->
+          <div id="step_2" class="hidden space-y-4 fade-in">
+            <div class="flex items-center justify-between">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Step 2: Source</label>
+                <div class="flex gap-1">
+                    <div class="h-1 w-6 bg-slate-200 rounded-full"></div>
+                    <div class="h-1 w-6 bg-indigo-600 rounded-full"></div>
+                </div>
+            </div>
+            <textarea id="source_text" class="w-full px-5 py-5 rounded-2xl border border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none text-sm min-h-[180px] resize-none transition-all" placeholder="Tell the AI what to create..."></textarea>
+            <div class="flex gap-2">
+                <button onclick="goToStep(1)" class="flex-1 bg-slate-100 text-slate-600 rounded-2xl py-4 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200">Back</button>
+                <button onclick="goToStep(3)" class="flex-[2] bg-slate-900 text-white rounded-2xl py-4 text-[10px] font-black uppercase tracking-widest hover:bg-slate-800">Next Step</button>
+            </div>
           </div>
-          <div>
-              <label class="block text-sm font-bold text-slate-600 mb-2">Personal Image Asset</label>
-              <div class="relative border-2 border-dashed border-slate-200 rounded-2xl p-8 hover:border-indigo-400 transition-colors group cursor-pointer bg-slate-50/50">
-                  <input id="image" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="updateFileName(this)"/>
-                  <div class="text-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-8 w-8 text-slate-400 mb-3 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <div id="file_name_display" class="text-xs font-bold text-slate-500">Upload your own file here</div>
-                  </div>
-              </div>
-              <p class="mt-2 text-[10px] text-slate-400 font-medium">✨ Upload your posters, graphics, or photos (PNG, JPG, WEBP).</p>
+
+          <!-- Step 3: Media -->
+          <div id="step_3" class="hidden space-y-4 fade-in">
+            <div class="flex items-center justify-between">
+                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Step 3: Visuals</label>
+                <div class="flex gap-1">
+                    <div class="h-1 w-4 bg-slate-200 rounded-full"></div>
+                    <div class="h-1 w-4 bg-slate-200 rounded-full"></div>
+                    <div class="h-1 w-4 bg-indigo-600 rounded-full"></div>
+                </div>
+            </div>
+            <div class="relative border-2 border-dashed border-slate-200 rounded-2xl p-10 hover:border-indigo-400 transition-all group cursor-pointer bg-slate-50/30 flex flex-col items-center justify-center gap-4">
+                <input id="image" type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="updateFileName(this)"/>
+                <div id="upload_preview_container" class="hidden w-16 h-16 rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                    <img id="upload_preview_img" class="w-full h-full object-cover"/>
+                </div>
+                <div id="upload_prompt_ui" class="text-center">
+                    <div class="w-12 h-12 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center mx-auto mb-3 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    </div>
+                    <div id="file_name_display" class="text-[10px] font-black uppercase tracking-widest text-slate-400">Add Personal Image</div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 gap-3 pt-4">
+                <button id="intake_btn" onclick="uploadPost()" class="btn-brand py-5 font-black uppercase tracking-widest text-sm active:scale-95 disabled:opacity-40 shadow-xl transition-all">Generate & Publish</button>
+                <button onclick="goToStep(1)" class="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors">Restart Form</button>
+            </div>
+            <div id="upload_msg" class="text-center text-[10px] font-black uppercase text-indigo-600 tracking-widest h-4"></div>
           </div>
-          <div class="grid grid-cols-1 gap-3 pt-4">
-              <button id="intake_btn" onclick="uploadPost()" class="bg-indigo-600 text-white rounded-2xl py-5 font-black hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed uppercase tracking-widest text-sm">Create Post Entry</button>
-              <button onclick="resetUpload()" class="bg-white text-slate-400 rounded-2xl py-3 font-bold hover:bg-slate-50 transition-all text-xs border border-slate-200">Reset Form</button>
-          </div>
-          <div id="upload_msg" class="text-center text-xs font-bold uppercase h-4"></div>
         </div>
       </section>
     </div>
     <!-- 2) Feed Section -->
-    <div class="lg:col-span-8 flex flex-col gap-6">
-      <section class="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm min-h-[700px]">
+    <div class="lg:col-span-8 flex flex-col gap-8">
+      <section class="card-premium p-8 min-h-[800px]">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 pb-6 border-b border-slate-100">
             <div class="flex items-center gap-6">
                 <button onclick="switchTab('feed')" id="tab_feed" class="text-2xl font-black flex items-center gap-3 border-b-4 border-slate-900 pb-2">
@@ -678,8 +830,8 @@ HTML = """<!doctype html>
                     Media
                 </button>
             </div>
-            <div id="feed_controls" class="flex items-center gap-2">
-                <select id="status_filter" onchange="refreshAll()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:ring-indigo-500 outline-none bg-slate-50 cursor-pointer">
+            <div id="feed_controls" class="flex items-center gap-3 bg-slate-50 p-1.5 rounded-2xl border border-slate-200/50">
+                <select id="status_filter" onchange="refreshAll()" class="px-4 py-2 rounded-xl bg-transparent text-[10px] font-black uppercase tracking-widest focus:outline-none cursor-pointer">
                     <option value="">All Stages</option>
                     <option value="submitted">1. Submitted</option>
                     <option value="drafted">2. Drafted</option>
@@ -706,7 +858,7 @@ HTML = """<!doctype html>
                 </label>
             </div>
             <div id="media_controls" class="hidden flex items-center gap-2">
-                <label class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest cursor-pointer shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
+                <label class="btn-brand px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest cursor-pointer hover:opacity-90 shadow-lg shadow-indigo-100 transition-all">
                     Upload Asset
                     <input type="file" id="media_upload_input" class="hidden" onchange="uploadMedia(this)"/>
                 </label>
@@ -773,10 +925,11 @@ HTML = """<!doctype html>
             <div id="calendar_el" class="bg-white p-4 rounded-2xl min-h-[600px]"></div>
         </div>
         <div id="library_view" class="hidden space-y-8">
-            <div id="library_list" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+            <div id="library_list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
         </div>
-        <div id="media_view" class="hidden space-y-8">
-            <div id="media_list" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+            <div id="media_view" class="hidden grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                <div id="media_list" class="contents"></div>
+            </div>
         </div>
       </section>
     </div>
@@ -921,6 +1074,28 @@ async function loadProfile() {
         }
     } catch(e) { console.error("Profile load failed", e); }
 }
+
+// --- THEME LOGIC ---
+function setTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    localStorage.setItem('admin_theme', t);
+}
+
+// --- INTAKE STEP LOGIC ---
+function goToStep(s) {
+    const steps = [1, 2, 3];
+    steps.forEach(step => {
+        const el = document.getElementById('step_' + step);
+        if (el) el.classList.toggle('hidden', step !== s);
+    });
+}
+
+// Global initialization
+(function() {
+    const saved = localStorage.getItem('admin_theme') || 'startup';
+    document.documentElement.setAttribute('data-theme', saved);
+    setTimeout(() => goToStep(1), 100);
+})();
 
 function togglePlatformPanel() {
     const el = document.getElementById("platform_panel");
@@ -1128,9 +1303,13 @@ async function loadAutomations() {
         const j = await request(`/automations/?ig_account_id=${ACTIVE_ACCOUNT_ID}`);
         if (!j.length) {
             list.innerHTML = `
-            <div class="py-24 text-center border-2 border-dashed border-slate-200 rounded-3xl">
-                <p class="text-sm text-slate-400 font-black uppercase mb-4">No Automations Established</p>
-                <button onclick="showCreateAuto()" class="bg-slate-900 text-white px-6 py-2 rounded-xl text-xs font-black">Create First AI Job</button>
+            <div class="col-span-full py-24 text-center border-2 border-dashed border-slate-100 rounded-[2.5rem] bg-slate-50/20 fade-in">
+                <div class="w-16 h-16 bg-white rounded-3xl shadow-xl shadow-slate-200/50 flex items-center justify-center mx-auto mb-8 border border-slate-50">
+                    <svg class="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <h3 class="text-sm font-black text-slate-800 mb-2 uppercase tracking-widest">No Automations Found</h3>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest max-w-xs mx-auto mb-8">Initialize your first AI job to start auto-content delivery.</p>
+                <button onclick="showCreateAuto()" class="btn-brand px-6 py-2.5 text-[10px] font-black uppercase tracking-widest">Initialize First AI Job</button>
             </div>`;
             return;
         }
@@ -1141,7 +1320,7 @@ async function loadAutomations() {
 function renderAuto(a) {
     const err = a.last_error ? `<p class="mt-2 text-[10px] bg-red-50 text-red-600 border border-red-100 p-2 rounded-xl font-bold uppercase tracking-tight">Error: ${esc(a.last_error)}</p>` : '';
     return `
-    <div class="bg-slate-50 border border-slate-200 rounded-3xl p-6 flex flex-col items-stretch group hover:bg-white hover:shadow-xl transition-all duration-300">
+    <div class="bg-slate-50 border border-slate-200 rounded-3xl p-6 flex flex-col items-stretch group hover:bg-white hover:shadow-xl transition-all duration-300 fade-in">
         <div class="flex items-start justify-between mb-4">
             <div class="flex-1">
                 <div class="flex items-center gap-3 mb-2">
@@ -1530,21 +1709,45 @@ async function deletePostUI() {
 // --- MEDIA LIBRARY LOGIC ---
 async function loadMediaLibrary() {
     const list = document.getElementById("media_list");
-    list.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-black uppercase text-xs animate-pulse">Consulting Gallery...</div>`;
+    list.innerHTML = `<div class="col-span-full py-24 text-center">
+        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <svg class="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        </div>
+        <div class="text-[10px] font-black uppercase tracking-widest text-slate-400">Archiving Assets...</div>
+    </div>`;
     try {
         const j = await request("/media-assets");
         if (!j.length) {
-            list.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-bold">No assets found. Upload some!</div>`;
+            list.innerHTML = `
+                <div class="col-span-full py-32 text-center border-2 border-dashed border-slate-100 rounded-[2rem] bg-slate-50/30">
+                    <div class="text-slate-300 mb-6">
+                        <svg class="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                    </div>
+                    <div class="text-sm font-black text-slate-800">No media found</div>
+                    <div class="text-[10px] text-slate-400 font-bold uppercase mt-2 mb-8">Upload your assets to power the engine.</div>
+                    <label class="btn-brand px-8 py-3 rounded-2xl text-[10px] uppercase tracking-widest cursor-pointer hover:opacity-90">
+                        Select First Asset
+                        <input type="file" onchange="uploadMedia(this)" class="hidden"/>
+                    </label>
+                </div>
+            `;
             return;
         }
         list.innerHTML = j.map(m => `
-            <div class="relative group rounded-2xl overflow-hidden aspect-square border border-slate-200 bg-slate-100">
+            <div class="relative group rounded-[1.5rem] overflow-hidden aspect-square border-4 border-white bg-slate-50 shadow-sm hover:shadow-xl hover:scale-[1.02] transition-all duration-300">
                 <img src="${m.url}" class="w-full h-full object-cover"/>
-                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3 gap-2">
+                <div class="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-4">
                     <div class="flex flex-wrap gap-1 mb-auto">
-                        ${(m.tags || []).map(t => `<span class="px-1.5 py-0.5 bg-white/20 backdrop-blur-md rounded text-[8px] text-white font-bold uppercase">${esc(t)}</span>`).join("")}
+                        ${(m.tags || []).map(t => `<span class="px-2 py-1 bg-white/20 backdrop-blur-md rounded-lg text-[8px] text-white font-black uppercase tracking-widest">${esc(t)}</span>`).join("")}
                     </div>
-                    <button onclick="deleteMedia(${m.id})" class="bg-red-500 text-white w-full py-2 rounded-xl text-[10px] font-black uppercase">Delete</button>
+                    <div class="flex gap-2">
+                        <button onclick="window.open('${m.url}', '_blank')" class="flex-1 bg-white/10 hover:bg-white/20 text-white p-2 rounded-xl backdrop-blur-md transition-all">
+                            <svg class="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        </button>
+                        <button onclick="deleteMedia(${m.id})" class="flex-1 bg-red-500/80 hover:bg-red-600 text-white p-2 rounded-xl backdrop-blur-md transition-all">
+                            <svg class="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         `).join("");
@@ -1877,25 +2080,25 @@ function showEmptyState(type) {
     let html = "";
     if (type === "no_accounts") {
         html = `
-        <div class="col-span-full py-24 text-center">
-            <div class="w-16 h-16 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        <div class="col-span-full py-32 text-center border-2 border-dashed border-slate-100 rounded-[2.5rem] bg-slate-50/20 fade-in max-w-2xl mx-auto">
+            <div class="w-20 h-20 bg-white rounded-3xl shadow-xl shadow-slate-200/50 flex items-center justify-center mx-auto mb-8 border border-slate-50">
+                <svg class="w-10 h-10 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
-            <h3 class="text-xl font-black text-slate-800 mb-2">No Instagram Slots</h3>
-            <p class="text-sm text-slate-500 max-w-xs mx-auto mb-8">Your account is connected, but you haven't added an Instagram account slot yet.</p>
-            <button onclick="toggleSettings()" class="border-2 border-slate-900 text-slate-900 px-8 py-3 rounded-xl font-black hover:bg-slate-900 hover:text-white transition-all">Register First Slot</button>
+            <h3 class="text-lg font-black text-slate-900 mb-2">No Social Profiles</h3>
+            <p class="text-[11px] text-slate-400 font-bold uppercase tracking-widest max-w-xs mx-auto leading-relaxed mb-10">Connect an Instagram account to start using the content engine.</p>
+            <button onclick="toggleSettings()" class="btn-brand px-10 py-4 text-[11px] font-black uppercase tracking-widest transition-all">Setup First Workspace</button>
         </div>`;
     } else if (type === "no_posts") {
         html = `
-        <div class="col-span-full py-24 text-center">
-            <div class="w-16 h-16 bg-indigo-50 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+        <div class="col-span-full py-32 text-center border-2 border-dashed border-slate-100 rounded-[2.5rem] bg-slate-50/20 fade-in max-w-2xl mx-auto">
+            <div class="w-20 h-20 bg-white rounded-3xl shadow-xl shadow-slate-200/50 flex items-center justify-center mx-auto mb-8 border border-slate-50">
+                <svg class="w-10 h-10 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
             </div>
-            <h3 class="text-xl font-black text-slate-800 mb-2">The Stream is Empty</h3>
-            <p class="text-sm text-slate-500 max-w-xs mx-auto mb-8">Ready to publish? Use the <b>Content Intake</b> form on the left to upload your FIRST LOCAL POSTER or personal file.</p>
-            <div class="flex items-center justify-center gap-2 text-indigo-600 font-bold animate-bounce">
-                <svg class="h-4 w-4 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                <span>Follow Step 3 to start</span>
+            <h3 class="text-lg font-black text-slate-900 mb-2">Empty Content Stream</h3>
+            <p class="text-[11px] text-slate-400 font-bold uppercase tracking-widest max-w-xs mx-auto leading-relaxed mb-6">Your content pipeline is empty. Use the generator on the left to start.</p>
+            <div class="flex items-center justify-center gap-2 text-indigo-600 font-black text-[10px] uppercase tracking-tighter animate-bounce mt-4">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
+                Begin at Step 1
             </div>
         </div>`;
     }
