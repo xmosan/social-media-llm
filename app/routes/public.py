@@ -160,13 +160,28 @@ LOGIN_HTML = """<!doctype html>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; background: #020617; }
-    .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    .ai-bg {
+      background: radial-gradient(circle at top right, #312e81, #0f172a, #020617);
+    }
+    .glass { 
+      background: rgba(255, 255, 255, 0.03); 
+      backdrop-filter: blur(12px); 
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1); 
+    }
+    .text-gradient {
+      background: linear-gradient(to right, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      color: transparent;
+    }
   </style>
 </head>
-<body class="text-white min-h-screen flex items-center justify-center p-6">
+<body class="ai-bg text-white min-h-screen flex items-center justify-center p-6">
   <div class="max-w-md w-full glass rounded-[2.5rem] p-10 space-y-8">
     <div class="text-center space-y-2">
-      <h1 class="text-2xl font-black italic tracking-tighter text-indigo-400">Social Media LLM</h1>
+      <h1 class="text-2xl font-black italic tracking-tighter text-gradient">Social Media LLM</h1>
       <h2 class="text-xl font-bold">Welcome back</h2>
     </div>
 
@@ -203,6 +218,7 @@ LOGIN_HTML = """<!doctype html>
       <a href="/" class="text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-400 transition-colors">&larr; Back to Home</a>
     </div>
   </div>
+
 
   <script>
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -249,13 +265,28 @@ REGISTER_HTML = """<!doctype html>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; background: #020617; }
-    .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    .ai-bg {
+      background: radial-gradient(circle at top right, #312e81, #0f172a, #020617);
+    }
+    .glass { 
+      background: rgba(255, 255, 255, 0.03); 
+      backdrop-filter: blur(12px); 
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1); 
+    }
+    .text-gradient {
+      background: linear-gradient(to right, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      color: transparent;
+    }
   </style>
 </head>
-<body class="text-white min-h-screen flex items-center justify-center p-6">
+<body class="ai-bg text-white min-h-screen flex items-center justify-center p-6">
   <div class="max-w-md w-full glass rounded-[2.5rem] p-10 space-y-8">
     <div class="text-center space-y-2">
-      <h1 class="text-2xl font-black italic tracking-tighter text-indigo-400">Social Media LLM</h1>
+      <h1 class="text-2xl font-black italic tracking-tighter text-gradient">Social Media LLM</h1>
       <h2 class="text-xl font-bold">Start Automating</h2>
     </div>
 
@@ -296,6 +327,7 @@ REGISTER_HTML = """<!doctype html>
       <a href="/" class="text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-400 transition-colors">&larr; Back to Home</a>
     </div>
   </div>
+
 
   <script>
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
@@ -342,10 +374,25 @@ CONTACT_HTML = """<!doctype html>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; background: #020617; }
-    .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    .ai-bg {
+      background: radial-gradient(circle at top right, #312e81, #0f172a, #020617);
+    }
+    .glass { 
+      background: rgba(255, 255, 255, 0.03); 
+      backdrop-filter: blur(12px); 
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1); 
+    }
+    .text-gradient {
+      background: linear-gradient(to right, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      color: transparent;
+    }
   </style>
 </head>
-<body class="text-white min-h-screen flex items-center justify-center p-6">
+<body class="ai-bg text-white min-h-screen flex items-center justify-center p-6">
   <div class="max-w-2xl w-full glass rounded-[2.5rem] p-10 space-y-12">
     <div class="text-center space-y-4">
       <h1 class="text-4xl font-black italic tracking-tighter text-white">Get in <span class="text-indigo-400">touch</span>.</h1>
@@ -392,6 +439,7 @@ CONTACT_HTML = """<!doctype html>
       <a href="/" class="text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-slate-400 transition-colors">&larr; Back to Home</a>
     </div>
   </div>
+
 
   <script>
     document.getElementById('contactForm').addEventListener('submit', async (e) => {
