@@ -366,6 +366,7 @@ HTML = """<!doctype html>
 </head>
 <body class="min-h-screen">
   <div class="ai-bg"></div>
+  <div id="localhost_warning" class="hidden"></div>
 
   <aside class="sidebar">
     <div class="mb-10 flex items-center gap-3 group">
@@ -2127,8 +2128,10 @@ async function deleteLibraryItem(id) {
     } catch(e) { alert(e.message); }
 }
 function checkLocalhost() {
-    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-    document.getElementById("localhost_warning").classList.toggle("hidden", !isLocal);
+    const el = document.getElementById("localhost_warning");
+    if (!el) return;
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    el.classList.toggle("hidden", !isLocal);
 }
 async function loadAccounts() {
     try {
