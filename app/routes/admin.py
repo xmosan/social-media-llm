@@ -682,18 +682,18 @@ HTML = """<!doctype html>
             <div class="p-8 overflow-y-auto space-y-6">
                 <input type="hidden" id="edit_auto_id" value=""/>
                 <div>
-                    <label class="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 ml-1">Internal Reference Name</label>
-                    <input id="auto_name" class="w-full px-4 py-3 rounded-xl border border-border outline-none focus:ring-1 focus:ring-brand bg-white/5 text-sm font-bold" placeholder="e.g. Daily Hadith Series"/>
+                    <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Internal Reference Name</label>
+                    <input id="auto_name" class="w-full px-4 py-3 rounded-xl border border-border outline-none focus:ring-1 focus:ring-brand bg-white/5 text-sm font-bold text-main" placeholder="e.g. Daily Hadith Series"/>
                 </div>
                 <div>
-                    <label class="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 ml-1">Strategic Topic / Prompt</label>
-                    <textarea id="auto_topic" class="w-full px-4 py-3 rounded-xl border border-border outline-none focus:ring-1 focus:ring-brand min-h-[100px] bg-white/5 text-sm leading-relaxed" placeholder="Define the AI mandate..."></textarea>
+                    <label class="block text-[10px] font-black text-white/50 uppercase tracking-widest mb-2 ml-1">Strategic Topic / Prompt</label>
+                    <textarea id="auto_topic" class="w-full px-4 py-3 rounded-xl border border-border outline-none focus:ring-1 focus:ring-brand min-h-[100px] bg-white/5 text-sm leading-relaxed text-white placeholder:text-white/20" placeholder="Define the AI mandate..."></textarea>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 ml-1">Strategy Profile</label>
-                        <select id="auto_profile_id" class="w-full px-4 py-3 rounded-xl border border-brand/20 outline-none bg-brand/5 text-brand font-bold text-xs">
-                            <option value="">-- Direct Synthesis --</option>
+                        <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Strategy Profile</label>
+                        <select id="auto_profile_id" class="w-full px-4 py-3 rounded-xl border border-border outline-none bg-white/5 text-white font-bold text-xs appearance-none cursor-pointer hover:border-brand transition-colors">
+                            <option value="" class="bg-[#0f172a]">-- Direct Synthesis --</option>
                         </select>
                     </div>
                     <div>
@@ -702,39 +702,39 @@ HTML = """<!doctype html>
                             <span id="creativity_val" class="text-brand font-black">3 / 5</span>
                         </label>
                         <div class="pt-2">
-                            <input type="range" id="auto_creativity" min="1" max="5" value="3" class="w-full accent-brand" oninput="document.getElementById('creativity_val').textContent = this.value + ' / 5'">
+                            <input type="range" id="auto_creativity" min="1" max="5" value="3" class="w-full accent-brand cursor-pointer h-1 bg-white/10 rounded-full appearance-none" oninput="document.getElementById('creativity_val').textContent = this.value + ' / 5'">
                         </div>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 ml-1">Style Matrix</label>
-                        <select id="auto_style" class="w-full px-4 py-3 rounded-xl border border-border outline-none bg-white/5 text-xs text-white">
-                            <option value="islamic_reminder">Islamic Aesthetic</option>
-                            <option value="educational">Pro-Educational</option>
-                            <option value="motivational">High Energy</option>
+                        <select id="auto_style" class="w-full px-4 py-3 rounded-xl border border-border outline-none bg-white/5 text-xs text-white appearance-none cursor-pointer">
+                            <option value="islamic_reminder" class="bg-[#0f172a]">Islamic Aesthetic</option>
+                            <option value="educational" class="bg-[#0f172a]">Pro-Educational</option>
+                            <option value="motivational" class="bg-[#0f172a]">High Energy</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 ml-1">Narrative Tone</label>
-                        <select id="auto_tone" class="w-full px-4 py-3 rounded-xl border border-border outline-none bg-white/5 text-xs text-white">
-                            <option value="short">Punchy / Modern</option>
-                            <option value="medium" selected>Balanced Hybrid</option>
-                            <option value="long">Deep Dive / Story</option>
+                        <select id="auto_tone" class="w-full px-4 py-3 rounded-xl border border-border outline-none bg-white/5 text-xs text-white appearance-none cursor-pointer">
+                            <option value="short" class="bg-[#0f172a]">Punchy / Modern</option>
+                            <option value="medium" selected class="bg-[#0f172a]">Balanced Hybrid</option>
+                            <option value="long" class="bg-[#0f172a]">Deep Dive / Story</option>
                         </select>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 ml-1">Linguistic Mode</label>
-                        <select id="auto_lang" class="w-full px-4 py-3 rounded-xl border border-border outline-none bg-white/5 text-xs text-white">
-                            <option value="english">Standard Global</option>
-                            <option value="arabic_mix" selected>English + Arabic Lexicon</option>
+                        <select id="auto_lang" class="w-full px-4 py-3 rounded-xl border border-border outline-none bg-white/5 text-xs text-white appearance-none cursor-pointer">
+                            <option value="english" class="bg-[#0f172a]">Standard Global</option>
+                            <option value="arabic_mix" selected class="bg-[#0f172a]">English + Arabic Lexicon</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-black text-text-muted uppercase tracking-widest mb-2 ml-1">Deployment Time (Local)</label>
-                        <input type="time" id="auto_time" class="w-full px-4 py-3 rounded-xl border border-border outline-none bg-white/5 text-xs text-white" value="09:00"/>
+                        <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Deployment Time (Local)</label>
+                        <input type="time" id="auto_time" class="w-full px-4 py-3 rounded-xl border border-border outline-none bg-white/5 text-xs text-white [color-scheme:dark]" value="09:00"/>
                     </div>
                 </div>
                 <div class="p-6 bg-brand/5 rounded-[2rem] border border-brand/10 space-y-6">
@@ -745,12 +745,12 @@ HTML = """<!doctype html>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Asset Mode</label>
-                            <select id="auto_image_mode" class="w-full px-5 py-4 rounded-xl border border-border outline-none text-[10px] font-black uppercase tracking-widest bg-white/5 text-main">
-                                <option value="reuse_last_upload">Reuse Last Delta</option>
-                                <option value="quote_card">Auto Quote Frame</option>
-                                <option value="ai_generated">DALL-E 3 Synthesis</option>
-                                <option value="library_fixed">Pinned Asset</option>
-                                <option value="library_tag">Logic-Based Tag</option>
+                            <select id="auto_image_mode" class="w-full px-5 py-4 rounded-xl border border-border outline-none text-[10px] font-black uppercase tracking-widest bg-white/5 text-main appearance-none cursor-pointer">
+                                <option value="reuse_last_upload" class="bg-[#0f172a]">Reuse Last Delta</option>
+                                <option value="quote_card" class="bg-[#0f172a]">Auto Quote Frame</option>
+                                <option value="generate" class="bg-[#0f172a]">Neural Synthesis (AI)</option>
+                                <option value="none" class="bg-[#0f172a]">No Visual (Meta Only)</option>
+                                <option value="library_tag" class="bg-[#0f172a]">Logic-Based Tag</option>
                             </select>
                         </div>
                         <div>
@@ -831,17 +831,17 @@ HTML = """<!doctype html>
                         </div>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-3 ml-1">Growth Keywords</label>
-                        <textarea id="post_edit_hashtags" class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-border outline-none focus:ring-1 focus:ring-brand text-xs font-mono text-brand" placeholder="#faith #socialsaas #ai"></textarea>
+                        <label class="block text-[10px] font-black text-white/50 uppercase tracking-widest mb-3 ml-1">Growth Keywords</label>
+                        <textarea id="post_edit_hashtags" class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-border outline-none focus:ring-1 focus:ring-brand text-xs font-mono text-brand placeholder:text-brand/30" placeholder="#faith #socialsaas #ai"></textarea>
                     </div>
                     <div class="grid grid-cols-2 gap-6">
                         <div>
-                            <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-3 ml-1">Vision Alt Text</label>
-                            <input id="post_edit_alt" class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-border outline-none text-xs text-main" placeholder="AI accessibility description"/>
+                            <label class="block text-[10px] font-black text-white/50 uppercase tracking-widest mb-3 ml-1">Vision Alt Text</label>
+                            <input id="post_edit_alt" class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-border outline-none text-xs text-white placeholder:text-white/20" placeholder="AI accessibility description"/>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-3 ml-1">Deployment Clock (UTC)</label>
-                            <input type="datetime-local" id="post_edit_time" class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-border outline-none text-xs text-main"/>
+                            <label class="block text-[10px] font-black text-white/50 uppercase tracking-widest mb-3 ml-1">Deployment Clock (UTC)</label>
+                            <input type="datetime-local" id="post_edit_time" class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-border outline-none text-xs text-white [color-scheme:dark]"/>
                         </div>
                     </div>
                     <div id="post_edit_flags" class="flex flex-wrap gap-2 pt-2"></div>
@@ -2127,8 +2127,8 @@ async function loadAccounts() {
             sel.innerHTML = `<option value="">No Slots Registered</option>`;
             ACTIVE_ACCOUNT_ID = null;
         } else {
-            sel.innerHTML = ACCOUNTS.map(a => `<option value="${a.id}" ${a.id == ACTIVE_ACCOUNT_ID ? 'selected' : ''}>${esc(a.name)}</option>`).join("");
-            if (!ACTIVE_ACCOUNT_ID || !ACCOUNTS.find(a => a.id == ACTIVE_ACCOUNT_ID)) {
+            sel.innerHTML = ACCOUNTS.map(a => `<option value="${a.id}" ${String(a.id) === String(ACTIVE_ACCOUNT_ID) ? 'selected' : ''}>${esc(a.name)}</option>`).join("");
+            if (!ACTIVE_ACCOUNT_ID || !ACCOUNTS.find(a => String(a.id) === String(ACTIVE_ACCOUNT_ID))) {
                 ACTIVE_ACCOUNT_ID = ACCOUNTS[0].id;
             }
         }
@@ -2207,8 +2207,9 @@ async function addAccount() {
             body: JSON.stringify(payload)
         });
         
+        console.log("Registered Account:", newAcc);
         msg.textContent = "✅ EXTENSION ACTIVE!";
-        msg.className = "mt-4 text-[10px] font-black tracking-widest text-emerald-600";
+        msg.className = "mt-4 text-[10px] font-black tracking-widest text-emerald-500";
         
         document.getElementById("new_acc_name").value = "";
         document.getElementById("new_acc_ig_id").value = "";
@@ -2216,8 +2217,11 @@ async function addAccount() {
         
         ACTIVE_ACCOUNT_ID = newAcc.id;
         localStorage.setItem("active_ig_id", ACTIVE_ACCOUNT_ID);
+        
+        // Immediate UI refresh
         await loadAccounts();
         await refreshAll();
+        
         setTimeout(() => { toggleSettings(); msg.textContent = ""; }, 1500);
     } catch(e) { 
         msg.textContent = "❌ ERROR"; 
