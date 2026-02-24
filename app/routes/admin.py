@@ -545,8 +545,10 @@ HTML = """<!doctype html>
                 
                 <section>
                     <div class="flex items-center gap-3 mb-6">
-                        <div class="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center border border-brand/20 text-xs font-black">1</div>
-                        <h3 class="text-sm font-black text-main uppercase tracking-widest">Active Accounts</h3>
+                        <div class="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center border border-brand/20">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                        </div>
+                        <h3 class="text-[11px] font-black text-[var(--text-main)] uppercase tracking-widest italic">Operational Nodes</h3>
                     </div>
                     <div id="settings_accounts_list" class="space-y-3">
                         <!-- Populated by JS -->
@@ -558,8 +560,10 @@ HTML = """<!doctype html>
                 <!-- STEP 2: ADD IG -->
                 <section>
                     <div class="flex items-center gap-3 mb-6">
-                        <div class="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center border border-brand/20 text-xs font-black">2</div>
-                        <h3 class="text-sm font-black text-main uppercase tracking-widest">Register Instagram Slot</h3>
+                        <div class="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center border border-brand/20">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        </div>
+                        <h3 class="text-[11px] font-black text-[var(--text-main)] uppercase tracking-widest italic">Provision Integration</h3>
                     </div>
                     <div class="space-y-6">
                         <div>
