@@ -2475,95 +2475,194 @@ def admin_page(request: Request, user = Depends(get_current_user)):
     return HTML
 
 ONBOARDING_HTML = """<!doctype html>
-<html lang="en">
+<html lang="en" data-theme="startup">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Onboarding | Social SaaS</title>
+  <title>Strategic Initialization | Social Media LLM</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style> body { font-family: 'Inter', sans-serif; } </style>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --radius: 2rem;
+    }
+
+    :root[data-theme='startup'] {
+      --bg-main: #020617;
+      --bg-surface: rgba(255, 255, 255, 0.03);
+      --brand: #6366f1;
+      --brand-glow: rgba(99, 102, 241, 0.25);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: rgba(255, 255, 255, 0.08);
+    }
+
+    :root[data-theme='enterprise'] {
+      --bg-main: #f8fafc;
+      --bg-surface: #ffffff;
+      --brand: #0f172a;
+      --brand-glow: rgba(15, 23, 42, 0.12);
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+    }
+
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background: var(--bg-main); 
+      color: var(--text-main); 
+      -webkit-font-smoothing: antialiased;
+      transition: background 0.4s ease;
+    }
+    
+    .ai-bg {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: -1;
+    }
+
+    [data-theme='startup'] .ai-bg {
+      background: radial-gradient(circle at top right, #1e1b4b, #0f172a, #020617);
+    }
+
+    [data-theme='enterprise'] .ai-bg {
+      background: radial-gradient(circle at top right, #f1f5f9, #f8fafc);
+    }
+
+    .tool-card { 
+      background: var(--bg-surface); 
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border); 
+      border-radius: var(--radius); 
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    .text-gradient {
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    [data-theme='startup'] .text-gradient {
+      background-image: linear-gradient(to right, #818cf8, #c084fc);
+    }
+
+    [data-theme='enterprise'] .text-gradient {
+      background-image: linear-gradient(to right, #0f172a, #334155);
+    }
+
+    .btn-primary { 
+      background: var(--brand); 
+      color: #ffffff; 
+      box-shadow: 0 10px 15px -3px var(--brand-glow);
+    }
+    
+    input, select, textarea {
+      background: rgba(255, 255, 255, 0.03) !important;
+      border: 1px solid var(--border) !important;
+      color: var(--text-main) !important;
+      transition: all 0.2s ease;
+    }
+    
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--brand) !important;
+      box-shadow: 0 0 0 2px var(--brand-glow) !important;
+    }
+    
+    [data-theme='enterprise'] input, [data-theme='enterprise'] select, [data-theme='enterprise'] textarea {
+      background: #f8fafc !important;
+    }
+    
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-in { animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+  </style>
 </head>
-<body class="bg-main min-h-screen flex py-12 px-6 justify-center text-main">
-  <div class="max-w-2xl w-full bg-surface rounded-3xl shadow-xl p-8 lg:p-12 border border-border transition-all">
-    <div class="mb-10 flex items-center gap-3">
-        <div class="w-10 h-10 bg-brand rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-brand/20">S</div>
-        <h1 class="text-3xl font-black italic tracking-tighter text-gradient">Social Media LLM</h1>
+<body class="min-h-screen flex items-center justify-center py-12 px-6">
+  <div class="ai-bg"></div>
+  
+  <div class="max-w-3xl w-full tool-card p-10 lg:p-14 animate-in">
+    <div class="mb-12 flex items-center gap-4">
+        <div class="w-12 h-12 bg-brand rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-2xl shadow-brand/40">S</div>
+        <h1 class="text-3xl font-black italic tracking-tighter text-gradient leading-none">Social Media LLM</h1>
     </div>
-    <div class="mb-10">
-      <h2 class="text-2xl font-black text-main italic">Strategic Initialization</h2>
-      <p class="text-sm text-muted mt-3 font-medium">Let's set up your first AI Content strategy. This will tailor how the system generates captions and media for your brand.</p>
+
+    <div class="mb-12">
+      <h2 class="text-3xl font-black text-main italic tracking-tight leading-tight">Strategic Initialization</h2>
+      <p class="text-[11px] text-muted mt-4 font-black uppercase tracking-[0.2em] leading-relaxed max-w-xl">Configure your neural architecture. This profile will harmonize the AI engine with your brand's unique narrative and creative values.</p>
     </div>
     
-    <form id="onboardingForm" class="space-y-8">
-      <!-- Business Info -->
-      <div class="space-y-6">
-        
-      <div class="space-y-6 pt-4 border-t border-border">
-        <h3 class="text-lg font-black text-main border-b border-border pb-2 italic">Business Context</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Workspace Identity</label>
-                <input type="text" id="edit_org_name" required class="w-full bg-white/5 border border-border rounded-xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="e.g. Apex Fitness">
-            </div>
-            <div>
-                <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Niche Architecture</label>
-                 <select id="edit_org_niche" class="w-full bg-white/5 border border-border rounded-xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none text-main cursor-pointer">
-                    <option value="ecommerce">E-Commerce Brand</option>
-                    <option value="real_estate">Real Estate</option>
-                    <option value="fitness">Fitness Coaching</option>
-                    <option value="restaurant">Restaurant & Food</option>
-                    <option value="personal_creator">Personal Brand / Creator</option>
-                    <option value="b2b_saas">B2B SaaS / Tech</option>
-                    <option value="other">Other / Custom</option>
-                 </select>
-            </div>
+    <form id="onboardingForm" class="space-y-10">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-border/50">
+        <div class="col-span-full">
+            <h3 class="text-xs font-black text-brand uppercase tracking-widest mb-6 opacity-80 flex items-center gap-2">
+                <span class="w-8 h-[1px] bg-brand/30"></span> Business Context
+            </h3>
         </div>
         
         <div>
-            <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Strategic Objectives</label>
-            <textarea id="edit_org_goals" required class="w-full bg-white/5 border border-border rounded-xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none text-main min-h-[100px]" placeholder="What is the goal of your page?"></textarea>
+            <label class="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3 ml-1">Workspace Identity</label>
+            <input type="text" id="name" required class="w-full rounded-2xl px-6 py-4 text-sm font-bold outline-none" placeholder="e.g. Apex Luxury Collective">
         </div>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label class="block text-xs font-bold text-muted uppercase tracking-widest mb-2">Tone & Style</label>
-                <input type="text" id="tone_style" required class="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-brand outline-none text-sm transition-all text-main" placeholder="e.g. Professional, Witty, High-Energy">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-muted uppercase tracking-widest mb-2">Language</label>
-                 <select id="language" class="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-brand outline-none text-sm bg-white text-main cursor-pointer">
-                    <option value="english">English</option>
-                    <option value="spanish">Spanish</option>
-                    <option value="french">French</option>
-                    <option value="arabic">Arabic</option>
-                </select>
-            </div>
+        <div>
+            <label class="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3 ml-1">Niche Architecture</label>
+            <select id="niche_category" class="w-full rounded-2xl px-6 py-4 text-sm font-bold outline-none cursor-pointer appearance-none">
+                <option value="ecommerce">Luxury E-Commerce</option>
+                <option value="real_estate">Premium Real Estate</option>
+                <option value="fitness">Bespoke Wellness</option>
+                <option value="restaurant">Haute Cuisine</option>
+                <option value="personal_creator">Thought Leader / Creator</option>
+                <option value="b2b_saas">Enterprise SaaS</option>
+                <option value="other">Custom Intelligence</option>
+            </select>
+        </div>
+        
+        <div class="col-span-full">
+            <label class="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3 ml-1">Strategic Objectives</label>
+            <textarea id="content_goals" required class="w-full rounded-2xl px-6 py-4 text-sm font-bold outline-none min-h-[120px] leading-relaxed" placeholder="Define the primary focus..."></textarea>
+        </div>
+        
+        <div>
+            <label class="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3 ml-1">Narrative Tone</label>
+            <input type="text" id="tone_style" required class="w-full rounded-2xl px-6 py-4 text-sm font-bold outline-none" placeholder="e.g. Minimalist, Elite, Sophisticated">
+        </div>
+        
+        <div>
+            <label class="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3 ml-1">Linguistic Mode</label>
+            <select id="language" class="w-full rounded-2xl px-6 py-4 text-sm font-bold outline-none cursor-pointer appearance-none">
+                <option value="english">Standard Global (English)</option>
+                <option value="spanish">Continental Spanish</option>
+                <option value="french">Premium French</option>
+                <option value="arabic">Arabic Essence</option>
+            </select>
         </div>
       </div>
       
-      <!-- AI Boundaries -->
-      <div class="space-y-6 pt-4 border-t border-border">
-        <h3 class="text-lg font-black text-main border-b border-border pb-2 italic">Neural Boundaries</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Restricted Concepts</label>
-                <input type="text" id="edit_org_restricted" class="w-full bg-white/5 border border-border rounded-xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="e.g. politics, competitors">
-            </div>
-            <div>
-                <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Preferred Lexicon</label>
-                <input type="text" id="edit_org_lexicon" class="w-full bg-white/5 border border-border rounded-xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="e.g. luxury, bespoke, exclusive">
-            </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-border/50">
+        <div class="col-span-full">
+            <h3 class="text-xs font-black text-brand uppercase tracking-widest mb-6 opacity-80 flex items-center gap-2">
+                <span class="w-8 h-[1px] bg-brand/30"></span> Neural Boundaries
+            </h3>
+        </div>
+        
+        <div class="col-span-full">
+            <label class="block text-[10px] font-black text-muted uppercase tracking-[0.2em] mb-3 ml-1">Restricted Concepts</label>
+            <input type="text" id="banned_topics" class="w-full rounded-2xl px-6 py-4 text-sm font-bold outline-none" placeholder="e.g. generic slang, competitors (comma separated)">
         </div>
       </div>
 
-      <div id="errorMsg" class="hidden text-xs font-bold text-red-600 text-center bg-red-50 p-3 rounded-lg border border-red-100"></div>
+      <div id="errorMsg" class="hidden text-[10px] font-black uppercase tracking-widest text-rose-500 text-center py-4 bg-rose-500/10 rounded-2xl border border-rose-500/20"></div>
       
-      <button type="submit" class="w-full bg-brand text-white rounded-xl py-4 font-black hover:opacity-90 transition-all text-sm shadow-xl shadow-brand/20 active:scale-[0.98]">COMPLETE INITIALIZATION &rarr;</button>
+      <button type="submit" class="btn-primary w-full rounded-2xl py-5 font-black uppercase tracking-[0.3em] italic text-xs transition-all hover:scale-[1.01] active:scale-[0.98]">INITIALIZE NEURAL ARCHITECTURE &rarr;</button>
     </form>
   </div>
   
   <script>
+    // Theme Sync
+    const theme = localStorage.getItem('admin_theme') || 'startup';
+    document.documentElement.setAttribute('data-theme', theme);
+
     document.getElementById("onboardingForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const payload = {
@@ -2580,7 +2679,7 @@ ONBOARDING_HTML = """<!doctype html>
       
       try {
         btn.disabled = true;
-        btn.innerHTML = "Provisioning AI Profile...";
+        btn.innerHTML = "PROVISIONING INTELLIGENCE...";
         
         const res = await fetch("/auth/complete-onboarding", {
           method: "PATCH",
@@ -2592,16 +2691,16 @@ ONBOARDING_HTML = """<!doctype html>
           window.location.href = "/admin";
         } else {
           const data = await res.json();
-          errorMsg.textContent = data.detail || "Onboarding failed";
+          errorMsg.textContent = "❌ " + (data.detail || "Error").toUpperCase();
           errorMsg.classList.remove("hidden");
           btn.disabled = false;
-          btn.innerHTML = "Initialize Workspace &rarr;";
+          btn.innerHTML = "RETRY INITIALIZATION &rarr;";
         }
       } catch (err) {
-        errorMsg.textContent = "Network error occurred";
+        errorMsg.textContent = "❌ NETWORK ANOMALY DETECTED";
         errorMsg.classList.remove("hidden");
         btn.disabled = false;
-        btn.innerHTML = "Initialize Workspace &rarr;";
+        btn.innerHTML = "RETRY INITIALIZATION &rarr;";
       }
     });
   </script>
