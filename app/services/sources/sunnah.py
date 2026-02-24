@@ -53,30 +53,35 @@ def sync_hadith_for_topic(db: Session, topic: str, max_results: int = 10):
         
         soup = BeautifulSoup(response.text, "html.parser")
         
-        # Sunnah.com search results are usually in .hadith_record or similar
-        # This parsing logic might need refinement based on actual HTML structure
-        records = soup.select(".hadith_record")
+        # Consistent wrapper for hadith across search and collections
+        records = soup.select(".actualHadithContainer")
         if not records:
-            # Try alternate selector if first one fails
+            # Fallback for search-specific result containers if structure varies
             records = soup.select(".result_hadith")
+
+        logger.info(f"Found {len(records)} potential records on Sunnah.com")
 
         count = 0
         for rec in records:
             if count >= max_results:
                 break
                 
-            # Extract text
-            text_el = rec.select_one(".english_hadith_full") or rec.select_one(".hadith_text_inner")
+            # Extract text (Narrator + Main Text)
+            text_el = rec.select_one(".english_hadith_full") 
+            if not text_el:
+                # Fallback to inner text container
+                text_el = rec.select_one(".hadith_text_inner")
+                
             if not text_el:
                 continue
             
-            hadith_text = text_el.get_text(strip=True)
+            hadith_text = text_el.get_text(" ", strip=True)
             
             # Extract reference
             ref_el = rec.select_one(".hadith_reference") or rec.select_one(".hadith_ref_list")
-            reference = ref_el.get_text(strip=True) if ref_el else "Unknown Reference"
+            reference = ref_el.get_text(" ", strip=True) if ref_el else "Unknown Reference"
             
-            # Extract URL if available
+            # Extract URL (usually the collection link)
             link_el = rec.select_one("a[href^='/']")
             hadith_url = f"{SUNNAH_BASE_URL}{link_el['href']}" if link_el else None
             
@@ -97,10 +102,10 @@ def sync_hadith_for_topic(db: Session, topic: str, max_results: int = 10):
                 count += 1
         
         db.commit()
-        logger.info(f"Successfully synced {count} hadiths for topic: {topic}")
+        logger.info(f"Successfully synced {count} NEW hadiths for topic: {topic}")
         
-        # Sleep to avoid hammering
-        time.sleep(random.uniform(2, 5))
+        # Sleep to be respectful
+        time.sleep(random.uniform(1, 3))
         
     except Exception as e:
         logger.error(f"Failed to sync hadith from Sunnah.com for topic '{topic}': {e}")

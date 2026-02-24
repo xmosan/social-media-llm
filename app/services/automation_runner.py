@@ -295,7 +295,8 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                     caption += enrichment_text
                     print(f"[AUTO] Appended hadith from {hadith.reference}")
                 else:
-                    print(f"[AUTO] No hadith found for topic '{hadith_topic}'")
+                    print(f"[AUTO] No hadith found for topic '{hadith_topic}' - Check sunnah.com connectivity or topic relevance.")
+                    logger.warning(f"No hadith found for topic '{hadith_topic}' in automation {automation.id}")
             except Exception as enrich_e:
                 print(f"[AUTO] Enrichment ERROR (skipping): {enrich_e}")
                 logger.error(f"Enrichment failed for automation {automation.id}: {enrich_e}")
