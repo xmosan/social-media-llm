@@ -245,6 +245,7 @@ def on_startup():
                 ("is_active", "BOOLEAN DEFAULT TRUE"),
                 ("is_superadmin", "BOOLEAN DEFAULT FALSE"),
                 ("onboarding_complete", "BOOLEAN DEFAULT FALSE"),
+                ("active_org_id", "INTEGER"),
                 ("google_id", "VARCHAR"),
                 ("updated_at", "TIMESTAMP WITH TIME ZONE")
             ]
