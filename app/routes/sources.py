@@ -2,19 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from app.db import get_db
-from app.security import require_api_key
+from app.security.rbac import get_current_org_id
 from app.models import ContentSource, ContentItem
 from app.services.content_sources import import_manual_items, import_from_rss, import_from_url_list
 
 router = APIRouter(prefix="/sources", tags=["sources"])
 
-# NOTE: In a real production app, we would get this from the API Key or Session
-def get_org_id():
-    return 1
-
 @router.post("")
-def create_source(payload: dict, db: Session = Depends(get_db), _auth: str = Depends(require_api_key)):
-    org_id = get_org_id()
+def create_source(payload: dict, db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
     source_type = payload.get("source_type")
     name = payload.get("name")
     config = payload.get("config") or {}
@@ -35,16 +30,14 @@ def create_source(payload: dict, db: Session = Depends(get_db), _auth: str = Dep
     return {"id": src.id, "name": src.name, "source_type": src.source_type}
 
 @router.get("")
-def list_sources(db: Session = Depends(get_db), _auth: str = Depends(require_api_key)):
-    org_id = get_org_id()
+def list_sources(db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
     sources = db.execute(
         select(ContentSource).where(ContentSource.org_id == org_id).order_by(ContentSource.id.desc())
     ).scalars().all()
     return [{"id": s.id, "name": s.name, "source_type": s.source_type, "enabled": s.enabled} for s in sources]
 
 @router.post("/{source_id}/import")
-def import_source(source_id: int, payload: dict, db: Session = Depends(get_db), _auth: str = Depends(require_api_key)):
-    org_id = get_org_id()
+def import_source(source_id: int, payload: dict, db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
     src = db.execute(
         select(ContentSource).where(ContentSource.id == source_id, ContentSource.org_id == org_id)
     ).scalar_one_or_none()
@@ -68,8 +61,7 @@ def import_source(source_id: int, payload: dict, db: Session = Depends(get_db), 
     return {"imported": 0, "note": "Importer not implemented for this source type yet"}
 
 @router.get("/{source_id}/items")
-def list_items(source_id: int, db: Session = Depends(get_db), _auth: str = Depends(require_api_key)):
-    org_id = get_org_id()
+def list_items(source_id: int, db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
     items = db.execute(
         select(ContentItem).where(
             ContentItem.org_id == org_id, 
@@ -89,8 +81,7 @@ def list_items(source_id: int, db: Session = Depends(get_db), _auth: str = Depen
     ]
 
 @router.delete("/{source_id}")
-def delete_source(source_id: int, db: Session = Depends(get_db), _auth: str = Depends(require_api_key)):
-    org_id = get_org_id()
+def delete_source(source_id: int, db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
     src = db.execute(
         select(ContentSource).where(ContentSource.id == source_id, ContentSource.org_id == org_id)
     ).scalar_one_or_none()
