@@ -12,6 +12,7 @@ from app.config import settings
 import pytz
 import os
 import requests
+from app.services.content_sources import select_items_for_automation, mark_items_used
 from app.logging_setup import log_event
 
 logger = logging.getLogger(__name__)
@@ -183,7 +184,22 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         log_event("automation_run_start", automation_id=automation.id, topic=topic, style=automation.style_preset)
         
         # 1. Content Selection
-        if automation.use_content_library:
+        selected_items = []
+        new_cursor = automation.last_item_cursor
+
+        # NEW: Pluggable Content Sources
+        if getattr(automation, "source_id", None) and getattr(automation, "source_mode", "none") != "none":
+            selected_items, new_cursor = select_items_for_automation(
+                db,
+                org_id=automation.org_id,
+                source_id=automation.source_id,
+                items_per_post=getattr(automation, "items_per_post", 1) or 1,
+                selection_mode=getattr(automation, "selection_mode", "random") or "random",
+                last_item_cursor=automation.last_item_cursor,
+            )
+        
+        # LEGACY: Content Library (if no items from sources and enabled)
+        if not selected_items and automation.use_content_library:
             content_item = pick_content_item(
                 db=db,
                 org_id=automation.org_id,
@@ -212,6 +228,8 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 automation.last_run_at = datetime.now(dt_timezone.utc)
                 db.commit()
                 return new_post
+            else:
+                selected_items = [content_item]
 
         # 1.5 Content Profile Injection
         content_profile_prompt = None
@@ -235,34 +253,39 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 
                 content_profile_prompt = "\n".join(prompt_parts)
 
-        # 2. Generate Content
+        # 2. Build Context payload & Generate
+        context_payload = {
+            "topic": topic,
+            "style": automation.style_preset,
+            "tone": automation.tone or "medium",
+            "language": automation.language or "english",
+            "banned_phrases": automation.banned_phrases if isinstance(automation.banned_phrases, list) else None,
+            "source_items": [
+                {"title": getattr(it, "title", None), "text": getattr(it, "text", it.text_en if hasattr(it, "text_en") else ""), "url": getattr(it, "url", None), "id": it.id}
+                for it in selected_items
+            ],
+            "content_profile_prompt": content_profile_prompt,
+            "creativity_level": creativity_level,
+            "instructions": [
+                "Do NOT output the topic label literally.",
+                "Do NOT output 'AUTO: <name>' literally as the caption.",
+                "If source_items are provided, incorporate at least 1 item meaningfully.",
+                "Avoid music references and other disallowed content per policy.",
+            ],
+        }
+
         print(f"[AUTO] Generating for automation_id={automation.id} topic='{topic}'")
         
-        creativity_level = getattr(automation, "creativity_level", 3)
-
-        if content_item:
-            result = generate_caption_from_content_item(
-                content_item=content_item,
-                style=automation.style_preset,
-                tone=automation.tone or "medium",
-                language=automation.language or "english",
-                banned_phrases=automation.banned_phrases if isinstance(automation.banned_phrases, list) else None,
-                include_arabic=automation.include_arabic,
-                extra_hashtag_set=automation.hashtag_set,
-                content_profile_prompt=content_profile_prompt,
-                creativity_level=creativity_level
-            )
-        else:
-            # Fallback for old mode if use_content_library is False
-            result = generate_topic_caption(
-                topic=topic,
-                style=automation.style_preset,
-                tone=automation.tone or "medium",
-                language=automation.language or "english",
-                banned_phrases=automation.banned_phrases if isinstance(automation.banned_phrases, list) else None,
-                content_profile_prompt=content_profile_prompt,
-                creativity_level=creativity_level
-            )
+        result = generate_topic_caption(
+            topic=topic,
+            style=automation.style_preset,
+            tone=automation.tone or "medium",
+            language=automation.language or "english",
+            banned_phrases=automation.banned_phrases if isinstance(automation.banned_phrases, list) else None,
+            content_profile_prompt=content_profile_prompt,
+            creativity_level=creativity_level,
+            extra_context=context_payload
+        )
         
         caption = result.get("caption", "").strip()
         hashtags = result.get("hashtags", [])
@@ -302,7 +325,8 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 logger.error(f"Enrichment failed for automation {automation.id}: {enrich_e}")
         
         # 3. Media Selection / Generation
-        concepts = content_item.topics[0] if content_item and content_item.topics else None
+        primary_item = selected_items[0] if selected_items else None
+        concepts = primary_item.topics[0] if primary_item and hasattr(primary_item, "topics") and primary_item.topics else None
         media_url = resolve_media_url(
             db=db,
             org_id=automation.org_id,
@@ -317,16 +341,17 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         
         # 4. Final Post Creation
         if automation.image_mode == "quote_card" or (media_url is None and automation.image_mode != "none_placeholder"):
-            if content_item:
+            if primary_item:
                 # Generate a quote card
                 filename = f"quote_{automation.id}_{int(datetime.now().timestamp())}.jpg"
                 file_path = os.path.join(settings.uploads_dir, filename)
                 
-                attribution = content_item.source_name or ""
-                if content_item.reference:
-                    attribution += f" ({content_item.reference})"
+                text_to_use = getattr(primary_item, "text", getattr(primary_item, "text_en", ""))
+                attribution = getattr(primary_item, "source_name", "")
+                if getattr(primary_item, "reference", None):
+                    attribution += f" ({primary_item.reference})"
                 
-                create_quote_card(content_item.text_en, attribution, file_path)
+                create_quote_card(text_to_use, attribution, file_path)
                 media_url = f"{settings.public_base_url.rstrip('/')}/uploads/{filename}"
                 print(f"[AUTO] Quote card generated: {media_url}")
 
@@ -336,15 +361,17 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             status = "drafted"
             
         source_text = f"AUTO: {automation.name} | topic={topic}"
-        if content_item:
-            source_text += f" | content_id={content_item.id}"
+        if primary_item:
+            source_text += f" | content_id={primary_item.id}"
 
         new_post = Post(
             org_id=automation.org_id,
             ig_account_id=automation.ig_account_id,
             is_auto_generated=True,
             automation_id=automation.id,
-            content_item_id=content_item.id if content_item else None,
+            content_item_id=primary_item.id if primary_item else None,
+            used_source_id=automation.source_id if selected_items else None,
+            used_content_item_ids=[it.id for it in selected_items],
             status=status,
             source_type="automation",
             source_text=source_text,
@@ -371,16 +398,21 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         db.flush() # Get new_post.id
         
         # 6. Track Usage
-        if content_item:
-            usage = ContentUsage(
-                org_id=automation.org_id,
-                ig_account_id=automation.ig_account_id,
-                automation_id=automation.id,
-                post_id=new_post.id,
-                content_item_id=content_item.id,
-                status="selected"
-            )
-            db.add(usage)
+        if selected_items:
+            mark_items_used(db, selected_items)
+            automation.last_item_cursor = str(new_cursor) if new_cursor else None
+            
+            for it in selected_items:
+                usage = ContentUsage(
+                    org_id=automation.org_id,
+                    ig_account_id=automation.ig_account_id,
+                    automation_id=automation.id,
+                    post_id=new_post.id,
+                    content_item_id=it.id,
+                    used_at=datetime.now(dt_timezone.utc),
+                    status="selected"
+                )
+                db.add(usage)
 
         # 7. Immediate Publishing if configured
         if automation.posting_mode == "publish_now" and automation.approval_mode == "auto_approve":
@@ -396,15 +428,9 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 log_event("automation_publish_success", automation_id=automation.id, post_id=new_post.id)
                 new_post.status = "published"
                 new_post.published_time = datetime.now(dt_timezone.utc)
-                if content_item:
-                    # Update usage status to published if we can find it (it's in current session)
-                    pass # We'll just set it correctly initially or update if needed
             else:
                 new_post.status = "failed"
                 new_post.flags = {**new_post.flags, "publish_error": pub_res.get("error")}
-                if content_item:
-                    # If we really want to be precise, track usage as failed
-                    pass
 
         automation.last_run_at = datetime.now(dt_timezone.utc)
         automation.last_post_id = new_post.id

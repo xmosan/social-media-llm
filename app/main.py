@@ -12,7 +12,7 @@ import uuid
 from .db import engine, SessionLocal
 from .models import Base, Org, ApiKey, IGAccount, User, OrgMember
 from .security.auth import get_password_hash
-from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles, auth_google, public
+from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles, auth_google, public, sources
 from .services.scheduler import start_scheduler
 from .config import settings
 from .logging_setup import setup_logging, request_id_var, log_event
@@ -121,6 +121,7 @@ app.include_router(media.router)
 app.include_router(auth.router)
 app.include_router(auth_google.router)
 app.include_router(profiles.router)
+app.include_router(sources.router)
 
 def bootstrap_saas():
     """Seed initial Org, API Key, and Superadmin User."""
@@ -209,7 +210,12 @@ def on_startup():
                 ("media_tag_query", "JSONB" if is_postgres else "TEXT"),
                 ("media_rotation_mode", "VARCHAR DEFAULT 'random'"),
                 ("content_profile_id", "INTEGER"),
-                ("creativity_level", "INTEGER DEFAULT 3")
+                ("creativity_level", "INTEGER DEFAULT 3"),
+                ("source_id", "INTEGER"),
+                ("source_mode", "VARCHAR DEFAULT 'none'"),
+                ("items_per_post", "INTEGER DEFAULT 1"),
+                ("selection_mode", "VARCHAR DEFAULT 'random'"),
+                ("last_item_cursor", "VARCHAR")
             ]
             for col, col_def in auto_cols:
                 try:
@@ -221,7 +227,9 @@ def on_startup():
             
             # 2. Update posts
             post_cols = [
-                ("media_asset_id", "INTEGER")
+                ("media_asset_id", "INTEGER"),
+                ("used_source_id", "INTEGER"),
+                ("used_content_item_ids", "JSONB" if is_postgres else "TEXT")
             ]
             for col, col_def in post_cols:
                 try:
@@ -244,6 +252,22 @@ def on_startup():
                     stmt = f"ALTER TABLE users ADD COLUMN {'IF NOT EXISTS' if is_postgres else ''} {col} {col_def}"
                     conn.execute(text(stmt))
                     print(f"Migration: Checked/Added column {col} to users")
+                except Exception as e:
+                    pass
+
+            # 3.5 Update content_items table
+            item_cols = [
+                ("source_id", "INTEGER"),
+                ("text", "TEXT"),
+                ("tags", "JSONB" if is_postgres else "TEXT"),
+                ("last_used_at", "TIMESTAMP WITH TIME ZONE"),
+                ("use_count", "INTEGER DEFAULT 0")
+            ]
+            for col, col_def in item_cols:
+                try:
+                    stmt = f"ALTER TABLE content_items ADD COLUMN {'IF NOT EXISTS' if is_postgres else ''} {col} {col_def}"
+                    conn.execute(text(stmt))
+                    print(f"Migration: Checked/Added column {col} to content_items")
                 except Exception as e:
                     pass
             

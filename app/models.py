@@ -120,6 +120,10 @@ class Post(Base):
     media_asset = relationship("MediaAsset", back_populates="posts")
     content_usage = relationship("ContentUsage", back_populates="post", uselist=False)
 
+    # Content Sourcing
+    used_source_id = Column(Integer, ForeignKey("content_sources.id"), nullable=True)
+    used_content_item_ids = Column(JSON, nullable=False, default=list)
+
 class ContentProfile(Base):
     __tablename__ = "content_profiles"
     id = Column(Integer, primary_key=True, index=True)
@@ -191,6 +195,13 @@ class TopicAutomation(Base):
     hadith_append_style = Column(String, default="short") # "short" | "medium"
     hadith_max_len = Column(Integer, default=450)
 
+    # NEW: Pluggable Content Sourcing
+    source_id = Column(Integer, ForeignKey("content_sources.id"), nullable=True)
+    source_mode = Column(String, nullable=False, default="none") # none, manual_library, rss, url_list, sunnah
+    items_per_post = Column(Integer, nullable=False, default=1)
+    selection_mode = Column(String, nullable=False, default="random") # random, round_robin
+    last_item_cursor = Column(String, nullable=True)
+
     # NEW: Media Library Fields
     media_asset_id = Column(Integer, ForeignKey("media_assets.id"), nullable=True)
     media_tag_query = Column(JSON, nullable=True) # e.g. ["ramadan","masjid"]
@@ -206,28 +217,39 @@ class TopicAutomation(Base):
     media_asset = relationship("MediaAsset")
     content_profile = relationship("ContentProfile", back_populates="automations")
 
+class ContentSource(Base):
+    __tablename__ = "content_sources"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("orgs.id"), nullable=False, index=True)
+    name = Column(String, nullable=False) 
+    source_type = Column(String, nullable=False) # manual_library, rss, url_list, sunnah
+    config = Column(JSON, nullable=False, default=dict)
+    enabled = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    org = relationship("Org")
+    items = relationship("ContentItem", back_populates="source", cascade="all, delete-orphan")
+
 class ContentItem(Base):
     __tablename__ = "content_items"
     id = Column(Integer, primary_key=True, index=True)
-    org_id = Column(Integer, ForeignKey("orgs.id"), nullable=False)
+    org_id = Column(Integer, ForeignKey("orgs.id"), nullable=False, index=True)
+    source_id = Column(Integer, ForeignKey("content_sources.id"), nullable=False, index=True)
     
-    type = Column(String, default="hadith") # hadith, quote, verse, reminder
     title = Column(String, nullable=True)
-    text_en = Column(Text, nullable=False)
-    text_ar = Column(Text, nullable=True)
-    source_name = Column(String, nullable=True)
-    reference = Column(String, nullable=True)
+    text = Column(Text, nullable=False)
     url = Column(Text, nullable=True)
-    grade = Column(String, nullable=True)
+    tags = Column(JSON, nullable=False, default=list)
     
-    topics = Column(JSON, nullable=False, default=list) # List of normalized strings
-    language = Column(String, default="english")
-    enabled = Column(Boolean, default=True)
-    
+    last_used_at = Column(DateTime(timezone=True), nullable=True)
+    use_count = Column(Integer, nullable=False, default=0)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     org = relationship("Org", back_populates="content_items")
+    source = relationship("ContentSource", back_populates="items")
     posts = relationship("Post", back_populates="content_item")
     usages = relationship("ContentUsage", back_populates="content_item")
 
@@ -248,14 +270,6 @@ class ContentUsage(Base):
     automation = relationship("TopicAutomation", back_populates="content_usages")
     post = relationship("Post", back_populates="content_usage")
     content_item = relationship("ContentItem", back_populates="usages")
-
-class ContentSource(Base):
-    __tablename__ = "content_sources"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False) # e.g. "Sunnah.com"
-    type = Column(String, default="sunnah")
-    base_url = Column(String, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 class SourceItem(Base):
     __tablename__ = "source_items"

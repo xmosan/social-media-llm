@@ -399,6 +399,10 @@ HTML = """<!doctype html>
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
             MediaLibrary
         </div>
+        <div onclick="switchTab('sources')" id="nav_sources" class="nav-item">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+            Intelligence
+        </div>
     </nav>
 
     <div class="mt-auto pt-6 border-t border-border">
@@ -749,52 +753,36 @@ HTML = """<!doctype html>
                         <input type="time" id="auto_time" class="w-full px-4 py-3 rounded-xl border border-border outline-none bg-white/5 text-xs text-white [color-scheme:dark]" value="09:00"/>
                     </div>
                 </div>
-                <div class="p-6 bg-brand/5 rounded-[2rem] border border-brand/10 space-y-6">
-                    <div class="flex items-center gap-3">
-                        <input type="checkbox" id="auto_use_library" class="w-5 h-5 rounded border-border bg-white/5 text-brand focus:ring-brand" checked/>
-                        <label for="auto_use_library" class="text-sm font-black text-main">Sync with Content Library</label>
-                    </div>
+                <!-- Content Sourcing Section -->
+                <div class="p-6 bg-brand/5 rounded-[2rem] border border-brand/10 space-y-4">
+                    <label class="block text-[10px] font-black text-brand uppercase tracking-widest mb-2 ml-1">Knowledge Grounding</label>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Asset Mode</label>
-                            <select id="auto_image_mode" class="w-full px-5 py-4 rounded-xl border border-border outline-none text-[10px] font-black uppercase tracking-widest bg-white/5 text-main appearance-none cursor-pointer">
-                                <option value="reuse_last_upload" class="bg-[#0f172a]">Reuse Last Delta</option>
-                                <option value="quote_card" class="bg-[#0f172a]">Auto Quote Frame</option>
-                                <option value="generate" class="bg-[#0f172a]">Neural Synthesis (AI)</option>
-                                <option value="none" class="bg-[#0f172a]">No Visual (Meta Only)</option>
-                                <option value="library_tag" class="bg-[#0f172a]">Logic-Based Tag</option>
+                            <select id="auto_source_mode" onchange="toggleSourceOptions()" class="w-full px-5 py-4 rounded-xl border border-border outline-none text-[10px] font-black uppercase tracking-widest bg-white/5 text-main appearance-none cursor-pointer">
+                                <option value="none">Generative Only (No Grounding)</option>
+                                <option value="manual_library">Manual Library</option>
+                                <option value="rss">RSS Feed</option>
+                                <option value="url_list">URL Aggregator</option>
+                                <option value="sunnah">Sunnah.com</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Entropy Lookback</label>
-                            <input type="number" id="auto_lookback" class="w-full px-5 py-4 rounded-xl border border-border bg-white/5 text-main" value="30"/>
+                            <select id="auto_source_id" class="w-full px-5 py-4 rounded-xl border border-border outline-none text-[10px] font-black uppercase tracking-widest bg-white/5 text-main appearance-none cursor-pointer">
+                                <option value="">Select Source...</option>
+                            </select>
                         </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="flex items-center gap-3">
-                            <input type="checkbox" id="auto_arabic" class="w-4 h-4 rounded border-border bg-white/5 text-brand focus:ring-brand"/>
-                            <label for="auto_arabic" class="text-[10px] font-black text-muted uppercase tracking-widest">Arabic Script</label>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <input type="checkbox" id="auto_enabled" class="w-4 h-4 rounded border-border bg-white/5 text-brand focus:ring-brand" checked/>
-                            <label for="auto_enabled" class="text-[10px] font-black text-brand uppercase tracking-widest">Live Switch</label>
-                        </div>
-                    </div>
-                </div>
-                <!-- Hadith Enrichment Section -->
-                <div class="p-6 bg-brand/5 rounded-[2rem] border border-brand/10 space-y-4">
-                    <div class="flex items-center gap-3">
-                        <input type="checkbox" id="auto_enrich_hadith" class="w-5 h-5 rounded border-border bg-white/5 text-brand focus:ring-brand"/>
-                        <label for="auto_enrich_hadith" class="text-sm font-black text-brand tracking-tight">Sunnah.com Deep Enrichment</label>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
+                    <div id="source_advanced_opts" class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Niche Topic</label>
-                            <input type="text" id="auto_hadith_topic" class="w-full px-5 py-4 rounded-xl border border-border bg-white/5 outline-none text-xs text-main" placeholder="Auto-detecting..."/>
+                            <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Selection Logic</label>
+                            <select id="auto_selection_mode" class="w-full px-5 py-4 rounded-xl border border-border outline-none text-[10px] font-black uppercase tracking-widest bg-white/5 text-main">
+                                <option value="random">Neural Random</option>
+                                <option value="round_robin">Deterministic Cycle</option>
+                            </select>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Max Tokens</label>
-                            <input type="number" id="auto_hadith_maxlen" class="w-full px-5 py-4 rounded-xl border border-border bg-white/5 outline-none text-xs text-main" value="450"/>
+                            <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Batch Density</label>
+                            <input type="number" id="auto_items_per_post" class="w-full px-5 py-4 rounded-xl border border-border bg-white/5 text-main" value="1" min="1" max="5"/>
                         </div>
                     </div>
                 </div>
@@ -1005,7 +993,33 @@ HTML = """<!doctype html>
         <div id="media_list" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4"></div>
       </div>
 
-    </div>
+      <!-- Sources Tab -->
+      <div id="tab_sources" class="hidden space-y-8 fade-in">
+        <div class="flex items-center justify-between mb-8 text-neutral-100">
+            <div>
+                <h2 class="text-3xl font-black italic tracking-tighter text-gradient leading-none">Content Intelligence</h2>
+                <p class="text-[10px] text-muted font-black uppercase tracking-[0.2em] mt-3 italic">Strategic knowledge providers and neural grounding</p>
+            </div>
+            <button onclick="openSourceModal()" class="btn-primary px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] italic flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Deploy New Source
+            </button>
+        </div>
+
+        <div id="sources_grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Sources cards injected here -->
+        </div>
+
+        <div id="source_items_view" class="hidden space-y-6">
+            <div class="flex items-center gap-4 mb-4">
+                <button onclick="backToSources()" class="p-2 rounded-xl bg-surface hover:bg-white/10 text-muted transition-all border border-border">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                </button>
+                <h3 id="viewing_source_name" class="text-xl font-black italic text-main">Source Items</h3>
+            </div>
+            <div id="source_items_list" class="space-y-4"></div>
+        </div>
+      </div>
 
     <!-- Platform Drawer -->
     <div id="platform_panel" class="hidden fixed inset-0 bg-black/60 z-[100] backdrop-blur-md flex justify-end" onclick="if(event.target === this) togglePlatformPanel()">
@@ -1304,7 +1318,7 @@ let calendar = null;
 
 function switchTab(t) {
     ACTIVE_TAB = t;
-    const views = ['dashboard', 'feed', 'calendar', 'automations', 'profiles', 'media'];
+    const views = ['dashboard', 'feed', 'calendar', 'automations', 'profiles', 'media', 'sources'];
     views.forEach(v => {
         // Content areas
         const el = document.getElementById("tab_" + v);
@@ -1386,6 +1400,8 @@ async function refreshAll() {
                 await loadCalendarEvents();
             } else if (ACTIVE_TAB === 'media') {
                 await loadMediaLibrary();
+            } else if (ACTIVE_TAB === 'sources') {
+                await loadSources();
             }
         } else {
             // Optional: show empty state
@@ -1476,10 +1492,10 @@ async function saveAutomation() {
         use_content_library: getCheck("auto_use_library"),
         image_mode: getVal("auto_image_mode") || "reuse_last_upload",
         avoid_repeat_days: getNum("auto_lookback") || 30,
-        include_arabic: getCheck("auto_arabic"),
-        enrich_with_hadith: getCheck("auto_enrich_hadith"),
-        hadith_topic: getVal("auto_hadith_topic"),
-        hadith_max_len: getNum("auto_hadith_maxlen") || 450,
+        source_id: getNum("auto_source_id") || null,
+        source_mode: getVal("auto_source_mode") || "none",
+        items_per_post: getNum("auto_items_per_post") || 1,
+        selection_mode: getVal("auto_selection_mode") || "random",
         media_asset_id: getNum("auto_media_asset_id") || null,
         media_tag_query: getVal("auto_media_tag_query").split(",").map(t => t.trim()).filter(t => t),
         media_rotation_mode: "random",
@@ -1896,29 +1912,21 @@ function editAuto(a) {
     document.getElementById("auto_time").value = a.post_time_local || "09:00";
     document.getElementById("auto_enabled").checked = a.enabled;
     
-    // Phase 6 new fields
-    const useLib = document.getElementById("auto_use_library");
-    if(useLib) useLib.checked = !!a.use_content_library;
+    // Content Sourcing
+    const srcMode = document.getElementById("auto_source_mode");
+    if(srcMode) srcMode.value = a.source_mode || "none";
     
-    const imgMode = document.getElementById("auto_image_mode");
-    if(imgMode) imgMode.value = a.image_mode || "reuse_last_upload";
+    const srcId = document.getElementById("auto_source_id");
+    if(srcId) srcId.value = a.source_id || "";
     
-    const lookback = document.getElementById("auto_lookback");
-    if(lookback) lookback.value = a.avoid_repeat_days || 30;
+    const selMode = document.getElementById("auto_selection_mode");
+    if(selMode) selMode.value = a.selection_mode || "random";
     
-    const arabic = document.getElementById("auto_arabic");
-    if(arabic) arabic.checked = !!a.include_arabic;
+    const count = document.getElementById("auto_items_per_post");
+    if(count) count.value = a.items_per_post || 1;
 
-    // Hadith Enrichment
-    const enrich = document.getElementById("auto_enrich_hadith");
-    if(enrich) enrich.checked = !!a.enrich_with_hadith;
-    
-    const hTopic = document.getElementById("auto_hadith_topic");
-    if(hTopic) hTopic.value = a.hadith_topic || "";
-    
-    const hMax = document.getElementById("auto_hadith_maxlen");
-    if(hMax) hMax.value = a.hadith_max_len || 450;
-    
+    if (typeof toggleSourceOptions === 'function') toggleSourceOptions();
+
     const mAsset = document.getElementById("auto_media_asset_id");
     if(mAsset) mAsset.value = a.media_asset_id || "";
     
@@ -2456,7 +2464,214 @@ document.addEventListener("DOMContentLoaded", () => {
         initializeAdmin();
     }, 100);
 });
+
+/* --- Content Sources Management --- */
+async function loadSources() {
+    const grid = document.getElementById("sources_grid");
+    if (!grid) return;
+    grid.innerHTML = `<div class="col-span-full py-12 text-center text-muted font-black uppercase text-xs animate-pulse">Initializing Knowledge Grid...</div>`;
+    
+    try {
+        const sources = await request('/sources');
+        const autoSourceSelect = document.getElementById("auto_source_id");
+        
+        if (autoSourceSelect) {
+            autoSourceSelect.innerHTML = '<option value="">Select Source...</option>';
+        }
+        
+        if (sources.length === 0) {
+            grid.innerHTML = `
+                <div class="col-span-full py-20 text-center bg-white/5 rounded-[3rem] border border-dashed border-border group hover:border-brand/40 transition-all cursor-pointer" onclick="openSourceModal()">
+                    <div class="w-16 h-16 bg-brand/10 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-all">
+                        <svg class="w-8 h-8 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    </div>
+                    <h3 class="text-xl font-black italic text-main">No Sources Detected</h3>
+                    <p class="text-[10px] text-muted font-black uppercase tracking-widest mt-2">Deploy your first grounding module to begin</p>
+                </div>
+            `;
+            return;
+        }
+
+        grid.innerHTML = "";
+        sources.forEach(s => {
+            if (autoSourceSelect) {
+                const opt = document.createElement("option");
+                opt.value = s.id;
+                opt.textContent = s.name;
+                autoSourceSelect.appendChild(opt);
+            }
+
+            const card = document.createElement("div");
+            card.className = "tool-card p-8 group relative overflow-hidden";
+            card.innerHTML = `
+                <div class="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-all">
+                    <button onclick="deleteSource(${s.id})" class="text-muted hover:text-red-400 p-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                </div>
+                <div class="flex items-start gap-4 mb-6">
+                    <div class="w-12 h-12 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand font-black italic">
+                        ${s.source_type.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                        <h4 class="text-main font-black italic tracking-tight">${s.name}</h4>
+                        <span class="text-[9px] font-black uppercase text-muted tracking-widest">${s.source_type.replace('_', ' ')}</span>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between mt-auto">
+                    <button onclick="viewSourceItems(${s.id}, '${s.name}')" class="text-[10px] font-black uppercase tracking-widest text-brand hover:brightness-125 transition-all italic flex items-center gap-2">
+                        Inspect Database
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    </button>
+                    <button onclick="openImportModal(${s.id}, '${s.name}')" class="p-2 rounded-xl bg-white/5 border border-border text-muted hover:text-main hover:bg-white/10 transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    </button>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    } catch(e) { 
+        console.error(e);
+    }
+}
+
+function openSourceModal() { document.getElementById("source_modal").classList.remove("hidden"); }
+function hideSourceModal() { document.getElementById("source_modal").classList.add("hidden"); }
+
+async function saveSource() {
+    const name = document.getElementById("source_name").value;
+    const type = document.getElementById("source_type").value;
+    const url = document.getElementById("source_url").value;
+    
+    if(!name) return alert("Source name required");
+    
+    try {
+        await request('/sources', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, source_type: type, config: { url } })
+        });
+        hideSourceModal();
+        loadSources();
+    } catch(e) { alert("Deployment Failed: " + e.message); }
+}
+
+function openImportModal(id, name) {
+    document.getElementById("import_source_id").value = id;
+    document.getElementById("import_title").textContent = "Siphon Data: " + name;
+    document.getElementById("import_texts").value = "";
+    document.getElementById("import_modal").classList.remove("hidden");
+}
+
+function hideImportModal() { document.getElementById("import_modal").classList.add("hidden"); }
+
+async function saveImport() {
+    const id = document.getElementById("import_source_id").value;
+    const texts = document.getElementById("import_texts").value.split("\n").map(t => t.trim()).filter(t => t);
+    
+    if(texts.length === 0) return alert("No data segments found");
+    
+    try {
+        const j = await request(`/sources/${id}/import`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ texts })
+        });
+        alert(`Successfully siphoned ${j.imported} segments.`);
+        hideImportModal();
+        loadSources();
+    } catch(e) { alert("Import Failed: " + e.message); }
+}
+
+function toggleSourceOptions() {
+    const mode = document.getElementById("auto_source_mode").value;
+    const advOpts = document.getElementById("source_advanced_opts");
+    if (advOpts) {
+        advOpts.classList.toggle("hidden", mode === "none");
+    }
+}
+
+async function deleteSource(id) {
+    if(!confirm("Purge this knowledge source?")) return;
+    try {
+        await request(`/sources/${id}`, { method: 'DELETE' });
+        loadSources();
+    } catch(e) { alert("Purge Failed: " + e.message); }
+}
+
+async function viewSourceItems(id, name) {
+    const grid = document.getElementById("sources_grid");
+    const view = document.getElementById("source_items_view");
+    if(!grid || !view) return;
+    grid.classList.add("hidden");
+    view.classList.remove("hidden");
+    document.getElementById("viewing_source_name").textContent = name;
+    const list = document.getElementById("source_items_list");
+    list.innerHTML = `<div class="py-12 text-center text-muted font-black uppercase text-xs animate-pulse">Scanning Data Packets...</div>`;
+    try {
+        const items = await request(`/sources/${id}/items`);
+        list.innerHTML = items.length === 0 ? '<p class="text-center text-muted text-xs p-10 uppercase font-black">Memory Vacuumed.</p>' : "";
+        items.forEach(it => {
+            const el = document.createElement("div");
+            el.className = "p-5 rounded-xl bg-white/5 border border-border";
+            el.innerHTML = `<p class="text-xs text-main leading-relaxed">${it.text}</p>`;
+            list.appendChild(el);
+        });
+    } catch(e) { console.error(e); }
+}
+
+function backToSources() {
+    document.getElementById("sources_grid").classList.remove("hidden");
+    document.getElementById("source_items_view").classList.add("hidden");
+}
+
 </script>
+    <!-- Source Modal -->
+    <div id="source_modal" class="hidden fixed inset-0 bg-black/60 z-[150] backdrop-blur-md flex items-center justify-center p-4">
+        <div class="tool-card w-full max-w-lg p-10 space-y-8">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-xl font-black italic text-main tracking-tighter text-gradient">Knowledge Provider</h3>
+                <button onclick="hideSourceModal()" class="text-muted hover:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Provider Link</label>
+                    <input type="text" id="source_name" class="w-full px-5 py-4 rounded-xl border border-border bg-white/5 outline-none text-xs text-main" placeholder="Ex: Daily Wisdom RSS"/>
+                </div>
+                <div>
+                    <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">Neural Vector Type</label>
+                    <select id="source_type" class="w-full px-5 py-4 rounded-xl border border-border outline-none text-[10px] font-black uppercase tracking-widest bg-white/5 text-main appearance-none cursor-pointer">
+                        <option value="manual_library">Manual Collection</option>
+                        <option value="rss">RSS Protocol</option>
+                        <option value="url_list">URL Aggregator</option>
+                        <option value="sunnah">Sunnah.com Digital</option>
+                    </select>
+                </div>
+                <div id="source_config_area" class="hidden">
+                     <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-2 ml-1">External Endpoint (URL)</label>
+                     <input type="text" id="source_url" class="w-full px-5 py-4 rounded-xl border border-border bg-white/5 outline-none text-xs text-main" placeholder="https://..."/>
+                </div>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="hideSourceModal()" class="flex-1 px-8 py-4 rounded-xl border border-border font-black text-muted text-[10px] uppercase tracking-widest italic">Cancel</button>
+                <button onclick="saveSource()" class="flex-1 btn-primary py-4 text-[10px] font-black uppercase tracking-widest italic">Deploy Source</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Modal -->
+    <div id="import_modal" class="hidden fixed inset-0 bg-black/60 z-[160] backdrop-blur-md flex items-center justify-center p-4">
+        <div class="tool-card w-full max-w-2xl p-10 space-y-8">
+            <div class="flex justify-between items-center">
+                <h3 id="import_title" class="text-xl font-black italic text-main tracking-tighter text-gradient">Siphon Engine</h3>
+                <button onclick="hideImportModal()" class="text-muted hover:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+            </div>
+            <input type="hidden" id="import_source_id"/>
+            <div>
+                <label class="block text-[10px] font-black text-muted uppercase tracking-widest mb-3 ml-1">Data Packets (One per line)</label>
+                <textarea id="import_texts" class="w-full px-5 py-5 rounded-2xl bg-white/5 border border-border outline-none min-h-[300px] text-xs leading-relaxed text-main" placeholder="Paste content items here..."></textarea>
+            </div>
+            <button onclick="saveImport()" class="w-full btn-primary py-4 text-[10px] font-black uppercase tracking-widest italic">Ignite Import</button>
+        </div>
+    </div>
 </body>
 </html>
 """

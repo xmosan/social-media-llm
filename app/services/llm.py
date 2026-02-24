@@ -40,7 +40,7 @@ def generate_topic_caption(
     language: str = "english",
     banned_phrases: list[str] | None = None,
     content_profile_prompt: str | None = None,
-    creativity_level: int = 3
+    extra_context: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     """Generates a caption based on a topic and various style parameters using OpenAI."""
     client = get_client()
@@ -61,12 +61,24 @@ def generate_topic_caption(
 
     banned_prompt = f"Avoid these specific words/phrases: {', '.join(banned_phrases)}" if banned_phrases else ""
 
+    # Grounding Context
+    grounding_prompt = ""
+    if extra_context and extra_context.get("source_items"):
+        items_str = "\n".join([f"- {it['text']} (Source: {it.get('title') or 'N/A'})" for it in extra_context["source_items"]])
+        grounding_prompt = f"\nGROUNDING CONTENT (Use these to inform the caption):\n{items_str}\n"
+
+    extra_instructions = ""
+    if extra_context and extra_context.get("instructions"):
+        extra_instructions = "\nSPECIAL INSTRUCTIONS:\n" + "\n".join([f"- {instr}" for instr in extra_context["instructions"]])
+
     prompt = f"""
     Topic: {topic}
     Style: {style_content}
     Tone: {tone_content}
     Language: {lang_content}
     {banned_prompt}
+    {grounding_prompt}
+    {extra_instructions}
 
     Generate a high-quality Instagram/Facebook caption, alt text, and relevant hashtags.
     
