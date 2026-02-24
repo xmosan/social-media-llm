@@ -369,9 +369,12 @@ HTML = """<!doctype html>
   <div id="localhost_warning" class="hidden"></div>
 
   <aside class="sidebar">
-    <div class="mb-10 flex items-center gap-3 group">
-        <div class="w-9 h-9 bg-brand rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-indigo-500/20 group-hover:scale-110 transition-transform">S</div>
-        <span class="font-black text-xl tracking-tighter italic text-gradient">Social Media LLM</span>
+    <div class="mb-8 px-2">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-white font-black italic shadow-lg shadow-indigo-500/20">A</div>
+        <div class="text-xs font-black italic tracking-tighter text-white">ADMIN CONSOLE</div>
+      </div>
+      <div class="inline-block px-3 py-1 bg-amber-500/20 border border-amber-500/30 rounded-full text-[8px] font-black uppercase tracking-widest text-amber-500">Internal Owner Ops</div>
     </div>
 
     <nav class="flex-1 space-y-2">
@@ -516,6 +519,20 @@ HTML = """<!doctype html>
                 </button>
             </div>
             <div class="space-y-12">
+                <!-- API Key Management -->
+                <section>
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/20">
+                            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                        </div>
+                        <h3 class="text-sm font-black text-[var(--text-main)] uppercase tracking-widest">Master Access Key</h3>
+                    </div>
+                    <div class="space-y-4">
+                        <p class="text-[10px] text-text-muted font-bold uppercase leading-relaxed">Required for internal owner operations. Stored locally in your browser session.</p>
+                        <input type="password" id="admin_api_key_input" class="w-full bg-white/5 border border-border rounded-2xl px-5 py-4 text-xs font-bold outline-none focus:ring-1 focus:ring-brand transition-all text-main" placeholder="Paste X-API-Key here...">
+                        <button onclick="saveAdminApiKey()" class="w-full py-4 bg-brand rounded-2xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20">Save Key</button>
+                    </div>
+                </section>
                 <!-- Theme Switcher -->
                 <section>
                     <div class="flex items-center gap-3 mb-6">
@@ -1352,15 +1369,34 @@ function updateFileName(input) {
         document.getElementById("file_name_display").textContent = "Inject Reference Image";
     }
 }
+function saveAdminApiKey() {
+    const key = document.getElementById("admin_api_key_input").value;
+    localStorage.setItem("admin_api_key", key);
+    alert("API Key saved to local storage.");
+    location.reload();
+}
+
+// Populate key on load
+document.addEventListener("DOMContentLoaded", () => {
+    const key = localStorage.getItem("admin_api_key");
+    if (key && document.getElementById("admin_api_key_input")) {
+        document.getElementById("admin_api_key_input").value = key;
+    }
+});
+
 async function request(url, opts = {}) {
     let orgHeader = {};
     if (ACTIVE_ORG_ID) {
         orgHeader = { "X-Org-Id": ACTIVE_ORG_ID.toString() };
     }
 
+    const apiKey = localStorage.getItem("admin_api_key") || "";
+    const apiKeyHeader = apiKey ? { "X-API-Key": apiKey } : {};
+
     opts.headers = { 
         ...opts.headers, 
         ...orgHeader,
+        ...apiKeyHeader,
         "ngrok-skip-browser-warning": "69420"
     };
     const r = await fetch(url, opts);
@@ -2686,7 +2722,7 @@ def register_page():
 @router.get("", response_class=HTMLResponse)
 def admin_page(request: Request, user = Depends(get_current_user)):
     if not user:
-        return RedirectResponse(url="/admin/login", status_code=303)
+        return RedirectResponse(url="/login", status_code=303)
     return HTML
 
 ONBOARDING_HTML = """<!doctype html>
@@ -3035,4 +3071,12 @@ def debug_logging(user: User = Depends(require_superadmin)):
         "dataset": settings.axiom_dataset,
         "queue_size": axiom_handler.queue.qsize() if axiom_handler else 0,
         "last_ship_status": "active" if axiom_handler and axiom_handler.worker.is_alive() else "inactive"
+    }
+
+@router.get("/debug/version")
+def debug_version():
+    return {
+        "version": "1.2.0-redesign",
+        "env": "production",
+        "engine": "Social Media LLM v2"
     }

@@ -36,6 +36,10 @@ def get_current_org_id(
         ).first()
         
         if membership:
+            # Sticky update for convenience
+            if user.active_org_id != target_org_id:
+                user.active_org_id = target_org_id
+                db.commit()
             return target_org_id
         else:
             raise HTTPException(
@@ -43,10 +47,16 @@ def get_current_org_id(
                 detail="You do not have access to this organization"
             )
 
-    # 3. Default behavior: return the first org the user belongs to
+    # 3. Use active_org_id if set
+    if user.active_org_id:
+        return user.active_org_id
+
+    # 4. Fallback behavior: return the first org the user belongs to
     if user.is_superadmin:
         first_org = db.query(Org).order_by(Org.id.asc()).first()
         if first_org:
+            user.active_org_id = first_org.id
+            db.commit()
             return first_org.id
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -59,7 +69,9 @@ def get_current_org_id(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not belong to any organizations"
         )
-        
+    
+    user.active_org_id = first_membership.org_id
+    db.commit()
     return first_membership.org_id
 
 def require_superadmin(user: User = Depends(require_user)) -> User:

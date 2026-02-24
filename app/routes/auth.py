@@ -25,6 +25,13 @@ def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
         
+    # Ensure active_org_id is set
+    if not user.active_org_id:
+        membership = db.query(OrgMember).filter(OrgMember.user_id == user.id).first()
+        if membership:
+            user.active_org_id = membership.org_id
+            db.commit()
+
     access_token = create_access_token(data={"sub": str(user.id)})
     
     # Set HttpOnly cookie for web clients
@@ -72,6 +79,9 @@ def register(
     # 4. Bind the user to the new workspace as owner
     membership = OrgMember(org_id=new_org.id, user_id=new_user.id, role="owner")
     db.add(membership)
+    
+    # Set active_org_id
+    new_user.active_org_id = new_org.id
     db.commit()
 
     # 5. Automatically log them in (Session Cookie)

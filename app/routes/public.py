@@ -15,179 +15,219 @@ LANDING_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Social Media LLM | Generate. Review. Publish.</title>
+  <title>Social Media LLM | AI Social Posting, Human Control</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     :root {
       --brand: #6366f1;
       --brand-hover: #4f46e5;
-      /* AI Luxury (Default Dark) */
       --main-bg: #020617;
       --surface: rgba(255, 255, 255, 0.03);
       --text-main: #ffffff;
       --text-muted: #94a3b8;
       --border: rgba(255, 255, 255, 0.1);
-      --card-bg: rgba(255, 255, 255, 0.03);
     }
-
-    [data-theme='enterprise'] {
-      --main-bg: #f8fafc;
-      --surface: #ffffff;
-      --text-main: #0f172a;
-      --text-muted: #64748b;
-      --border: #e2e8f0;
-      --card-bg: #ffffff;
-    }
-
-    body { 
-        font-family: 'Inter', sans-serif; 
-        background-color: var(--main-bg);
-        color: var(--text-main);
-        transition: background-color 0.3s ease, color 0.3s ease;
-    }
-    
-    .bg-main { background-color: var(--main-bg); }
-    .bg-surface { background-color: var(--surface); }
-    .text-main { color: var(--text-main); }
-    .text-muted { color: var(--text-muted); }
-    .border-border { border-color: var(--border); }
-    .bg-brand { background-color: var(--brand); }
-    .text-brand { color: var(--brand); }
-
-    .ai-bg {
-      background: radial-gradient(circle at top right, #312e81, var(--main-bg), var(--main-bg));
-    }
-    .typing::after {
-      content: '|';
-      animation: blink 1s infinite;
-    }
-    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
-    .glass {
-      background: var(--surface);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
-    }
+    body { font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: var(--text-main); }
+    .ai-bg { background: radial-gradient(circle at top right, #312e81, #020617, #020617); }
+    .glass { background: var(--surface); backdrop-filter: blur(12px); border: 1px solid var(--border); }
     .text-gradient {
-      display: inline-block;
-      padding-right: 0.15em;
-      padding-bottom: 0.1em;
       background: linear-gradient(to right, #818cf8, #c084fc);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      background-clip: text;
-      color: transparent;
     }
-    .slide-dot.active { background: var(--brand); width: 24px; }
-    .fade-in { animation: fadeIn 0.8s ease-out forwards; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .feature-card:hover { transform: translateY(-5px); border-color: var(--brand); }
   </style>
-  <script>
-    (function() {
-      const saved = localStorage.getItem('admin_theme') || 'startup';
-      document.documentElement.setAttribute('data-theme', saved);
-    })();
-  </script>
 </head>
-<body class="ai-bg text-main min-h-screen flex flex-col items-center justify-center p-6 text-center">
-  
-  <div class="max-w-4xl w-full space-y-12">
-    <!-- Header -->
-    <header class="space-y-4">
-      <h1 id="typing-header" class="text-5xl md:text-7xl font-black tracking-tighter typing italic text-gradient"></h1>
-      <p id="subheading" class="text-muted font-medium text-lg md:text-xl opacity-0">The ultimate AI engine for hands-free social growth.</p>
-    </header>
-
-    <!-- Slideshow -->
-    <div class="glass rounded-[2.5rem] p-8 md:p-12 relative min-h-[300px] flex items-center justify-center fade-in" style="animation-delay: 1.5s;">
-      <div id="slides-container" class="space-y-6">
-        <!-- Slide content injected by JS -->
-      </div>
-      
-      <!-- Nav Dots -->
-      <div class="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2" id="slide-dots"></div>
-    </div>
-
-    <!-- Actions -->
-    <div class="flex flex-wrap justify-center gap-4 fade-in" style="animation-delay: 2s;">
+<body class="ai-bg min-h-screen">
+  <!-- Navbar -->
+  <nav class="max-w-7xl mx-auto px-6 py-8 flex justify-between items-center">
+    <div class="text-xl font-black italic tracking-tighter text-gradient">SOCIAL MEDIA LLM</div>
+    <div class="flex items-center gap-6">
+      <a href="/demo" class="text-xs font-black uppercase tracking-widest text-muted hover:text-white transition-colors">See Demo</a>
       {% if authenticated %}
-        <a href="/admin" class="px-10 py-4 bg-brand hover:opacity-90 rounded-2xl font-black text-sm transition-all shadow-2xl shadow-brand/40 uppercase tracking-widest text-white">Go to Dashboard &rarr;</a>
+        <a href="/app" class="px-6 py-3 bg-brand rounded-xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20">Go to App</a>
       {% else %}
-        <a href="/login" class="px-10 py-4 bg-brand hover:opacity-90 rounded-2xl font-black text-sm transition-all shadow-2xl shadow-brand/40 uppercase tracking-widest text-white">Sign In</a>
-        <a href="/register" class="px-10 py-4 bg-white/5 hover:bg-white/10 rounded-2xl font-black text-sm transition-all border border-white/10 uppercase tracking-widest">Create Account</a>
+        <a href="/login" class="text-xs font-black uppercase tracking-widest text-muted hover:text-white transition-colors">Sign In</a>
+        <a href="/register" class="px-6 py-3 bg-brand rounded-xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20">Get Started</a>
       {% endif %}
     </div>
+  </nav>
 
-    <div class="flex justify-center gap-8 text-[10px] font-black uppercase tracking-widest text-muted fade-in" style="animation-delay: 2.2s;">
-      <a href="/contact" class="hover:text-brand transition-colors">Contact</a>
-      <a href="/auth/google/start" class="hover:text-brand transition-colors font-bold text-muted">Continue with Google</a>
+  <!-- Hero Section -->
+  <section class="max-w-7xl mx-auto px-6 pt-20 pb-32 text-center space-y-8">
+    <h1 class="text-6xl md:text-8xl font-black tracking-tighter italic text-white leading-[0.9]">
+      AI SOCAL <span class="text-gradient">POSTING.</span><br/>
+      HUMAN <span class="text-gradient">CONTROL.</span>
+    </h1>
+    <p class="max-w-2xl mx-auto text-muted text-lg md:text-xl font-medium">
+      The ultimate engine for high-output social media strategy. Generate, review, and schedule verified content with pluggable knowledge sources.
+    </p>
+    <div class="pt-4 flex flex-wrap justify-center gap-4">
+      <a href="/register" class="px-10 py-5 bg-brand rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-2xl shadow-brand/40">Launch Your Presence Now</a>
+      <a href="/demo" class="px-10 py-5 bg-white/5 border border-white/10 rounded-2xl font-black text-sm uppercase tracking-widest text-white hover:bg-white/10 transition-all">Interactive Preview</a>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="max-w-7xl mx-auto px-6 py-32 space-y-16">
+    <div class="text-center space-y-4">
+      <h2 class="text-sm font-black text-brand uppercase tracking-[0.3em]">The Protocol</h2>
+      <p class="text-4xl font-black italic text-white tracking-tight">Three steps to dominance.</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div class="glass p-10 rounded-[3rem] space-y-6">
+        <div class="w-12 h-12 bg-brand/20 rounded-2xl flex items-center justify-center text-brand font-black text-xl italic">01</div>
+        <h3 class="text-xl font-black italic text-white">Import Knowledge</h3>
+        <p class="text-muted text-sm leading-relaxed">Connect RSS feeds, URL lists, or upload manual libraries to ground your AI in real data.</p>
+      </div>
+      <div class="glass p-10 rounded-[3rem] space-y-6">
+        <div class="w-12 h-12 bg-brand/20 rounded-2xl flex items-center justify-center text-brand font-black text-xl italic">02</div>
+        <h3 class="text-xl font-black italic text-white">Refine Genius</h3>
+        <p class="text-muted text-sm leading-relaxed">Review AI-generated captions and DALL-E 3 visuals. Tweak, edit, and approve in one click.</p>
+      </div>
+      <div class="glass p-10 rounded-[3rem] space-y-6">
+        <div class="w-12 h-12 bg-brand/20 rounded-2xl flex items-center justify-center text-brand font-black text-xl italic">03</div>
+        <h3 class="text-xl font-black italic text-white">Auto-Post</h3>
+        <p class="text-muted text-sm leading-relaxed">The scheduler takes over, dispatching your content to Instagram exactly when your audience is active.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature Grid -->
+  <section class="max-w-7xl mx-auto px-6 py-32 space-y-16 bg-white/[0.02] rounded-[4rem] border border-white/[0.05]">
+    <div class="text-center space-y-4">
+      <h2 class="text-sm font-black text-brand uppercase tracking-[0.3em]">Features</h2>
+      <p class="text-4xl font-black italic text-white tracking-tight">Built for modern scale.</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="glass p-8 rounded-3xl feature-card border border-white/5 transition-all">
+        <h4 class="font-black italic text-white mb-2">Calendar View</h4>
+        <p class="text-xs text-muted">Visualize your entire month's content strategy in a sleek global calendar.</p>
+      </div>
+      <div class="glass p-8 rounded-3xl feature-card border border-white/5 transition-all">
+        <h4 class="font-black italic text-white mb-2">Multi-Account</h4>
+        <p class="text-xs text-muted">Manage dozens of Instagram profiles from a single unified workspace.</p>
+      </div>
+      <div class="glass p-8 rounded-3xl feature-card border border-white/5 transition-all">
+        <h4 class="font-black italic text-white mb-2">Knowledge Sourcing</h4>
+        <p class="text-xs text-muted">Pluggable sources ensure your AI never hallucinates and stays on message.</p>
+      </div>
+      <div class="glass p-8 rounded-3xl feature-card border border-white/5 transition-all">
+        <h4 class="font-black italic text-white mb-2">Neural Guardrails</h4>
+        <p class="text-xs text-muted">Islamic policy alignment ensures your content is always compliant and respectful.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="max-w-7xl mx-auto px-6 py-20 border-t border-white/5 mt-20 flex flex-col md:flex-row justify-between items-center gap-8">
+    <div class="text-muted font-bold text-xs uppercase tracking-widest italic">&copy; 2026 Social Media LLM. All Rights Reserved.</div>
+    <div class="flex gap-8 text-[10px] font-black uppercase tracking-widest text-muted">
+      <a href="/contact" class="hover:text-brand transition-colors">Support</a>
+      <a href="/demo" class="hover:text-brand transition-colors">Demo</a>
+      <a href="/login" class="hover:text-brand transition-colors">Sign In</a>
+    </div>
+  </footer>
+</body>
+</html>
+"""
+
+DEMO_HTML = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Interactive Demo | Social Media LLM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #020617; color: #ffffff; }
+    .ai-bg { background: radial-gradient(circle at top right, #312e81, #0f172a, #020617); }
+    .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    .text-gradient { background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  </style>
+</head>
+<body class="ai-bg min-h-screen p-6">
+  <div class="max-w-6xl mx-auto space-y-8">
+    <div class="flex justify-between items-center">
+      <div class="text-xl font-black italic tracking-tighter text-gradient">DEMO MODE</div>
+      <a href="/" class="text-[10px] font-black uppercase tracking-widest text-muted hover:text-white transition-colors">&larr; Exit Demo</a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Sidebar/Controls -->
+      <div class="space-y-6">
+        <div class="glass p-8 rounded-[2.5rem] space-y-6">
+          <h2 class="text-sm font-black uppercase tracking-widest text-brand">Simulation Controls</h2>
+          <div class="space-y-4">
+            <div class="space-y-2">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Topic Prompt</label>
+              <input type="text" value="The importance of patience (Sabr) in difficult times" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand">
+            </div>
+            <div class="space-y-2">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Aesthetic Mode</label>
+              <select class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand">
+                <option>Islamic Minimalist</option>
+                <option>Modern Corporate</option>
+                <option>Abstract Neural</option>
+              </select>
+            </div>
+            <button onclick="simulateGeneration()" class="w-full bg-brand py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20">Generate Preview</button>
+          </div>
+        </div>
+
+        <div class="glass p-8 rounded-[2.5rem] border-brand/20">
+          <p class="text-[10px] font-bold text-muted uppercase tracking-widest leading-relaxed">
+            Note: This is a real-time simulation using mock neural weights. No actual Instagram API calls are made in demo mode.
+          </p>
+        </div>
+      </div>
+
+      <!-- Preview Area -->
+      <div class="lg:col-span-2 space-y-6">
+        <div id="preview-stage" class="glass rounded-[3rem] p-10 min-h-[500px] flex items-center justify-center relative overflow-hidden">
+          <div id="loading-spinner" class="hidden animate-pulse text-brand font-black text-xs uppercase tracking-widest">Synthesizing Neural Visuals...</div>
+          
+          <div id="demo-post" class="w-full max-w-md space-y-6">
+            <div class="aspect-square rounded-3xl overflow-hidden bg-white/5 border border-white/10 relative">
+              <img id="demo-image" src="https://images.unsplash.com/photo-1519817650390-64a93447v?auto=format&fit=crop&q=80&w=800" class="w-full h-auto opacity-40 grayscale">
+              <div class="absolute inset-0 flex items-center justify-center p-8 text-center bg-black/40">
+                <p id="overlay-text" class="text-2xl font-black italic text-white tracking-tight drop-shadow-2xl">Patience is the key to every relief.</p>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="flex gap-2">
+                <div class="h-1.5 w-12 bg-brand rounded-full"></div>
+                <div class="h-1.5 w-4 bg-white/20 rounded-full"></div>
+              </div>
+              <p id="demo-caption" class="text-sm text-muted leading-relaxed font-medium">
+                Verily, with hardship comes ease. Remember that your current struggle is shaping you for a beautiful destination. Stay steadfast. #Sabr #Patience #Faith
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
-    const SLIDES = [
-      { title: "Generate. Review. Publish.", bullets: ["AI creates content in seconds", "Full review cycle built-in", "One-click Instagram publishing"] },
-      { title: "Automations that post daily", bullets: ["Set and forget your schedule", "Consistent presence without effort", "Handles multi-account workflows"] },
-      { title: "AI captions + AI images", bullets: ["DALL-E 3 visual generation", "LLM-powered contextual captions", "Optimized hashtags automatically"] },
-      { title: "Multi-org ready", bullets: ["Manage different brands separately", "Team-based access controls", "Infinite workspace scaling"] }
-    ];
-
-    let currentSlide = 0;
-
-    function typeWriter(text, i, cb) {
-      const header = document.getElementById('typing-header');
-      if (!header) return;
-      if (i < text.length) {
-        header.innerHTML = text.substring(0, i + 1);
-        setTimeout(() => typeWriter(text, i + 1, cb), 100);
-      } else {
-        header.classList.remove('typing');
-        cb();
-      }
-    }
-
-    function renderSlide(index) {
-      const slidesContainer = document.getElementById('slides-container');
-      const dotsContainer = document.getElementById('slide-dots');
-      if (!slidesContainer || !dotsContainer) return;
+    function simulateGeneration() {
+      const stage = document.getElementById('preview-stage');
+      const loader = document.getElementById('loading-spinner');
+      const post = document.getElementById('demo-post');
       
-      const slide = SLIDES[index];
-      slidesContainer.innerHTML = `
-        <div class="fade-in space-y-4">
-          <h3 class="text-2xl md:text-3xl font-black text-main">${slide.title}</h3>
-          <ul class="flex flex-wrap justify-center gap-x-6 gap-y-2 text-muted text-sm font-medium">
-            ${slide.bullets.map(b => `<li class="flex items-center gap-2"><div class="w-1.5 h-1.5 rounded-full bg-brand"></div>${b}</li>`).join('')}
-          </ul>
-        </div>
-      `;
+      post.classList.add('opacity-0', 'scale-95');
+      loader.classList.remove('hidden');
       
-      dotsContainer.innerHTML = SLIDES.map((_, i) => `
-        <div class="slide-dot h-1.5 rounded-full bg-white/20 transition-all duration-300 ${i === index ? 'active' : 'w-1.5'}"></div>
-      `).join('');
-    }
-
-    function nextSlide() {
-      currentSlide = (currentSlide + 1) % SLIDES.length;
-      renderSlide(currentSlide);
-    }
-
-    function init() {
-      const subheading = document.getElementById('subheading');
-      typeWriter("Social Media LLM", 0, () => {
-        if (subheading) {
-          subheading.classList.add('fade-in');
-          subheading.style.opacity = 1;
-        }
-        renderSlide(0);
-        setInterval(nextSlide, 5000);
-      });
-    }
-
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', init);
-    } else {
-      init();
+      setTimeout(() => {
+        loader.classList.add('hidden');
+        post.classList.remove('opacity-0', 'scale-95');
+        post.classList.add('transition-all', 'duration-700', 'opacity-100', 'scale-100');
+        
+        const quotes = ["Verily, Allah is with the patient.", "Turn your wounds into wisdom.", "The best way to find yourself is to lose yourself in the service of others."];
+        document.getElementById('overlay-text').textContent = quotes[Math.floor(Math.random() * quotes.length)];
+      }, 1500);
     }
   </script>
 </body>
@@ -298,7 +338,7 @@ LOGIN_HTML = """<!doctype html>
         });
 
         if (res.ok) {
-          window.location.href = '/admin';
+          window.location.href = '/app';
         } else {
           const data = await res.json();
           errorMsg.textContent = data.detail || "Invalid credentials";
@@ -422,7 +462,7 @@ REGISTER_HTML = """<!doctype html>
         });
 
         if (res.ok) {
-          window.location.href = '/admin';
+          window.location.href = '/app';
         } else {
           const data = await res.json();
           errorMsg.textContent = data.detail || "Registration failed";
@@ -603,6 +643,10 @@ def login_page():
 @router.get("/register", response_class=HTMLResponse)
 def register_page():
     return REGISTER_HTML
+
+@router.get("/demo", response_class=HTMLResponse)
+def demo_page():
+    return DEMO_HTML
 
 @router.get("/contact", response_class=HTMLResponse)
 def contact_page():

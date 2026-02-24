@@ -12,7 +12,7 @@ import uuid
 from .db import engine, SessionLocal
 from .models import Base, Org, ApiKey, IGAccount, User, OrgMember
 from .security.auth import get_password_hash
-from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles, auth_google, public, sources
+from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles, auth_google, public, sources, app_pages
 from .services.scheduler import start_scheduler
 from .config import settings
 from .logging_setup import setup_logging, request_id_var, log_event
@@ -111,6 +111,7 @@ app.mount("/uploads", StaticFiles(directory=settings.uploads_dir), name="uploads
 
 # Include Routers
 app.include_router(public.router)
+app.include_router(app_pages.router)
 app.include_router(posts.router)
 app.include_router(admin.router)
 app.include_router(orgs.router)
