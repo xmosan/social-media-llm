@@ -186,7 +186,7 @@ HTML = """<!doctype html>
       --bg-sidebar: rgba(255, 255, 255, 0.02);
       --bg-surface: rgba(255, 255, 255, 0.03);
       --brand: #6366f1;
-      --brand-glow: rgba(99, 102, 241, 0.15);
+      --brand-glow: rgba(99, 102, 241, 0.25);
       --text-main: #f8fafc;
       --text-muted: #94a3b8;
       --border: rgba(255, 255, 255, 0.08);
@@ -197,7 +197,7 @@ HTML = """<!doctype html>
       --bg-sidebar: #ffffff;
       --bg-surface: #ffffff;
       --brand: #0f172a;
-      --brand-glow: rgba(15, 23, 42, 0.08);
+      --brand-glow: rgba(15, 23, 42, 0.12);
       --text-main: #0f172a;
       --text-muted: #64748b;
       --border: #e2e8f0;
@@ -323,8 +323,13 @@ HTML = """<!doctype html>
       transition: all 0.2s; 
       cursor: pointer; 
     }
-    .nav-item:hover { background: rgba(255, 255, 255, 0.05); color: var(--text-main); }
+    .nav-item:hover { 
+      background: var(--brand-glow); 
+      color: var(--text-main); 
+    }
+    .nav-item:hover svg { color: var(--brand); }
     .nav-item.active { background: var(--brand); color: #ffffff; box-shadow: 0 4px 12px var(--brand-glow); }
+    .nav-item.active svg { color: #ffffff; }
 
     .stat-card { 
       padding: 24px; 
@@ -342,9 +347,11 @@ HTML = """<!doctype html>
     /* Theme Utility Classes */
     .text-muted { color: var(--text-muted) !important; }
     .text-main { color: var(--text-main) !important; }
+    .text-brand { color: var(--brand) !important; }
     .border-main { border-color: var(--border) !important; }
     .bg-main { background-color: var(--bg-main) !important; }
     .bg-surface { background-color: var(--bg-surface) !important; }
+    .bg-brand { background-color: var(--brand) !important; }
 
 
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -361,8 +368,8 @@ HTML = """<!doctype html>
   <div class="ai-bg"></div>
 
   <aside class="sidebar">
-    <div class="mb-10 flex items-center gap-3">
-        <div class="w-9 h-9 bg-brand rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-indigo-500/20">S</div>
+    <div class="mb-10 flex items-center gap-3 group">
+        <div class="w-9 h-9 bg-brand rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-indigo-500/20 group-hover:scale-110 transition-transform">S</div>
         <span class="font-black text-xl tracking-tighter italic text-gradient">Social Media LLM</span>
     </div>
 
@@ -428,7 +435,7 @@ HTML = """<!doctype html>
                 <div class="w-2 h-2 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50 group-hover:bg-white"></div>
                 Run Scheduler
             </button>
-            <div class="w-9 h-9 rounded-xl bg-white/5 border border-white/10 text-[var(--text-main)] flex items-center justify-center text-xs font-black" id="user_avatar_top">U</div>
+            <div class="w-9 h-9 rounded-xl bg-white/5 border border-border text-main flex items-center justify-center text-xs font-black shadow-inner" id="user_avatar_top">U</div>
         </div>
     </header>
 
@@ -456,7 +463,7 @@ HTML = """<!doctype html>
             <div class="text-3xl font-black text-main" id="dash_today_posts">0</div>
           </div>
           <div class="stat-card border-brand/20">
-            <div class="text-muted text-[10px] font-black uppercase tracking-widest mb-3 italic">Scheduled Nodes</div>
+            <div class="text-muted text-[10px] font-black uppercase tracking-widest mb-3 italic">Scheduled Items</div>
             <div class="text-3xl font-black text-brand" id="dash_scheduled">0</div>
           </div>
           <div class="stat-card border-emerald-500/20">
@@ -545,10 +552,10 @@ HTML = """<!doctype html>
                 
                 <section>
                     <div class="flex items-center gap-3 mb-6">
-                        <div class="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center border border-brand/20">
+                        <div class="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center border border-brand/20 shadow-sm">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                         </div>
-                        <h3 class="text-[11px] font-black text-[var(--text-main)] uppercase tracking-widest italic">Operational Nodes</h3>
+                        <h3 class="text-[11px] font-black text-main uppercase tracking-widest italic">Linked Channels</h3>
                     </div>
                     <div id="settings_accounts_list" class="space-y-3">
                         <!-- Populated by JS -->
@@ -560,10 +567,10 @@ HTML = """<!doctype html>
                 <!-- STEP 2: ADD IG -->
                 <section>
                     <div class="flex items-center gap-3 mb-6">
-                        <div class="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center border border-brand/20">
+                        <div class="w-8 h-8 rounded-lg bg-brand/10 text-brand flex items-center justify-center border border-brand/20 shadow-sm">
                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                         </div>
-                        <h3 class="text-[11px] font-black text-[var(--text-main)] uppercase tracking-widest italic">Provision Integration</h3>
+                        <h3 class="text-[11px] font-black text-main uppercase tracking-widest italic">Provision Integration</h3>
                     </div>
                     <div class="space-y-6">
                         <div>
@@ -805,7 +812,7 @@ HTML = """<!doctype html>
             <div class="px-8 py-7 border-b border-border flex justify-between items-center bg-white/5">
                 <div class="flex items-center gap-4">
                     <h3 class="text-xl font-black text-main italic tracking-tighter text-gradient">Post Intelligence Lab</h3>
-                    <span id="post_edit_status" class="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-brand/10 text-brand border border-brand/20">Active Node</span>
+                    <span id="post_edit_status" class="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-brand/10 text-brand border border-brand/20">Operational</span>
                 </div>
                 <button onclick="hidePostEditor()" class="w-10 h-10 rounded-xl bg-white/5 text-text-muted hover:text-main hover:bg-white/10 flex items-center justify-center transition-all border border-border">
                     <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -880,7 +887,7 @@ HTML = """<!doctype html>
                         <!-- Step 1: Target -->
                         <div id="step_1" class="space-y-6">
                             <div class="space-y-2">
-                                <label class="text-[10px] font-black text-muted uppercase tracking-widest pl-1">Target Integration</label>
+                                <label class="text-[10px] font-black text-brand uppercase tracking-widest pl-1">Platform Integration</label>
                                 <div id="selected_acc_box" class="p-5 bg-white/5 border border-border rounded-2xl flex items-center justify-between cursor-pointer hover:bg-white/10 transition-all group">
                                     <div class="flex items-center gap-4">
                                         <div class="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center text-brand font-black group-hover:scale-110 transition-transform">IG</div>
@@ -898,7 +905,7 @@ HTML = """<!doctype html>
                         <!-- Step 2: Source -->
                         <div id="step_2" class="hidden space-y-6 fade-in">
                             <div class="space-y-2">
-                                <label class="text-[10px] font-black text-muted uppercase tracking-widest pl-1">Creative Directive</label>
+                                <label class="text-[10px] font-black text-brand uppercase tracking-widest pl-1">Creative Directive</label>
                                 <textarea id="source_text" class="w-full p-5 rounded-2xl border border-border bg-white/5 focus:bg-white/10 focus:ring-1 focus:ring-brand outline-none min-h-[160px] resize-none text-sm leading-relaxed" placeholder="Brief the AI on established goals, niche themes, and specific creative constraints..."></textarea>
                             </div>
                             <div class="flex gap-3">
@@ -910,7 +917,7 @@ HTML = """<!doctype html>
                         <!-- Step 3: Media -->
                         <div id="step_3" class="hidden space-y-6 fade-in">
                             <div class="space-y-2">
-                                <label class="text-[10px] font-black text-muted uppercase tracking-widest pl-1">Visual Synthesis</label>
+                                <label class="text-[10px] font-black text-brand uppercase tracking-widest pl-1">Visual Synthesis</label>
                                 <div class="relative border-2 border-dashed border-border rounded-2xl p-10 flex flex-col items-center justify-center gap-4 hover:border-brand/40 hover:bg-white/5 transition-all cursor-pointer group">
                                     <input id="image" type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="updateFileName(this)"/>
                                     <div id="upload_preview_container" class="hidden w-20 h-20 rounded-2xl border border-border overflow-hidden shadow-2xl scale-110">
@@ -1023,7 +1030,7 @@ HTML = """<!doctype html>
                         <tr class="bg-white/5 border-b border-border">
                             <th class="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-text-muted">Entity / Avatar</th>
                             <th class="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-text-muted">Communication</th>
-                            <th class="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-text-muted">Nodes</th>
+                            <th class="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-text-muted">Accounts</th>
                             <th class="py-4 px-6 text-[10px] font-black uppercase tracking-widest text-text-muted text-right">Operations</th>
                         </tr>
                     </thead>
@@ -2184,7 +2191,7 @@ function showEmptyState(type) {
             <div class="w-16 h-16 bg-white/5 rounded-3xl shadow-xl flex items-center justify-center mx-auto mb-8 border border-border">
                 <svg class="w-8 h-8 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
             </div>
-            <h3 class="text-sm font-black text-main mb-2 uppercase tracking-widest">No Intelligence Nodes Found</h3>
+            <h3 class="text-sm font-black text-main mb-2 uppercase tracking-widest">No Active Integrations Found</h3>
             <p class="text-[10px] text-muted font-bold uppercase tracking-widest max-w-xs mx-auto mb-8">Post intake required to generate neural streams.</p>
         </div>`;
     }
