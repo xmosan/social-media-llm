@@ -28,8 +28,10 @@ async def google_login(request: Request):
         raise HTTPException(status_code=500, detail="Google Client ID or Secret not configured on server.")
     
     redirect_uri = request.url_for('google_auth')
-    # If developing locally or behind proxy, might need to manually construct https URI
-    # redirect_uri = "https://your-domain.com/auth/google/callback"
+    # Force HTTPS for production redirects
+    if "railway.app" in str(request.url) or request.headers.get("x-forwarded-proto") == "https":
+        redirect_uri = str(redirect_uri).replace("http://", "https://")
+        
     return await oauth.google.authorize_redirect(request, str(redirect_uri))
 
 @router.get("/callback")

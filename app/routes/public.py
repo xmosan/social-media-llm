@@ -208,10 +208,10 @@ LOGIN_HTML = """<!doctype html>
       background: radial-gradient(circle at top right, #312e81, #0f172a, #020617);
     }
     .glass { 
-      background: rgba(255, 255, 255, 0.03); 
-      backdrop-filter: blur(12px); 
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.1); 
+      background: rgba(255, 255, 255, 0.05); 
+      backdrop-filter: blur(20px); 
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.15); 
     }
     .text-gradient {
       display: inline-block;
@@ -323,15 +323,15 @@ REGISTER_HTML = """<!doctype html>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', sans-serif; background: #020617; }
+    body { font-family: 'Inter', sans-serif; background: #020617; color: #ffffff; }
     .ai-bg {
       background: radial-gradient(circle at top right, #312e81, #0f172a, #020617);
     }
     .glass { 
-      background: rgba(255, 255, 255, 0.03); 
-      backdrop-filter: blur(12px); 
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.1); 
+      background: rgba(255, 255, 255, 0.05); 
+      backdrop-filter: blur(20px); 
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.15); 
     }
     .text-gradient {
       display: inline-block;
@@ -447,15 +447,15 @@ CONTACT_HTML = """<!doctype html>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', sans-serif; background: #020617; }
+    body { font-family: 'Inter', sans-serif; background: #020617; color: #ffffff; }
     .ai-bg {
       background: radial-gradient(circle at top right, #312e81, #0f172a, #020617);
     }
     .glass { 
-      background: rgba(255, 255, 255, 0.03); 
-      backdrop-filter: blur(12px); 
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.1); 
+      background: rgba(255, 255, 255, 0.05); 
+      backdrop-filter: blur(20px); 
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.15); 
     }
     .text-gradient {
       display: inline-block;
@@ -484,8 +484,8 @@ CONTACT_HTML = """<!doctype html>
 <body class="ai-bg text-main min-h-screen flex items-center justify-center p-6">
   <div class="max-w-2xl w-full glass rounded-[2.5rem] p-10 space-y-12">
     <div class="text-center space-y-4">
-      <h1 class="text-4xl font-black italic tracking-tighter text-main">Get in <span class="text-brand">touch</span>.</h1>
-      <p class="text-muted font-medium">Have questions or need support? Send us a message.</p>
+      <h1 class="text-4xl font-black italic tracking-tighter text-white">Get in <span class="text-brand">touch</span>.</h1>
+      <p class="text-white/70 font-bold uppercase tracking-widest text-[10px]">Strategic support & platform inquiries</p>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
@@ -494,16 +494,16 @@ CONTACT_HTML = """<!doctype html>
           <h3 class="text-[10px] font-black uppercase tracking-widest text-muted">Contact Info</h3>
           <div class="space-y-4">
             <div class="flex items-center gap-4 group">
-              <div class="w-10 h-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center group-hover:bg-brand transition-all group-hover:text-white">
+              <div class="w-10 h-10 rounded-xl bg-brand/20 text-brand flex items-center justify-center group-hover:bg-brand transition-all group-hover:text-white shadow-lg shadow-brand/10">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
               </div>
-              <span class="text-sm font-bold text-muted group-hover:text-main transition-colors">hello@social-llm.ai</span>
+              <span class="text-sm font-black text-white group-hover:text-brand transition-colors">hello@social-llm.ai</span>
             </div>
             <div class="flex items-center gap-4 group">
-              <div class="w-10 h-10 rounded-xl bg-brand/10 text-brand flex items-center justify-center group-hover:bg-brand transition-all group-hover:text-white">
+              <div class="w-10 h-10 rounded-xl bg-brand/20 text-brand flex items-center justify-center group-hover:bg-brand transition-all group-hover:text-white shadow-lg shadow-brand/10">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
               </div>
-              <span class="text-sm font-bold text-muted group-hover:text-main transition-colors">Remote • Detroit, MI</span>
+              <span class="text-sm font-black text-white group-hover:text-brand transition-colors">Remote • Detroit, MI</span>
             </div>
           </div>
         </div>
@@ -514,9 +514,18 @@ CONTACT_HTML = """<!doctype html>
       </div>
 
       <form id="contactForm" class="space-y-4">
-        <input type="text" id="name" required class="w-full bg-white/5 border border-border rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="Your Name">
-        <input type="email" id="email" required class="w-full bg-white/5 border border-border rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="Email Address">
-        <textarea id="message" required class="w-full bg-white/5 border border-border rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main min-h-[150px]" placeholder="How can we help?"></textarea>
+        <div class="space-y-1">
+          <label class="text-[10px] font-black uppercase tracking-widest text-white/50 ml-3">Identity</label>
+          <input type="text" id="name" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-white placeholder:text-white/20" placeholder="Your Name">
+        </div>
+        <div class="space-y-1">
+          <label class="text-[10px] font-black uppercase tracking-widest text-white/50 ml-3">Coordinates</label>
+          <input type="email" id="email" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-white placeholder:text-white/20" placeholder="Email Address">
+        </div>
+        <div class="space-y-1">
+          <label class="text-[10px] font-black uppercase tracking-widest text-white/50 ml-3">Message Buffer</label>
+          <textarea id="message" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-white min-h-[150px] placeholder:text-white/20" placeholder="How can we help?"></textarea>
+        </div>
         
         <div id="statusMsg" class="hidden text-xs font-bold p-4 rounded-xl text-center"></div>
 
