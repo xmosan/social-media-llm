@@ -871,16 +871,16 @@ HTML = """<!doctype html>
             <div class="lg:col-span-4 space-y-8">
                 <section class="tool-card">
                     <h2 class="text-lg font-black italic tracking-tighter mb-6 flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center">
-                            <svg class="w-4 h-4 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        <div class="w-8 h-8 rounded-lg bg-brand/10 flex items-center justify-center border border-brand/20">
+                            <svg class="w-4 h-4 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                         </div>
-                        Content Factory
+                        Neural Intake Lab
                     </h2>
                     <div id="intake_steps" class="space-y-6 text-sm">
                         <!-- Step 1: Target -->
                         <div id="step_1" class="space-y-6">
                             <div class="space-y-2">
-                                <label class="text-[10px] font-black text-muted uppercase tracking-widest pl-1">Configuration Step 1: Destination</label>
+                                <label class="text-[10px] font-black text-muted uppercase tracking-widest pl-1">Target Integration</label>
                                 <div id="selected_acc_box" class="p-5 bg-white/5 border border-border rounded-2xl flex items-center justify-between cursor-pointer hover:bg-white/10 transition-all group">
                                     <div class="flex items-center gap-4">
                                         <div class="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center text-brand font-black group-hover:scale-110 transition-transform">IG</div>
@@ -892,25 +892,25 @@ HTML = """<!doctype html>
                                     <svg class="w-5 h-5 text-muted transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"/></svg>
                                 </div>
                             </div>
-                            <button onclick="goToStep(2)" class="btn-primary w-full py-4 uppercase tracking-widest text-xs">Analyze Source &rarr;</button>
+                            <button onclick="goToStep(2)" class="btn-primary w-full py-4 uppercase tracking-widest text-xs">Define Creative Logic &rarr;</button>
                         </div>
 
                         <!-- Step 2: Source -->
                         <div id="step_2" class="hidden space-y-6 fade-in">
                             <div class="space-y-2">
-                                <label class="text-[10px] font-black text-muted uppercase tracking-widest pl-1">Configuration Step 2: Intelligence</label>
+                                <label class="text-[10px] font-black text-muted uppercase tracking-widest pl-1">Creative Directive</label>
                                 <textarea id="source_text" class="w-full p-5 rounded-2xl border border-border bg-white/5 focus:bg-white/10 focus:ring-1 focus:ring-brand outline-none min-h-[160px] resize-none text-sm leading-relaxed" placeholder="Brief the AI on established goals, niche themes, and specific creative constraints..."></textarea>
                             </div>
                             <div class="flex gap-3">
                                 <button onclick="goToStep(1)" class="flex-1 px-4 py-4 border border-border rounded-xl text-xs font-black uppercase tracking-widest hover:bg-white/5 transition-all">Back</button>
-                                <button onclick="goToStep(3)" class="flex-1 btn-primary text-xs uppercase tracking-widest">Next Phase &rarr;</button>
+                                <button onclick="goToStep(3)" class="flex-1 btn-primary text-xs uppercase tracking-widest">Asset Synthesis &rarr;</button>
                             </div>
                         </div>
 
                         <!-- Step 3: Media -->
                         <div id="step_3" class="hidden space-y-6 fade-in">
                             <div class="space-y-2">
-                                <label class="text-[10px] font-black text-muted uppercase tracking-widest pl-1">Configuration Step 3: Assets</label>
+                                <label class="text-[10px] font-black text-muted uppercase tracking-widest pl-1">Visual Synthesis</label>
                                 <div class="relative border-2 border-dashed border-border rounded-2xl p-10 flex flex-col items-center justify-center gap-4 hover:border-brand/40 hover:bg-white/5 transition-all cursor-pointer group">
                                     <input id="image" type="file" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="updateFileName(this)"/>
                                     <div id="upload_preview_container" class="hidden w-20 h-20 rounded-2xl border border-border overflow-hidden shadow-2xl scale-110">
@@ -926,7 +926,7 @@ HTML = """<!doctype html>
                                 </div>
                             </div>
                             <div class="flex flex-col gap-3 pt-2">
-                                <button id="intake_btn" onclick="uploadPost()" class="btn-primary w-full py-5 text-xs uppercase tracking-widest shadow-2xl shadow-brand/20">✨ Synthesize & Deploy</button>
+                                <button id="intake_btn" onclick="uploadPost()" class="btn-primary w-full py-5 text-xs uppercase tracking-widest shadow-2xl shadow-brand/20">✨ Finalize & Deploy</button>
                                 <button onclick="goToStep(1)" class="text-[10px] uppercase font-black tracking-widest text-muted hover:text-main transition-colors">Abort & Restart</button>
                             </div>
                             <div id="upload_msg" class="text-center text-xs font-black uppercase tracking-widest text-brand h-4 animate-pulse"></div>
