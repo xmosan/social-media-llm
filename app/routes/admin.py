@@ -252,6 +252,25 @@ HTML = r"""<!doctype html>
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
     .nav-link.active { color: var(--brand); border-bottom: 2px solid var(--brand); }
     select option { background-color: #020617; color: white; }
+    
+    /* Toast System */
+    #toast-container { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 200; display: flex; flex-direction: column; gap: 0.75rem; }
+    .toast { padding: 1rem 1.5rem; border-radius: 1.25rem; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); max-width: 320px; white-space: pre-wrap; line-height: 1.4; }
+    @keyframes slideIn { from { transform: translateX(100%) scale(0.9); opacity: 0; } to { transform: translateX(0) scale(1); opacity: 1; } }
+    .toast-success { background: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3); }
+    .toast-error { background: rgba(244, 63, 94, 0.15); color: #fb7185; border-color: rgba(244, 63, 94, 0.3); }
+    .toast-info { background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.3); }
+    
+    /* Global Input Overrides */
+    select, input, textarea { background-color: rgba(255, 255, 255, 0.05) !important; color: white !important; }
+    select option { background-color: #020617 !important; color: white !important; }
+    input[type="range"] { -webkit-appearance: none; background: rgba(255,255,255,0.1); border: none !important; }
+    
+    /* Toggle & Checkbox Refinement */
+    .toggle-track { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); }
+    .checkbox-box { border: 1px solid rgba(255,255,255,0.3); transition: all 0.2s ease; }
+    .checkbox-box:hover { border-color: var(--brand); }
+    input:checked + .checkbox-bg { background-color: var(--brand); }
   </style>
 </head>
 <body class="ai-bg min-h-screen pb-12">
@@ -536,13 +555,13 @@ HTML = r"""<!doctype html>
                                 <div class="text-[10px] font-black text-white uppercase tracking-widest leading-none">Library Core</div>
                                 <div class="text-[8px] font-bold text-muted uppercase tracking-widest mt-1">Asset synchronization</div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="auto_use_library" class="sr-only peer" checked>
-                                <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
-                            </label>
+                             <label class="relative inline-flex items-center cursor-pointer">
+                                 <input type="checkbox" id="auto_use_library" class="sr-only peer" checked>
+                                 <div class="w-11 h-6 bg-white/10 border border-white/5 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand"></div>
+                             </label>
                         </div>
                         <div class="space-y-4 pt-2">
-                             <select id="auto_image_mode" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none">
+                             <select id="auto_image_mode" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none [&_option]:bg-black [&_option]:text-white">
                                 <option value="reuse_last_upload">Reuse Last Upload</option>
                                 <option value="quote_card" selected>Generate Quote Card</option>
                                 <option value="ai_generated">AI Genesis (DALL-E)</option>
@@ -561,21 +580,21 @@ HTML = r"""<!doctype html>
                                 <div class="text-[10px] font-black text-white uppercase tracking-widest leading-none">Neural Filters</div>
                                 <div class="text-[8px] font-bold text-muted uppercase tracking-widest mt-1">Logic overrides</div>
                             </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" id="auto_enabled" class="sr-only peer" checked>
-                                <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
-                            </label>
+                             <label class="relative inline-flex items-center cursor-pointer">
+                                 <input type="checkbox" id="auto_enabled" class="sr-only peer" checked>
+                                 <div class="w-11 h-6 bg-white/10 border border-white/5 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                             </label>
                         </div>
                         <div class="space-y-3 pt-2">
-                            <div class="flex items-center gap-3">
-                                <input type="checkbox" id="auto_arabic" class="sr-only peer">
-                                <label for="auto_arabic" class="flex items-center gap-3 cursor-pointer group">
-                                    <div class="w-5 h-5 rounded-lg border border-white/10 flex items-center justify-center group-hover:bg-white/5 transition-all">
-                                        <div class="w-2.5 h-2.5 rounded-sm bg-brand opacity-0 peer-checked:opacity-100 transition-all"></div>
-                                    </div>
-                                    <span class="text-[10px] font-black text-muted uppercase tracking-widest group-hover:text-white transition-all">Enable Arabic Mix</span>
-                                </label>
-                            </div>
+                             <div class="flex items-center gap-3">
+                                 <input type="checkbox" id="auto_arabic" class="sr-only peer">
+                                 <label for="auto_arabic" class="flex items-center gap-3 cursor-pointer group">
+                                     <div class="w-5 h-5 rounded-lg border border-white/30 flex items-center justify-center group-hover:border-brand/50 transition-all bg-white/5">
+                                         <div class="w-2.5 h-2.5 rounded-sm bg-brand opacity-0 peer-checked:opacity-100 transition-all"></div>
+                                     </div>
+                                     <span class="text-[10px] font-black text-muted uppercase tracking-widest group-hover:text-white transition-all">Enable Arabic Mix</span>
+                                 </label>
+                             </div>
                         </div>
                     </div>
                 </div>
@@ -588,7 +607,7 @@ HTML = r"""<!doctype html>
                         </div>
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" id="auto_use_ai_image" class="sr-only peer">
-                            <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
+                            <div class="w-11 h-6 bg-white/10 border border-white/5 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
                         </label>
                     </div>
                     <div id="ai_image_prompt_container" class="hidden animate-in fade-in slide-in-from-top-2 duration-300">
@@ -602,10 +621,10 @@ HTML = r"""<!doctype html>
                             <div class="text-[10px] font-black text-white uppercase tracking-widest leading-none">Hadith Enrichment</div>
                             <div class="text-[8px] font-bold text-muted uppercase tracking-widest mt-1">Sunnah.com intelligence</div>
                         </div>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" id="auto_enrich_hadith" class="sr-only peer">
-                            <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
-                        </label>
+                         <label class="relative inline-flex items-center cursor-pointer">
+                             <input type="checkbox" id="auto_enrich_hadith" class="sr-only peer">
+                             <div class="w-11 h-6 bg-white/10 border border-white/5 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand"></div>
+                         </label>
                    </div>
                    <div class="grid grid-cols-2 gap-4">
                         <div>
@@ -985,7 +1004,7 @@ async function deleteUser(id) {
     try {
         await request(`/admin/users/${id}`, { method: "DELETE" });
         await loadPlatformUsers();
-    } catch(e) { alert("Delete failed: " + e.message); }
+    } catch(e) { showToast("Delete failed: " + e.message, "error"); }
 }
 
 let ACCOUNTS = [];
@@ -1012,6 +1031,26 @@ function switchTab(t) {
     }
     refreshAll();
 }
+
+function showToast(msg, type = "success") {
+    let container = document.getElementById("toast-container");
+    if (!container) {
+        container = document.createElement("div");
+        container.id = "toast-container";
+        document.body.appendChild(container);
+    }
+    const t = document.createElement("div");
+    t.className = `toast toast-${type} glass`;
+    t.textContent = msg;
+    container.appendChild(t);
+    setTimeout(() => {
+        t.style.opacity = '0';
+        t.style.transform = 'translateX(20px)';
+        t.style.transition = 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+        setTimeout(() => t.remove(), 400);
+    }, 4000);
+}
+
 function esc(s) { return (s ?? "").toString().replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"); }
 function toggleSettings() { document.getElementById("settings_panel").classList.toggle("hidden"); }
 function updateFileName(input) { 
@@ -1181,7 +1220,7 @@ async function saveAutomation() {
         });
         hideCreateAuto();
         refreshAll();
-    } catch(e) { alert("Save Failed: " + e.message); }
+    } catch(e) { showToast("Save Failed: " + e.message, "error"); }
 }
 
 async function triggerAuto(id) {
@@ -1193,7 +1232,7 @@ async function triggerAuto(id) {
         } else {
             refreshAll();
         }
-    } catch(e) { alert("Execution Failed: " + e.message); }
+    } catch(e) { showToast("Execution Failed: " + e.message, "error"); }
 }
 
 async function runGlobalScheduler() {
@@ -1205,13 +1244,13 @@ async function runGlobalScheduler() {
         btn.disabled = true;
 
         const j = await request(`/automations/run-scheduler-now`, { method: "POST" });
-        alert(`Success! Published ${j.published} items.`);
+        showToast(`Success! Published ${j.published} items.`, "success");
         
         btn.innerHTML = originalHtml;
         btn.disabled = false;
         refreshAll();
     } catch(e) { 
-        alert("Scheduler Failed: " + e.message); 
+        showToast("Scheduler Failed: " + e.message, "error"); 
         btn.innerHTML = originalHtml;
         btn.disabled = false;
     }
@@ -1241,9 +1280,10 @@ async function testLLM(id, topic, style) {
             ALT TEXT:
             ${res.alt_text}
         `;
-        alert(preview);
+        showToast("Preview Manifest Generated", "success");
+        console.log(preview);
     } catch(e) { 
-        alert("LLM Test Failed: " + e.message);
+        showToast("LLM Test Failed: " + e.message, "error");
         refreshAll();
     }
 }
@@ -1275,7 +1315,7 @@ async function initCalendar() {
             });
             refreshAll();
         } catch(e) { 
-            alert(e.message); 
+            showToast(e.message, "error"); 
             info.revert();
         }
       }
@@ -1338,7 +1378,7 @@ async function initCalendar() {
             });
             refreshAll();
         } catch(e) { 
-            alert(e.message); 
+            showToast(e.message, "error"); 
             info.revert();
         }
       }
@@ -1400,7 +1440,7 @@ async function openPostEditor(postId) {
         
         document.getElementById("post_publish_now_btn").classList.toggle("hidden", p.status === 'published');
         document.getElementById("post_modal").classList.remove("hidden");
-    } catch(e) { alert("Load Failed: " + e.message); }
+    } catch(e) { showToast("Load Failed: " + e.message, "error"); }
 }
 
 function hidePostEditor() { document.getElementById("post_modal").classList.add("hidden"); }
@@ -1426,7 +1466,7 @@ async function savePost() {
         });
         hidePostEditor();
         refreshAll();
-    } catch(e) { alert("Save Failed: " + e.message); }
+    } catch(e) { showToast("Save Failed: " + e.message, "error"); }
 }
 
 async function regeneratePostCaption() {
@@ -1440,7 +1480,7 @@ async function regeneratePostCaption() {
         });
         document.getElementById("post_edit_caption").value = p.caption;
         document.getElementById("post_edit_hashtags").value = (p.hashtags || []).join(" ");
-    } catch(e) { alert(e.message); }
+    } catch(e) { showToast(e.message, "error"); }
 }
 
 async function regeneratePostImage() {
@@ -1454,7 +1494,7 @@ async function regeneratePostImage() {
             body: JSON.stringify({ image_mode: mode })
         });
         document.getElementById("post_edit_img").src = p.media_url;
-    } catch(e) { alert(e.message); }
+    } catch(e) { showToast(e.message, "error"); }
 }
 
 async function attachMediaToPost(input) {
@@ -1466,7 +1506,7 @@ async function attachMediaToPost(input) {
     try {
         const p = await request(`/posts/${id}/attach-media`, { method: "POST", body: fd });
         document.getElementById("post_edit_img").src = p.media_url;
-    } catch(e) { alert(e.message); }
+    } catch(e) { showToast(e.message, "error"); }
 }
 
 async function publishPostNow() {
@@ -1476,7 +1516,7 @@ async function publishPostNow() {
         await request(`/posts/${id}/publish`, { method: "POST" });
         hidePostEditor();
         refreshAll();
-    } catch(e) { alert(e.message); }
+    } catch(e) { showToast(e.message, "error"); }
 }
 
 async function deletePostUI() {
@@ -1486,7 +1526,7 @@ async function deletePostUI() {
         await request(`/posts/${id}`, { method: "DELETE" });
         hidePostEditor();
         refreshAll();
-    } catch(e) { alert(e.message); }
+    } catch(e) { showToast(e.message, "error"); }
 }
 
 // --- MEDIA LIBRARY LOGIC ---
@@ -1527,7 +1567,7 @@ async function uploadMedia(input) {
     try {
         await request("/media-assets", { method: "POST", body: fd });
         loadMediaLibrary();
-    } catch(e) { alert(e.message); }
+    } catch(e) { showToast(e.message, "error"); }
     input.value = "";
 }
 
@@ -1536,7 +1576,7 @@ async function deleteMedia(id) {
     try {
         await request(`/media-assets/${id}`, { method: "DELETE" });
         loadMediaLibrary();
-    } catch(e) { alert(e.message); }
+    } catch(e) { showToast(e.message, "error"); }
 }
 
 async function deleteAuto(id) {
@@ -1544,7 +1584,7 @@ async function deleteAuto(id) {
     try {
         await request(`/automations/${id}`, { method: "DELETE" });
         refreshAll();
-    } catch(e) { alert(e.message); }
+    } catch(e) { showToast(e.message, "error"); }
 }
 
 function editAuto(a) {
@@ -1694,7 +1734,7 @@ async function saveProfileWrapper() {
         banned_topics: parseList(getVal("prof_banned"))
     };
     
-    if(!payload.name) return alert("Profile Name is required!");
+    if(!payload.name) return showToast("Profile Name is required!", "error");
     
     try {
         await request(id ? `/profiles/${id}` : "/profiles", {
@@ -1704,7 +1744,7 @@ async function saveProfileWrapper() {
         });
         hideCreateProfile();
         loadProfiles();
-    } catch(e) { alert("Save Failed: " + e.message); }
+    } catch(e) { showToast("Save Failed: " + e.message, "error"); }
 }
 
 async function deleteProfile(id) {
@@ -1712,7 +1752,7 @@ async function deleteProfile(id) {
     try {
         await request(`/profiles/${id}`, { method: "DELETE" });
         loadProfiles();
-    } catch(e) { alert(e.message); }
+    } catch(e) { showToast(e.message, "error"); }
 }
 
 async function seedProfile(presetName) {
@@ -1724,7 +1764,7 @@ async function seedProfile(presetName) {
         });
         hideCreateProfile();
         loadProfiles();
-    } catch(e) { alert("Failed to apply preset: " + e.message); }
+    } catch(e) { showToast("Failed to apply preset: " + e.message, "error"); }
 }
 
 async function loadLibrary() {
@@ -1764,8 +1804,8 @@ async function seedDemoContent() {
     try {
         await request("/library/seed-demo/", { method: "POST" });
         await loadLibrary();
-        alert("Demo content seeded successfully.");
-    } catch(e) { alert("Seed Failed: " + e.message); }
+        showToast("Demo content seeded successfully.", "success");
+    } catch(e) { showToast("Seed Failed: " + e.message, "error"); }
 }
 
 async function importLibrary(input) {
@@ -1776,8 +1816,8 @@ async function importLibrary(input) {
     try {
         await request("/library/import/", { method: "POST", body: fd });
         await loadLibrary();
-        alert("Import Successful!");
-    } catch(e) { alert("Import Failed: " + e.message); }
+        showToast("Import Successful!", "success");
+    } catch(e) { showToast("Import Failed: " + e.message, "error"); }
     input.value = "";
 }
 
@@ -1786,7 +1826,7 @@ async function deleteLibraryItem(id) {
     try {
         await request(`/library/${id}`, { method: "DELETE" });
         await loadLibrary();
-    } catch(e) { alert(e.message); }
+    } catch(e) { showToast(e.message, "error"); }
 }
 function checkLocalhost() {
     const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
@@ -1871,7 +1911,7 @@ async function addAccount() {
         ig_user_id: document.getElementById("new_acc_ig_id").value.trim(),
         access_token: document.getElementById("new_acc_token").value.trim()
     };
-    if(!payload.name || !payload.ig_user_id || !payload.access_token) return alert("Fill all fields!");
+    if(!payload.name || !payload.ig_user_id || !payload.access_token) return showToast("Fill all fields!", "error");
     
     try {
         btn.disabled = true;
@@ -1899,14 +1939,14 @@ async function addAccount() {
     } catch(e) { 
         msg.textContent = "❌ ERROR"; 
         msg.className = "mt-4 text-[10px] font-black tracking-widest text-red-600";
-        alert("Registration Failed: " + e.message); 
+        showToast("Registration Failed: " + e.message, "error"); 
     } finally { btn.disabled = false; }
 }
 async function deleteAccount(id) {
     if(!confirm("Are you SURE you want to delete this Instagram account? This will also un-link it from any scheduled posts or automations!")) return;
     try {
         await request(`/ig-accounts/${id}`, { method: "DELETE" });
-        alert("Account deleted.");
+        showToast("Account deleted.", "success");
         // If we deleted the active account, reset ACTIVE_ACCOUNT_ID
         if (ACTIVE_ACCOUNT_ID == id) {
             ACTIVE_ACCOUNT_ID = null;
@@ -1914,7 +1954,7 @@ async function deleteAccount(id) {
         await loadAccounts();
         await refreshAll();
     } catch(e) {
-        alert("Deletion Failed: " + e.message);
+        showToast("Deletion Failed: " + e.message, "error");
     }
 }
 function renderSettingsAccounts() {
@@ -2005,9 +2045,9 @@ function renderPost(p) {
     </div>`;
 }
 async function uploadPost() {
-    if (!ACTIVE_ACCOUNT_ID) return alert("Select an account first!");
+    if (!ACTIVE_ACCOUNT_ID) return showToast("Select an account first!", "error");
     const file = document.getElementById("image").files[0];
-    if (!file) return alert("Pick an image asset first!");
+    if (!file) return showToast("Pick an image asset first!", "error");
     const btn = document.getElementById("intake_btn");
     const msg = document.getElementById("upload_msg");
     const fd = new FormData();
@@ -2039,12 +2079,12 @@ function resetUpload() {
 async function generatePost(id) {
     const el = document.getElementById(`msg-${id}`);
     if(el) { el.textContent = "🧠 AI ANALYZING..."; el.className = "mt-4 text-[9px] text-center font-black text-indigo-500 animate-pulse"; }
-    try { await request(`/posts/${id}/generate`, { method: "POST" }); await refreshAll(); } catch(e) { if(el) { el.textContent = "AI FAILED"; el.className = "mt-4 text-[9px] text-center font-black text-red-600"; } alert(e.message); }
+    try { await request(`/posts/${id}/generate`, { method: "POST" }); await refreshAll(); } catch(e) { if(el) { el.textContent = "AI FAILED"; el.className = "mt-4 text-[9px] text-center font-black text-red-600"; } showToast(e.message, "error"); }
 }
 async function approvePost(id) {
     const el = document.getElementById(`msg-${id}`);
     if(el) { el.textContent = "✔️ ADDING TO QUEUE..."; el.className = "mt-4 text-[9px] text-center font-black text-emerald-500 animate-pulse"; }
-    try { await request(`/posts/${id}/approve`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({approve_anyway: true}) }); await refreshAll(); } catch(e) { if(el) { el.textContent = "FAIL"; el.className = "mt-4 text-[9px] text-center font-black text-red-600"; } alert(e.message); }
+    try { await request(`/posts/${id}/approve`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({approve_anyway: true}) }); await refreshAll(); } catch(e) { if(el) { el.textContent = "FAIL"; el.className = "mt-4 text-[9px] text-center font-black text-red-600"; } showToast(e.message, "error"); }
 }
 
 async function loadMe() {
