@@ -155,10 +155,10 @@ APP_DASHBOARD_HTML = """<!doctype html>
   </main>
 
   <script>
-    async function logout() {
-      await fetch('/auth/logout', { method: 'POST' });
+    async function logout() {{
+      await fetch('/auth/logout', {{ method: 'POST' }});
       window.location.href = '/';
-    }
+    }}
   </script>
 </body>
 </html>

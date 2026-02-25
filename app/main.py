@@ -290,13 +290,7 @@ def on_startup():
     except Exception as e:
         print(f"CRITICAL Migration Error: {e}")
     
-    # Debug OpenAI Key presence
-    key = settings.openai_api_key
-    if key:
-        print(f"STARTUP: OpenAI API Key detected")
-    else:
-        print("STARTUP: WARNING: OpenAI API Key is MISSING!")
-
+    # 5. Bootstrap & Scheduler
     bootstrap_saas()
     
     try:
@@ -305,6 +299,13 @@ def on_startup():
         print("Scheduler start failed:", repr(e))
         app.state.scheduler = None
 
+    # Debug OpenAI Key presence
+    key = settings.openai_api_key
+    if key:
+        print(f"STARTUP: OpenAI API Key detected")
+    else:
+        print("STARTUP: WARNING: OpenAI API Key is MISSING!")
+    
 @app.get("/health")
 def health():
     import datetime
