@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from app.db import get_db
 from app.models import User, Org, OrgMember, IGAccount, Post, TopicAutomation, ContentProfile
-from app.security.auth import require_user
+from app.security.auth import require_user, optional_user
 from app.security.rbac import get_current_org_id
 from typing import Optional
 import json
