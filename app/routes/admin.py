@@ -706,41 +706,42 @@ HTML = r"""<!doctype html>
             </div>
         </div>
     </div>
-    <!-- 1) Upload Section -->
-    <div class="lg:col-span-4 lg:sticky lg:top-28 h-fit space-y-6">
-      <section class="glass rounded-[3rem] border border-white/5 p-10 shadow-2xl">
-        <h2 class="text-2xl font-black mb-8 flex items-center gap-3 text-white italic tracking-tight underline decoration-brand decoration-4 underline-offset-8">
-          Neural <span class="text-brand">Ingestion</span>
-        </h2>
-        <div class="space-y-8">
-          <div id="selected_acc_box" class="p-6 bg-white/5 border border-white/10 rounded-2xl">
-            <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-3">Synaptic Target</label>
-            <div id="active_account_display" class="text-xs font-black text-brand italic">Ready for deployment...</div>
-          </div>
-          <div class="space-y-3">
-              <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em]">Directives</label>
-              <textarea id="source_text" class="w-full px-6 py-5 rounded-[2.5rem] bg-white/5 border border-white/10 text-xs font-bold text-white outline-none focus:ring-1 focus:ring-brand min-h-[160px] resize-none transition-all placeholder:text-white/10" placeholder="What should the AI intelligence generate?"></textarea>
-          </div>
-          <div class="space-y-3">
-              <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em]">Visual Source</label>
-              <div class="relative border-2 border-dashed border-white/10 rounded-[2.5rem] p-10 hover:border-brand/40 transition-all group cursor-pointer bg-white/5">
-                  <input id="image" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="updateFileName(this)"/>
-                  <div class="text-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-10 w-10 text-white/10 mb-4 group-hover:text-brand transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <div id="file_name_display" class="text-[10px] font-black text-muted uppercase tracking-widest">Awaiting File Ingest</div>
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+        <!-- 1) Upload Section -->
+        <div class="lg:col-span-4 lg:sticky lg:top-28 max-h-[calc(100vh-140px)] overflow-y-auto no-scrollbar space-y-6 pb-10">
+          <section class="glass rounded-[3rem] border border-white/5 p-10 shadow-2xl">
+            <h2 class="text-2xl font-black mb-8 flex items-center gap-3 text-white italic tracking-tight underline decoration-brand decoration-4 underline-offset-8">
+              New Post <span class="text-brand">Composition</span>
+            </h2>
+            <div class="space-y-8">
+              <div id="selected_acc_box" class="p-6 bg-white/5 border border-white/10 rounded-2xl">
+                <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-3">Synaptic Target</label>
+                <div id="active_account_display" class="text-xs font-black text-brand italic">Ready for deployment...</div>
+              </div>
+              <div class="space-y-3">
+                  <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em]">Directives</label>
+                  <textarea id="source_text" class="w-full px-6 py-5 rounded-[2.5rem] bg-white/5 border border-white/10 text-xs font-bold text-white outline-none focus:ring-1 focus:ring-brand min-h-[160px] resize-none transition-all placeholder:text-white/10" placeholder="What should the AI intelligence generate?"></textarea>
+              </div>
+              <div class="space-y-3">
+                  <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em]">Visual Source</label>
+                  <div class="relative border-2 border-dashed border-white/10 rounded-[2.5rem] p-10 hover:border-brand/40 transition-all group cursor-pointer bg-white/5">
+                      <input id="image" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="updateFileName(this)"/>
+                      <div class="text-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-10 w-10 text-white/10 mb-4 group-hover:text-brand transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <div id="file_name_display" class="text-[10px] font-black text-muted uppercase tracking-widest">Select Visual Source</div>
+                      </div>
                   </div>
               </div>
-          </div>
-          <div class="grid grid-cols-1 gap-4 pt-4">
-              <button id="intake_btn" onclick="uploadPost()" class="bg-brand text-white rounded-[2rem] py-6 font-black uppercase tracking-[0.3em] italic hover:scale-[1.02] active:scale-95 transition-all shadow-2xl shadow-brand/20 text-xs">Commit Ingestion</button>
-              <button onclick="resetUpload()" class="glass text-muted rounded-[2rem] py-4 font-black uppercase tracking-widest hover:text-white transition-all text-[9px]">Reset Logical State</button>
-          </div>
-          <div id="upload_msg" class="text-center text-[9px] font-black uppercase h-4 tracking-[0.2em] text-brand italic"></div>
+              <div class="grid grid-cols-1 gap-4 pt-4">
+                  <button id="intake_btn" onclick="uploadPost()" class="bg-brand text-white rounded-[2rem] py-6 font-black uppercase tracking-[0.3em] italic hover:scale-[1.02] active:scale-95 transition-all shadow-2xl shadow-brand/20 text-xs">Add New Post</button>
+                  <button onclick="resetUpload()" class="glass text-muted rounded-[2rem] py-4 font-black uppercase tracking-widest hover:text-white transition-all text-[9px]">Reset Logical State</button>
+              </div>
+              <div id="upload_msg" class="text-center text-[9px] font-black uppercase h-4 tracking-[0.2em] text-brand italic"></div>
+            </div>
+          </section>
         </div>
-      </section>
-    </div>
 
     <!-- 2) Feed Section -->
     <div class="lg:col-span-8 flex flex-col gap-8">
@@ -823,6 +824,7 @@ HTML = r"""<!doctype html>
         </div>
       </section>
     </div>
+  </div>
 
     <!-- Platform Drawer -->
     <!-- Platform Drawer -->
