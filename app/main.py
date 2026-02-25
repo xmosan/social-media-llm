@@ -1,6 +1,6 @@
 import os
 import time
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -9,7 +9,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 import uuid
 
-from .db import engine, SessionLocal
+from .db import engine, SessionLocal, get_db
 from .models import Base, Org, ApiKey, IGAccount, User, OrgMember
 from .security.auth import get_password_hash
 from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles, auth_google, public, sources, app_pages
@@ -77,19 +77,20 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Internal Server Error"}
     )
 
-@app.get("/debug-automations")
-def debug_automations(db = Depends(app.database.get_db)):
+@app.get("/api/debug-automations")
+def api_debug_automations(db: Session = Depends(get_db)):
     from app.models import TopicAutomation
     autos = db.query(TopicAutomation).all()
     return [{"id": a.id, "name": a.name, "topic": a.topic_prompt, "last_error": a.last_error} for a in autos]
 
-@app.get("/debug-env")
-def debug_env():
+@app.get("/api/debug-env")
+def api_debug_env():
     return {
         "openai_api_key_set": bool(settings.openai_api_key),
         "openai_api_key_len": len(settings.openai_api_key) if settings.openai_api_key else 0,
         "database_url_scheme": settings.database_url.split(":")[0] if settings.database_url else None
     }
+
 
 @app.get("/health")
 def health_check():
@@ -313,17 +314,3 @@ def on_startup():
     else:
         print("STARTUP: WARNING: OpenAI API Key is MISSING!")
     
-@app.get("/health")
-def health():
-    import datetime
-    return {
-        "status": "ok", 
-        "version": "1.0.3", 
-        "now": datetime.datetime.now(datetime.timezone.utc).isoformat()
-    }
-
-@app.get("/api/debug-automations")
-def api_debug_automations(db = Depends(app.database.get_db)):
-    from app.models import TopicAutomation
-    autos = db.query(TopicAutomation).all()
-    return [{"id": a.id, "name": a.name, "topic": a.topic_prompt, "last_error": a.last_error} for a in autos]
