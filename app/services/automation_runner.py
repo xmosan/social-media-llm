@@ -187,48 +187,55 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         new_cursor = automation.last_item_cursor
 
         # NEW: Pluggable Content Sources
-        if getattr(automation, "source_id", None) and getattr(automation, "source_mode", "none") != "none":
-            selected_items, new_cursor = select_items_for_automation(
-                db,
-                org_id=automation.org_id,
-                source_id=automation.source_id,
-                items_per_post=getattr(automation, "items_per_post", 1) or 1,
-                selection_mode=getattr(automation, "selection_mode", "random") or "random",
-                last_item_cursor=automation.last_item_cursor,
-            )
+        try:
+            if getattr(automation, "source_id", None) and getattr(automation, "source_mode", "none") != "none":
+                selected_items, new_cursor = select_items_for_automation(
+                    db,
+                    org_id=automation.org_id,
+                    source_id=automation.source_id,
+                    items_per_post=getattr(automation, "items_per_post", 1) or 1,
+                    selection_mode=getattr(automation, "selection_mode", "random") or "random",
+                    last_item_cursor=automation.last_item_cursor,
+                )
+        except Exception as e:
+            print(f"[AUTO] Source selection failed: {e}")
+            log_event("automation_source_error", automation_id=automation.id, error=str(e))
         
         # LEGACY: Content Library (if no items from sources and enabled)
         if not selected_items and automation.use_content_library:
-            content_item = pick_content_item(
-                db=db,
-                org_id=automation.org_id,
-                topic=topic,
-                content_type=automation.content_type,
-                avoid_repeat_days=automation.avoid_repeat_days,
-                automation_id=automation.id,
-                ig_account_id=automation.ig_account_id
-            )
-            
-            if not content_item:
-                print(f"[AUTO] FAILURE: No content found in library for topic '{topic}'")
-                # Create a failed post so user can see what happened
-                new_post = Post(
+            try:
+                content_item = pick_content_item(
+                    db=db,
                     org_id=automation.org_id,
-                    ig_account_id=automation.ig_account_id,
-                    is_auto_generated=True,
+                    topic=topic,
+                    content_type=automation.content_type,
+                    avoid_repeat_days=automation.avoid_repeat_days,
                     automation_id=automation.id,
-                    status="failed",
-                    source_type="automation",
-                    source_text=f"AUTO: {automation.name} | topic={topic}",
-                    flags={"automation_error": "No content found in library for topic", "topic": topic}
+                    ig_account_id=automation.ig_account_id
                 )
-                db.add(new_post)
-                automation.last_error = f"No content found for topic: {topic}"
-                automation.last_run_at = datetime.now(dt_timezone.utc)
-                db.commit()
-                return new_post
-            else:
-                selected_items = [content_item]
+                if content_item:
+                    selected_items = [content_item]
+            except Exception as e:
+                print(f"[AUTO] Library selection failed: {e}")
+
+        if not selected_items:
+            print(f"[AUTO] FAILURE: No content found for topic '{topic}'")
+            # Create a failed post so user can see what happened
+            new_post = Post(
+                org_id=automation.org_id,
+                ig_account_id=automation.ig_account_id,
+                is_auto_generated=True,
+                automation_id=automation.id,
+                status="failed",
+                source_type="automation",
+                source_text=f"AUTO: {automation.name} | topic={topic}",
+                flags={"automation_error": "No content found in library or sources for topic", "topic": topic}
+            )
+            db.add(new_post)
+            automation.last_error = f"No content found for topic: {topic}"
+            automation.last_run_at = datetime.now(dt_timezone.utc)
+            db.commit()
+            return new_post
 
         # 1.5 Content Profile Injection
         content_profile_prompt = None
@@ -276,44 +283,66 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
 
         print(f"[AUTO] Generating for automation_id={automation.id} topic='{topic}'")
         
-        result = generate_topic_caption(
-            topic=topic,
-            style=automation.style_preset,
-            tone=automation.tone or "medium",
-            language=automation.language or "english",
-            banned_phrases=automation.banned_phrases if isinstance(automation.banned_phrases, list) else None,
-            content_profile_prompt=content_profile_prompt,
-            creativity_level=getattr(automation, "creativity_level", 3),
-            extra_context=context_payload
-        )
-        
-        caption = result.get("caption", "").strip()
-        hashtags = result.get("hashtags", [])
+        try:
+            result = generate_topic_caption(
+                topic=topic,
+                style=automation.style_preset,
+                tone=automation.tone or "medium",
+                language=automation.language or "english",
+                banned_phrases=automation.banned_phrases if isinstance(automation.banned_phrases, list) else None,
+                content_profile_prompt=content_profile_prompt,
+                creativity_level=getattr(automation, "creativity_level", 3),
+                extra_context=context_payload
+            )
+            caption = result.get("caption", "").strip()
+            hashtags = result.get("hashtags", [])
+            alt_text = result.get("alt_text", "")
+        except Exception as e:
+            print(f"[AUTO] LLM Generation failed: {e}")
+            automation.last_error = f"LLM Generation failed: {str(e)}"
+            db.commit()
+            return None # Re-raise or handle as hard failure
+            
         if automation.hashtag_set:
             hashtags = automation.hashtag_set
             
-        alt_text = result.get("alt_text", "")
         log_event("automation_caption_generated", automation_id=automation.id, caption_len=len(caption), hashtags_count=len(hashtags))
         
         # 3. Media Selection / Generation
         primary_item = selected_items[0] if selected_items else None
         concepts = primary_item.topics[0] if primary_item and hasattr(primary_item, "topics") and primary_item.topics else None
-        media_url = resolve_media_url(
-            db=db,
-            org_id=automation.org_id,
-            ig_account_id=automation.ig_account_id,
-            image_mode=automation.image_mode,
-            topic=topic,
-            automation_id=automation.id,
-            media_asset_id=automation.media_asset_id,
-            media_tag_query=automation.media_tag_query,
-            content_concept=concepts
-        )
+        
+        try:
+            media_url = resolve_media_url(
+                db=db,
+                org_id=automation.org_id,
+                ig_account_id=automation.ig_account_id,
+                image_mode=automation.image_mode,
+                topic=topic,
+                automation_id=automation.id,
+                media_asset_id=automation.media_asset_id,
+                media_tag_query=automation.media_tag_query,
+                content_concept=concepts
+            )
+        except Exception as e:
+            print(f"[AUTO] Media resolution error: {e}")
+            media_url = None
+
+        # FALLBACK: If AI generation failed, try to reuse last upload
+        if not media_url and "ai" in (automation.image_mode or ""):
+            print("[AUTO] AI Media failed. Falling back to reuse_last_upload...")
+            media_url = resolve_media_url(
+                db=db,
+                org_id=automation.org_id,
+                ig_account_id=automation.ig_account_id,
+                image_mode="reuse_last_upload",
+                topic=topic
+            )
         
         # 4. Final Post Creation
-        if automation.image_mode == "quote_card" or (media_url is None and automation.image_mode != "none_placeholder"):
-            if primary_item:
-                # Generate a quote card
+        if automation.image_mode == "quote_card" or (media_url is None and automation.image_mode != "none_placeholder" and primary_item):
+            # Generate a quote card
+            try:
                 filename = f"quote_{automation.id}_{int(datetime.now().timestamp())}.jpg"
                 file_path = os.path.join(settings.uploads_dir, filename)
                 
@@ -325,6 +354,8 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 create_quote_card(text_to_use, attribution, file_path)
                 media_url = f"{settings.public_base_url.rstrip('/')}/uploads/{filename}"
                 print(f"[AUTO] Quote card generated: {media_url}")
+            except Exception as e:
+                print(f"[AUTO] Quote card failed: {e}")
 
         # 4. Create Post
         status = "scheduled"
@@ -376,7 +407,7 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             db.commit()
             return new_post
 
-        # 5.5 Media Validation Guardrail (Fix First Post Glitch)
+        # 5.5 Media Validation Guardrail
         if not media_url:
             print(f"[AUTO] FAILURE: media_url is missing. Mode: {automation.image_mode}")
             new_post.status = "failed"
