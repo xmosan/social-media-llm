@@ -321,3 +321,9 @@ def health():
         "version": "1.0.3", 
         "now": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
+
+@app.get("/api/debug-automations")
+def api_debug_automations(db = Depends(app.database.get_db)):
+    from app.models import TopicAutomation
+    autos = db.query(TopicAutomation).all()
+    return [{"id": a.id, "name": a.name, "topic": a.topic_prompt, "last_error": a.last_error} for a in autos]
