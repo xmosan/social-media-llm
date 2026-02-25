@@ -159,6 +159,7 @@ class TopicAutomation(Base):
     topic_prompt = Column(Text, nullable=False)
     style_preset = Column(String, nullable=False, default="islamic_reminder")
     custom_style_instructions = Column(Text, nullable=True)
+    content_seed = Column(Text, nullable=True) # User provided seed text or specific Hadith
     
     tone = Column(String, default="medium") # short, medium, long
     language = Column(String, default="english") # english, arabic_mix

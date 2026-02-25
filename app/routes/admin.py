@@ -615,26 +615,15 @@ HTML = r"""<!doctype html>
                     </div>
                 </div>
 
-                <div class="bg-brand/10 border border-brand/20 p-6 rounded-[2rem] space-y-6">
+                <div class="bg-emerald-500/5 border border-emerald-500/10 p-6 rounded-[2rem] space-y-4">
                    <div class="flex items-center justify-between">
                         <div>
-                            <div class="text-[10px] font-black text-white uppercase tracking-widest leading-none">Hadith Enrichment</div>
-                            <div class="text-[8px] font-bold text-muted uppercase tracking-widest mt-1">Sunnah.com intelligence</div>
+                            <div class="text-[10px] font-black text-white uppercase tracking-widest leading-none">Content Seed</div>
+                            <div class="text-[8px] font-bold text-muted uppercase tracking-widest mt-1">Direct source text for quoting</div>
                         </div>
-                         <label class="relative inline-flex items-center cursor-pointer">
-                             <input type="checkbox" id="auto_enrich_hadith" class="sr-only peer">
-                             <div class="w-11 h-6 bg-white/10 border border-white/5 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand"></div>
-                         </label>
                    </div>
-                   <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-[9px] font-black text-muted uppercase tracking-widest mb-2">Specific Sub-Topic</label>
-                            <input type="text" id="auto_hadith_topic" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none" placeholder="Default Logic"/>
-                        </div>
-                        <div>
-                            <label class="block text-[9px] font-black text-muted uppercase tracking-widest mb-2">Max Token Density</label>
-                            <input type="number" id="auto_hadith_maxlen" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none" value="450"/>
-                        </div>
+                   <div>
+                        <textarea id="auto_content_seed" class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none focus:ring-1 focus:ring-brand min-h-[100px]" placeholder="Paste a Hadith, Quote, or specific text you want to work with..."></textarea>
                    </div>
                 </div>
             </div>
@@ -1203,9 +1192,7 @@ async function saveAutomation() {
         image_mode: getVal("auto_image_mode") || "reuse_last_upload",
         avoid_repeat_days: getNum("auto_lookback") || 30,
         include_arabic: getCheck("auto_arabic"),
-        enrich_with_hadith: getCheck("auto_enrich_hadith"),
-        hadith_topic: getVal("auto_hadith_topic"),
-        hadith_max_len: getNum("auto_hadith_maxlen") || 450,
+        content_seed: document.getElementById("auto_content_seed")?.value || "",
         media_asset_id: getNum("auto_media_asset_id") || null,
         media_tag_query: getVal("auto_media_tag_query").split(",").map(t => t.trim()).filter(t => t),
         media_rotation_mode: "random",
@@ -1286,68 +1273,6 @@ async function testLLM(id, topic, style) {
         showToast("LLM Test Failed: " + e.message, "error");
         refreshAll();
     }
-}
-
-async function initCalendar() {
-    if (calendar) return;
-    const calendarEl = document.getElementById('calendar_el');
-    calendar = new FullCalendar.Calendar(calendarEl, {
-      initialView: 'dayGridMonth',
-      headerToolbar: {
-        left: 'prev,next today',
-        center: 'title',
-        right: 'dayGridMonth,timeGridWeek'
-      },
-      editable: true,
-      eventClick: function(info) {
-        openPostEditor(info.event.id);
-      },
-      eventDrop: async function(info) {
-        if(!confirm(`Reschedule to ${info.event.start.toISOString()}?`)) {
-            info.revert();
-            return;
-        }
-        try {
-            await request(`/posts/${info.event.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ scheduled_time: info.event.start.toISOString() })
-            });
-            refreshAll();
-        } catch(e) { 
-            showToast(e.message, "error"); 
-            info.revert();
-        }
-      }
-    });
-    calendar.render();
-}
-
-async function loadCalendarEvents() {
-    if (!calendar) return;
-    try {
-        const j = await request(`/posts?ig_account_id=${ACTIVE_ACCOUNT_ID}&limit=200`);
-        const events = j.map(p => ({
-            id: p.id,
-            title: (p.caption || 'Untitled').substring(0, 30) + '...',
-            start: p.scheduled_time || p.created_at,
-            backgroundColor: getPostColor(p.status),
-            borderColor: 'transparent'
-        }));
-        calendar.removeAllEvents();
-        calendar.addEventSource(events);
-    } catch(e) { console.error(e); }
-}
-
-function getPostColor(status) {
-    const colors = {
-        published: '#10b981',
-        scheduled: '#6366f1',
-        needs_review: '#f43f5e',
-        drafted: '#3b82f6',
-        failed: '#94a3b8'
-    };
-    return colors[status] || '#94a3b8';
 }
 
 // --- CALENDAR LOGIC ---
@@ -1485,7 +1410,7 @@ async function regeneratePostCaption() {
 
 async function regeneratePostImage() {
     const id = document.getElementById("post_edit_id").value;
-    const mode = prompt("Image Mode? (ai_nature_photo, ai_islamic_pattern, ai_calligraphy_no_text, ai_minimal_gradient)", "ai_nature_photo");
+    const mode = prompt("Image Mode? (ai_nature_photo, ai_islamic_pattern, ai_minimal_gradient)", "ai_nature_photo");
     if (!mode) return;
     try {
         const p = await request(`/posts/${id}/regenerate-image`, {
@@ -1610,15 +1535,8 @@ function editAuto(a) {
     const arabic = document.getElementById("auto_arabic");
     if(arabic) arabic.checked = !!a.include_arabic;
 
-    // Hadith Enrichment
-    const enrich = document.getElementById("auto_enrich_hadith");
-    if(enrich) enrich.checked = !!a.enrich_with_hadith;
-    
-    const hTopic = document.getElementById("auto_hadith_topic");
-    if(hTopic) hTopic.value = a.hadith_topic || "";
-    
-    const hMax = document.getElementById("auto_hadith_maxlen");
-    if(hMax) hMax.value = a.hadith_max_len || 450;
+    const contentSeed = document.getElementById("auto_content_seed");
+    if(contentSeed) contentSeed.value = a.content_seed || "";
     
     const mAsset = document.getElementById("auto_media_asset_id");
     if(mAsset) mAsset.value = a.media_asset_id || "";

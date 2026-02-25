@@ -139,6 +139,7 @@ class TopicAutomationOut(BaseModel):
     # New Content Focus fields
     content_profile_id: int | None = None
     creativity_level: int = 3
+    content_seed: str | None = None
 
     # New Library fields
     use_content_library: bool
@@ -148,12 +149,6 @@ class TopicAutomationOut(BaseModel):
     image_mode: str
     posting_mode: str
     approval_mode: str
-
-    # Hadith Enrichment fields
-    enrich_with_hadith: bool
-    hadith_topic: str | None
-    hadith_append_style: str
-    hadith_max_len: int
 
     # Media Library fields
     media_asset_id: int | None = None
@@ -187,6 +182,7 @@ class TopicAutomationCreate(BaseModel):
     
     content_profile_id: int | None = None
     creativity_level: int = 3
+    content_seed: str | None = None
     
     # New Library fields
     use_content_library: bool = True
@@ -196,12 +192,6 @@ class TopicAutomationCreate(BaseModel):
     post_time_local: str | None = None
     timezone: str | None = None
     enabled: bool = False
-
-    # Hadith Enrichment fields
-    enrich_with_hadith: bool = False
-    hadith_topic: str | None = None
-    hadith_append_style: str = "short"
-    hadith_max_len: int = 450
 
     media_asset_id: int | None = None
     media_tag_query: list[str] | None = None
@@ -230,6 +220,7 @@ class TopicAutomationUpdate(BaseModel):
     
     content_profile_id: int | None = None
     creativity_level: int | None = None
+    content_seed: str | None = None
     
     use_content_library: bool | None = None
     avoid_repeat_days: int | None = None
@@ -238,12 +229,6 @@ class TopicAutomationUpdate(BaseModel):
     post_time_local: str | None = None
     timezone: str | None = None
     enabled: bool | None = None
-
-    # Hadith Enrichment fields
-    enrich_with_hadith: bool | None = None
-    hadith_topic: str | None = None
-    hadith_append_style: str | None = None
-    hadith_max_len: int | None = None
 
     media_asset_id: int | None = None
     media_tag_query: list[str] | None = None

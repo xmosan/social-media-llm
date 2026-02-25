@@ -7,7 +7,7 @@ from app.services.llm import generate_topic_caption, generate_caption_from_conte
 from app.services.publisher import publish_to_instagram
 from app.services.content_library import pick_content_item
 from app.services.image_card import create_quote_card
-from app.services.sources.sunnah import pick_hadith_for_topic
+from app.services.image_card import create_quote_card
 from app.config import settings
 import pytz
 import os
@@ -126,13 +126,12 @@ def resolve_media_url(
     # 3. AI Generation logic
     ai_modes = [
         "ai_generated", "ai_nature_photo", "ai_islamic_pattern", 
-        "ai_calligraphy_no_text", "ai_minimal_gradient"
+        "ai_minimal_gradient"
     ]
     if image_mode in ai_modes:
         mode_prompts = {
             "ai_nature_photo": "Realistic high-quality nature photography of ",
             "ai_islamic_pattern": "Elegant seamless Islamic geometric pattern with colors of ",
-            "ai_calligraphy_no_text": "Artistic Islamic abstract calligraphy art without readable text, theme of ",
             "ai_minimal_gradient": "Modern minimal soft gradient background with colors of ",
             "ai_generated": ""
         }
@@ -264,8 +263,9 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 {"title": getattr(it, "title", None), "text": getattr(it, "text", it.text_en if hasattr(it, "text_en") else ""), "url": getattr(it, "url", None), "id": it.id}
                 for it in selected_items
             ],
+            "content_seed": getattr(automation, "content_seed", None),
             "content_profile_prompt": content_profile_prompt,
-            "creativity_level": creativity_level,
+            "creativity_level": getattr(automation, "creativity_level", 3),
             "instructions": [
                 "Do NOT output the topic label literally.",
                 "Do NOT output 'AUTO: <name>' literally as the caption.",
@@ -283,7 +283,7 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             language=automation.language or "english",
             banned_phrases=automation.banned_phrases if isinstance(automation.banned_phrases, list) else None,
             content_profile_prompt=content_profile_prompt,
-            creativity_level=creativity_level,
+            creativity_level=getattr(automation, "creativity_level", 3),
             extra_context=context_payload
         )
         
@@ -294,35 +294,6 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             
         alt_text = result.get("alt_text", "")
         log_event("automation_caption_generated", automation_id=automation.id, caption_len=len(caption), hashtags_count=len(hashtags))
-        
-        # 2.5 Optional Enrichment: Hadith
-        if automation.enrich_with_hadith:
-            try:
-                hadith_topic = automation.hadith_topic or automation.topic_prompt
-                print(f"[AUTO] Enrichment enabled. Topic: {hadith_topic}")
-                
-                hadith = pick_hadith_for_topic(db, hadith_topic)
-                if hadith:
-                    # Truncate if needed
-                    text = hadith.content_text
-                    max_len = automation.hadith_max_len or 450
-                    if len(text) > max_len:
-                        text = text[:max_len-3] + "..."
-                    
-                    enrichment_text = f"\n\n📜 Hadith:\n{text}\n"
-                    if hadith.reference:
-                        enrichment_text += f"Source: {hadith.reference}"
-                    if hadith.url:
-                        enrichment_text += f" ({hadith.url})"
-                        
-                    caption += enrichment_text
-                    print(f"[AUTO] Appended hadith from {hadith.reference}")
-                else:
-                    print(f"[AUTO] No hadith found for topic '{hadith_topic}' - Check sunnah.com connectivity or topic relevance.")
-                    logger.warning(f"No hadith found for topic '{hadith_topic}' in automation {automation.id}")
-            except Exception as enrich_e:
-                print(f"[AUTO] Enrichment ERROR (skipping): {enrich_e}")
-                logger.error(f"Enrichment failed for automation {automation.id}: {enrich_e}")
         
         # 3. Media Selection / Generation
         primary_item = selected_items[0] if selected_items else None
@@ -384,12 +355,33 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         
         # 5. Guardrail
         auto_str = f"AUTO: {automation.name}"
-        if not caption or caption.strip() == topic.strip() or caption.strip() == auto_str:
-            print(f"[AUTO] FAILED GUARDRAIL: LLM output was invalid (empty or default).")
-            log_event("automation_guardrail_failed", automation_id=automation.id, reason="invalid_caption")
+        caption_lower = caption.lower()
+        filler_indicators = ["enhance your daily reminder", "welcome to our page", "here is your caption"]
+        
+        is_filler = any(f in caption_lower for f in filler_indicators)
+        is_too_short = len(caption) < 20
+        is_default = caption.strip() == topic.strip() or caption.strip() == auto_str
+        
+        if not caption or is_default or is_filler or is_too_short:
+            reason = "invalid_caption"
+            if is_filler: reason = "filler_detected"
+            if is_too_short: reason = "too_short"
+            
+            print(f"[AUTO] FAILED GUARDRAIL: {reason}. Output: {caption[:50]}...")
+            log_event("automation_guardrail_failed", automation_id=automation.id, reason=reason)
             new_post.status = "failed"
-            new_post.flags = {"automation_error": f"LLM returned invalid caption: {caption}"}
-            automation.last_error = "LLM returned invalid caption"
+            new_post.flags = {"automation_error": f"LLM returned invalid/filler caption: {caption}", "reason": reason}
+            automation.last_error = f"Guardrail check failed: {reason}"
+            db.add(new_post)
+            db.commit()
+            return new_post
+
+        # 5.5 Media Validation Guardrail (Fix First Post Glitch)
+        if not media_url:
+            print(f"[AUTO] FAILURE: media_url is missing. Mode: {automation.image_mode}")
+            new_post.status = "failed"
+            new_post.flags = {"automation_error": "media_url is missing/generation failed"}
+            automation.last_error = "Media generation failed or asset missing"
             db.add(new_post)
             db.commit()
             return new_post

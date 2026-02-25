@@ -40,6 +40,7 @@ def generate_topic_caption(
     language: str = "english",
     banned_phrases: list[str] | None = None,
     content_profile_prompt: str | None = None,
+    creativity_level: int = 3,
     extra_context: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     """Generates a caption based on a topic and various style parameters using OpenAI."""
@@ -72,15 +73,21 @@ def generate_topic_caption(
         extra_instructions = "\nSPECIAL INSTRUCTIONS:\n" + "\n".join([f"- {instr}" for instr in extra_context["instructions"]])
 
     prompt = f"""
-    Topic: {topic}
-    Style: {style_content}
-    Tone: {tone_content}
-    Language: {lang_content}
+    Topic/Concept: {topic}
+    Style Preference: {style_content}
+    Desired Tone: {tone_content}
+    Primary Language: {lang_content}
     {banned_prompt}
     {grounding_prompt}
     {extra_instructions}
 
-    Generate a high-quality Instagram/Facebook caption, alt text, and relevant hashtags.
+    Task: Generate a professional social media caption, hashtags, and alt text.
+    Strict Requirements:
+    1. DO NOT include generic filler like "Enhance your daily reminder" or "Welcome to our page".
+    2. Write a unique, meaningful caption specifically about the topic/concept provided.
+    3. If grounding content is provided, use it as the source of truth.
+    4. NO meta-talk like "Certainly, here is your caption".
+    5. Output must be ready to publish.
     
     Return JSON:
     {{
@@ -216,7 +223,7 @@ def generate_ai_image(prompt_text: str) -> str | None:
         print(f"[LLM] Requesting DALL-E 3 image for concept: {prompt_text[:50]}...")
         response = client.images.generate(
             model="dall-e-3",
-            prompt=f"Generate a highly realistic nature photograph or elegant Islamic calligraphy representing this concept: {prompt_text[:500]}. Do not include any English text or random letters. Ensure the image is beautiful, serene, and has cinematic lighting.",
+            prompt=f"A professional, premium, and minimalistic image representing this concept: {prompt_text[:500]}. NO text, NO letters, NO words, NO calligraphy. The image should be text-free, artistic, and suitable for social media. Ensure cinematic lighting and a serene atmosphere.",
             size="1024x1024",
             quality="standard",
             n=1,

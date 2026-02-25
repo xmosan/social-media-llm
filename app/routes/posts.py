@@ -49,21 +49,25 @@ def intake_post(
     print(f"DEBUG: Intake attempt - Account={ig_account_id}, File={image.filename}, Type={image.content_type}")
     _ensure_uploads_dir()
 
-    # Verify Account belongs to Org
     acc = db.query(IGAccount).filter(IGAccount.id == ig_account_id, IGAccount.org_id == org_id).first()
     if not acc:
-        raise HTTPException(status_code=403, detail="IG Account not found or not in your org")
+        raise HTTPException(status_code=403, detail="IG Account not found or not in your workspace")
+    
+    if not acc.access_token or not acc.ig_user_id:
+         raise HTTPException(status_code=400, detail="Incomplete IG Account connection. Please reconnect your account.")
 
     if image.content_type not in ("image/png", "image/jpeg", "image/jpg", "image/webp"):
-        error_msg = f"Rejected: File type '{image.content_type}' is not supported. Please use PNG, JPG, or WEBP."
-        print(f"DEBUG: {error_msg}")
-        raise HTTPException(status_code=400, detail=error_msg)
+        raise HTTPException(status_code=400, detail=f"File type '{image.content_type}' is not supported. Use PNG, JPG, or WEBP.")
 
     filename = f"{int(_utcnow().timestamp())}_{image.filename}"
     local_path = os.path.join(settings.uploads_dir, filename)
 
-    with open(local_path, "wb") as f:
-        shutil.copyfileobj(image.file, f)
+    try:
+        with open(local_path, "wb") as f:
+            shutil.copyfileobj(image.file, f)
+    except Exception as e:
+        print(f"FAILED FILE SAVE: {e}")
+        raise HTTPException(status_code=500, detail="Critical error: Could not save uploaded file. Check disk space/permissions.")
 
     public_url = f"{settings.public_base_url}/uploads/{filename}"
 
@@ -316,7 +320,10 @@ def approve_post(
         )
 
     if not post.caption or not post.media_url:
-        raise HTTPException(status_code=400, detail="Missing caption or media_url")
+        post.status = "failed"
+        post.flags = {**(post.flags or {}), "reason": "missing_content"}
+        db.commit()
+        raise HTTPException(status_code=422, detail="Approval denied: Missing caption or visual assets.")
 
     # Set scheduled time
     if payload.scheduled_time:
@@ -343,7 +350,10 @@ def publish_post(
         raise HTTPException(status_code=404, detail="Post not found")
 
     if not post.caption or not post.media_url:
-        raise HTTPException(status_code=400, detail="Missing caption or media_url")
+        post.status = "failed"
+        post.flags = {**(post.flags or {}), "reason": "missing_media_at_publish"}
+        db.commit()
+        raise HTTPException(status_code=422, detail="Publishing impossible: Visual asset is missing from the record.")
 
     acc = db.get(IGAccount, post.ig_account_id)
     caption_full = post.caption

@@ -212,6 +212,7 @@ def on_startup():
                 ("media_rotation_mode", "VARCHAR DEFAULT 'random'"),
                 ("content_profile_id", "INTEGER"),
                 ("creativity_level", "INTEGER DEFAULT 3"),
+                ("content_seed", "TEXT"),
                 ("source_id", "INTEGER"),
                 ("source_mode", "VARCHAR DEFAULT 'none'"),
                 ("items_per_post", "INTEGER DEFAULT 1"),
