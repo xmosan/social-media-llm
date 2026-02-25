@@ -794,9 +794,11 @@ async def app_media_page(
 
 @router.get("/app/library", response_class=HTMLResponse)
 async def app_library_page(
-    user: User = Depends(require_user),
+    user: User | None = Depends(optional_user),
     db: Session = Depends(get_db)
 ):
+    if not user:
+        return RedirectResponse(url="/login")
     if not user.onboarding_complete: return RedirectResponse(url="/onboarding")
     org_id = user.active_org_id
     org = db.query(Org).filter(Org.id == org_id).first()
