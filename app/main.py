@@ -101,7 +101,8 @@ def health_check():
     return {
         "status": "ok",
         "database": "connected",
-        "scheduler": "running"
+        "scheduler": "running",
+        "version": "debug-v1"
     }
 
 @app.get("/ready")
