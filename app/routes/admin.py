@@ -843,6 +843,36 @@ HTML = r"""<!doctype html>
     </div>
   </div>
 
+  <!-- Custom Dialog Modals -->
+  <div id="custom_dialog_container" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <!-- Confirm Dialog -->
+      <div id="custom_confirm_box" class="hidden glass rounded-[2.5rem] shadow-2xl w-full max-w-md border border-white/10 p-10 flex flex-col items-center text-center animate-in fade-in zoom-in duration-300">
+          <div class="w-16 h-16 rounded-3xl bg-brand/10 flex items-center justify-center text-brand mb-6">
+              <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+          </div>
+          <h4 class="text-xl font-black text-white italic tracking-tight mb-4">Confirm Action</h4>
+          <p id="custom_confirm_msg" class="text-xs font-bold text-muted leading-relaxed mb-10"></p>
+          <div class="flex gap-4 w-full">
+              <button id="custom_confirm_cancel" class="flex-1 px-6 py-4 rounded-2xl glass text-[10px] font-black uppercase tracking-widest text-muted hover:text-white transition-all">Decline</button>
+              <button id="custom_confirm_ok" class="flex-1 px-6 py-4 rounded-2xl bg-brand text-white text-[10px] font-black uppercase tracking-widest italic shadow-xl shadow-brand/20 hover:scale-[1.05] active:scale-95 transition-all">Sychronize</button>
+          </div>
+      </div>
+
+      <!-- Prompt Dialog -->
+      <div id="custom_prompt_box" class="hidden glass rounded-[2.5rem] shadow-2xl w-full max-w-md border border-white/10 p-10 flex flex-col items-center text-center animate-in fade-in zoom-in duration-300">
+          <div class="w-16 h-16 rounded-3xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 mb-6">
+              <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+          </div>
+          <h4 class="text-xl font-black text-white italic tracking-tight mb-4">Input Required</h4>
+          <p id="custom_prompt_msg" class="text-xs font-bold text-muted leading-relaxed mb-6"></p>
+          <input type="text" id="custom_prompt_input" class="w-full px-6 py-4 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-white outline-none focus:ring-1 focus:ring-brand mb-10 transition-all" placeholder="Enter logic sequence..."/>
+          <div class="flex gap-4 w-full">
+              <button id="custom_prompt_cancel" class="flex-1 px-6 py-4 rounded-2xl glass text-[10px] font-black uppercase tracking-widest text-muted hover:text-white transition-all">Abeyance</button>
+              <button id="custom_prompt_ok" class="flex-1 px-6 py-4 rounded-2xl bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest italic shadow-xl shadow-indigo-500/20 hover:scale-[1.05] active:scale-95 transition-all">Fulfill</button>
+          </div>
+      </div>
+  </div>
+
     <!-- Platform Drawer -->
     <!-- Platform Drawer -->
     <div id="platform_panel" class="hidden fixed inset-0 bg-black/80 z-[130] backdrop-blur-md flex justify-end" onclick="if(event.target === this) togglePlatformPanel()">
@@ -1008,7 +1038,7 @@ async function loadPlatformUsers() {
 }
 
 async function deleteUser(id) {
-    if(!confirm("MANDATORY WARNING: Are you sure you want to completely erase this user? This cannot be undone.")) return;
+    if(!await customConfirm("MANDATORY WARNING: Are you sure you want to completely erase this user? This cannot be undone.")) return;
     try {
         await request(`/admin/users/${id}`, { method: "DELETE" });
         await loadPlatformUsers();
@@ -1239,10 +1269,10 @@ async function saveAutomation() {
 }
 
 async function triggerAuto(id) {
-    if(!confirm("Run this automation once right now? This will create a real post (Draft or Scheduled).")) return;
+    if(!await customConfirm("Run this automation once right now? This will create a real post (Draft or Scheduled).")) return;
     try {
         const j = await request(`/automations/${id}/run-once`, { method: "POST" });
-        if (confirm("Success! Automation triggered. View it in your feed now?")) {
+        if (await customConfirm("Success! Automation triggered. View it in your feed now?")) {
             switchTab('feed');
         } else {
             refreshAll();
@@ -1251,7 +1281,7 @@ async function triggerAuto(id) {
 }
 
 async function runGlobalScheduler() {
-    if(!confirm("Force the global scheduler to run immediately? This will check for due posts and publish them to Instagram.")) return;
+    if(!await customConfirm("Force the global scheduler to run immediately? This will check for due posts and publish them to Instagram.")) return;
     const btn = document.getElementById("run_scheduler_btn");
     const originalHtml = btn.innerHTML;
     try {
@@ -1319,7 +1349,7 @@ async function initCalendar() {
         openPostEditor(info.event.id);
       },
       eventDrop: async function(info) {
-        if(!confirm(`Reschedule to ${info.event.start.toISOString()}?`)) {
+        if(!await customConfirm(`Reschedule to ${info.event.start.toISOString()}?`)) {
             info.revert();
             return;
         }
@@ -1429,7 +1459,7 @@ async function savePost() {
 
 async function regeneratePostCaption() {
     const id = document.getElementById("post_edit_id").value;
-    const inst = prompt("Any special instructions for the AI? (e.g. 'make it shorter', 'more poetic')");
+    const inst = await customPrompt("Any special instructions for the AI? (e.g. 'make it shorter', 'more poetic')");
     try {
         const p = await request(`/posts/${id}/regenerate-caption`, {
             method: 'POST',
@@ -1443,8 +1473,8 @@ async function regeneratePostCaption() {
 
 async function regeneratePostImage() {
     const id = document.getElementById("post_edit_id").value;
-    const mode = prompt("Image Mode? (ai_nature_photo, ai_islamic_pattern, ai_minimal_gradient)", "ai_nature_photo");
-    if (!mode) return;
+    const mode = await customPrompt("Image Mode? (ai_nature_photo, ai_islamic_pattern, ai_minimal_gradient)", "ai_nature_photo");
+    if (mode === null) return;
     try {
         const p = await request(`/posts/${id}/regenerate-image`, {
             method: 'POST',
@@ -1469,7 +1499,7 @@ async function attachMediaToPost(input) {
 
 async function publishPostNow() {
     const id = document.getElementById("post_edit_id").value;
-    if (!confirm("Publish this to Instagram immediately?")) return;
+    if (!await customConfirm("Publish this to Instagram immediately?")) return;
     try {
         await request(`/posts/${id}/publish`, { method: "POST" });
         hidePostEditor();
@@ -1479,7 +1509,7 @@ async function publishPostNow() {
 
 async function deletePostUI() {
     const id = document.getElementById("post_edit_id").value;
-    if (!confirm("Discard this post entry forever?")) return;
+    if (!await customConfirm("Discard this post entry forever?")) return;
     try {
         await request(`/posts/${id}`, { method: "DELETE" });
         hidePostEditor();
@@ -1514,8 +1544,9 @@ async function loadMediaLibrary() {
 async function uploadMedia(input) {
     const file = input.files[0];
     if (!file) return;
-    const tags = prompt("Enter tags (comma separated)", "nature, islamic");
-    const tagsArray = tags ? tags.split(",").map(t => t.trim()) : [];
+    const tags = await customPrompt("Enter tags (comma separated)", "nature, islamic");
+    if (tags === null) return;
+    const tagsArray = tags.split(",").map(t => t.trim()).filter(Boolean);
     
     const fd = new FormData();
     fd.append("image", file);
@@ -1530,7 +1561,7 @@ async function uploadMedia(input) {
 }
 
 async function deleteMedia(id) {
-    if(!confirm("Remove this asset from library?")) return;
+    if(!await customConfirm("Remove this asset from library?")) return;
     try {
         await request(`/media-assets/${id}`, { method: "DELETE" });
         loadMediaLibrary();
@@ -1538,7 +1569,7 @@ async function deleteMedia(id) {
 }
 
 async function deleteAuto(id) {
-    if(!confirm("Remove this automation forever?")) return;
+    if(!await customConfirm("Remove this automation forever?")) return;
     try {
         await request(`/automations/${id}`, { method: "DELETE" });
         refreshAll();
@@ -1699,7 +1730,7 @@ async function saveProfileWrapper() {
 }
 
 async function deleteProfile(id) {
-    if(!confirm("Remove this content profile?")) return;
+    if(!await customConfirm("Remove this content profile?")) return;
     try {
         await request(`/profiles/${id}`, { method: "DELETE" });
         loadProfiles();
@@ -1751,7 +1782,7 @@ async function loadLibrary() {
 }
 
 async function seedDemoContent() {
-    if(!confirm("Seed database with demo Islamic content?")) return;
+    if(!await customConfirm("Seed database with demo Islamic content?")) return;
     try {
         await request("/library/seed-demo/", { method: "POST" });
         await loadLibrary();
@@ -1773,7 +1804,7 @@ async function importLibrary(input) {
 }
 
 async function deleteLibraryItem(id) {
-    if(!confirm("Remove this item from library?")) return;
+    if(!await customConfirm("Remove this item from library?")) return;
     try {
         await request(`/library/${id}`, { method: "DELETE" });
         await loadLibrary();
@@ -1894,7 +1925,7 @@ async function addAccount() {
     } finally { btn.disabled = false; }
 }
 async function deleteAccount(id) {
-    if(!confirm("Are you SURE you want to delete this Instagram account? This will also un-link it from any scheduled posts or automations!")) return;
+    if(!await customConfirm("Are you SURE you want to delete this Instagram account? This will also un-link it from any scheduled posts or automations!")) return;
     try {
         await request(`/ig-accounts/${id}`, { method: "DELETE" });
         showToast("Account deleted.", "success");
@@ -2084,6 +2115,60 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadProfile();
     refreshAll();
 });
+
+async function customConfirm(msg) {
+    return new Promise((resolve) => {
+        const container = document.getElementById("custom_dialog_container");
+        const box = document.getElementById("custom_confirm_box");
+        const msgEl = document.getElementById("custom_confirm_msg");
+        const okBtn = document.getElementById("custom_confirm_ok");
+        const cancelBtn = document.getElementById("custom_confirm_cancel");
+
+        msgEl.textContent = msg;
+        container.classList.remove("hidden");
+        box.classList.remove("hidden");
+
+        const cleanup = (val) => {
+            container.classList.add("hidden");
+            box.classList.add("hidden");
+            okBtn.onclick = null;
+            cancelBtn.onclick = null;
+            resolve(val);
+        };
+
+        okBtn.onclick = () => cleanup(true);
+        cancelBtn.onclick = () => cleanup(false);
+    });
+}
+
+async function customPrompt(msg, def = "") {
+    return new Promise((resolve) => {
+        const container = document.getElementById("custom_dialog_container");
+        const box = document.getElementById("custom_prompt_box");
+        const msgEl = document.getElementById("custom_prompt_msg");
+        const inputEl = document.getElementById("custom_prompt_input");
+        const okBtn = document.getElementById("custom_prompt_ok");
+        const cancelBtn = document.getElementById("custom_prompt_cancel");
+
+        msgEl.textContent = msg;
+        inputEl.value = def;
+        container.classList.remove("hidden");
+        box.classList.remove("hidden");
+        setTimeout(() => inputEl.focus(), 100);
+
+        const cleanup = (val) => {
+            container.classList.add("hidden");
+            box.classList.add("hidden");
+            okBtn.onclick = null;
+            cancelBtn.onclick = null;
+            resolve(val);
+        };
+
+        okBtn.onclick = () => cleanup(inputEl.value);
+        cancelBtn.onclick = () => cleanup(null);
+        inputEl.onkeydown = (e) => { if (e.key === "Enter") cleanup(inputEl.value); if (e.key === "Escape") cleanup(null); };
+    });
+}
 </script>
 </body>
 </html>
