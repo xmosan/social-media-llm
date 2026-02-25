@@ -73,6 +73,7 @@ APP_DASHBOARD_HTML = """<!doctype html>
         <p class="text-xs font-bold text-muted uppercase tracking-widest">Real-time intelligence feed</p>
       </div>
       <div class="flex gap-2">
+        {admin_cta}
         <button class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">New Post</button>
         <button class="px-6 py-3 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20">Sync Accounts</button>
       </div>
@@ -97,6 +98,10 @@ APP_DASHBOARD_HTML = """<!doctype html>
         <div class="text-2xl font-black text-brand">{next_post_countdown}</div>
       </div>
     </div>
+
+    </div>
+    
+    {connection_cta}
 
     <!-- Main Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -480,14 +485,34 @@ async def app_dashboard_page(
         </div>
         """
     
-    # Check if superadmin for admin link
+    # Connection CTA for empty states
+    connection_cta = ""
+    if account_count == 0:
+        connection_cta = f"""
+        <div class="glass p-12 rounded-[3rem] border-brand/20 bg-brand/5 text-center space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+          <div class="w-16 h-16 bg-brand/20 rounded-2xl flex items-center justify-center text-brand mx-auto">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+          </div>
+          <div class="space-y-2">
+            <h3 class="text-xl font-black italic text-white">Neural Engine Offline</h3>
+            <p class="text-muted text-sm max-w-md mx-auto">Your account is active, but no publishing destinations are linked. Connect your first Instagram account to activate the automation loop.</p>
+          </div>
+          <button onclick="alert('Instagram connection flow coming in next update. For now, use Admin Console or re-run onboarding.')" class="px-10 py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/40">Initialize IG Connection</button>
+        </div>
+        """
+    
+    # Check if superadmin for admin link and prominent CTA
     admin_link = ""
+    admin_cta = ""
     if user.is_superadmin:
         admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>'
+        admin_cta = '<a href="/admin" class="px-6 py-3 bg-rose-500/10 border border-rose-500/20 rounded-xl font-black text-[10px] uppercase tracking-widest text-rose-400 hover:bg-rose-500/20 transition-all flex items-center gap-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>Owner Ops</a>'
 
     html = APP_DASHBOARD_HTML.format(
         user_name=user.name or user.email,
         admin_link=admin_link,
+        admin_cta=admin_cta,
+        connection_cta=connection_cta,
         org_name=org.name if org else "Personal Workspace",
         weekly_post_count=weekly_post_count,
         account_count=account_count,
