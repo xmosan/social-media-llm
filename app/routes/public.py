@@ -2,7 +2,7 @@ from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 from app.db import get_db
-from app.models import ContactMessage, User
+from app.models import ContactMessage, User, TopicAutomation
 from app.security.auth import get_current_user
 from typing import Optional
 
@@ -668,3 +668,8 @@ async def process_contact(payload: ContactPayload, db: Session = Depends(get_db)
     db.add(msg)
     db.commit()
     return {"status": "success"}
+
+@router.get("/api/debug-automations")
+def api_debug_automations(db: Session = Depends(get_db)):
+    autos = db.query(TopicAutomation).all()
+    return [{"id": a.id, "name": a.name, "topic": a.topic_prompt, "last_error": a.last_error} for a in autos]
