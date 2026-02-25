@@ -24,11 +24,10 @@ def pick_content_item(
     """
     norm_topic = normalize_topic(topic)
     
-    # 1. Base query for enabled items belonging to this org and having the topic
+    # 1. Base query for items belonging to this org
     # Using JSON column for topics; check if the normalized topic is in the list.
     query = db.query(ContentItem).filter(
-        ContentItem.org_id == org_id,
-        ContentItem.enabled == True
+        ContentItem.org_id == org_id
     )
     
     # Filter by topic: iterate and check if norm_topic is in the list
