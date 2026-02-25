@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from ..db import get_db
 from ..config import settings
-from ..models import Post, IGAccount
+from ..models import Post, IGAccount, TopicAutomation
 from ..schemas import PostOut, ApproveIn, GenerateOut, PostUpdate
 from ..services.llm import generate_draft
 from ..services.policy import keyword_flags
@@ -144,7 +144,18 @@ def post_stats(
         stmt = stmt.where(Post.ig_account_id == ig_account_id)
         
     rows = db.execute(stmt).all()
-    return {"counts": {status: count for status, count in rows}}
+    
+    # Count Active Automations
+    auto_stmt = select(func.count(TopicAutomation.id)).where(TopicAutomation.org_id == org_id)
+    if ig_account_id:
+        auto_stmt = auto_stmt.where(TopicAutomation.ig_account_id == ig_account_id)
+    
+    auto_count = db.execute(auto_stmt).scalar() or 0
+    
+    return {
+        "counts": {status: count for status, count in rows},
+        "auto_count": auto_count
+    }
 
 @router.get("/calendar", response_model=list[PostOut])
 def get_calendar_posts(

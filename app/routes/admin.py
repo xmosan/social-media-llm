@@ -2327,7 +2327,11 @@ function renderSettingsAccounts() {
 async function loadStats() {
     const el = document.getElementById("stats");
     try {
-        const j = await request(`/posts/stats?ig_account_id=${ACTIVE_ACCOUNT_ID || ''}`);
+        let url = "/posts/stats";
+        if (ACTIVE_ACCOUNT_ID) {
+            url += `?ig_account_id=${ACTIVE_ACCOUNT_ID}`;
+        }
+        const j = await request(url);
         
         // Update Dashboard (if exists)
         if (document.getElementById("dash_today_posts")) {
