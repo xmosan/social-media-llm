@@ -1378,7 +1378,9 @@ async function openPostEditor(postId) {
         
         const statusEl = document.getElementById("post_edit_status");
         if (statusEl) {
-            statusEl.className = `px-4 py-1.5 rounded-xl border backdrop-blur-xl text-[8px] font-black uppercase tracking-[0.2em] shadow-2xl ${getPostColor(p.status).includes('emerald') ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-white/5 text-muted border-white/10'}`;
+            const isEmerald = p.status === 'published';
+            statusEl.className = `px-4 py-1.5 rounded-xl border backdrop-blur-xl text-[8px] font-black uppercase tracking-[0.2em] shadow-2xl ${isEmerald ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-white/5 text-muted border-white/10'}`;
+            statusEl.textContent = p.status.replace('_', ' ');
         }
         
         if (p.scheduled_time) {
