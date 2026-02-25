@@ -38,6 +38,10 @@ if missing_vars:
 
 app = FastAPI(title="Social Media LLM - Multi-tenant SaaS")
 
+@app.get("/api-test")
+def api_test():
+    return {"ok": True}
+
 class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
