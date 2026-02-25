@@ -40,7 +40,7 @@ def retrieve_relevant_chunks(db: Session, org_id: int, query: str, k: int = 5) -
                 "doc_title": doc_title,
                 "url": doc_url,
                 "chunk_text": chunk.chunk_text,
-                "metadata": chunk.metadata
+                "chunk_metadata": chunk.chunk_metadata
             })
     
     # Sort by score descending and return top k

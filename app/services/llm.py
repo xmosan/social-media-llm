@@ -72,7 +72,7 @@ def generate_topic_caption(
         if mode == "auto_library" and extra_context.get("sources"):
             sources = extra_context["sources"]
             sources_text = "\n".join([
-                f"- Excerpt: {s['chunk_text']}\n  Source: {s['doc_title']}\n  URL: {s.get('url') or 'N/A'}\n  Page: {s.get('metadata', {}).get('page') or 'N/A'}"
+                f"- Excerpt: {s['chunk_text']}\n  Source: {s['doc_title']}\n  URL: {s.get('url') or 'N/A'}\n  Page: {s.get('chunk_metadata', {}).get('page') or 'N/A'}"
                 for s in sources
             ])
             grounding_prompt = f"\nLIBRARY SOURCES (Source of Truth):\n{sources_text}\n"

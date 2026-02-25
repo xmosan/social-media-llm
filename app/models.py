@@ -335,7 +335,7 @@ class SourceChunk(Base):
     document_id = Column(Integer, ForeignKey("source_documents.id"), nullable=False, index=True)
     chunk_index = Column(Integer, nullable=False)
     chunk_text = Column(Text, nullable=False)
-    metadata = Column(JSON, nullable=True) # e.g. {"page": 1}
+    chunk_metadata = Column(JSON, nullable=True) # e.g. {"page": 1}
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     document = relationship("SourceDocument", back_populates="chunks")

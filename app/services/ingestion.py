@@ -100,7 +100,7 @@ def ingest_document(db: Session, org_id: int, title: str, source_type: str, cont
                 document_id=doc.id,
                 chunk_index=i,
                 chunk_text=chunk_content,
-                metadata={}
+                chunk_metadata={}
             )
             db.add(chunk)
             

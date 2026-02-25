@@ -339,7 +339,7 @@ class SourceChunkOut(BaseModel):
     document_id: int
     chunk_index: int
     chunk_text: str
-    metadata: dict | None = None
+    chunk_metadata: dict | None = None
     created_at: datetime
     class Config:
         from_attributes = True
