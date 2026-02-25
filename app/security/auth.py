@@ -94,3 +94,6 @@ def require_user(user: User | None = Depends(get_current_user)) -> User:
             headers={"WWW-Authenticate": "Bearer"},
         )
     return user
+
+def optional_user(user: User | None = Depends(get_current_user)) -> User | None:
+    return user
