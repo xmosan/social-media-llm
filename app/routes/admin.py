@@ -722,9 +722,18 @@ HTML = r"""<!doctype html>
                   <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em]">Directives</label>
                   <textarea id="source_text" class="w-full px-6 py-5 rounded-[2.5rem] bg-white/5 border border-white/10 text-xs font-bold text-white outline-none focus:ring-1 focus:ring-brand min-h-[160px] resize-none transition-all placeholder:text-white/10" placeholder="What should the AI intelligence generate?"></textarea>
               </div>
-              <div class="space-y-3">
-                  <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em]">Visual Source</label>
-                  <div class="relative border-2 border-dashed border-white/10 rounded-[2.5rem] p-10 hover:border-brand/40 transition-all group cursor-pointer bg-white/5">
+              <div class="space-y-4">
+                  <div class="flex items-center justify-between">
+                      <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em]">Visual Source</label>
+                      <div class="flex bg-white/5 p-1 rounded-xl border border-white/10">
+                          <button onclick="setIntakeMode('local')" id="intake_mode_local" class="px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all bg-brand text-white">Local</button>
+                          <button onclick="setIntakeMode('ai')" id="intake_mode_ai" class="px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all text-muted hover:text-white">AI Genesis</button>
+                      </div>
+                  </div>
+                  
+                  <input type="hidden" id="intake_use_ai" value="false">
+
+                  <div id="local_upload_zone" class="relative border-2 border-dashed border-white/10 rounded-[2.5rem] p-10 hover:border-brand/40 transition-all group cursor-pointer bg-white/5">
                       <input id="image" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="updateFileName(this)"/>
                       <div class="text-center">
                           <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-10 w-10 text-white/10 mb-4 group-hover:text-brand transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -732,6 +741,14 @@ HTML = r"""<!doctype html>
                           </svg>
                           <div id="file_name_display" class="text-[10px] font-black text-muted uppercase tracking-widest">Select Visual Source</div>
                       </div>
+                  </div>
+
+                  <div id="ai_genesis_zone" class="hidden relative border-2 border-dashed border-indigo-500/20 rounded-[2.5rem] p-10 bg-indigo-500/5 items-center justify-center flex-col text-center">
+                      <div class="w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 mb-4 mx-auto animate-pulse">
+                          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                      </div>
+                      <div class="text-[10px] font-black text-indigo-300 uppercase tracking-widest">Neural Image Manifestation</div>
+                      <div class="text-[8px] font-bold text-indigo-400/60 uppercase tracking-widest mt-2">DALL-E will visualize your Directives</div>
                   </div>
               </div>
               <div class="grid grid-cols-1 gap-4 pt-4">
@@ -1050,8 +1067,17 @@ function updateFileName(input) {
         console.log(`DEBUG: Selected file - ${file.name}, Size: ${file.size} bytes, Type: ${file.type}`);
         document.getElementById("file_name_display").textContent = file.name;
     } else {
-        document.getElementById("file_name_display").textContent = "Upload your own file here";
+        document.getElementById("file_name_display").textContent = "Select Visual Source";
     }
+}
+function setIntakeMode(mode) {
+    const isAi = mode === 'ai';
+    document.getElementById("intake_use_ai").value = isAi;
+    document.getElementById("local_upload_zone").classList.toggle("hidden", isAi);
+    document.getElementById("ai_genesis_zone").classList.toggle("hidden", !isAi);
+    
+    document.getElementById("intake_mode_local").className = !isAi ? "px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all bg-brand text-white" : "px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all text-muted hover:text-white";
+    document.getElementById("intake_mode_ai").className = isAi ? "px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all bg-brand text-white" : "px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all text-muted hover:text-white";
 }
 async function request(url, opts = {}) {
     console.log(`[API REQUEST] ${opts.method || "GET"} ${url}`, opts.body ? "(with body)" : "");
@@ -1966,17 +1992,23 @@ function renderPost(p) {
 }
 async function uploadPost() {
     if (!ACTIVE_ACCOUNT_ID) return showToast("Select an account first!", "error");
+    const useAi = document.getElementById("intake_use_ai").value === "true";
     const file = document.getElementById("image").files[0];
-    if (!file) return showToast("Pick an image asset first!", "error");
+    if (!useAi && !file) return showToast("Pick an image asset or select AI Genesis!", "error");
+    
+    const sourceText = document.getElementById("source_text").value;
+    if (useAi && !sourceText) return showToast("Enter Directives for AI image generation!", "error");
+
     const btn = document.getElementById("intake_btn");
     const msg = document.getElementById("upload_msg");
     const fd = new FormData();
-    fd.append("source_text", document.getElementById("source_text").value);
-    fd.append("image", file);
+    fd.append("source_text", sourceText);
+    if (file) fd.append("image", file);
     fd.append("ig_account_id", ACTIVE_ACCOUNT_ID);
+    fd.append("use_ai_image", useAi);
     try {
         btn.disabled = true;
-        msg.textContent = "📡 UPLOADING CONTENT...";
+        msg.textContent = useAi ? "🧠 MANIFESTING AI VISUAL..." : "📡 UPLOADING CONTENT...";
         msg.className = "text-center text-[10px] font-black text-indigo-500 animate-pulse";
         await request("/posts/intake", { method: "POST", body: fd });
         msg.textContent = "SUCCESS!";

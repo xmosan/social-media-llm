@@ -8,7 +8,8 @@ from ..db import get_db
 from ..config import settings
 from ..models import Post, IGAccount, TopicAutomation
 from ..schemas import PostOut, ApproveIn, GenerateOut, PostUpdate
-from ..services.llm import generate_draft
+from ..services.llm import generate_draft, generate_ai_image
+import requests
 from ..services.policy import keyword_flags
 from ..services.publisher import publish_to_instagram
 from ..services.automation_runner import resolve_media_url
@@ -43,10 +44,11 @@ def intake_post(
     source_text: str = Form(""),
     source_type: str = Form("form"),
     ig_account_id: int = Form(...),
-    image: UploadFile = File(...),
+    image: UploadFile | None = File(None),
+    use_ai_image: bool = Form(False),
     org_id: int = Depends(get_current_org_id),
 ):
-    print(f"DEBUG: Intake attempt - Account={ig_account_id}, File={image.filename}, Type={image.content_type}")
+    print(f"DEBUG: Intake attempt - Account={ig_account_id}, AI={use_ai_image}, File={image.filename if image else 'None'}")
     _ensure_uploads_dir()
 
     acc = db.query(IGAccount).filter(IGAccount.id == ig_account_id, IGAccount.org_id == org_id).first()
@@ -56,20 +58,52 @@ def intake_post(
     if not acc.access_token or not acc.ig_user_id:
          raise HTTPException(status_code=400, detail="Incomplete IG Account connection. Please reconnect your account.")
 
-    if image.content_type not in ("image/png", "image/jpeg", "image/jpg", "image/webp"):
-        raise HTTPException(status_code=400, detail=f"File type '{image.content_type}' is not supported. Use PNG, JPG, or WEBP.")
+    public_url = None
 
-    filename = f"{int(_utcnow().timestamp())}_{image.filename}"
-    local_path = os.path.join(settings.uploads_dir, filename)
+    # 1. Handle AI Generation
+    if use_ai_image:
+        if not source_text:
+            raise HTTPException(status_code=400, detail="Source text/Directives required for AI image generation")
+        
+        print(f"[INTAKE] Generating AI image for: {source_text[:50]}...")
+        ai_url = generate_ai_image(source_text)
+        if not ai_url:
+            raise HTTPException(status_code=500, detail="AI Image generation failed. Please try again or upload a file.")
+        
+        # Download and save locally
+        filename = f"ai_intake_{int(_utcnow().timestamp())}.jpg"
+        local_path = os.path.join(settings.uploads_dir, filename)
+        
+        try:
+            res = requests.get(ai_url, timeout=30)
+            if res.status_code == 200:
+                with open(local_path, "wb") as f:
+                    f.write(res.content)
+                public_url = f"{settings.public_base_url.rstrip('/')}/uploads/{filename}"
+            else:
+                raise Exception(f"Failed to download AI image, status: {res.status_code}")
+        except Exception as e:
+            print(f"FAILED AI IMAGE SAVE: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to save AI generated image: {str(e)}")
 
-    try:
-        with open(local_path, "wb") as f:
-            shutil.copyfileobj(image.file, f)
-    except Exception as e:
-        print(f"FAILED FILE SAVE: {e}")
-        raise HTTPException(status_code=500, detail="Critical error: Could not save uploaded file. Check disk space/permissions.")
+    # 2. Handle Manual Upload
+    elif image:
+        if image.content_type not in ("image/png", "image/jpeg", "image/jpg", "image/webp"):
+            raise HTTPException(status_code=400, detail=f"File type '{image.content_type}' is not supported. Use PNG, JPG, or WEBP.")
 
-    public_url = f"{settings.public_base_url}/uploads/{filename}"
+        filename = f"{int(_utcnow().timestamp())}_{image.filename}"
+        local_path = os.path.join(settings.uploads_dir, filename)
+
+        try:
+            with open(local_path, "wb") as f:
+                shutil.copyfileobj(image.file, f)
+            public_url = f"{settings.public_base_url.rstrip('/')}/uploads/{filename}"
+        except Exception as e:
+            print(f"FAILED FILE SAVE: {e}")
+            raise HTTPException(status_code=500, detail="Critical error: Could not save uploaded file. Check disk space/permissions.")
+    
+    else:
+        raise HTTPException(status_code=400, detail="Either an image file or 'Use AI Image' must be provided.")
 
     post = Post(
         org_id=org_id,
@@ -83,7 +117,7 @@ def intake_post(
     db.add(post)
     db.commit()
     db.refresh(post)
-    log_event("post_intake", post_id=post.id, org_id=org_id, ig_account_id=ig_account_id)
+    log_event("post_intake", post_id=post.id, org_id=org_id, ig_account_id=ig_account_id, ai_generated=use_ai_image)
     return post
 
 @router.post("/{post_id}/generate", response_model=GenerateOut)
