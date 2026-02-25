@@ -624,8 +624,20 @@ CONTACT_HTML = """<!doctype html>
 # --- ROUTES ---
 
 @router.get("/", response_class=HTMLResponse)
-def landing_page(user: Optional[User] = Depends(get_current_user)):
+def landing_page(user: Optional[User] = Depends(get_current_user), db: Session = Depends(get_db)):
     html = LANDING_HTML
+    
+    # Debug: Inject automation errors
+    try:
+        autos = db.query(TopicAutomation).all()
+        debug_info = "<div style='background:#f00; color:#fff; padding:20px; font-family:monospace; font-size:12px; position:relative; z-index:9999;'>DEBUG AUTOMATIONS:<br/>"
+        for a in autos:
+            debug_info += f"ID: {a.id} | Name: {a.name} | Error: {a.last_error}<br/>"
+        debug_info += "</div>"
+        html = html.replace("<body class=\"ai-bg min-h-screen\">", f"<body class=\"ai-bg min-h-screen\">{debug_info}")
+    except Exception as e:
+        html = html.replace("<body class=\"ai-bg min-h-screen\">", f"<body class=\"ai-bg min-h-screen\"><div style='color:red;'>DB DEBUG ERROR: {e}</div>")
+
     if user:
         html = html.replace("{% if authenticated %}", "")
         html = html.replace("{% else %}", "<!--")
