@@ -140,6 +140,8 @@ class TopicAutomationOut(BaseModel):
     content_profile_id: int | None = None
     creativity_level: int = 3
     content_seed: str | None = None
+    content_seed_mode: str = "none"
+    content_seed_text: str | None = None
 
     # New Library fields
     use_content_library: bool
@@ -183,6 +185,8 @@ class TopicAutomationCreate(BaseModel):
     content_profile_id: int | None = None
     creativity_level: int = 3
     content_seed: str | None = None
+    content_seed_mode: str = "none"
+    content_seed_text: str | None = None
     
     # New Library fields
     use_content_library: bool = True
@@ -221,6 +225,8 @@ class TopicAutomationUpdate(BaseModel):
     content_profile_id: int | None = None
     creativity_level: int | None = None
     content_seed: str | None = None
+    content_seed_mode: str | None = None
+    content_seed_text: str | None = None
     
     use_content_library: bool | None = None
     avoid_repeat_days: int | None = None
@@ -326,6 +332,35 @@ class MediaAssetCreate(BaseModel):
             except:
                 return []
         return v
+
+class SourceChunkOut(BaseModel):
+    id: int
+    org_id: int
+    document_id: int
+    chunk_index: int
+    chunk_text: str
+    metadata: dict | None = None
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class SourceDocumentOut(BaseModel):
+    id: int
+    org_id: int
+    title: str
+    source_type: str
+    original_url: str | None = None
+    file_path: str | None = None
+    created_at: datetime
+    chunks: list[SourceChunkOut] = []
+    class Config:
+        from_attributes = True
+
+class SourceDocumentCreate(BaseModel):
+    title: str
+    source_type: str
+    original_url: str | None = None
+    raw_text: str | None = None
 
 class PostUpdate(BaseModel):
     caption: str | None = None

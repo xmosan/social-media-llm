@@ -50,6 +50,7 @@ APP_LAYOUT_HTML = """<!doctype html>
           <a href="/app" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_dashboard}">Dashboard</a>
           <a href="/app/calendar" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_calendar} text-muted hover:text-white transition-colors">Calendar</a>
           <a href="/app/automations" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_automations} text-muted hover:text-white transition-colors">Automations</a>
+          <a href="/app/library" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_library} text-muted hover:text-white transition-colors">Library</a>
           <a href="/app/media" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_media} text-muted hover:text-white transition-colors">Media Library</a>
           {admin_link}
         </div>
@@ -271,9 +272,9 @@ ONBOARDING_HTML = """<!doctype html>
                 <h4 class="font-black italic text-sm">Automated Feed (RSS/URL)</h4>
                 <p class="text-[10px] text-muted uppercase mt-1">Pull knowledge from external websites.</p>
               </div>
-              <div onclick="onboardingData.contentMode='sunnah'; renderStep()" class="p-6 rounded-2xl border ${onboardingData.contentMode==='sunnah' ? 'border-indigo-500 bg-indigo-500/10' : 'border-white/10 bg-white/5'} cursor-pointer">
-                <h4 class="font-black italic text-sm">Sunnah Library</h4>
-                <p class="text-[10px] text-muted uppercase mt-1">Ground content in authentic Islamic wisdom.</p>
+              <div onclick="onboardingData.contentMode='auto_library'; renderStep()" class="p-6 rounded-2xl border ${onboardingData.contentMode==='auto_library' ? 'border-indigo-500 bg-indigo-500/10' : 'border-white/10 bg-white/5'} cursor-pointer">
+                <h4 class="font-black italic text-sm">Organizational Library (BYOS)</h4>
+                <p class="text-[10px] text-muted uppercase mt-1">Ground content in your own documents and sources.</p>
               </div>
             </div>
             <p class="text-[9px] text-muted font-bold uppercase tracking-widest text-center mt-2 italic text-indigo-400">Can be changed later in configuration.</p>
@@ -531,6 +532,7 @@ async def app_dashboard_page(
         active_dashboard="active",
         active_calendar="",
         active_automations="",
+        active_library="",
         active_media="",
         content=content
     )
@@ -562,6 +564,7 @@ async def app_calendar_page(
         active_dashboard="",
         active_calendar="active",
         active_automations="",
+        active_library="",
         active_media="",
         content=content
     )
@@ -575,14 +578,173 @@ async def app_automations_page(
     org = db.query(Org).filter(Org.id == user.active_org_id).first()
     admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>' if user.is_superadmin else ""
     
-    content = """
-    <div class="space-y-6">
-        <h1 class="text-3xl font-black italic tracking-tight text-white">Neural <span class="text-brand">Automations</span></h1>
-        <div class="glass p-12 rounded-[3rem] border-brand/20 bg-brand/5 text-center">
-            <h3 class="text-xl font-black italic text-white mb-2">Intelligence Rules</h3>
-            <p class="text-muted text-sm max-w-md mx-auto">Automation configuration is currently managed via the onboarding wizard. Advanced rules editor coming soon.</p>
+    autos = db.query(TopicAutomation).filter(TopicAutomation.org_id == user.active_org_id).all()
+    
+    autos_html = ""
+    for a in autos:
+        status_btn = f'<button onclick="toggleAuto({a.id}, {str(not a.enabled).lower()})" class="px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest { "bg-emerald-500/20 text-emerald-400" if a.enabled else "bg-rose-500/20 text-rose-400" }">{ "Enabled" if a.enabled else "Disabled" }</button>'
+        
+        autos_html += f"""
+        <div class="glass p-8 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-start md:items-center gap-6 group border border-white/5 hover:border-brand/40 transition-all">
+          <div class="space-y-2 flex-1">
+            <div class="flex items-center gap-3">
+              <h3 class="text-xl font-black italic text-white tracking-tight">{a.name}</h3>
+              {status_btn}
+            </div>
+            <p class="text-xs text-muted font-medium line-clamp-1">{a.topic_prompt}</p>
+            <div class="flex gap-4 pt-2">
+              <div class="text-[8px] font-black uppercase tracking-widest text-muted">Mode: <span class="text-white">{a.content_seed_mode or 'Default'}</span></div>
+              <div class="text-[8px] font-black uppercase tracking-widest text-muted">Schedule: <span class="text-white">Daily @ {a.post_time_local or '09:00'}</span></div>
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <button onclick='showEditModal({json.dumps({"id": a.id, "name": a.name, "topic": a.topic_prompt, "seed_mode": a.content_seed_mode, "seed_text": a.content_seed_text or "", "time": a.post_time_local or "09:00"})})' class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">Configure</button>
+            <button onclick="runNow({a.id})" class="px-6 py-3 bg-brand/20 text-brand rounded-xl font-black text-[10px] uppercase tracking-widest border border-brand/20 hover:bg-brand/30 transition-all">Run Now</button>
+          </div>
         </div>
+        """
+
+    content = f"""
+    <div class="space-y-8">
+      <div class="flex justify-between items-end">
+        <div>
+          <h1 class="text-3xl font-black italic tracking-tight text-white">Neural <span class="text-brand">Automations</span></h1>
+          <p class="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Neural Loop Configuration</p>
+        </div>
+        <button onclick="alert('Creating new automations is coming in the next update. Use onboarding to add your first one.')" class="px-8 py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20">+ New Automation</button>
+      </div>
+
+      <div class="space-y-4">
+        {autos_html or '<div class="py-20 text-center glass rounded-[3rem]"><p class="text-muted font-black text-[10px] uppercase tracking-widest">No active automations. Run the onboarding wizard or create one manually.</p></div>'}
+      </div>
     </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-6">
+      <div class="glass max-w-2xl w-full p-10 rounded-[2.5rem] space-y-6 max-h-[90vh] overflow-y-auto">
+        <h2 class="text-2xl font-black italic text-white tracking-tight">Configure <span class="text-brand">Intelligence</span></h2>
+        
+        <input type="hidden" id="editId">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-4">
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Automation Name</label>
+              <input type="text" id="editName" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand">
+            </div>
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Core Topic Prompt</label>
+              <textarea id="editTopic" rows="3" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand"></textarea>
+            </div>
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Posting Time (Local)</label>
+              <input type="time" id="editTime" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand">
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Content Seed Strategy (BYOS)</label>
+              <select id="editSeedMode" onchange="toggleSeedText()" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand appearance-none text-white">
+                <option value="none">None (Pure AI Generation)</option>
+                <option value="manual">Manual Seed (Provide text below)</option>
+                <option value="auto_library">Auto-Library (Retrieve from knowledge base)</option>
+              </select>
+            </div>
+            <div id="seedTextGroup" class="space-y-1 hidden">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Manual Seed Text</label>
+              <textarea id="editSeedText" rows="5" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-[10px] outline-none focus:ring-2 focus:ring-brand placeholder-white/20" placeholder="Paste the content you want the AI to ground its generation on..."></textarea>
+            </div>
+            <div class="p-4 bg-brand/10 border border-brand/20 rounded-xl">
+              <p class="text-[9px] font-bold text-brand uppercase tracking-widest leading-relaxed">
+                <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                Tip: Auto-Library performs semantic keyword retrieval from your uploaded documents to ground the LLM.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-4 pt-4 border-t border-white/5">
+          <button onclick="hideEditModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest">Discard</button>
+          <button onclick="saveAutomation()" class="flex-[2] py-4 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg shadow-brand/20">Apply Changes</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function showEditModal(data) {{
+        document.getElementById('editId').value = data.id;
+        document.getElementById('editName').value = data.name;
+        document.getElementById('editTopic').value = data.topic;
+        document.getElementById('editSeedMode').value = data.seed_mode || 'none';
+        document.getElementById('editSeedText').value = data.seed_text;
+        document.getElementById('editTime').value = data.time;
+        
+        toggleSeedText();
+        document.getElementById('editModal').classList.remove('hidden');
+      }}
+
+      function hideEditModal() {{
+        document.getElementById('editModal').classList.add('hidden');
+      }}
+
+      function toggleSeedText() {{
+        const mode = document.getElementById('editSeedMode').value;
+        const group = document.getElementById('seedTextGroup');
+        if (mode === 'manual') group.classList.remove('hidden');
+        else group.classList.add('hidden');
+      }}
+
+      async function saveAutomation() {{
+        const id = document.getElementById('editId').value;
+        const payload = {{
+          name: document.getElementById('editName').value,
+          topic_prompt: document.getElementById('editTopic').value,
+          content_seed_mode: document.getElementById('editSeedMode').value,
+          content_seed_text: document.getElementById('editSeedText').value,
+          post_time_local: document.getElementById('editTime').value
+        }};
+        
+        const btn = event.target;
+        btn.disabled = true;
+        btn.textContent = 'SAVING...';
+
+        try {{
+          const res = await fetch(`/automations/${{id}}`, {{
+            method: 'PATCH',
+            headers: {{ 'Content-Type': 'application/json' }},
+            body: JSON.stringify(payload)
+          }});
+          if (res.ok) window.location.reload();
+          else alert('Save failed');
+        }} catch(e) {{ alert('Network error'); }}
+        finally {{ btn.disabled = false; btn.textContent = 'Apply Changes'; }}
+      }}
+
+      async function toggleAuto(id, enabled) {{
+        try {{
+          const res = await fetch(`/automations/${{id}}`, {{
+            method: 'PATCH',
+            headers: {{ 'Content-Type': 'application/json' }},
+            body: JSON.stringify({{ enabled: enabled }})
+          }});
+          if (res.ok) window.location.reload();
+        }} catch(e) {{ alert('Error toggling'); }}
+      }}
+
+      async function runNow(id) {{
+        if (!confirm('Run this automation immediately? This will create a post in your pipeline.')) return;
+        const btn = event.target;
+        btn.disabled = true;
+        btn.textContent = 'RUNNING...';
+        try {{
+          const res = await fetch(`/automations/${{id}}/run`, {{ method: 'POST' }});
+          if (res.ok) alert('Neural loop triggered. Check dashboard for the new post.');
+          else alert('Run failed');
+        }} catch(e) {{ alert('Network error'); }}
+        finally {{ btn.disabled = false; btn.textContent = 'Run Now'; }}
+      }}
+    </script>
     """
     
     return APP_LAYOUT_HTML.format(
@@ -593,6 +755,7 @@ async def app_automations_page(
         active_dashboard="",
         active_calendar="",
         active_automations="active",
+        active_library="",
         active_media="",
         content=content
     )
@@ -624,7 +787,148 @@ async def app_media_page(
         active_dashboard="",
         active_calendar="",
         active_automations="",
+        active_library="",
         active_media="active",
+        content=content
+    )
+
+@router.get("/app/library", response_class=HTMLResponse)
+async def app_library_page(
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db)
+):
+    if not user.onboarding_complete: return RedirectResponse(url="/onboarding")
+    org_id = user.active_org_id
+    org = db.query(Org).filter(Org.id == org_id).first()
+    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>' if user.is_superadmin else ""
+    
+    from app.models import SourceDocument
+    docs = db.query(SourceDocument).filter(SourceDocument.org_id == org_id).order_by(SourceDocument.created_at.desc()).all()
+    
+    docs_html = ""
+    for d in docs:
+        icon = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>'
+        if d.source_type == "url":
+            icon = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>'
+        
+        docs_html += f"""
+        <div class="glass p-6 rounded-2xl flex justify-between items-center group">
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-brand border border-white/10">
+              {icon}
+            </div>
+            <div>
+              <div class="text-xs font-black text-white uppercase tracking-wider">{d.title}</div>
+              <div class="text-[8px] font-bold text-muted uppercase tracking-[0.2em]">{d.source_type} • {d.created_at.strftime("%b %d, %Y")}</div>
+            </div>
+          </div>
+          <div class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onclick="deleteDoc({d.id})" class="p-2 text-rose-400 hover:text-rose-300"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+          </div>
+        </div>
+        """
+
+    content = f"""
+    <div class="space-y-8">
+      <div class="flex justify-between items-end">
+        <div>
+          <h1 class="text-3xl font-black italic tracking-tight text-white">Source <span class="text-brand">Library</span></h1>
+          <p class="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Knowledge Base Management</p>
+        </div>
+        <div class="flex gap-4">
+          <input type="file" id="pdfUpload" class="hidden" accept=".pdf,.txt" onchange="handleFileUpload(this)">
+          <button onclick="document.getElementById('pdfUpload').click()" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">Upload PDF/TXT</button>
+          <button onclick="showUrlModal()" class="px-6 py-3 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20">Add URL Source</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+        {docs_html or '<div class="col-span-full py-20 text-center glass rounded-3xl"><p class="text-muted font-black text-[10px] uppercase tracking-widest">Your library is empty. Upload your first source to begin grounded generation.</p></div>'}
+      </div>
+    </div>
+
+    <!-- URL Modal -->
+    <div id="urlModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-6">
+      <div class="glass max-w-lg w-full p-10 rounded-[2.5rem] space-y-6">
+        <h2 class="text-2xl font-black italic text-white tracking-tight">Add <span class="text-brand">URL Source</span></h2>
+        <div class="space-y-4">
+          <div class="space-y-1">
+            <label class="text-[10px] font-black uppercase tracking-widest text-muted">Document Title</label>
+            <input type="text" id="urlTitle" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="e.g. My Organization Handbook">
+          </div>
+          <div class="space-y-1">
+            <label class="text-[10px] font-black uppercase tracking-widest text-muted">URL Address</label>
+            <input type="url" id="urlAddress" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="https://example.com/source">
+          </div>
+        </div>
+        <div class="flex gap-4 pt-4">
+          <button onclick="hideUrlModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
+          <button onclick="submitUrl()" class="flex-[2] py-4 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white">Extract & Ingest</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function showUrlModal() {{ document.getElementById('urlModal').classList.remove('hidden'); }}
+      function hideUrlModal() {{ document.getElementById('urlModal').classList.add('hidden'); }}
+
+      async function submitUrl() {{
+        const title = document.getElementById('urlTitle').value;
+        const url = document.getElementById('urlAddress').value;
+        if (!url) return alert('URL is required');
+
+        const btn = event.target;
+        btn.disabled = true;
+        btn.textContent = 'INGESTING...';
+
+        try {{
+          const res = await fetch('/library/add_url', {{
+            method: 'POST',
+            headers: {{ 'Content-Type': 'application/json' }},
+            body: JSON.stringify({{ title: title, source_type: 'url', original_url: url }})
+          }});
+          if (res.ok) window.location.reload();
+          else alert('Extraction failed');
+        }} catch(e) {{ alert('Network error'); }}
+        finally {{ btn.disabled = false; btn.textContent = 'Extract & Ingest'; }}
+      }}
+
+      async function handleFileUpload(input) {{
+        if (!input.files.length) return;
+        const file = input.files[0];
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {{
+          const res = await fetch('/library/upload', {{
+            method: 'POST',
+            body: formData
+          }});
+          if (res.ok) window.location.reload();
+          else alert('Upload failed');
+        }} catch(e) {{ alert('Network error'); }}
+      }}
+
+      async function deleteDoc(id) {{
+        if (!confirm('Are you sure you want to delete this source and all its knowledge chunks?')) return;
+        try {{
+          const res = await fetch(`/library/${{id}}`, {{ method: 'DELETE' }});
+          if (res.ok) window.location.reload();
+        }} catch(e) {{ alert('Network error'); }}
+      }}
+    </script>
+    """
+    
+    return APP_LAYOUT_HTML.format(
+        title="Library",
+        user_name=user.name or user.email,
+        org_name=org.name if org else "Personal Workspace",
+        admin_link=admin_link,
+        active_dashboard="",
+        active_calendar="",
+        active_automations="",
+        active_library="active",
+        active_media="",
         content=content
     )
 
@@ -684,7 +988,8 @@ async def finalize_onboarding(
                 ig_account_id=ig_acc.id,
                 name="Daily Intelligence Feed",
                 topic_prompt=payload.autoTopic or "Daily wisdom and news relevant to our niche.",
-                source_mode=payload.contentMode,
+                source_mode=payload.contentMode if payload.contentMode != "auto_library" else "none",
+                content_seed_mode="auto_library" if payload.contentMode == "auto_library" else "none",
                 post_time_local=payload.autoTime or "09:00",
                 enabled=True,
                 approval_mode="needs_manual_approve"

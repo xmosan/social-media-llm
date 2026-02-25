@@ -3,10 +3,11 @@ from typing import Any
 from datetime import datetime, timezone as dt_timezone, timedelta
 from sqlalchemy.orm import Session
 from app.models import TopicAutomation, Post, IGAccount, ContentUsage, MediaAsset, ContentItem
-from app.services.llm import generate_topic_caption, generate_caption_from_content_item, generate_ai_image
+from app.services.llm import generate_topic_caption, generate_caption_from_content_item, generate_ai_image, generate_topic_variations
 from app.services.publisher import publish_to_instagram
 from app.services.content_library import pick_content_item
 from app.services.image_card import create_quote_card
+from app.services.library_retrieval import retrieve_relevant_chunks
 from app.services.image_card import create_quote_card
 from app.config import settings
 import pytz
@@ -179,11 +180,49 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
     
     content_item = None
     try:
-        topic = automation.topic_prompt
-        log_event("automation_run_start", automation_id=automation.id, topic=topic, style=automation.style_preset)
+        topic_base = automation.topic_prompt
+        log_event("automation_run_start", automation_id=automation.id, topic=topic_base, style=automation.style_preset)
         
-        # 1. Content Selection
+        # 1. Topic Variations (Sub-angles)
+        try:
+            variations = generate_topic_variations(topic_base, count=5)
+            import random
+            topic = random.choice(variations)
+            log_event("automation_topic_variation", automation_id=automation.id, original=topic_base, selected=topic)
+        except Exception as e:
+            print(f"[AUTO] Topic variation failed: {e}")
+            topic = topic_base
+
+        # 2. Content Seed & Library Retrieval
         selected_items = []
+        library_context = None
+        seed_mode = getattr(automation, "content_seed_mode", "none") or "none"
+        
+        if seed_mode == "auto_library":
+            chunks = retrieve_relevant_chunks(db, automation.org_id, topic, k=5)
+            if chunks:
+                library_context = {
+                    "mode": "auto_library",
+                    "sources": chunks,
+                    "manual_seed": None
+                }
+            else:
+                log_event("automation_no_library_sources", automation_id=automation.id, topic=topic)
+                # Fallback: still generate but flag it
+                library_context = {
+                    "mode": "none",
+                    "sources": [],
+                    "manual_seed": None
+                }
+        elif seed_mode == "manual":
+            seed_text = getattr(automation, "content_seed_text", None)
+            library_context = {
+                "mode": "manual_seed",
+                "sources": [],
+                "manual_seed": seed_text
+            }
+        
+        # 3. Content Selection (Legacy/Other Sources)
         new_cursor = automation.last_item_cursor
 
         # NEW: Pluggable Content Sources
@@ -218,24 +257,8 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             except Exception as e:
                 print(f"[AUTO] Library selection failed: {e}")
 
-        if not selected_items:
-            print(f"[AUTO] FAILURE: No content found for topic '{topic}'")
-            # Create a failed post so user can see what happened
-            new_post = Post(
-                org_id=automation.org_id,
-                ig_account_id=automation.ig_account_id,
-                is_auto_generated=True,
-                automation_id=automation.id,
-                status="failed",
-                source_type="automation",
-                source_text=f"AUTO: {automation.name} | topic={topic}",
-                flags={"automation_error": "No content found in library or sources for topic", "topic": topic}
-            )
-            db.add(new_post)
-            automation.last_error = f"No content found for topic: {topic}"
-            automation.last_run_at = datetime.now(dt_timezone.utc)
-            db.commit()
-            return new_post
+        # If we have NEITHER selected items NOR library chunks, and we are in auto_library mode, we flag it.
+        # But per requirements if library empty -> still generate generic.
 
         # 1.5 Content Profile Injection
         content_profile_prompt = None
@@ -280,6 +303,12 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 "Avoid music references and other disallowed content per policy.",
             ],
         }
+        
+        # Merge Library Context
+        if library_context:
+            context_payload.update(library_context)
+            if library_context.get("mode") == "auto_library" and not library_context.get("sources"):
+                context_payload["instructions"].append("No library sources found for this topic. Generate a generic educational caption WITHOUT and quotes or citations.")
 
         print(f"[AUTO] Generating for automation_id={automation.id} topic='{topic}'")
         
@@ -359,7 +388,13 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
 
         # 4. Create Post
         status = "scheduled"
-        if automation.approval_mode == "needs_manual_approve":
+        flags = {}
+        
+        if seed_mode == "auto_library" and library_context and not library_context.get("sources"):
+            status = "needs_review"
+            flags["reason"] = "no_library_sources_found"
+            
+        if automation.approval_mode == "needs_manual_approve" and status != "needs_review":
             status = "drafted"
             
         source_text = f"AUTO: {automation.name} | topic={topic}"

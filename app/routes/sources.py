@@ -14,7 +14,7 @@ def create_source(payload: dict, db: Session = Depends(get_db), org_id: int = De
     name = payload.get("name")
     config = payload.get("config") or {}
 
-    if source_type not in ("manual_library", "rss", "url_list", "sunnah"):
+    if source_type not in ("manual_library", "rss", "url_list"):
         raise HTTPException(400, "Invalid source_type")
 
     src = ContentSource(

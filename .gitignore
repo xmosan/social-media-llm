@@ -22,3 +22,4 @@ served_script*.js
 lt.log
 tunnel.log
 !*.py\n.venv_new
+venv2/

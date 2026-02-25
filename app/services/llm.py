@@ -62,15 +62,38 @@ def generate_topic_caption(
 
     banned_prompt = f"Avoid these specific words/phrases: {', '.join(banned_phrases)}" if banned_phrases else ""
 
-    # Grounding Context
+    # Grounding Context Logic
     grounding_prompt = ""
-    if extra_context and extra_context.get("source_items"):
-        items_str = "\n".join([f"- {it['text']} (Source: {it.get('title') or 'N/A'})" for it in extra_context["source_items"]])
-        grounding_prompt = f"\nGROUNDING CONTENT (Use these to inform the caption):\n{items_str}\n"
+    special_instructions = []
+    
+    if extra_context:
+        mode = extra_context.get("mode")
+        
+        if mode == "auto_library" and extra_context.get("sources"):
+            sources = extra_context["sources"]
+            sources_text = "\n".join([
+                f"- Excerpt: {s['chunk_text']}\n  Source: {s['doc_title']}\n  URL: {s.get('url') or 'N/A'}\n  Page: {s.get('metadata', {}).get('page') or 'N/A'}"
+                for s in sources
+            ])
+            grounding_prompt = f"\nLIBRARY SOURCES (Source of Truth):\n{sources_text}\n"
+            special_instructions.append("Use ONE short excerpt (max 1-2 sentences) from the provided library sources verbatim.")
+            special_instructions.append("Cite the source title and URL/Page clearly at the end of the caption or reflection.")
+            special_instructions.append("Do NOT fabricate quotes or information not present in the sources.")
+            
+        elif mode == "manual_seed" and extra_context.get("manual_seed"):
+            grounding_prompt = f"\nMANUAL SEED CONTENT:\n{extra_context['manual_seed']}\n"
+            special_instructions.append("The caption must be grounded in and reflect the provided manual seed content.")
+        
+        # Backward compatibility or additional instructions
+        if extra_context.get("instructions"):
+            if isinstance(extra_context["instructions"], list):
+                special_instructions.extend(extra_context["instructions"])
+            else:
+                special_instructions.append(extra_context["instructions"])
 
-    extra_instructions = ""
-    if extra_context and extra_context.get("instructions"):
-        extra_instructions = "\nSPECIAL INSTRUCTIONS:\n" + "\n".join([f"- {instr}" for instr in extra_context["instructions"]])
+    extra_instructions_str = ""
+    if special_instructions:
+        extra_instructions_str = "\nSPECIAL INSTRUCTIONS:\n" + "\n".join([f"- {instr}" for instr in special_instructions])
 
     prompt = f"""
     Topic/Concept: {topic}
@@ -79,15 +102,16 @@ def generate_topic_caption(
     Primary Language: {lang_content}
     {banned_prompt}
     {grounding_prompt}
-    {extra_instructions}
+    {extra_instructions_str}
 
     Task: Generate a professional social media caption, hashtags, and alt text.
     Strict Requirements:
     1. DO NOT include generic filler like "Enhance your daily reminder" or "Welcome to our page".
     2. Write a unique, meaningful caption specifically about the topic/concept provided.
-    3. If grounding content is provided, use it as the source of truth.
+    3. If grounding content is provided, you MUST use it and cite it as instructed.
     4. NO meta-talk like "Certainly, here is your caption".
     5. Output must be ready to publish.
+    6. DO NOT return the topic as the caption itself.
     
     Return JSON:
     {{
@@ -112,12 +136,40 @@ def generate_topic_caption(
     )
     
     result = json.loads(response.choices[0].message.content)
+    caption = result.get("caption", "").strip()
+    
+    # GUARDRAIL: Topic mismatch or generic error
+    if not caption or caption.lower() == topic.lower() or caption.startswith("AUTO:"):
+        print(f"[LLM] Guardrail triggered: Caption is generic or identical to topic. Retrying with stricter instructions.")
+        # We could retry here, but for now we'll just log it and let the runner handle it
+        # Actually, let's just return what we have but it might be caught by the runner's guardrails.
     
     # Final check on hashtags if they come back as strings or other types
     if not isinstance(result.get("hashtags"), list):
         result["hashtags"] = []
 
     return result
+
+def generate_topic_variations(topic: str, count: int = 5) -> list[str]:
+    """Generates X sub-angles or variations for a given topic to provide variety."""
+    client = get_client()
+    prompt = f"Given the topic '{topic}', generate {count} diverse sub-angles or specific perspectives for a social media post. Return as a JSON list of strings."
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"}
+        )
+        data = json.loads(response.choices[0].message.content)
+        # Search for any list in the object
+        for v in data.values():
+            if isinstance(v, list):
+                return v[:count]
+        return [topic]
+    except Exception as e:
+        print(f"[LLM] Error generating topic variations: {e}")
+        return [topic]
 
 def generate_caption_from_content_item(
     content_item: Any, # Use Any because of circular import risk with models

@@ -17,6 +17,7 @@ class Org(Base):
     content_items = relationship("ContentItem", back_populates="org")
     content_usages = relationship("ContentUsage", back_populates="org")
     media_assets = relationship("MediaAsset", back_populates="org")
+    source_documents = relationship("SourceDocument", back_populates="org")
 
 class User(Base):
     __tablename__ = "users"
@@ -159,7 +160,9 @@ class TopicAutomation(Base):
     topic_prompt = Column(Text, nullable=False)
     style_preset = Column(String, nullable=False, default="islamic_reminder")
     custom_style_instructions = Column(Text, nullable=True)
-    content_seed = Column(Text, nullable=True) # User provided seed text or specific Hadith
+    content_seed = Column(Text, nullable=True) # Legacy seed text
+    content_seed_mode = Column(String, default="none") # none, manual, auto_library
+    content_seed_text = Column(Text, nullable=True) # User provided seed text or specific content
     
     tone = Column(String, default="medium") # short, medium, long
     language = Column(String, default="english") # english, arabic_mix
@@ -199,7 +202,7 @@ class TopicAutomation(Base):
 
     # NEW: Pluggable Content Sourcing
     source_id = Column(Integer, ForeignKey("content_sources.id"), nullable=True)
-    source_mode = Column(String, nullable=False, default="none") # none, manual_library, rss, url_list, sunnah
+    source_mode = Column(String, nullable=False, default="none") # none, manual_library, rss, url_list
     items_per_post = Column(Integer, nullable=False, default=1)
     selection_mode = Column(String, nullable=False, default="random") # random, round_robin
     last_item_cursor = Column(String, nullable=True)
@@ -224,7 +227,7 @@ class ContentSource(Base):
     id = Column(Integer, primary_key=True, index=True)
     org_id = Column(Integer, ForeignKey("orgs.id"), nullable=False, index=True)
     name = Column(String, nullable=False) 
-    source_type = Column(String, nullable=False) # manual_library, rss, url_list, sunnah
+    source_type = Column(String, nullable=False) # manual_library, rss, url_list
     config = Column(JSON, nullable=False, default=dict)
     enabled = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -309,3 +312,30 @@ class ContactMessage(Base):
     email = Column(String, nullable=False)
     message = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class SourceDocument(Base):
+    __tablename__ = "source_documents"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("orgs.id"), nullable=False, index=True)
+    title = Column(String, nullable=False)
+    source_type = Column(String, nullable=False) # pdf, text, url
+    original_url = Column(Text, nullable=True)
+    file_path = Column(Text, nullable=True)
+    raw_text = Column(Text, nullable=True)
+    status = Column(String, default="active") # processing, active, error
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    org = relationship("Org", back_populates="source_documents")
+    chunks = relationship("SourceChunk", back_populates="document", cascade="all, delete-orphan")
+
+class SourceChunk(Base):
+    __tablename__ = "source_chunks"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("orgs.id"), nullable=False, index=True)
+    document_id = Column(Integer, ForeignKey("source_documents.id"), nullable=False, index=True)
+    chunk_index = Column(Integer, nullable=False)
+    chunk_text = Column(Text, nullable=False)
+    metadata = Column(JSON, nullable=True) # e.g. {"page": 1}
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    document = relationship("SourceDocument", back_populates="chunks")
