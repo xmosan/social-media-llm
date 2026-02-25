@@ -227,6 +227,8 @@ def on_startup():
                 ("content_seed", "TEXT"),
                 ("source_id", "INTEGER"),
                 ("source_mode", "VARCHAR DEFAULT 'none'"),
+                ("content_seed_mode", "VARCHAR DEFAULT 'none'"),
+                ("content_seed_text", "TEXT"),
                 ("items_per_post", "INTEGER DEFAULT 1"),
                 ("selection_mode", "VARCHAR DEFAULT 'random'"),
                 ("last_item_cursor", "VARCHAR")
