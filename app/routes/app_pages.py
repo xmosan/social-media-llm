@@ -23,7 +23,7 @@ APP_DASHBOARD_HTML = """<!doctype html>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    :root {
+    :root {{
       --brand: #6366f1;
       --brand-hover: #4f46e5;
       --main-bg: #020617;
@@ -32,12 +32,12 @@ APP_DASHBOARD_HTML = """<!doctype html>
       --text-muted: #94a3b8;
       --border: rgba(255, 255, 255, 0.1);
       --card-bg: rgba(255, 255, 255, 0.03);
-    }
-    body { font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: var(--text-main); }
-    .ai-bg { background: radial-gradient(circle at top right, #312e81, #020617, #020617); }
-    .glass { background: var(--surface); backdrop-filter: blur(12px); border: 1px solid var(--border); }
-    .text-gradient { background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .nav-link.active { color: var(--brand); border-bottom: 2px solid var(--brand); }
+    }}
+    body {{ font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: var(--text-main); }}
+    .ai-bg {{ background: radial-gradient(circle at top right, #312e81, #020617, #020617); }}
+    .glass {{ background: var(--surface); backdrop-filter: blur(12px); border: 1px solid var(--border); }}
+    .text-gradient {{ background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
+    .nav-link.active {{ color: var(--brand); border-bottom: 2px solid var(--brand); }}
   </style>
 </head>
 <body class="ai-bg min-h-screen">
@@ -50,6 +50,7 @@ APP_DASHBOARD_HTML = """<!doctype html>
           <a href="/app" class="text-[10px] font-black uppercase tracking-widest nav-link active py-5">Dashboard</a>
           <a href="/app/calendar" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-muted hover:text-white transition-colors">Calendar</a>
           <a href="/app/automations" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-muted hover:text-white transition-colors">Automations</a>
+          {admin_link}
         </div>
       </div>
       <div class="flex items-center gap-4">
@@ -237,10 +238,14 @@ ONBOARDING_HTML = """<!doctype html>
               <input type="text" id="igUserId" value="${onboardingData.igUserId}" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Instagram User ID">
               <input type="password" id="igAccessToken" value="${onboardingData.igAccessToken}" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Access Token">
             </div>
+            <p class="text-[9px] text-muted font-bold uppercase tracking-widest text-center mt-4 italic">Required for automated posting. Skipping will enter browse-only mode.</p>
           </div>
-          <div class="flex gap-4">
-            <button onclick="prevStep()" class="flex-1 bg-white/5 py-5 rounded-2xl font-black text-sm uppercase tracking-widest border border-white/10">Back</button>
-            <button onclick="nextStep()" class="flex-[2] bg-indigo-500 py-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-500/20">Verify & Continue</button>
+          <div class="flex flex-col gap-3">
+            <div class="flex gap-4">
+              <button onclick="prevStep()" class="flex-1 bg-white/5 py-5 rounded-2xl font-black text-sm uppercase tracking-widest border border-white/10">Back</button>
+              <button onclick="nextStep()" class="flex-[2] bg-indigo-500 py-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-500/20">Verify & Continue</button>
+            </div>
+            <button onclick="nextStep()" class="w-full py-4 text-[10px] font-black uppercase tracking-widest text-muted hover:text-white transition-colors">Skip for now &rarr;</button>
           </div>
         `;
       } else if (currentStep === 3) {
@@ -263,10 +268,13 @@ ONBOARDING_HTML = """<!doctype html>
                 <p class="text-[10px] text-muted uppercase mt-1">Ground content in authentic Islamic wisdom.</p>
               </div>
             </div>
+            <p class="text-[9px] text-muted font-bold uppercase tracking-widest text-center mt-2 italic text-indigo-400">Can be changed later in configuration.</p>
           </div>
-          <div class="flex gap-4 pt-8">
-            <button onclick="prevStep()" class="flex-1 bg-white/5 py-5 rounded-2xl font-black text-sm uppercase tracking-widest border border-white/10">Back</button>
-            <button onclick="nextStep()" class="flex-[2] bg-indigo-500 py-5 rounded-2xl font-black text-sm uppercase tracking-widest">Confirmed &rarr;</button>
+          <div class="flex flex-col gap-3 pt-4">
+            <div class="flex gap-4">
+              <button onclick="prevStep()" class="flex-1 bg-white/5 py-5 rounded-2xl font-black text-sm uppercase tracking-widest border border-white/10">Back</button>
+              <button onclick="nextStep()" class="flex-[2] bg-indigo-500 py-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-500/20">Continue &rarr;</button>
+            </div>
           </div>
         `;
       } else if (currentStep === 4) {
@@ -471,9 +479,15 @@ async def app_dashboard_page(
           <div class="text-[8px] font-black uppercase tracking-widest {status_color}">{p.status}</div>
         </div>
         """
+    
+    # Check if superadmin for admin link
+    admin_link = ""
+    if user.is_superadmin:
+        admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>'
 
     html = APP_DASHBOARD_HTML.format(
         user_name=user.name or user.email,
+        admin_link=admin_link,
         org_name=org.name if org else "Personal Workspace",
         weekly_post_count=weekly_post_count,
         account_count=account_count,
@@ -521,33 +535,34 @@ async def finalize_onboarding(
         org = db.query(Org).filter(Org.id == OrgMember.org_id).filter(OrgMember.user_id == user.id).first()
         if payload.orgName: org.name = payload.orgName
 
-    # 2. Connect IG Account
-    ig_acc = db.query(IGAccount).filter(IGAccount.org_id == org.id).first()
-    if not ig_acc:
-        ig_acc = IGAccount(
-            org_id=org.id,
-            name=f"IG: {payload.igUserId}",
-            ig_user_id=payload.igUserId,
-            access_token=payload.igAccessToken,
-            daily_post_time=payload.autoTime or "09:00"
-        )
-        db.add(ig_acc)
-        db.flush()
-    
-    # 3. Create Automation
-    auto = db.query(TopicAutomation).filter(TopicAutomation.org_id == org.id).first()
-    if not auto:
-        auto = TopicAutomation(
-            org_id=org.id,
-            ig_account_id=ig_acc.id,
-            name="Daily Intelligence Feed",
-            topic_prompt=payload.autoTopic or "Daily wisdom and news relevant to our niche.",
-            source_mode=payload.contentMode,
-            post_time_local=payload.autoTime or "09:00",
-            enabled=True,
-            approval_mode="needs_manual_approve"
-        )
-        db.add(auto)
+    # 2. Connect IG Account (Optional)
+    if payload.igUserId or payload.igAccessToken:
+        ig_acc = db.query(IGAccount).filter(IGAccount.org_id == org.id).first()
+        if not ig_acc:
+            ig_acc = IGAccount(
+                org_id=org.id,
+                name=f"IG: {payload.igUserId}" if payload.igUserId else "IG Account",
+                ig_user_id=payload.igUserId,
+                access_token=payload.igAccessToken,
+                daily_post_time=payload.autoTime or "09:00"
+            )
+            db.add(ig_acc)
+            db.flush()
+        
+        # 3. Create Automation
+        auto = db.query(TopicAutomation).filter(TopicAutomation.org_id == org.id).first()
+        if not auto:
+            auto = TopicAutomation(
+                org_id=org.id,
+                ig_account_id=ig_acc.id,
+                name="Daily Intelligence Feed",
+                topic_prompt=payload.autoTopic or "Daily wisdom and news relevant to our niche.",
+                source_mode=payload.contentMode,
+                post_time_local=payload.autoTime or "09:00",
+                enabled=True,
+                approval_mode="needs_manual_approve"
+            )
+            db.add(auto)
 
     # 4. Create Content Profile
     profile = db.query(ContentProfile).filter(ContentProfile.org_id == org.id).first()
