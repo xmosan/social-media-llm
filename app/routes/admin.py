@@ -8,7 +8,7 @@ from app.security.rbac import require_superadmin
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-LOGIN_HTML = """<!doctype html>
+LOGIN_HTML = r"""<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -85,7 +85,7 @@ LOGIN_HTML = """<!doctype html>
 </html>
 """
 
-REGISTER_HTML = """<!doctype html>
+REGISTER_HTML = r"""<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -224,7 +224,7 @@ REGISTER_HTML = """<!doctype html>
 </html>
 """
 
-HTML = """<!doctype html>
+HTML = r"""<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -2068,7 +2068,7 @@ def admin_page(request: Request, user = Depends(get_current_user)):
         return RedirectResponse(url="/app", status_code=303)
     return HTML
 
-ONBOARDING_HTML = """<!doctype html>
+ONBOARDING_HTML = r"""<!doctype html>
 <html lang="en" data-theme="startup">
 <head>
   <meta charset="utf-8" />
