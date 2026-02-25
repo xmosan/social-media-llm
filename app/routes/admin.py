@@ -1404,6 +1404,7 @@ async function request(url, opts = {}) {
     try { j = await r.json(); } catch(e) { j = { detail: "Server Error (Invalid JSON)" }; }
     
     if (!r.ok) {
+        console.error("API Request Failed:", r.status, j.detail || j);
         if (r.status === 401) {
             document.getElementById("auth_error_box").textContent = "Redirecting to login...";
             window.location.href = "/admin/login";
@@ -2328,7 +2329,8 @@ async function loadStats() {
     const el = document.getElementById("stats");
     try {
         let url = "/posts/stats";
-        if (ACTIVE_ACCOUNT_ID) {
+        // Defensive check: ensure it's a number and not the string "null" or "undefined"
+        if (ACTIVE_ACCOUNT_ID && ACTIVE_ACCOUNT_ID !== "null" && ACTIVE_ACCOUNT_ID !== "undefined") {
             url += `?ig_account_id=${ACTIVE_ACCOUNT_ID}`;
         }
         const j = await request(url);
@@ -2726,7 +2728,7 @@ def register_page():
 @router.get("", response_class=HTMLResponse)
 def admin_page(request: Request, user = Depends(get_current_user)):
     if not user:
-        return RedirectResponse(url="/login", status_code=303)
+        return RedirectResponse(url="/admin/login", status_code=303)
     return HTML
 
 ONBOARDING_HTML = """<!doctype html>
