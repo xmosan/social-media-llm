@@ -74,8 +74,14 @@ async def global_exception_handler(request: Request, exc: Exception):
     traceback.print_exc()
     return JSONResponse(
         status_code=500,
-        content={"detail": f"Internal Server Error: {str(exc)}", "type": type(exc).__name__},
+        content={"detail": "Internal Server Error"}
     )
+
+@app.get("/debug-automations")
+def debug_automations(db = Depends(app.database.get_db)):
+    from app.models import TopicAutomation
+    autos = db.query(TopicAutomation).all()
+    return [{"id": a.id, "name": a.name, "topic": a.topic_prompt, "last_error": a.last_error} for a in autos]
 
 @app.get("/debug-env")
 def debug_env():
