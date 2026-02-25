@@ -1376,7 +1376,10 @@ async function openPostEditor(postId) {
         document.getElementById("post_edit_alt").value = p.alt_text || "";
         document.getElementById("post_edit_img").src = p.media_url || "";
         
-        statusEl.className = `px-4 py-1.5 rounded-xl border backdrop-blur-xl text-[8px] font-black uppercase tracking-[0.2em] shadow-2xl ${getPostColor(p.status).includes('emerald') ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-white/5 text-muted border-white/10'}`;
+        const statusEl = document.getElementById("post_edit_status");
+        if (statusEl) {
+            statusEl.className = `px-4 py-1.5 rounded-xl border backdrop-blur-xl text-[8px] font-black uppercase tracking-[0.2em] shadow-2xl ${getPostColor(p.status).includes('emerald') ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-white/5 text-muted border-white/10'}`;
+        }
         
         if (p.scheduled_time) {
             const d = new Date(p.scheduled_time);
