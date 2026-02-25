@@ -14,12 +14,12 @@ router = APIRouter()
 
 # --- HTML TEMPLATES ---
 
-APP_DASHBOARD_HTML = """<!doctype html>
+APP_LAYOUT_HTML = """<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard | Social Media LLM</title>
+  <title>{title} | Social Media LLM</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
@@ -47,9 +47,10 @@ APP_DASHBOARD_HTML = """<!doctype html>
       <div class="flex items-center gap-8">
         <div class="text-lg font-black italic tracking-tighter text-gradient">SOCIAL MEDIA LLM</div>
         <div class="hidden md:flex gap-6">
-          <a href="/app" class="text-[10px] font-black uppercase tracking-widest nav-link active py-5">Dashboard</a>
-          <a href="/app/calendar" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-muted hover:text-white transition-colors">Calendar</a>
-          <a href="/app/automations" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-muted hover:text-white transition-colors">Automations</a>
+          <a href="/app" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_dashboard}">Dashboard</a>
+          <a href="/app/calendar" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_calendar} text-muted hover:text-white transition-colors">Calendar</a>
+          <a href="/app/automations" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_automations} text-muted hover:text-white transition-colors">Automations</a>
+          <a href="/app/media" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_media} text-muted hover:text-white transition-colors">Media Library</a>
           {admin_link}
         </div>
       </div>
@@ -66,6 +67,20 @@ APP_DASHBOARD_HTML = """<!doctype html>
   </nav>
 
   <main class="max-w-7xl mx-auto px-6 py-10 space-y-10">
+    {content}
+  </main>
+
+  <script>
+    async function logout() {{
+      await fetch('/auth/logout', {{ method: 'POST' }});
+      window.location.href = '/';
+    }}
+  </script>
+</body>
+</html>
+"""
+
+APP_DASHBOARD_CONTENT = """
     <!-- Header -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
@@ -99,8 +114,6 @@ APP_DASHBOARD_HTML = """<!doctype html>
       </div>
     </div>
 
-    </div>
-    
     {connection_cta}
 
     <!-- Main Grid -->
@@ -152,16 +165,6 @@ APP_DASHBOARD_HTML = """<!doctype html>
         </div>
       </div>
     </div>
-  </main>
-
-  <script>
-    async function logout() {{
-      await fetch('/auth/logout', {{ method: 'POST' }});
-      window.location.href = '/';
-    }}
-  </script>
-</body>
-</html>
 """
 
 ONBOARDING_HTML = """<!doctype html>
@@ -381,8 +384,6 @@ ONBOARDING_HTML = """<!doctype html>
 </html>
 """
 
-# --- ROUTES ---
-
 @router.get("/app", response_class=HTMLResponse)
 async def app_dashboard_page(
     user: User = Depends(require_user),
@@ -508,12 +509,9 @@ async def app_dashboard_page(
         admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>'
         admin_cta = '<a href="/admin" class="px-6 py-3 bg-rose-500/10 border border-rose-500/20 rounded-xl font-black text-[10px] uppercase tracking-widest text-rose-400 hover:bg-rose-500/20 transition-all flex items-center gap-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>Owner Ops</a>'
 
-    html = APP_DASHBOARD_HTML.format(
-        user_name=user.name or user.email,
-        admin_link=admin_link,
+    content = APP_DASHBOARD_CONTENT.format(
         admin_cta=admin_cta,
         connection_cta=connection_cta,
-        org_name=org.name if org else "Personal Workspace",
         weekly_post_count=weekly_post_count,
         account_count=account_count,
         next_post_countdown=next_post_countdown,
@@ -524,7 +522,111 @@ async def app_dashboard_page(
         calendar_days=calendar_days,
         recent_posts=recent_posts_html or '<div class="text-center py-6 text-[10px] font-black uppercase text-muted italic">No recent activity</div>'
     )
-    return html
+    
+    return APP_LAYOUT_HTML.format(
+        title="Dashboard",
+        user_name=user.name or user.email,
+        org_name=org.name if org else "Personal Workspace",
+        admin_link=admin_link,
+        active_dashboard="active",
+        active_calendar="",
+        active_automations="",
+        active_media="",
+        content=content
+    )
+
+@router.get("/app/calendar", response_class=HTMLResponse)
+async def app_calendar_page(
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db)
+):
+    if not user.onboarding_complete: return RedirectResponse(url="/onboarding")
+    org = db.query(Org).filter(Org.id == user.active_org_id).first()
+    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>' if user.is_superadmin else ""
+    
+    content = """
+    <div class="space-y-6">
+        <h1 class="text-3xl font-black italic tracking-tight text-white">Content <span class="text-brand">Calendar</span></h1>
+        <div class="glass p-12 rounded-[3rem] border-brand/20 bg-brand/5 text-center">
+            <h3 class="text-xl font-black italic text-white mb-2">Scheduling Engine</h3>
+            <p class="text-muted text-sm max-w-md mx-auto">Full calendar view is under construction. Your upcoming posts are visible on the dashboard pipeline.</p>
+        </div>
+    </div>
+    """
+    
+    return APP_LAYOUT_HTML.format(
+        title="Calendar",
+        user_name=user.name or user.email,
+        org_name=org.name if org else "Personal Workspace",
+        admin_link=admin_link,
+        active_dashboard="",
+        active_calendar="active",
+        active_automations="",
+        active_media="",
+        content=content
+    )
+
+@router.get("/app/automations", response_class=HTMLResponse)
+async def app_automations_page(
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db)
+):
+    if not user.onboarding_complete: return RedirectResponse(url="/onboarding")
+    org = db.query(Org).filter(Org.id == user.active_org_id).first()
+    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>' if user.is_superadmin else ""
+    
+    content = """
+    <div class="space-y-6">
+        <h1 class="text-3xl font-black italic tracking-tight text-white">Neural <span class="text-brand">Automations</span></h1>
+        <div class="glass p-12 rounded-[3rem] border-brand/20 bg-brand/5 text-center">
+            <h3 class="text-xl font-black italic text-white mb-2">Intelligence Rules</h3>
+            <p class="text-muted text-sm max-w-md mx-auto">Automation configuration is currently managed via the onboarding wizard. Advanced rules editor coming soon.</p>
+        </div>
+    </div>
+    """
+    
+    return APP_LAYOUT_HTML.format(
+        title="Automations",
+        user_name=user.name or user.email,
+        org_name=org.name if org else "Personal Workspace",
+        admin_link=admin_link,
+        active_dashboard="",
+        active_calendar="",
+        active_automations="active",
+        active_media="",
+        content=content
+    )
+
+@router.get("/app/media", response_class=HTMLResponse)
+async def app_media_page(
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db)
+):
+    if not user.onboarding_complete: return RedirectResponse(url="/onboarding")
+    org = db.query(Org).filter(Org.id == user.active_org_id).first()
+    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>' if user.is_superadmin else ""
+    
+    content = """
+    <div class="space-y-6">
+        <h1 class="text-3xl font-black italic tracking-tight text-white">Media <span class="text-brand">Vault</span></h1>
+        <div class="glass p-12 rounded-[3rem] border-brand/20 bg-brand/5 text-center">
+            <h3 class="text-xl font-black italic text-white mb-2">Asset Intelligence</h3>
+            <p class="text-muted text-sm max-w-md mx-auto">The media library is being synchronized with your generated assets. Check back shortly for full access.</p>
+        </div>
+    </div>
+    """
+    
+    return APP_LAYOUT_HTML.format(
+        title="Media",
+        user_name=user.name or user.email,
+        org_name=org.name if org else "Personal Workspace",
+        admin_link=admin_link,
+        active_dashboard="",
+        active_calendar="",
+        active_automations="",
+        active_media="active",
+        content=content
+    )
 
 @router.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_page(user: User = Depends(require_user)):
