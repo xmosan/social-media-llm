@@ -229,583 +229,618 @@ HTML = r"""<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>SaaS Dashboard | Social Media LLM</title>
+  <title>Admin Overview | Social Media LLM</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
   <style>
-    body { font-family: 'Inter', sans-serif; }
-    .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); }
+    :root {
+      --brand: #6366f1;
+      --brand-hover: #4f46e5;
+      --main-bg: #020617;
+      --surface: rgba(255, 255, 255, 0.03);
+      --text-main: #ffffff;
+      --text-muted: #94a3b8;
+      --border: rgba(255, 255, 255, 0.1);
+      --card-bg: rgba(255, 255, 255, 0.03);
+    }
+    body { font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: var(--text-main); line-height: 1.5; }
+    .ai-bg { background: radial-gradient(circle at top right, #312e81, #020617, #020617); }
+    .glass { background: var(--surface); backdrop-filter: blur(12px); border: 1px solid var(--border); }
+    .text-gradient { background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     .fade-in { animation: fadeIn 0.3s ease-out; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+    .nav-link.active { color: var(--brand); border-bottom: 2px solid var(--brand); }
+    select option { background-color: #020617; color: white; }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-900 min-h-screen pb-12">
+<body class="ai-bg min-h-screen pb-12">
   <!-- Localhost Warning Banner -->
   <div id="localhost_warning" class="hidden bg-amber-500 text-white px-6 py-2 text-center text-xs font-black uppercase tracking-widest shadow-lg fade-in">
       ⚠️ ENVIRONMENT WARNING: LOCALHOST DETECTED. Instagram publishing will fail. Use ngrok for public tunnel.
   </div>
-  <nav class="glass sticky top-0 z-50 border-b border-slate-200 bg-white/80 px-6 py-4 mb-8">
-    <div class="max-w-7xl mx-auto flex justify-between items-center">
-      <div class="flex items-center gap-6">
-            <h1 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            Social SaaS <span class="text-slate-400 font-light">Admin v1.0.2</span>
-          </h1>
-          <div class="h-6 w-px bg-slate-200"></div>
-          <div class="flex items-center gap-2">
-              <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Account</label>
-              <select id="account_selector" onchange="onAccountChange()" class="px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-indigo-500 outline-none bg-slate-50 font-semibold min-w-[200px]">
-                  <option value="">No Accounts Found</option>
-              </select>
-          </div>
+  <nav class="border-b border-white/5 bg-black/20 backdrop-blur-md sticky top-0 z-50 h-16">
+    <div class="max-w-7xl mx-auto px-6 h-full flex justify-between items-center">
+      <div class="flex items-center gap-8">
+        <div class="text-lg font-black italic tracking-tighter text-gradient">SOCIAL MEDIA LLM <span class="text-[9px] text-muted not-italic font-bold tracking-widest ml-2">ADMIN</span></div>
+        <div class="h-6 w-px bg-white/10"></div>
+        <div class="flex items-center gap-3">
+            <label class="text-[9px] font-black text-muted uppercase tracking-[0.2em]">Node</label>
+            <select id="account_selector" onchange="onAccountChange()" class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black text-white outline-none focus:ring-1 focus:ring-brand min-w-[200px] transition-all">
+                <option value="">No Accounts Registered</option>
+            </select>
+        </div>
       </div>
-      <div class="flex items-center gap-4">
-        <button id="platform_btn" onclick="togglePlatformPanel()" class="hidden items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl shadow-md text-sm font-bold hover:bg-emerald-700 transition-all">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg>
-          Platform Management
-        </button>
-        <div class="h-6 w-px bg-slate-200"></div>
-        <div class="flex items-center gap-2">
-            <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Workspace</label>
-            <select id="org_selector" onchange="onOrgChange()" class="px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:ring-indigo-500 outline-none bg-slate-50 font-semibold min-w-[150px]">
+      <div class="flex items-center gap-6">
+        <div class="hidden md:flex items-center gap-2">
+            <label class="text-[9px] font-black text-muted uppercase tracking-[0.2em]">Workspace</label>
+            <select id="org_selector" onchange="onOrgChange()" class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black text-white outline-none focus:ring-1 focus:ring-brand min-w-[150px] transition-all">
                 <option value="">Loading...</option>
             </select>
         </div>
-        <div class="h-6 w-px bg-slate-200"></div>
-        <div class="flex items-center gap-3 relative group">
-          <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xs cursor-pointer" id="user_avatar">U</div>
-          <div class="absolute right-0 top-10 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 hidden group-hover:block fade-in">
-              <div class="px-3 py-2 border-b border-slate-100 mb-2">
-                  <div class="text-xs font-black text-slate-800" id="user_dropdown_name">User</div>
-                  <div class="text-[10px] text-slate-400" id="user_dropdown_email">email@domain.com</div>
-              </div>
-              <button onclick="logout()" class="w-full text-left px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-xl transition-colors">
-                  Sign Out
-              </button>
-          </div>
+        <div class="h-6 w-px bg-white/10"></div>
+        <div class="flex items-center gap-4 relative group">
+           <div class="flex flex-col text-right hidden lg:block">
+              <div class="text-[10px] font-black text-white uppercase tracking-wider" id="user_dropdown_name">User</div>
+              <div class="text-[8px] font-bold text-muted uppercase tracking-widest" id="user_dropdown_email">email@domain.com</div>
+           </div>
+           <div class="w-10 h-10 rounded-2xl glass flex items-center justify-center font-black text-xs cursor-pointer text-brand hover:scale-110 transition-transform" id="user_avatar">U</div>
+           <div class="absolute right-0 top-12 w-48 glass rounded-2xl shadow-2xl p-2 hidden group-hover:block fade-in z-[60]">
+               <button onclick="logout()" class="w-full text-left px-4 py-3 text-[10px] font-black text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all uppercase tracking-widest">
+                   Terminate Session
+               </button>
+           </div>
         </div>
-        <div class="h-6 w-px bg-slate-200"></div>
-        <button onclick="toggleSettings()" class="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl border border-indigo-700 shadow-md text-sm font-bold hover:bg-indigo-700 transition-all">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Account Settings
-        </button>
-        <button id="run_scheduler_btn" onclick="runGlobalScheduler()" class="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl border border-emerald-700 shadow-md text-sm font-bold hover:bg-emerald-700 transition-all">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-          Run Scheduler
-        </button>
+        <div class="h-px w-6 bg-white/10 rotate-90"></div>
+        <div class="flex gap-2">
+            <button onclick="toggleSettings()" class="w-10 h-10 rounded-2xl glass flex items-center justify-center text-muted hover:text-white hover:scale-110 transition-all" title="Workspace Hub">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            </button>
+            <button id="run_scheduler_btn" onclick="runGlobalScheduler()" class="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 hover:bg-emerald-500 hover:text-white hover:scale-110 transition-all" title="Force Scheduler">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            </button>
+            <button id="platform_btn" onclick="togglePlatformPanel()" class="hidden w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 items-center justify-center text-indigo-500 hover:bg-indigo-500 hover:text-white hover:scale-110 transition-all" title="Platform Management">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            </button>
+        </div>
       </div>
     </div>
   </nav>
-  <main class="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+  <main class="max-w-7xl mx-auto px-6 py-10 space-y-10">
     
     <!-- Settings Drawer -->
-    <div id="settings_panel" class="hidden fixed inset-0 bg-black/40 z-[100] backdrop-blur-sm flex justify-end" onclick="if(event.target === this) toggleSettings()">
-        <div class="w-full max-w-md bg-white h-full shadow-2xl p-8 flex flex-col overflow-y-auto" onclick="event.stopPropagation()">
+    <div id="settings_panel" class="hidden fixed inset-0 bg-black/60 z-[100] backdrop-blur-md flex justify-end" onclick="if(event.target === this) toggleSettings()">
+        <div class="w-full max-w-md glass h-full shadow-2xl p-8 flex flex-col overflow-y-auto" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-8">
                 <div>
-                    <h2 class="text-2xl font-black text-slate-900">Workspace Hub</h2>
-                    <p class="text-sm text-slate-500 mt-1">Configure your social environment</p>
+                    <h2 class="text-2xl font-black text-white italic tracking-tight">Workspace <span class="text-brand">Hub</span></h2>
+                    <p class="text-[10px] font-black text-muted uppercase tracking-widest mt-1">Social Architecture</p>
                 </div>
-                <button onclick="toggleSettings()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <button onclick="toggleSettings()" class="p-2 rounded-2xl glass hover:bg-white/10 transition-colors text-muted hover:text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
             <div class="space-y-10">
-                <!-- STEP 1: AUTH (Superseded by Cookie Login) -->
-                <section class="p-5 bg-emerald-50/50 rounded-2xl border border-emerald-100 hidden">
+                <section class="p-5 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 hidden">
                     <div class="flex items-center gap-3 mb-4">
                         <span class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shadow-sm">✓</span>
-                        <h3 class="text-sm font-black text-emerald-900 uppercase tracking-widest">Authenticated Securely</h3>
+                        <h3 class="text-sm font-black text-emerald-400 uppercase tracking-widest">Authenticated</h3>
                     </div>
-                    <p class="text-[11px] text-emerald-600/70 mb-4 leading-relaxed font-semibold italic">You are logged in via secure session cookie. API Key entry is no longer required.</p>
                 </section>
-                <div class="h-px bg-slate-100"></div>
                 
                 <section>
-                    <div class="flex items-center gap-3 mb-6 text-slate-900">
-                        <span class="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">1</span>
-                        <h3 class="text-sm font-black uppercase tracking-widest">Active Accounts</h3>
+                    <div class="flex items-center gap-3 mb-6">
+                        <span class="w-8 h-8 rounded-2xl glass text-brand flex items-center justify-center text-xs font-black">01</span>
+                        <h3 class="text-[10px] font-black text-white uppercase tracking-[0.2em]">Active Nodes</h3>
                     </div>
                     <div id="settings_accounts_list" class="space-y-3">
                         <!-- Populated by JS -->
                     </div>
                 </section>
                 
-                <div class="h-px bg-slate-100"></div>
+                <div class="h-px bg-white/5"></div>
                 
                 <!-- STEP 2: ADD IG -->
                 <section>
-                    <div class="flex items-center gap-3 mb-6 text-slate-900">
-                        <span class="w-6 h-6 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold">2</span>
-                        <h3 class="text-sm font-black uppercase tracking-widest">Register Instagram Slot</h3>
+                    <div class="flex items-center gap-3 mb-6">
+                        <span class="w-8 h-8 rounded-2xl glass text-brand flex items-center justify-center text-xs font-black">02</span>
+                        <h3 class="text-[10px] font-black text-white uppercase tracking-[0.2em]">Register Slot</h3>
                     </div>
                     <div class="space-y-5">
                         <div>
-                            <label class="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Display Name</label>
-                            <input id="new_acc_name" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-indigo-500 outline-none" placeholder="e.g. Luxury Real Estate"/>
+                            <label class="block text-[9px] font-black text-muted uppercase tracking-[0.2em] mb-2">Display Name</label>
+                            <input id="new_acc_name" class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-white outline-none focus:ring-1 focus:ring-brand transition-all" placeholder="e.g. Luxury Real Estate"/>
                         </div>
                         <div class="grid grid-cols-1 gap-5">
                             <div>
-                                <label class="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                                <label class="flex items-center gap-2 text-[9px] font-black text-muted uppercase tracking-[0.2em] mb-2">
                                     IG User ID
-                                    <button onclick="toggleGuideModal()" class="text-indigo-400 hover:text-indigo-600 transition-colors" title="How to find your ID">
+                                    <button onclick="toggleGuideModal()" class="text-brand hover:text-white transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                     </button>
                                 </label>
-                                <input id="new_acc_ig_id" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-indigo-500 outline-none font-mono" placeholder="Numerical ID (e.g. 1784...)"/>
+                                <input id="new_acc_ig_id" class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-white outline-none focus:ring-1 focus:ring-brand font-mono transition-all" placeholder="Numerical ID"/>
                             </div>
                             <div>
-                                <label class="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                                <label class="flex items-center gap-2 text-[9px] font-black text-muted uppercase tracking-[0.2em] mb-2">
                                     Access Token
-                                    <button onclick="toggleGuideModal()" class="text-indigo-400 hover:text-indigo-600 transition-colors" title="How to generate your Token">
+                                    <button onclick="toggleGuideModal()" class="text-brand hover:text-white transition-colors">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                     </button>
                                 </label>
-                                <textarea id="new_acc_token" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-indigo-500 outline-none font-mono min-h-[100px]" placeholder="Paste long-lived token here..."></textarea>
+                                <textarea id="new_acc_token" class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none focus:ring-1 focus:ring-brand font-mono min-h-[120px] transition-all" placeholder="Paste long-lived token..."></textarea>
                             </div>
                         </div>
-                        <button id="add_acc_btn" onclick="addAccount()" class="w-full border-2 border-slate-900 text-slate-900 rounded-xl py-4 text-sm font-black hover:bg-slate-900 hover:text-white transition-all active:scale-95">Save Account Extension</button>
+                        <button id="add_acc_btn" onclick="addAccount()" class="w-full bg-brand text-white rounded-2xl py-5 text-[10px] font-black uppercase tracking-widest italic shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-95 transition-all">Initialize Slot</button>
                     </div>
-                    <div id="add_acc_msg" class="mt-4 text-xs font-bold text-center h-4"></div>
+                    <div id="add_acc_msg" class="mt-4 text-[10px] font-black text-center h-4 text-brand uppercase tracking-widest italic"></div>
                 </section>
                 
-                <div id="auth_error_box" class="hidden p-4 bg-red-50 text-red-600 rounded-xl text-[11px] font-bold border border-red-100"></div>
+                <div id="auth_error_box" class="hidden p-5 bg-rose-500/10 text-rose-400 rounded-2xl text-[10px] font-black border border-rose-500/20 uppercase tracking-widest"></div>
             </div>
-        </div>
         </div>
     </div>
 
     <!-- Instagram Setup Guide Modal -->
-    <div id="guide_modal" class="hidden fixed inset-0 bg-black/60 z-[200] backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-indigo-50">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+    <div id="guide_modal" class="hidden fixed inset-0 bg-black/80 z-[200] backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass rounded-[3rem] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] border border-white/10">
+            <div class="px-10 py-8 border-b border-white/5 flex justify-between items-center bg-white/5">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl glass text-brand flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </div>
                     <div>
-                        <h3 class="text-xl font-black text-slate-800">Connection Guide</h3>
-                        <p class="text-[11px] font-bold tracking-widest text-indigo-500 uppercase">Instagram Setup Instructions</p>
+                        <h3 class="text-2xl font-black text-white italic tracking-tight">Setup <span class="text-brand">Protocol</span></h3>
+                        <p class="text-[9px] font-black tracking-[0.3em] text-muted uppercase">Meta API Integration</p>
                     </div>
                 </div>
-                <button onclick="toggleGuideModal()" class="w-8 h-8 rounded-full bg-white text-slate-400 hover:text-slate-600 hover:shadow-md flex items-center justify-center transition-all">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                <button onclick="toggleGuideModal()" class="w-10 h-10 rounded-2xl glass text-muted hover:text-white flex items-center justify-center transition-all">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
             
-            <div class="p-8 overflow-y-auto space-y-8 bg-slate-50/50">
-                
-                <div class="flex gap-4">
-                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 text-slate-600 font-black flex items-center justify-center text-sm shadow-inner">1</div>
+            <div class="p-10 overflow-y-auto space-y-10">
+                <div class="flex gap-6">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-2xl glass text-brand font-black flex items-center justify-center text-sm">01</div>
                     <div>
-                        <h4 class="font-bold text-slate-800 text-base mb-1">Create a Meta Developer App</h4>
-                        <p class="text-sm text-slate-600 leading-relaxed mb-3">Go to <a href="https://developers.facebook.com/" target="_blank" class="text-indigo-600 font-semibold hover:underline">developers.facebook.com</a>. Log in with your Facebook account and create a new App. Select "Other" then "Business".</p>
+                        <h4 class="font-black text-white text-xs uppercase tracking-widest mb-2">Meta Developer App</h4>
+                        <p class="text-xs text-muted leading-relaxed">Access <a href="https://developers.facebook.com/" target="_blank" class="text-brand font-bold hover:underline">developers.facebook.com</a>. Initialize a new Professional App with the "Business" type classification.</p>
                     </div>
                 </div>
 
-                <div class="flex gap-4">
-                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 text-slate-600 font-black flex items-center justify-center text-sm shadow-inner">2</div>
+                <div class="flex gap-6">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-2xl glass text-brand font-black flex items-center justify-center text-sm">02</div>
                     <div>
-                        <h4 class="font-bold text-slate-800 text-base mb-1">Set up Instagram Graph API</h4>
-                        <p class="text-sm text-slate-600 leading-relaxed mb-3">In the App Dashboard, scroll down to "Add products to your app" and set up the <b>Instagram Graph API</b> (not Basic Display). You will need a functioning Facebook Page linked to an Instagram Professional Account.</p>
+                        <h4 class="font-black text-white text-xs uppercase tracking-widest mb-2">Integrate Graph API</h4>
+                        <p class="text-xs text-muted leading-relaxed">Link a functioning Facebook Page tied to an Instagram Professional account. Activate the Instagram Graph API product.</p>
                     </div>
                 </div>
 
-                <div class="flex gap-4">
-                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 text-slate-600 font-black flex items-center justify-center text-sm shadow-inner">3</div>
+                <div class="flex gap-6">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-2xl glass text-brand font-black flex items-center justify-center text-sm">03</div>
                     <div>
-                        <h4 class="font-bold text-slate-800 text-base mb-1">Generate Access Token</h4>
-                        <p class="text-sm text-slate-600 leading-relaxed mb-3">Navigate to <b>Tools > Graph API Explorer</b> in the top navigation bar. In the right panel, generate a User Token with these specific permissions:</p>
-                        <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-xl text-xs font-mono text-indigo-800 leading-loose">
+                        <h4 class="font-black text-white text-xs uppercase tracking-widest mb-2">Token Generation</h4>
+                        <p class="text-xs text-muted leading-relaxed">In the Explorer tool, generate a token with the following critical permissions:</p>
+                        <div class="mt-3 bg-black/40 border border-white/5 p-4 rounded-2xl text-[10px] font-bold text-brand font-mono leading-loose">
                             instagram_basic, instagram_content_publish, pages_show_list, pages_read_engagement
                         </div>
-                        <p class="text-sm text-slate-600 leading-relaxed mt-3">Click Generate and approve the Facebook popups to link your specific page.</p>
                     </div>
                 </div>
 
-                <div class="flex gap-4">
-                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 text-slate-600 font-black flex items-center justify-center text-sm shadow-inner">4</div>
+                <div class="flex gap-6">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-2xl glass text-brand font-black flex items-center justify-center text-sm">04</div>
                     <div>
-                        <h4 class="font-bold text-slate-800 text-base mb-1">Extend Access Token</h4>
-                        <p class="text-sm text-slate-600 leading-relaxed mb-3">The first token expires in an hour. Tap the small `(i)` info icon next to the Access Token box in the Explorer. Click <b>"Open in Access Token Tool"</b>, then scroll down and click <b>"Extend Access Token"</b> to generate a Long-Lived token (valid for 60 days).</p>
-                        <p class="text-sm font-bold text-slate-800">Copy this Long-Lived Token and paste it into the dashboard.</p>
+                        <h4 class="font-black text-white text-xs uppercase tracking-widest mb-2">Token Expansion</h4>
+                        <p class="text-xs text-muted leading-relaxed">Use the Access Token Tool to "Extend Access Token". This creates a 60-day persistent variant required for stable background publishing.</p>
                     </div>
                 </div>
 
-                <div class="flex gap-4">
-                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-200 text-slate-600 font-black flex items-center justify-center text-sm shadow-inner">5</div>
+                <div class="flex gap-6">
+                    <div class="flex-shrink-0 w-10 h-10 rounded-2xl glass text-brand font-black flex items-center justify-center text-sm">05</div>
                     <div>
-                        <h4 class="font-bold text-slate-800 text-base mb-1">Find your Instagram User ID</h4>
-                        <p class="text-sm text-slate-600 leading-relaxed mb-3">Still in the Graph API Explorer, paste the Long-Lived Token you just generated into the empty Access Token box. In the query bar at the top, type exactly:</p>
-                        <div class="bg-slate-900 border border-slate-700 p-3 rounded-xl text-xs font-mono text-green-400 shadow-inner">
-                            me/accounts?fields=instagram_business_account
-                        </div>
-                        <p class="text-sm text-slate-600 leading-relaxed mt-3">Hit Submit. Look in the JSON response for the <code>instagram_business_account.id</code> string (a long number like <code class="bg-slate-200 px-1 rounded">178414...</code>). Paste this numerical ID into the dashboard!</p>
+                        <h4 class="font-black text-white text-xs uppercase tracking-widest mb-2">Identity Resolution</h4>
+                        <p class="text-xs text-muted leading-relaxed">Query <code>me/accounts?fields=instagram_business_account</code> to obtain your numerical Instagram Business ID. This is the final cryptographic component.</p>
                     </div>
                 </div>
             </div>
             
-            <div class="p-6 bg-white border-t border-slate-100 flex justify-end">
-                <button onclick="toggleGuideModal()" class="px-6 py-2.5 bg-indigo-600 text-white text-sm font-black rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">
-                    I Understand
+            <div class="p-8 glass border-t border-white/5 flex justify-end">
+                <button onclick="toggleGuideModal()" class="px-8 py-4 bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-2xl hover:bg-white/10 transition-all">
+                    Acknowledge Setup
                 </button>
             </div>
         </div>
     </div>
+    </div>
     <!-- New Automation Modal -->
-    <div id="auto_modal" class="hidden fixed inset-0 bg-black/40 z-[110] backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h3 class="text-xl font-black text-slate-800">New Topic Automation</h3>
-                <button onclick="hideCreateAuto()" class="text-slate-400 hover:text-slate-600">
+    <div id="auto_modal" class="hidden fixed inset-0 bg-black/80 z-[110] backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass rounded-[3rem] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] border border-white/10">
+            <div class="px-10 py-8 border-b border-white/5 flex justify-between items-center bg-white/5">
+                <h3 class="text-2xl font-black text-white italic tracking-tight">Topic <span class="text-brand">Automation</span></h3>
+                <button onclick="hideCreateAuto()" class="w-10 h-10 rounded-2xl glass text-muted hover:text-white flex items-center justify-center transition-all">
                     <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
-            <div class="p-8 overflow-y-auto space-y-6">
+            <div class="p-10 overflow-y-auto space-y-8">
                 <input type="hidden" id="edit_auto_id" value=""/>
-                <div>
-                    <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Internal Name</label>
-                    <input id="auto_name" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. Daily Hadith Series"/>
-                </div>
-                <div>
-                    <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Topic / Prompt</label>
-                    <textarea id="auto_topic" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 min-h-[100px]" placeholder="Specific topic for the AI (e.g. The importance of gratitude in Islam)"></textarea>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Content Profile Strategy</label>
-                        <select id="auto_profile_id" class="w-full px-4 py-3 rounded-xl border border-indigo-200 outline-none bg-indigo-50 text-indigo-900 font-bold shadow-sm">
-                            <option value="">-- Generic Setup (No Profile) --</option>
-                        </select>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-8">
+                        <div>
+                            <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-3">Internal Identifier</label>
+                            <input id="auto_name" class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-white outline-none focus:ring-1 focus:ring-brand transition-all" placeholder="e.g. Daily Hadith Series"/>
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-3">Neural Prompt</label>
+                            <textarea id="auto_topic" class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-[11px] font-bold text-white outline-none focus:ring-1 focus:ring-brand min-h-[140px] transition-all" placeholder="Specify core logic for AI content generation..."></textarea>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex justify-between">
-                            <span>Creative Intensity</span>
-                            <span id="creativity_val" class="text-indigo-600 font-black">3 / 5</span>
-                        </label>
-                        <div class="pt-3">
-                            <input type="range" id="auto_creativity" min="1" max="5" value="3" class="w-full accent-indigo-600" oninput="document.getElementById('creativity_val').textContent = this.value + ' / 5'">
-                            <div class="flex justify-between text-[8px] font-bold text-slate-300 px-1 uppercase tracking-widest mt-2">
-                                <span>1 (Strict)</span><span>3</span><span>5 (Wild)</span>
+                    
+                    <div class="space-y-8">
+                        <div>
+                            <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-3">Target Profile</label>
+                            <select id="auto_profile_id" class="w-full px-5 py-4 rounded-2xl bg-brand/10 border border-brand/20 text-xs font-black text-brand outline-none transition-all">
+                                <option value="">Generic Logic</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[9px] font-black text-muted uppercase tracking-widest mb-3">Style Preset</label>
+                                <select id="auto_style" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none">
+                                    <option value="islamic_reminder">Islamic Reminder</option>
+                                    <option value="educational">Educational</option>
+                                    <option value="motivational">Motivational</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-black text-muted uppercase tracking-widest mb-3">Tone</label>
+                                <select id="auto_tone" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none">
+                                    <option value="short">Short & Punchy</option>
+                                    <option value="medium" selected>Balanced</option>
+                                    <option value="long">Educational</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-[9px] font-black text-muted uppercase tracking-widest mb-3">Linguistics</label>
+                                <select id="auto_lang" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none">
+                                    <option value="english">Pure English</option>
+                                    <option value="arabic_mix" selected>Eng + Arb Mix</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-black text-muted uppercase tracking-widest mb-3">Execution Time</label>
+                                <input type="time" id="auto_time" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none transition-all" value="09:00"/>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[9px] font-black text-muted uppercase tracking-[0.2em] mb-3 flex justify-between">
+                                <span>Intelligence Density</span>
+                                <span id="creativity_val" class="text-brand font-black tracking-widest">3 / 5</span>
+                            </label>
+                            <input type="range" id="auto_creativity" min="1" max="5" value="3" oninput="document.getElementById('creativity_val').innerText = this.value + ' / 5'" class="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="glass border border-white/5 p-6 rounded-[2rem] space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-[10px] font-black text-white uppercase tracking-widest leading-none">Library Core</div>
+                                <div class="text-[8px] font-bold text-muted uppercase tracking-widest mt-1">Asset synchronization</div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="auto_use_library" class="sr-only peer" checked>
+                                <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+                            </label>
+                        </div>
+                        <div class="space-y-4 pt-2">
+                             <select id="auto_image_mode" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none">
+                                <option value="reuse_last_upload">Reuse Last Upload</option>
+                                <option value="quote_card" selected>Generate Quote Card</option>
+                                <option value="ai_generated">AI Genesis (DALL-E)</option>
+                                <option value="library_fixed">Fixed Repository Asset</option>
+                             </select>
+                             <div class="grid grid-cols-2 gap-3">
+                                <input type="text" id="auto_media_tag_query" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none" placeholder="Tag Query"/>
+                                <input type="number" id="auto_lookback" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none" value="30"/>
+                             </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-brand/5 border border-brand/20 p-6 rounded-[2rem] space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-[10px] font-black text-white uppercase tracking-widest leading-none">Neural Filters</div>
+                                <div class="text-[8px] font-bold text-muted uppercase tracking-widest mt-1">Logic overrides</div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="auto_enabled" class="sr-only peer" checked>
+                                <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                            </label>
+                        </div>
+                        <div class="space-y-3 pt-2">
+                            <div class="flex items-center gap-3">
+                                <input type="checkbox" id="auto_arabic" class="sr-only peer">
+                                <label for="auto_arabic" class="flex items-center gap-3 cursor-pointer group">
+                                    <div class="w-5 h-5 rounded-lg border border-white/10 flex items-center justify-center group-hover:bg-white/5 transition-all">
+                                        <div class="w-2.5 h-2.5 rounded-sm bg-brand opacity-0 peer-checked:opacity-100 transition-all"></div>
+                                    </div>
+                                    <span class="text-[10px] font-black text-muted uppercase tracking-widest group-hover:text-white transition-all">Enable Arabic Mix</span>
+                                </label>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Style Preset</label>
-                        <select id="auto_style" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none bg-slate-50">
-                            <option value="islamic_reminder">Islamic Reminder</option>
-                            <option value="educational">Educational</option>
-                            <option value="motivational">Motivational</option>
-                        </select>
+
+                <div class="bg-indigo-500/5 border border-indigo-500/10 p-6 rounded-[2rem] space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <div class="text-[10px] font-black text-white uppercase tracking-widest leading-none">AI Image Genesis</div>
+                            <div class="text-[8px] font-bold text-muted uppercase tracking-widest mt-1">DALL-E Integration</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="auto_use_ai_image" class="sr-only peer">
+                            <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-500"></div>
+                        </label>
                     </div>
-                    <div>
-                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Tone</label>
-                        <select id="auto_tone" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none bg-slate-50">
-                            <option value="short">Short & Punchy</option>
-                            <option value="medium" selected>Medium / Balanced</option>
-                            <option value="long">Long / Educational</option>
-                        </select>
+                    <div id="ai_image_prompt_container" class="hidden animate-in fade-in slide-in-from-top-2 duration-300">
+                        <textarea id="auto_ai_image_prompt" class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none focus:ring-1 focus:ring-brand min-h-[80px]" placeholder="Visual directives..."></textarea>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Language</label>
-                        <select id="auto_lang" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none bg-slate-50">
-                            <option value="english">Pure English</option>
-                            <option value="arabic_mix" selected>English + Arabic Mix</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Post Time (Local)</label>
-                        <input type="time" id="auto_time" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none" value="09:00"/>
-                    </div>
-                </div>
-                <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-4">
-                    <div class="flex items-center gap-3">
-                        <input type="checkbox" id="auto_use_library" class="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" checked/>
-                        <label for="auto_use_library" class="text-sm font-black text-indigo-900">Use Content Library</label>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4 pl-8">
+
+                <div class="bg-brand/10 border border-brand/20 p-6 rounded-[2rem] space-y-6">
+                   <div class="flex items-center justify-between">
                         <div>
-                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Image Mode</label>
-                            <select id="auto_image_mode" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold bg-white">
-                                <option value="reuse_last_upload">Reuse Last Upload</option>
-                                <option value="quote_card">Generate Quote Card</option>
-                                <option value="ai_generated">AI Generated Image (Nature/Calligraphy)</option>
-                                <option value="library_fixed">Fixed Library Asset</option>
-                                <option value="library_tag">Library Asset by Tag</option>
-                            </select>
+                            <div class="text-[10px] font-black text-white uppercase tracking-widest leading-none">Hadith Enrichment</div>
+                            <div class="text-[8px] font-bold text-muted uppercase tracking-widest mt-1">Sunnah.com intelligence</div>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="auto_enrich_hadith" class="sr-only peer">
+                            <div class="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+                        </label>
+                   </div>
+                   <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[9px] font-black text-muted uppercase tracking-widest mb-2">Specific Sub-Topic</label>
+                            <input type="text" id="auto_hadith_topic" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none" placeholder="Default Logic"/>
                         </div>
                         <div>
-                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Lookback (Days)</label>
-                            <input type="number" id="auto_lookback" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold" value="30"/>
+                            <label class="block text-[9px] font-black text-muted uppercase tracking-widest mb-2">Max Token Density</label>
+                            <input type="number" id="auto_hadith_maxlen" class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none" value="450"/>
                         </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4 pl-8">
-                        <div>
-                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tag Query (CSV)</label>
-                            <input type="text" id="auto_media_tag_query" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold" placeholder="e.g. nature, sunnah"/>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Fixed Asset ID</label>
-                            <input type="number" id="auto_media_asset_id" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold" placeholder="Optional ID"/>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-3 pl-8">
-                        <input type="checkbox" id="auto_arabic" class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"/>
-                        <label for="auto_arabic" class="text-xs font-bold text-slate-600">Include Arabic Text</label>
-                    </div>
-                    <div class="h-px bg-indigo-100 mx-[-1rem]"></div>
-                    <div class="flex items-center gap-3">
-                        <input type="checkbox" id="auto_enabled" class="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" checked/>
-                        <label for="auto_enabled" class="text-sm font-black text-indigo-900">Enable Automation Immediately</label>
-                    </div>
-                </div>
-                <!-- Hadith Enrichment Section -->
-                <div class="p-4 bg-purple-50 rounded-2xl border border-purple-100 space-y-4">
-                    <div class="flex items-center gap-3">
-                        <input type="checkbox" id="auto_enrich_hadith" class="w-5 h-5 rounded border-slate-300 text-purple-600 focus:ring-purple-500"/>
-                        <label for="auto_enrich_hadith" class="text-sm font-black text-purple-900">Enrich with Hadith (Sunnah.com)</label>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4 pl-8">
-                        <div>
-                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Hadith Topic (Optional)</label>
-                            <input type="text" id="auto_hadith_topic" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold bg-white" placeholder="Leave empty to use main topic"/>
-                        </div>
-                        <div>
-                            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Max Length</label>
-                            <input type="number" id="auto_hadith_maxlen" class="w-full px-3 py-2 rounded-lg border border-slate-200 outline-none text-xs font-bold" value="450"/>
-                        </div>
-                    </div>
+                   </div>
                 </div>
             </div>
-            <div class="p-8 border-t border-slate-100 bg-slate-50 flex gap-4">
-                <button onclick="hideCreateAuto()" class="flex-1 px-6 py-4 rounded-xl border border-slate-200 bg-white font-bold text-slate-600 hover:bg-slate-100">Cancel</button>
-                <button onclick="saveAutomation()" class="flex-1 px-6 py-4 rounded-xl bg-indigo-600 text-white font-black hover:bg-indigo-700 shadow-xl shadow-indigo-100">Save Intelligence</button>
+            <div class="p-8 glass border-t border-white/5 flex gap-3">
+                <button onclick="hideCreateAuto()" class="flex-1 px-6 py-4 rounded-2xl glass text-[10px] font-black uppercase tracking-widest text-muted hover:text-white transition-all">Decline</button>
+                <button onclick="saveAutomation()" class="flex-[2] px-6 py-4 rounded-2xl bg-brand text-white text-[10px] font-black uppercase tracking-widest italic shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-95 transition-all">Synchronize Logic</button>
             </div>
         </div>
     </div>
     <!-- Post Editor Modal -->
-    <div id="post_modal" class="hidden fixed inset-0 bg-black/40 z-[120] backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+    <div id="post_modal" class="hidden fixed inset-0 bg-black/80 z-[120] backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass rounded-[3rem] shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col max-h-[90vh] border border-white/10">
+            <div class="px-10 py-6 border-b border-white/5 flex justify-between items-center bg-white/5">
                 <div class="flex items-center gap-4">
-                    <h3 class="text-xl font-black text-slate-800">Post Editor</h3>
-                    <span id="post_edit_status" class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-slate-200 text-slate-600">Draft</span>
+                    <h3 class="text-2xl font-black text-white italic tracking-tight">Post <span class="text-brand">Composer</span></h3>
+                    <span id="post_edit_status" class="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.2em] bg-white/10 text-muted border border-white/5">Neural Draft</span>
                 </div>
-                <button onclick="hidePostEditor()" class="text-slate-400 hover:text-slate-600">
+                <button onclick="hidePostEditor()" class="w-10 h-10 rounded-2xl glass text-muted hover:text-white flex items-center justify-center transition-all">
                     <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
+            
             <div class="flex-1 overflow-hidden flex flex-col lg:flex-row">
                 <!-- Media Preview -->
-                <div class="lg:w-1/2 bg-slate-900 flex items-center justify-center p-4 group relative">
-                    <img id="post_edit_img" src="" class="max-w-full max-h-full object-contain shadow-2xl rounded-lg"/>
-                    <div class="absolute bottom-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onclick="regeneratePostImage()" class="bg-indigo-600/90 text-white px-4 py-2 rounded-xl text-xs font-bold backdrop-blur-sm hover:bg-indigo-600">Regenerate AI Image</button>
-                        <label class="bg-white/90 text-slate-900 px-4 py-2 rounded-xl text-xs font-bold backdrop-blur-sm hover:bg-white cursor-pointer">
-                            Replace File
-                            <input type="file" id="post_media_replace" class="hidden" onchange="attachMediaToPost(this)"/>
-                        </label>
+                <div class="lg:w-[45%] bg-black/40 flex items-center justify-center p-8 group relative border-r border-white/5">
+                    <img id="post_edit_img" src="" class="max-w-full max-h-full object-contain shadow-2xl rounded-2xl border border-white/10"/>
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-10">
+                        <div class="flex gap-3 scale-95 group-hover:scale-100 transition-transform">
+                            <button onclick="regeneratePostImage()" class="px-6 py-3 bg-brand text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-xl hover:bg-indigo-500 transition-all">Synthetic Regen</button>
+                            <label class="px-6 py-3 bg-white/10 border border-white/20 text-white text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-white/20 cursor-pointer backdrop-blur-md transition-all">
+                                Replace Source
+                                <input type="file" id="post_media_replace" class="hidden" onchange="attachMediaToPost(this)"/>
+                            </label>
+                        </div>
                     </div>
                 </div>
+                
                 <!-- Content Editor -->
-                <div class="lg:w-1/2 p-8 overflow-y-auto space-y-6 bg-white">
+                <div class="lg:w-[55%] p-10 overflow-y-auto space-y-8">
                     <input type="hidden" id="post_edit_id" value=""/>
-                    <div>
-                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Caption Content</label>
-                        <textarea id="post_edit_caption" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 min-h-[180px] text-sm leading-relaxed" placeholder="Write your caption here..."></textarea>
-                        <div class="flex justify-end mt-2">
-                           <button onclick="regeneratePostCaption()" class="text-[10px] font-black text-indigo-600 uppercase tracking-wider hover:underline">✨ Regenerate with AI</button>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-end">
+                            <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em]">Synaptic Caption</label>
+                            <button onclick="regeneratePostCaption()" class="text-[9px] font-black text-brand uppercase tracking-widest hover:underline flex items-center gap-2">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                AI Refine
+                            </button>
                         </div>
+                        <textarea id="post_edit_caption" class="w-full px-6 py-5 rounded-[2rem] bg-white/5 border border-white/10 text-xs font-bold text-white outline-none focus:ring-1 focus:ring-brand min-h-[220px] transition-all" placeholder="Enter post narrative..."></textarea>
                     </div>
-                    <div>
-                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Hashtags</label>
-                        <textarea id="post_edit_hashtags" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-mono" placeholder="#faith #islam #daily"></textarea>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
-                            <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Alt Text</label>
-                            <input id="post_edit_alt" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none text-sm" placeholder="Describe image for accessibility"/>
+                            <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-3">Semantic Index (#)</label>
+                            <textarea id="post_edit_hashtags" class="w-full px-5 py-4 rounded-xl bg-white/5 border border-white/10 text-[10px] font-mono text-brand outline-none focus:ring-1 focus:ring-brand min-h-[80px]" placeholder="#tag #index"></textarea>
                         </div>
-                        <div>
-                            <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Scheduled Time (UTC)</label>
-                            <input type="datetime-local" id="post_edit_time" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none text-sm"/>
+                        <div class="space-y-6">
+                            <div>
+                                <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-3">Alt Description</label>
+                                <input id="post_edit_alt" class="w-full px-5 py-4 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none transition-all" placeholder="Accessibility data..."/>
+                            </div>
+                            <div>
+                                <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-3">Temporal Trigger (UTC)</label>
+                                <input type="datetime-local" id="post_edit_time" class="w-full px-5 py-4 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none transition-all"/>
+                            </div>
                         </div>
                     </div>
-                    <div id="post_edit_flags" class="flex flex-wrap gap-2"></div>
+                    
+                    <div id="post_edit_flags" class="flex flex-wrap gap-2 pt-4"></div>
                 </div>
             </div>
-            <div class="p-8 border-t border-slate-100 bg-slate-50 flex gap-4 justify-between items-center">
-                <div class="flex gap-2">
-                    <button onclick="deletePostUI()" class="px-6 py-4 rounded-xl border border-red-200 bg-white font-bold text-red-500 hover:bg-red-50">Delete</button>
-                </div>
-                <div class="flex gap-4">
-                    <button onclick="hidePostEditor()" class="px-6 py-4 rounded-xl border border-slate-200 bg-white font-bold text-slate-600 hover:bg-slate-100">Cancel</button>
-                    <button id="post_publish_now_btn" onclick="publishPostNow()" class="hidden px-6 py-4 rounded-xl border border-slate-900 bg-slate-900 text-white font-black hover:bg-slate-800">Publish Now</button>
-                    <button onclick="savePost()" class="px-8 py-4 rounded-xl bg-indigo-600 text-white font-black hover:bg-indigo-700 shadow-xl shadow-indigo-100">Save Changes</button>
+            
+            <div class="p-8 glass border-t border-white/5 flex gap-4 justify-between items-center">
+                <button onclick="deletePostUI()" class="px-8 py-4 rounded-2xl border border-rose-500/20 bg-rose-500/5 text-rose-500 text-[10px] font-black uppercase tracking-widest hover:bg-rose-500/10 transition-all">Terminate Post</button>
+                <div class="flex gap-3">
+                    <button onclick="hidePostEditor()" class="px-8 py-4 rounded-2xl glass text-[10px] font-black uppercase tracking-widest text-muted hover:text-white transition-all">Cancel</button>
+                    <button id="post_publish_now_btn" onclick="publishPostNow()" class="hidden px-8 py-4 rounded-2xl bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all">Execute Now</button>
+                    <button onclick="savePost()" class="px-10 py-4 rounded-2xl bg-brand text-white text-[10px] font-black uppercase tracking-widest italic shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-95 transition-all">Commit Changes</button>
                 </div>
             </div>
         </div>
     </div>
     <!-- 1) Upload Section -->
     <div class="lg:col-span-4 lg:sticky lg:top-28 h-fit space-y-6">
-      <section class="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
-        <h2 class="text-xl font-black mb-6 flex items-center gap-2">
-          <span class="w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm font-bold">3</span>
-          Content Intake
+      <section class="glass rounded-[3rem] border border-white/5 p-10 shadow-2xl">
+        <h2 class="text-2xl font-black mb-8 flex items-center gap-3 text-white italic tracking-tight underline decoration-brand decoration-4 underline-offset-8">
+          Neural <span class="text-brand">Ingestion</span>
         </h2>
-        <div class="space-y-6">
-          <div id="selected_acc_box" class="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
-            <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Publishing Target</label>
-            <div id="active_account_display" class="text-sm font-black text-slate-500 italic">Please Setup Account →</div>
+        <div class="space-y-8">
+          <div id="selected_acc_box" class="p-6 bg-white/5 border border-white/10 rounded-2xl">
+            <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-3">Synaptic Target</label>
+            <div id="active_account_display" class="text-xs font-black text-brand italic">Ready for deployment...</div>
           </div>
-          <div>
-              <label class="block text-sm font-bold text-slate-600 mb-2">Source Instructions</label>
-              <textarea id="source_text" class="w-full px-4 py-4 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none text-sm min-h-[160px] resize-none" placeholder="What should the AI write about? (Topic, tags, style...)"></textarea>
+          <div class="space-y-3">
+              <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em]">Directives</label>
+              <textarea id="source_text" class="w-full px-6 py-5 rounded-[2.5rem] bg-white/5 border border-white/10 text-xs font-bold text-white outline-none focus:ring-1 focus:ring-brand min-h-[160px] resize-none transition-all placeholder:text-white/10" placeholder="What should the AI intelligence generate?"></textarea>
           </div>
-          <div>
-              <label class="block text-sm font-bold text-slate-600 mb-2">Personal Image Asset</label>
-              <div class="relative border-2 border-dashed border-slate-200 rounded-2xl p-8 hover:border-indigo-400 transition-colors group cursor-pointer bg-slate-50/50">
+          <div class="space-y-3">
+              <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em]">Visual Source</label>
+              <div class="relative border-2 border-dashed border-white/10 rounded-[2.5rem] p-10 hover:border-brand/40 transition-all group cursor-pointer bg-white/5">
                   <input id="image" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="updateFileName(this)"/>
                   <div class="text-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-8 w-8 text-slate-400 mb-3 group-hover:text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-10 w-10 text-white/10 mb-4 group-hover:text-brand transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
-                      <div id="file_name_display" class="text-xs font-bold text-slate-500">Upload your own file here</div>
+                      <div id="file_name_display" class="text-[10px] font-black text-muted uppercase tracking-widest">Awaiting File Ingest</div>
                   </div>
               </div>
-              <p class="mt-2 text-[10px] text-slate-400 font-medium">✨ Upload your posters, graphics, or photos (PNG, JPG, WEBP).</p>
           </div>
-          <div class="grid grid-cols-1 gap-3 pt-4">
-              <button id="intake_btn" onclick="uploadPost()" class="bg-indigo-600 text-white rounded-2xl py-5 font-black hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed uppercase tracking-widest text-sm">Create Post Entry</button>
-              <button onclick="resetUpload()" class="bg-white text-slate-400 rounded-2xl py-3 font-bold hover:bg-slate-50 transition-all text-xs border border-slate-200">Reset Form</button>
+          <div class="grid grid-cols-1 gap-4 pt-4">
+              <button id="intake_btn" onclick="uploadPost()" class="bg-brand text-white rounded-[2rem] py-6 font-black uppercase tracking-[0.3em] italic hover:scale-[1.02] active:scale-95 transition-all shadow-2xl shadow-brand/20 text-xs">Commit Ingestion</button>
+              <button onclick="resetUpload()" class="glass text-muted rounded-[2rem] py-4 font-black uppercase tracking-widest hover:text-white transition-all text-[9px]">Reset Logical State</button>
           </div>
-          <div id="upload_msg" class="text-center text-xs font-bold uppercase h-4"></div>
+          <div id="upload_msg" class="text-center text-[9px] font-black uppercase h-4 tracking-[0.2em] text-brand italic"></div>
         </div>
       </section>
     </div>
+
     <!-- 2) Feed Section -->
-    <div class="lg:col-span-8 flex flex-col gap-6">
-      <section class="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm min-h-[700px]">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 pb-6 border-b border-slate-100">
-            <div class="flex items-center gap-6">
-                <button onclick="switchTab('feed')" id="tab_feed" class="text-2xl font-black flex items-center gap-3 border-b-4 border-slate-900 pb-2">
-                    Feed
+    <div class="lg:col-span-8 flex flex-col gap-8">
+      <section class="glass rounded-[3rem] border border-white/5 p-10 shadow-2xl min-h-[700px]">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-8 mb-10 pb-8 border-b border-white/5">
+            <div class="flex items-center gap-8 overflow-x-auto no-scrollbar">
+                <button onclick="switchTab('feed')" id="tab_feed" class="text-2xl font-black italic tracking-tight text-white border-b-4 border-brand pb-2 transition-all">
+                   Feed
                 </button>
-                <button onclick="switchTab('calendar')" id="tab_calendar" class="text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2">
-                    Calendar
+                <button onclick="switchTab('calendar')" id="tab_calendar" class="text-2xl font-black italic tracking-tight text-muted hover:text-white transition-all pb-2">
+                   Schedule
                 </button>
-                <button onclick="switchTab('automations')" id="tab_automations" class="text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2">
-                    Automations
+                <button onclick="switchTab('automations')" id="tab_automations" class="text-2xl font-black italic tracking-tight text-muted hover:text-white transition-all pb-2">
+                   Neural
                 </button>
-                <button onclick="switchTab('profiles')" id="tab_profiles" class="text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2">
-                    Profiles
+                <button onclick="switchTab('profiles')" id="tab_profiles" class="text-2xl font-black italic tracking-tight text-muted hover:text-white transition-all pb-2">
+                   Profiles
                 </button>
-                <button onclick="switchTab('library')" id="tab_library" class="text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2">
-                    Library
+                <button onclick="switchTab('library')" id="tab_library" class="text-2xl font-black italic tracking-tight text-muted hover:text-white transition-all pb-2">
+                   Core
                 </button>
-                <button onclick="switchTab('media')" id="tab_media" class="text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2">
-                    Media
+                <button onclick="switchTab('media')" id="tab_media" class="text-2xl font-black italic tracking-tight text-muted hover:text-white transition-all pb-2">
+                   Assets
                 </button>
             </div>
-            <div id="feed_controls" class="flex items-center gap-2">
-                <select id="status_filter" onchange="refreshAll()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:ring-indigo-500 outline-none bg-slate-50 cursor-pointer">
-                    <option value="">All Stages</option>
-                    <option value="submitted">1. Submitted</option>
-                    <option value="drafted">2. Drafted</option>
-                    <option value="needs_review">Review Required</option>
-                    <option value="scheduled">3. Scheduled</option>
-                    <option value="published">4. Published</option>
+            
+            <div id="feed_controls" class="flex items-center gap-3">
+                <select id="status_filter" onchange="refreshAll()" class="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-brand outline-none cursor-pointer hover:bg-white/10 transition-all">
+                    <option value="">Full Trace</option>
+                    <option value="submitted">Ingested</option>
+                    <option value="drafted">Neural Draft</option>
+                    <option value="needs_review">Human Verification</option>
+                    <option value="scheduled">Scheduled</option>
+                    <option value="published">Deployed</option>
                     <option value="failed">Error Trace</option>
                 </select>
             </div>
-            <div id="calendar_controls" class="hidden flex items-center gap-2">
-                <button onclick="refreshAll()" class="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 transition-all">
-                    <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            <div id="calendar_controls" class="hidden">
+                <button onclick="refreshAll()" class="w-12 h-12 rounded-2xl glass text-muted hover:text-brand flex items-center justify-center transition-all">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                 </button>
             </div>
-            <div id="automations_controls" class="hidden flex items-center gap-2">
-                <button onclick="showCreateAuto()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">New Automation</button>
+            <div id="automations_controls" class="hidden">
+                <button onclick="showCreateAuto()" class="bg-brand text-white px-8 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest italic shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-95 transition-all">New Neural Pattern</button>
             </div>
-            <div id="profiles_controls" class="hidden flex items-center gap-2">
-                <button onclick="showCreateProfile()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">New Profile</button>
+            <div id="profiles_controls" class="hidden">
+                <button onclick="showCreateProfile()" class="bg-brand text-white px-8 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest italic shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-95 transition-all">New Profile</button>
             </div>
-            <div id="library_controls" class="hidden flex items-center gap-2">
-                <input type="text" id="library_search" oninput="loadLibrary()" placeholder="Search Library..." class="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold focus:ring-indigo-500 outline-none bg-slate-50"/>
-                <button onclick="seedDemoContent()" class="bg-indigo-100 text-indigo-700 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-200 transition-all">Seed Demo</button>
-                </label>
+            <div id="library_controls" class="hidden flex items-center gap-3">
+                <input type="text" id="library_search" oninput="loadLibrary()" placeholder="Filter Repository..." class="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white outline-none focus:ring-1 focus:ring-brand transition-all"/>
+                <button onclick="seedDemoContent()" class="bg-brand/10 text-brand px-6 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-brand/20 transition-all border border-brand/20 italic">Initialize Core</button>
             </div>
-            <div id="media_controls" class="hidden flex items-center gap-2">
-                <label class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest cursor-pointer shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all">
-                    Upload Asset
+            <div id="media_controls" class="hidden">
+                <label class="bg-brand text-white px-8 py-3 rounded-2xl text-[9px] font-black uppercase tracking-widest italic cursor-pointer shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-95 transition-all">
+                    Upload Source
                     <input type="file" id="media_upload_input" class="hidden" onchange="uploadMedia(this)"/>
                 </label>
             </div>
         </div>
+
         <div id="feed_view">
-            <div id="stats" class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-10"></div>
-            <div id="error" class="hidden mb-6 p-5 rounded-2xl bg-red-50 text-red-600 text-[11px] font-bold border border-red-100 animate-pulse"></div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8" id="list"></div>
+            <div id="stats" class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-12"></div>
+            <div id="error" class="hidden mb-10 p-6 rounded-[2rem] bg-rose-500/10 text-rose-400 text-[10px] font-black uppercase tracking-[0.2em] border border-rose-500/20 animate-pulse italic"></div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-10" id="list"></div>
         </div>
-        <div id="automations_view" class="hidden space-y-8">
-            <div id="auto_list" class="grid grid-cols-1 gap-6"></div>
+        <div id="automations_view" class="hidden space-y-10">
+            <div id="auto_list" class="grid grid-cols-1 gap-8"></div>
         </div>
-        <div id="profiles_view" class="hidden space-y-8">
-            <div id="profile_list" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+        <div id="profiles_view" class="hidden space-y-10">
+            <div id="profile_list" class="grid grid-cols-1 md:grid-cols-2 gap-8"></div>
         </div>
         <div id="calendar_view" class="hidden">
-            <div id="calendar_el" class="bg-white p-4 rounded-2xl min-h-[600px]"></div>
+            <div id="calendar_el" class="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] min-h-[600px] text-white"></div>
         </div>
-        <div id="library_view" class="hidden space-y-8">
-            <div id="library_list" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+        <div id="library_view" class="hidden space-y-10">
+            <div id="library_list" class="grid grid-cols-1 md:grid-cols-2 gap-8"></div>
         </div>
-        <div id="media_view" class="hidden space-y-8">
-            <div id="media_list" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+        <div id="media_view" class="hidden space-y-10">
+            <div id="media_list" class="grid grid-cols-2 md:grid-cols-4 gap-6"></div>
         </div>
       </section>
     </div>
 
     <!-- Platform Drawer -->
-    <div id="platform_panel" class="hidden fixed inset-0 bg-black/40 z-[100] backdrop-blur-sm flex justify-end" onclick="if(event.target === this) togglePlatformPanel()">
-        <div class="w-full max-w-4xl bg-white h-full shadow-2xl p-8 flex flex-col overflow-y-auto" onclick="event.stopPropagation()">
-            <div class="flex justify-between items-center mb-8">
+    <!-- Platform Drawer -->
+    <div id="platform_panel" class="hidden fixed inset-0 bg-black/80 z-[130] backdrop-blur-md flex justify-end" onclick="if(event.target === this) togglePlatformPanel()">
+        <div class="w-full max-w-4xl glass h-full shadow-2xl p-12 flex flex-col overflow-y-auto border-l border-white/5" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-10">
                 <div>
-                    <h2 class="text-2xl font-black text-slate-900">Platform Users</h2>
-                    <p class="text-sm text-slate-500 mt-1">Manage global access and workspaces</p>
+                    <h2 class="text-3xl font-black text-white italic tracking-tight">System <span class="text-brand">Nodes</span></h2>
+                    <p class="text-[9px] font-black tracking-[0.3em] text-muted uppercase mt-2">Global Access Management</p>
                 </div>
-                <button onclick="togglePlatformPanel()" class="p-2 rounded-lg hover:bg-slate-100 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                <button onclick="togglePlatformPanel()" class="w-12 h-12 rounded-2xl glass text-muted hover:text-white flex items-center justify-center transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
             
-            <div class="overflow-x-auto rounded-xl border border-slate-200">
+            <div class="overflow-hidden rounded-[2rem] border border-white/5 bg-white/5">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-slate-50 border-b border-slate-200">
-                            <th class="py-3 px-4 flex-1 text-xs font-black uppercase tracking-widest text-slate-500">User</th>
-                            <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-slate-500">Contact</th>
-                            <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-slate-500">Workspaces</th>
-                            <th class="py-3 px-4 font-black uppercase tracking-widest text-xs text-slate-500 text-right">Actions</th>
+                        <tr class="bg-white/5 border-b border-white/5">
+                            <th class="py-5 px-6 text-[9px] font-black uppercase tracking-[0.2em] text-muted">Entity</th>
+                            <th class="py-5 px-6 text-[9px] font-black uppercase tracking-[0.2em] text-muted">Primary Route</th>
+                            <th class="py-5 px-6 text-[9px] font-black uppercase tracking-[0.2em] text-muted">Nodes Mapping</th>
+                            <th class="py-5 px-6 text-[9px] font-black uppercase tracking-[0.2em] text-muted text-right">Directives</th>
                         </tr>
                     </thead>
-                    <tbody id="platform_user_table" class="divide-y divide-slate-100 text-sm font-medium text-slate-700">
+                    <tbody id="platform_user_table" class="divide-y divide-white/5 text-[11px] font-bold text-white">
                     </tbody>
                 </table>
             </div>
@@ -813,69 +848,69 @@ HTML = r"""<!doctype html>
     </div>
 
     <!-- Content Profile Modal -->
-    <div id="profile_modal" class="hidden fixed inset-0 bg-black/40 z-[110] backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div class="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h3 class="text-xl font-black text-slate-800">Content Profile</h3>
-                <button onclick="hideCreateProfile()" class="text-slate-400 hover:text-slate-600">
+    <div id="profile_modal" class="hidden fixed inset-0 bg-black/80 z-[140] backdrop-blur-md flex items-center justify-center p-4">
+        <div class="glass rounded-[3.5rem] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] border border-white/10">
+            <div class="px-10 py-8 border-b border-white/5 flex justify-between items-center bg-white/5">
+                <h3 class="text-2xl font-black text-white italic tracking-tight">Identity <span class="text-brand">Protocol</span></h3>
+                <button onclick="hideCreateProfile()" class="w-10 h-10 rounded-2xl glass text-muted hover:text-white flex items-center justify-center transition-all">
                     <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
             </div>
-            <div class="p-8 overflow-y-auto space-y-6">
+            <div class="p-10 overflow-y-auto space-y-10">
                 <input type="hidden" id="edit_profile_id" value=""/>
                 
-                <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100 mb-6">
-                    <label class="block text-[10px] font-black text-indigo-900 uppercase tracking-widest mb-3">Load Starter Preset Quick-Fill</label>
+                <div class="bg-brand/10 p-6 rounded-[2rem] border border-brand/20">
+                    <label class="block text-[9px] font-black text-brand uppercase tracking-[0.3em] mb-4">Neural Architecture Presets</label>
                     <div class="flex flex-wrap gap-2">
-                        <button onclick="seedProfile('islamic_education')" class="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg hover:bg-indigo-600 hover:text-white transition-colors">Islamic Education</button>
-                        <button onclick="seedProfile('fitness_coach')" class="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg hover:bg-indigo-600 hover:text-white transition-colors">Fitness</button>
-                        <button onclick="seedProfile('real_estate')" class="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg hover:bg-indigo-600 hover:text-white transition-colors">Real Estate Market</button>
-                        <button onclick="seedProfile('small_business')" class="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg hover:bg-indigo-600 hover:text-white transition-colors">E-Commerce</button>
-                        <button onclick="seedProfile('personal_branding')" class="px-3 py-1.5 bg-white border border-indigo-200 text-indigo-700 text-[10px] font-bold rounded-lg hover:bg-indigo-600 hover:text-white transition-colors">Personal Creator</button>
+                        <button onclick="seedProfile('islamic_education')" class="px-4 py-2 bg-white/5 border border-white/10 text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-brand hover:text-white transition-all">Islamic Core</button>
+                        <button onclick="seedProfile('fitness_coach')" class="px-4 py-2 bg-white/5 border border-white/10 text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-brand hover:text-white transition-all">Vitality</button>
+                        <button onclick="seedProfile('real_estate')" class="px-4 py-2 bg-white/5 border border-white/10 text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-brand hover:text-white transition-all">Real Estate</button>
+                        <button onclick="seedProfile('small_business')" class="px-4 py-2 bg-white/5 border border-white/10 text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-brand hover:text-white transition-all">Commerce</button>
+                        <button onclick="seedProfile('personal_branding')" class="px-4 py-2 bg-white/5 border border-white/10 text-white text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-brand hover:text-white transition-all">Creator</button>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-6">
                     <div>
-                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Profile Name</label>
-                        <input id="prof_name" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. My Brand Strategy"/>
+                        <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-3">Identity Key</label>
+                        <input id="prof_name" class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-white outline-none focus:ring-1 focus:ring-brand transition-all" placeholder="e.g. My Brand Strategy"/>
                     </div>
                     <div>
-                        <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Niche Category</label>
-                        <input id="prof_niche" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. real_estate, fitness"/>
+                        <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-3">Niche Vector</label>
+                        <input id="prof_niche" class="w-full px-5 py-4 rounded-2xl bg-white/5 border border-white/10 text-xs font-bold text-white outline-none focus:ring-1 focus:ring-brand transition-all" placeholder="e.g. real_estate, fitness"/>
                     </div>
                 </div>
                 
                 <div>
-                    <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Focus Description (What to post)</label>
-                    <textarea id="prof_focus" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 min-h-[80px]" placeholder="Specific focus..."></textarea>
+                    <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-3">Focus Directive (Aura)</label>
+                    <textarea id="prof_focus" class="w-full px-5 py-4 rounded-[2rem] bg-white/5 border border-white/10 text-[11px] font-bold text-white outline-none focus:ring-1 focus:ring-brand min-h-[100px] transition-all" placeholder="Specify core focus..."></textarea>
                 </div>
                 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-6">
                     <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Content Goals</label>
-                        <textarea id="prof_goals" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 min-h-[80px]" placeholder="Educate, Sell..."></textarea>
+                        <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-3">Strategic Targets</label>
+                        <textarea id="prof_goals" class="w-full px-5 py-4 rounded-[2rem] bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none focus:ring-1 focus:ring-brand min-h-[100px]" placeholder="Educate, Convert..."></textarea>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Tone & Style</label>
-                        <textarea id="prof_tone" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 min-h-[80px]" placeholder="Professional..."></textarea>
+                        <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-3">Tonal Resonance</label>
+                        <textarea id="prof_tone" class="w-full px-5 py-4 rounded-[2rem] bg-white/5 border border-white/10 text-[10px] font-bold text-white outline-none focus:ring-1 focus:ring-brand min-h-[100px]" placeholder="Professional, Minimalist..."></textarea>
                     </div>
                 </div>
                 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-2 gap-6">
                     <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Allowed Topics (CSV)</label>
-                        <input id="prof_allowed" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none text-xs" placeholder="topic1, topic2"/>
+                        <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-3">Permitted Nodes</label>
+                        <input id="prof_allowed" class="w-full px-5 py-4 rounded-xl bg-white/5 border border-white/10 text-[10px] font-mono text-emerald-400 outline-none" placeholder="topic1, topic2"/>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Banned Topics (CSV)</label>
-                        <input id="prof_banned" class="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none text-xs" placeholder="politics, drama"/>
+                        <label class="block text-[9px] font-black text-muted uppercase tracking-[0.3em] mb-3">Redacted Nodes</label>
+                        <input id="prof_banned" class="w-full px-5 py-4 rounded-xl bg-white/5 border border-white/10 text-[10px] font-mono text-rose-400 outline-none" placeholder="politics, drama"/>
                     </div>
                 </div>
             </div>
-            <div class="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-                <button onclick="hideCreateProfile()" class="px-6 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition-colors">Cancel</button>
-                <button onclick="saveProfileWrapper()" class="px-8 py-3 bg-indigo-600 text-white rounded-xl font-black shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-transform active:scale-95">Save Profile</button>
+            <div class="p-8 glass border-t border-white/5 flex justify-end gap-3">
+                <button onclick="hideCreateProfile()" class="px-8 py-4 rounded-2xl glass text-[10px] font-black uppercase tracking-widest text-muted hover:text-white transition-all">Cancel</button>
+                <button onclick="saveProfileWrapper()" class="px-10 py-4 bg-brand text-white rounded-2xl text-[10px] font-black uppercase tracking-widest italic shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-95 transition-all">Sync Identity</button>
             </div>
         </div>
     </div>
@@ -917,28 +952,31 @@ function toggleGuideModal() {
 
 async function loadPlatformUsers() {
     const tbody = document.getElementById("platform_user_table");
-    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-400 font-bold uppercase tracking-widest text-xs animate-pulse">Loading Platform Data...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-12 text-muted font-black uppercase tracking-[0.3em] text-[10px] animate-pulse">Syncing Platform Nodes...</td></tr>`;
     try {
         const users = await request("/admin/users");
         if (users.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-400 font-bold uppercase">No users found</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-12 text-muted font-black uppercase tracking-widest text-[10px]">No active nodes found</td></tr>`;
             return;
         }
         tbody.innerHTML = users.map(u => `
-            <tr class="hover:bg-slate-50 transition-colors">
-                <td class="py-4 px-4 font-black text-slate-900 flex items-center gap-2">
-                    ${u.is_superadmin ? '<span class="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded text-[9px] uppercase tracking-widest">Admin</span>' : ''}
-                    ${esc(u.name)}
+            <tr class="hover:bg-white/5 transition-colors group">
+                <td class="py-5 px-6 font-black text-white flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-[10px] border border-white/10 group-hover:border-brand/40 transition-all">${(u.name || "U")[0].toUpperCase()}</div>
+                    <div class="flex flex-col">
+                        <span class="text-[11px]">${esc(u.name)}</span>
+                        ${u.is_superadmin ? '<span class="text-[8px] text-brand font-black uppercase tracking-widest italic">Core Admin</span>' : ''}
+                    </div>
                 </td>
-                <td class="py-4 px-4">${esc(u.email)}</td>
-                <td class="py-4 px-4 text-[10px] font-semibold tracking-wider text-slate-500">${esc(u.orgs || 'None')}</td>
-                <td class="py-4 px-4 text-right">
-                    ${!u.is_superadmin ? `<button onclick="deleteUser(${u.id})" class="text-xs font-black uppercase tracking-widest text-red-500 hover:text-red-700 hover:underline">Delete</button>` : ''}
+                <td class="py-5 px-6 text-muted text-[10px] font-mono">${esc(u.email)}</td>
+                <td class="py-5 px-6 text-[9px] font-black tracking-widest text-muted uppercase">${esc(u.orgs || 'Unmapped')}</td>
+                <td class="py-5 px-6 text-right">
+                    ${!u.is_superadmin ? `<button onclick="deleteUser(${u.id})" class="text-[9px] font-black uppercase tracking-widest text-rose-500 hover:text-rose-400 hover:underline transition-all">Terminate</button>` : '<span class="text-[9px] font-black text-white/10 uppercase tracking-widest">Protected</span>'}
                 </td>
             </tr>
         `).join("");
     } catch(e) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-red-500 font-bold">${e.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-12 text-rose-500 font-black uppercase tracking-widest text-[10px]">Sync Error: ${e.message}</td></tr>`;
     }
 }
 
@@ -966,7 +1004,7 @@ function switchTab(t) {
         const ctrl = document.getElementById(v + "_controls");
         if(ctrl) ctrl.classList.toggle("hidden", v !== t);
         const tab = document.getElementById("tab_" + v);
-        if(tab) tab.className = v === t ? "text-2xl font-black flex items-center gap-3 border-b-4 border-slate-900 pb-2" : "text-2xl font-black flex items-center gap-3 text-slate-300 hover:text-slate-600 transition-colors pb-2";
+        if(tab) tab.className = v === t ? "text-2xl font-black italic tracking-tight text-white border-b-4 border-brand pb-2 transition-all" : "text-2xl font-black italic tracking-tight text-muted hover:text-white transition-all pb-2";
     });
     
     if (t === 'calendar') {
@@ -1049,14 +1087,14 @@ async function refreshAll() {
 
 async function loadAutomations() {
     const list = document.getElementById("auto_list");
-    list.innerHTML = `<div class="py-12 text-center text-slate-400 font-black uppercase text-xs animate-pulse">Scanning Robotics...</div>`;
+    list.innerHTML = `<div class="py-12 text-center text-muted font-black uppercase text-[10px] tracking-[0.3em] animate-pulse">Scanning Neural Robotics...</div>`;
     try {
         const j = await request(`/automations/?ig_account_id=${ACTIVE_ACCOUNT_ID}`);
         if (!j.length) {
             list.innerHTML = `
-            <div class="py-24 text-center border-2 border-dashed border-slate-200 rounded-3xl">
-                <p class="text-sm text-slate-400 font-black uppercase mb-4">No Automations Established</p>
-                <button onclick="showCreateAuto()" class="bg-slate-900 text-white px-6 py-2 rounded-xl text-xs font-black">Create First AI Job</button>
+            <div class="py-24 text-center border-2 border-dashed border-white/5 rounded-[3rem] bg-white/5">
+                <p class="text-[10px] text-muted font-black uppercase tracking-[0.2em] mb-6">No Automations Established</p>
+                <button onclick="showCreateAuto()" class="bg-brand text-white px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest italic shadow-xl shadow-brand/20 hover:scale-105 active:scale-95 transition-all">Initialize First Pattern</button>
             </div>`;
             return;
         }
@@ -1065,38 +1103,38 @@ async function loadAutomations() {
 }
 
 function renderAuto(a) {
-    const err = a.last_error ? `<p class="mt-2 text-[10px] bg-red-50 text-red-600 border border-red-100 p-2 rounded-xl font-bold uppercase tracking-tight">Error: ${esc(a.last_error)}</p>` : '';
+    const err = a.last_error ? `<p class="mt-4 text-[9px] bg-rose-500/10 text-rose-400 border border-rose-500/20 p-4 rounded-2xl font-black uppercase tracking-widest italic animate-pulse">Trace Error: ${esc(a.last_error)}</p>` : '';
     return `
-    <div class="bg-slate-50 border border-slate-200 rounded-3xl p-6 flex flex-col items-stretch group hover:bg-white hover:shadow-xl transition-all duration-300">
-        <div class="flex items-start justify-between mb-4">
+    <div class="glass border border-white/5 rounded-[2.5rem] p-8 flex flex-col items-stretch group hover:bg-white/10 hover:border-white/20 transition-all duration-500">
+        <div class="flex items-start justify-between mb-8">
             <div class="flex-1">
-                <div class="flex items-center gap-3 mb-2">
-                    <h4 class="text-lg font-black text-slate-800">${esc(a.name)}</h4>
-                    <span class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter ${a.enabled ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-slate-200 text-slate-500 border border-slate-300'}">${a.enabled ? 'Enabled' : 'Paused'}</span>
-                    ${a.enrich_with_hadith ? '<span class="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter bg-purple-100 text-purple-700 border border-purple-200">Enriched</span>' : ''}
+                <div class="flex items-center gap-4 mb-3">
+                    <h4 class="text-xl font-black text-white italic tracking-tight">${esc(a.name)}</h4>
+                    <span class="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${a.enabled ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-white/5 text-muted border border-white/10'}">${a.enabled ? 'Active' : 'Standby'}</span>
+                    ${a.enrich_with_hadith ? '<span class="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest bg-brand/10 text-brand border border-brand/20">Enriched</span>' : ''}
                 </div>
-                <p class="text-xs text-slate-500 font-medium line-clamp-1 italic">Prompt: "${esc(a.topic_prompt)}"</p>
+                <p class="text-[10px] text-muted font-bold tracking-wide line-clamp-1 italic">Pattern Vector: "${esc(a.topic_prompt)}"</p>
                 ${err}
             </div>
-            <div class="flex items-center gap-2">
-                <button onclick="triggerAuto(${a.id})" class="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:shadow-lg transition-all" title="Run Once (Create Post)">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <div class="flex items-center gap-3 opacity-60 group-hover:opacity-100 transition-opacity">
+                <button onclick="triggerAuto(${a.id})" class="w-12 h-12 rounded-2xl glass text-muted hover:text-emerald-400 hover:border-emerald-500/20 flex items-center justify-center transition-all" title="Execute Once">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </button>
-                <button onclick="testLLM(${a.id}, '${esc(a.topic_prompt)}', '${a.style_preset}')" class="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:shadow-lg transition-all" title="Test AI Generation">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.341A8.001 8.001 0 0012 4a8.001 8.001 0 00-7.428 11.341c.142.311.23.642.23.978V19a2 2 0 002 2h9a2 2 0 002-2v-2.681c0-.336.088-.667.23-.978z" /></svg>
+                <button onclick="testLLM(${a.id}, '${esc(a.topic_prompt)}', '${a.style_preset}')" class="w-12 h-12 rounded-2xl glass text-muted hover:text-brand hover:border-brand/20 flex items-center justify-center transition-all" title="Neural Test">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.341A8.001 8.001 0 0012 4a8.001 8.001 0 00-7.428 11.341c.142.311.23.642.23.978V19a2 2 0 002 2h9a2 2 0 002-2v-2.681c0-.336.088-.667.23-.978z" /></svg>
                 </button>
-                <button onclick="editAuto(${JSON.stringify(a).replaceAll('"', '&quot;')})" class="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 hover:shadow-lg transition-all" title="Edit Automation Settings">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                <button onclick="editAuto(${JSON.stringify(a).replaceAll('"', '&quot;')})" class="w-12 h-12 rounded-2xl glass text-muted hover:text-white flex items-center justify-center transition-all" title="Modify Configuration">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                 </button>
-                <button onclick="deleteAuto(${a.id})" class="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:shadow-lg transition-all" title="Delete Automation">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                <button onclick="deleteAuto(${a.id})" class="w-12 h-12 rounded-2xl glass text-muted hover:text-rose-500 hover:border-rose-500/20 flex items-center justify-center transition-all" title="Teardown">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
             </div>
         </div>
-        <div class="flex flex-wrap gap-4 text-[10px] font-black uppercase tracking-widest text-slate-400 border-t border-slate-100 pt-4">
-            <span class="flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> ${a.post_time_local || '09:00'}</span>
-            <span class="flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg> ${a.style_preset} (${a.tone})</span>
-            <span class="flex items-center gap-1.5 text-indigo-500">Last Run: ${a.last_run_at ? new Date(a.last_run_at).toLocaleDateString() : 'Never'}</span>
+        <div class="flex flex-wrap gap-6 text-[10px] font-black uppercase tracking-widest text-muted border-t border-white/5 pt-6">
+            <span class="flex items-center gap-2 italic"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>${a.post_time_local || '09:00'}</span>
+            <span class="flex items-center gap-2 italic"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>${a.style_preset}</span>
+            <span class="flex items-center gap-2 text-brand italic">Last Epoch: ${a.last_run_at ? new Date(a.last_run_at).toLocaleDateString() : 'None'}</span>
         </div>
     </div>`;
 }
@@ -1345,9 +1383,7 @@ async function openPostEditor(postId) {
         document.getElementById("post_edit_alt").value = p.alt_text || "";
         document.getElementById("post_edit_img").src = p.media_url || "";
         
-        const statusEl = document.getElementById("post_edit_status");
-        statusEl.textContent = p.status.toUpperCase();
-        statusEl.className = `px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${getPostColor(p.status).includes('#') ? 'bg-slate-200 text-slate-600' : ''}`;
+        statusEl.className = `px-4 py-1.5 rounded-xl border backdrop-blur-xl text-[8px] font-black uppercase tracking-[0.2em] shadow-2xl ${getPostColor(p.status).includes('emerald') ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-white/5 text-muted border-white/10'}`;
         
         if (p.scheduled_time) {
             const d = new Date(p.scheduled_time);
@@ -1456,21 +1492,21 @@ async function deletePostUI() {
 // --- MEDIA LIBRARY LOGIC ---
 async function loadMediaLibrary() {
     const list = document.getElementById("media_list");
-    list.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-black uppercase text-xs animate-pulse">Consulting Gallery...</div>`;
+    list.innerHTML = `<div class="col-span-full py-12 text-center text-muted font-black uppercase text-[10px] tracking-[0.3em] animate-pulse">Consulting Neural Gallery...</div>`;
     try {
         const j = await request("/media-assets");
         if (!j.length) {
-            list.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-bold">No assets found. Upload some!</div>`;
+            list.innerHTML = `<div class="col-span-full py-12 text-center text-muted/40 font-black uppercase tracking-widest text-[9px]">No neural assets found. Upload to manifest.</div>`;
             return;
         }
         list.innerHTML = j.map(m => `
-            <div class="relative group rounded-2xl overflow-hidden aspect-square border border-slate-200 bg-slate-100">
-                <img src="${m.url}" class="w-full h-full object-cover"/>
-                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3 gap-2">
-                    <div class="flex flex-wrap gap-1 mb-auto">
-                        ${(m.tags || []).map(t => `<span class="px-1.5 py-0.5 bg-white/20 backdrop-blur-md rounded text-[8px] text-white font-bold uppercase">${esc(t)}</span>`).join("")}
+            <div class="relative group rounded-[2rem] overflow-hidden aspect-square border border-white/5 bg-white/5 glass transition-all duration-500 hover:border-brand/40 hover:shadow-2xl hover:shadow-brand/5">
+                <img src="${m.url}" class="w-full h-full object-cover transition-transform duration-[2s] group-hover:scale-125"/>
+                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-6 gap-4">
+                    <div class="flex flex-wrap gap-2 mb-auto">
+                        ${(m.tags || []).map(t => `<span class="px-2 py-1 bg-brand/10 backdrop-blur-md rounded-lg text-[8px] text-brand font-black uppercase tracking-widest border border-brand/20">${esc(t)}</span>`).join("")}
                     </div>
-                    <button onclick="deleteMedia(${m.id})" class="bg-red-500 text-white w-full py-2 rounded-xl text-[10px] font-black uppercase">Delete</button>
+                    <button onclick="deleteMedia(${m.id})" class="bg-rose-500 text-white w-full py-4 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] shadow-xl shadow-rose-500/20 hover:bg-rose-600 transition-all active:scale-95">Purge Asset</button>
                 </div>
             </div>
         `).join("");
@@ -1565,11 +1601,11 @@ function editAuto(a) {
 
 async function loadProfiles() {
     const list = document.getElementById("profile_list");
-    list.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-black uppercase text-xs animate-pulse">Loading Profiles...</div>`;
+    list.innerHTML = `<div class="col-span-full py-12 text-center text-muted font-black uppercase text-[10px] tracking-[0.3em] animate-pulse">Syncing Identity Matrices...</div>`;
     
     const select = document.getElementById("auto_profile_id");
     if(select) {
-        select.innerHTML = `<option value="">-- Generic Setup (No Profile) --</option>`;
+        select.innerHTML = `<option value="">-- Neural Seed (No Profile) --</option>`;
     }
     
     try {
@@ -1583,33 +1619,33 @@ async function loadProfiles() {
         
         if (!j.length) {
             list.innerHTML = `
-            <div class="col-span-full py-24 text-center border-2 border-dashed border-slate-200 rounded-3xl">
-                <p class="text-sm text-slate-400 font-black uppercase mb-4">No Profiles Found</p>
-                <button onclick="showCreateProfile()" class="bg-indigo-600 text-white px-6 py-2 rounded-xl text-xs font-black">Create First Profile</button>
+            <div class="col-span-full py-24 text-center border-2 border-dashed border-white/5 rounded-[3rem] bg-white/5">
+                <p class="text-[10px] text-muted font-black uppercase tracking-[0.2em] mb-6">No Identity Profiles Detected</p>
+                <button onclick="showCreateProfile()" class="bg-brand text-white px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest italic shadow-xl shadow-brand/20 hover:scale-105 active:scale-95 transition-all">Establish First Identity</button>
             </div>`;
             return;
         }
         
         list.innerHTML = j.map(p => {
             return `
-            <div class="bg-white border border-slate-200 rounded-3xl p-6 flex flex-col items-stretch group hover:bg-slate-50 hover:shadow-xl transition-all duration-300">
-                <div class="flex items-start justify-between mb-4">
+            <div class="glass border border-white/5 rounded-[2.5rem] p-8 flex flex-col items-stretch group hover:bg-white/10 hover:border-white/20 transition-all duration-500">
+                <div class="flex items-start justify-between mb-8">
                     <div class="flex-1">
-                        <div class="flex items-center gap-3 mb-2">
-                            <h4 class="text-lg font-black text-slate-800">${esc(p.name)}</h4>
+                        <div class="flex items-center gap-4 mb-3">
+                            <h4 class="text-xl font-black text-white italic tracking-tight">${esc(p.name)}</h4>
                         </div>
-                        <p class="text-[10px] uppercase font-black tracking-widest text-slate-400 mb-2">Niche: <span class="text-indigo-600">${esc(p.niche_category || 'N/A')}</span></p>
-                        <p class="text-xs text-slate-500 font-medium line-clamp-2">${esc(p.focus_description || 'No focus specified.')}</p>
+                        <p class="text-[9px] uppercase font-black tracking-[0.2em] text-muted mb-4">Vector: <span class="text-brand italic">${esc(p.niche_category || 'General')}</span></p>
+                        <p class="text-[11px] text-muted font-bold tracking-wide line-clamp-2 italic">Aura: "${esc(p.focus_description || 'No focus specified.')}"</p>
                     </div>
                 </div>
-                <div class="mt-auto pt-4 border-t border-slate-100 flex justify-end gap-2">
-                    <button onclick='editProfile(${JSON.stringify(p).replaceAll("'", "&apos;")})' class="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all font-bold text-xs">Edit</button>
-                    <button onclick="deleteProfile(${p.id})" class="p-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 transition-all font-bold text-xs">Delete</button>
+                <div class="mt-auto pt-6 border-t border-white/5 flex justify-end gap-3 opacity-60 group-hover:opacity-100 transition-opacity">
+                    <button onclick='editProfile(${JSON.stringify(p).replaceAll("'", "&apos;")})' class="px-6 py-3 rounded-xl glass text-muted text-[9px] font-black uppercase tracking-widest hover:text-white transition-all">Modify</button>
+                    <button onclick="deleteProfile(${p.id})" class="px-6 py-3 rounded-xl glass text-muted text-[9px] font-black uppercase tracking-widest hover:text-rose-500 transition-all">Purge</button>
                 </div>
             </div>`;
         }).join("");
     } catch(e) { 
-        list.innerHTML = `<div class="col-span-full text-center text-red-500 font-bold">${e.message}</div>`;
+        list.innerHTML = `<div class="col-span-full text-center text-rose-500 font-black uppercase tracking-widest text-[10px]">Sync Error: ${e.message}</div>`;
     }
 }
 
@@ -1694,28 +1730,28 @@ async function seedProfile(presetName) {
 async function loadLibrary() {
     const list = document.getElementById("library_list");
     const query = document.getElementById("library_search")?.value || "";
-    list.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-black uppercase text-xs animate-pulse">Browsing Archive...</div>`;
+    list.innerHTML = `<div class="col-span-full py-12 text-center text-muted font-black uppercase text-[10px] tracking-[0.3em] animate-pulse">Browsing Neural Archive...</div>`;
     try {
         const j = await request(`/library/?topic=${encodeURIComponent(query)}`);
         if (!j.length) {
             list.innerHTML = `
-            <div class="col-span-full py-24 text-center border-2 border-dashed border-slate-200 rounded-3xl">
-                <p class="text-sm text-slate-400 font-black uppercase">Archive Empty</p>
-                <p class="text-[10px] text-slate-400 mt-2">Upload or Seed some content to start.</p>
+            <div class="col-span-full py-24 text-center border-2 border-dashed border-white/5 rounded-[3rem] bg-white/5">
+                <p class="text-[10px] text-muted font-black uppercase tracking-[0.2em]">Archive Matrix Empty</p>
+                <p class="text-[9px] text-muted/60 mt-3 font-bold italic">Upload or Seed neural seeds to start.</p>
             </div>`;
             return;
         }
         list.innerHTML = j.map(item => `
-        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 hover:bg-white hover:shadow-lg transition-all">
-            <div class="flex justify-between items-start mb-3">
-                <span class="px-2 py-0.5 rounded-lg bg-indigo-100 text-indigo-700 text-[8px] font-black uppercase tracking-widest">${esc(item.type)}</span>
-                <span class="text-[9px] font-bold text-slate-400">${item.topics.join(", ")}</span>
+        <div class="glass border border-white/5 rounded-[2rem] p-6 hover:bg-white/10 hover:border-white/20 transition-all duration-300">
+            <div class="flex justify-between items-start mb-4">
+                <span class="px-2 py-0.5 rounded-lg bg-brand/10 text-brand text-[8px] font-black uppercase tracking-widest">${esc(item.type)}</span>
+                <span class="text-[8px] font-black text-muted uppercase tracking-widest">${item.topics.join(", ")}</span>
             </div>
-            <h5 class="text-sm font-black text-slate-800 mb-2 line-clamp-1">${esc(item.title || 'Untitled')}</h5>
-            <p class="text-xs text-slate-500 line-clamp-3 mb-4 italic">"${esc(item.text_en)}"</p>
-            <div class="flex justify-between items-center pt-3 border-t border-slate-100">
-                <span class="text-[9px] font-bold text-slate-400">${esc(item.source_name || 'Personal')}</span>
-                <button onclick="deleteLibraryItem(${item.id})" class="text-slate-300 hover:text-red-500 transition-colors">
+            <h5 class="text-sm font-black text-white mb-2 line-clamp-1 italic">${esc(item.title || 'Untitled Vector')}</h5>
+            <p class="text-[11px] text-muted font-medium line-clamp-3 mb-6 italic leading-relaxed">"${esc(item.text_en)}"</p>
+            <div class="flex justify-between items-center pt-4 border-t border-white/5">
+                <span class="text-[9px] font-black text-muted/40 uppercase tracking-widest">${esc(item.source_name || 'Personal')}</span>
+                <button onclick="deleteLibraryItem(${item.id})" class="text-muted/40 hover:text-rose-500 transition-colors">
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
             </div>
@@ -1787,12 +1823,12 @@ function updateAccountHeader() {
     
     if (acc) {
         display.textContent = acc.name;
-        display.className = "text-sm font-black text-indigo-700 uppercase fade-in";
-        box.className = "p-4 bg-indigo-50 border border-indigo-200 rounded-2xl shadow-inner";
+        display.className = "text-[11px] font-black text-brand uppercase tracking-widest italic fade-in";
+        box.className = "p-6 glass border border-brand/20 rounded-3xl shadow-xl shadow-brand/5";
     } else {
-        display.textContent = "Please Setup Account →";
-        display.className = "text-sm font-black text-slate-400 italic";
-        box.className = "p-4 bg-slate-50 border border-slate-200 rounded-2xl shadow-none";
+        display.textContent = "Connect Primary Hub →";
+        display.className = "text-[11px] font-black text-muted/40 uppercase tracking-widest italic";
+        box.className = "p-6 glass border border-white/5 rounded-3xl";
     }
 }
 function showEmptyState(type) {
@@ -1804,24 +1840,24 @@ function showEmptyState(type) {
     if (type === "no_accounts") {
         html = `
         <div class="col-span-full py-24 text-center">
-            <div class="w-16 h-16 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <div class="w-20 h-20 glass text-brand rounded-[2rem] flex items-center justify-center mx-auto mb-8 animate-pulse shadow-xl shadow-brand/10">
+                <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
-            <h3 class="text-xl font-black text-slate-800 mb-2">No Instagram Slots</h3>
-            <p class="text-sm text-slate-500 max-w-xs mx-auto mb-8">Your account is connected, but you haven't added an Instagram account slot yet.</p>
-            <button onclick="toggleSettings()" class="border-2 border-slate-900 text-slate-900 px-8 py-3 rounded-xl font-black hover:bg-slate-900 hover:text-white transition-all">Register First Slot</button>
+            <h3 class="text-2xl font-black text-white italic tracking-tight mb-3">No Neural Slots</h3>
+            <p class="text-[11px] text-muted font-bold max-w-xs mx-auto mb-10 tracking-wide italic">Your core identity is active, but you haven't initialized an Instagram endpoint yet.</p>
+            <button onclick="toggleSettings()" class="bg-brand text-white px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest italic shadow-xl shadow-brand/20 hover:scale-105 active:scale-95 transition-all">Initialize First Slot</button>
         </div>`;
     } else if (type === "no_posts") {
         html = `
         <div class="col-span-full py-24 text-center">
-            <div class="w-16 h-16 bg-indigo-50 text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+            <div class="w-20 h-20 glass text-brand rounded-[2rem] flex items-center justify-center mx-auto mb-8 animate-bounce shadow-xl shadow-brand/10">
+                <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
             </div>
-            <h3 class="text-xl font-black text-slate-800 mb-2">The Stream is Empty</h3>
-            <p class="text-sm text-slate-500 max-w-xs mx-auto mb-8">Ready to publish? Use the <b>Content Intake</b> form on the left to upload your FIRST LOCAL POSTER or personal file.</p>
-            <div class="flex items-center justify-center gap-2 text-indigo-600 font-bold animate-bounce">
-                <svg class="h-4 w-4 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                <span>Follow Step 3 to start</span>
+            <h3 class="text-2xl font-black text-white italic tracking-tight mb-3">The Stream is Void</h3>
+            <p class="text-[11px] text-muted font-bold max-w-xs mx-auto mb-10 tracking-wide italic">Ready to broadcast? Use the <b>Content Intake</b> matrix on the left to upload your FIRST LOCAL POSTER.</p>
+            <div class="flex items-center justify-center gap-3 text-brand font-black text-[10px] uppercase tracking-widest italic animate-pulse">
+                <svg class="h-5 w-5 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                <span>Follow Step 03 to manifest</span>
             </div>
         </div>`;
     }
@@ -1885,16 +1921,19 @@ function renderSettingsAccounts() {
     const list = document.getElementById("settings_accounts_list");
     if(!list) return;
     if(ACCOUNTS.length === 0) {
-        list.innerHTML = `<div class="text-xs text-slate-400 font-bold italic text-center py-4 bg-slate-50 rounded-xl">No accounts linked yet.</div>`;
+        list.innerHTML = `<div class="text-[9px] text-muted/40 font-black uppercase tracking-widest text-center py-8 glass border border-white/5 rounded-2xl italic">No neural links established.</div>`;
         return;
     }
     list.innerHTML = ACCOUNTS.map(a => `
-        <div class="flex justify-between items-center p-3 rounded-xl border border-slate-200 bg-slate-50">
-            <div>
-                <div class="text-sm font-bold text-slate-800">${esc(a.name)}</div>
-                <div class="text-[10px] text-slate-500 font-mono mt-0.5">ID: ${esc(a.ig_user_id)}</div>
+        <div class="flex justify-between items-center p-5 rounded-2xl border border-white/5 glass group hover:border-brand/30 transition-all duration-300">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center text-brand text-[8px] font-black border border-brand/20">${(a.name || "U")[0].toUpperCase()}</div>
+                <div>
+                    <div class="text-[11px] font-black text-white italic tracking-tight">${esc(a.name)}</div>
+                    <div class="text-[8px] text-muted font-mono mt-1 opacity-40 uppercase tracking-widest">Node ID: ${esc(a.ig_user_id)}</div>
+                </div>
             </div>
-            <button onclick="deleteAccount(${a.id})" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete Account">
+            <button onclick="deleteAccount(${a.id})" class="w-10 h-10 rounded-xl glass text-muted hover:text-rose-500 hover:border-rose-500/20 flex items-center justify-center transition-all" title="Unlink Node">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
             </button>
         </div>
@@ -1909,9 +1948,9 @@ async function loadStats() {
     try {
         const j = await request(`/posts/stats?ig_account_id=${ACTIVE_ACCOUNT_ID || ''}`);
         el.innerHTML = Object.entries(j.counts || {}).map(([k,v]) => `
-            <div class="bg-white border-2 border-slate-100 rounded-2xl p-4 text-center fade-in shadow-sm">
-                <div class="text-[8px] font-black text-slate-300 uppercase leading-none mb-1">${esc(k)}</div>
-                <div class="text-lg font-black text-slate-800">${v}</div>
+            <div class="glass border border-white/5 rounded-2xl p-6 text-center shadow-xl shadow-black/20 group hover:border-brand/40 transition-all duration-500">
+                <div class="text-[8px] font-black text-muted uppercase tracking-[0.2em] leading-none mb-2 group-hover:text-brand transition-colors">${esc(k)}</div>
+                <div class="text-xl font-black text-white italic tracking-tight">${v}</div>
             </div>`).join("");
     } catch(e) { el.innerHTML = ""; }
 }
@@ -1934,32 +1973,33 @@ async function loadPosts() {
 }
 function renderPost(p) {
     const colors = { 
-        submitted: "bg-slate-100 text-slate-600 border-slate-200", 
-        drafted: "bg-blue-50 text-blue-600 border-blue-200", 
-        needs_review: "bg-rose-50 text-rose-600 border-rose-200", 
-        scheduled: "bg-indigo-50 text-indigo-600 border-indigo-200", 
-        published: "bg-emerald-50 text-emerald-600 border-emerald-200", 
-        failed: "bg-red-50 text-red-600 border-red-200" 
+        submitted: "bg-white/5 text-muted border-white/10", 
+        drafted: "bg-brand/10 text-brand border-brand/20", 
+        needs_review: "bg-amber-500/10 text-amber-500 border-amber-500/20", 
+        scheduled: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20", 
+        published: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", 
+        failed: "bg-rose-500/10 text-rose-400 border-rose-500/20" 
     };
-    const c = colors[p.status] || "bg-slate-100 text-slate-500 border-slate-200";
+    const c = colors[p.status] || "bg-white/5 text-muted border-white/10";
     
     return `
-    <div class="bg-white border border-slate-200 rounded-3xl overflow-hidden flex flex-col group hover:shadow-2xl hover:border-indigo-100 transition-all duration-500 fade-in">
-        <div class="relative aspect-square bg-slate-100 overflow-hidden cursor-pointer" onclick="openPostEditor(${p.id})">
-            <img src="${p.media_url}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" onerror="this.src='https://placehold.co/600x600?text=Media+Missing'"/>
-            <div class="absolute top-4 left-4 right-4 flex justify-between items-start">
-               <span class="px-3 py-1.5 rounded-xl border backdrop-blur-md text-[9px] font-black uppercase tracking-widest shadow-lg ${c}">${esc(p.status)}</span>
-               <div class="p-2 rounded-xl bg-white/90 border border-slate-200 text-slate-900 shadow-xl opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+    <div class="glass border border-white/5 rounded-[2.5rem] overflow-hidden flex flex-col group hover:shadow-[0_0_50px_rgba(99,102,241,0.1)] hover:border-brand/30 transition-all duration-700">
+        <div class="relative aspect-square bg-white/5 overflow-hidden cursor-pointer" onclick="openPostEditor(${p.id})">
+            <img src="${p.media_url}" class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" loading="lazy" onerror="this.src='https://placehold.co/600x600/0f172a/94a3b8?text=Media+Offline'"/>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            <div class="absolute top-6 left-6 right-6 flex justify-between items-start">
+               <span class="px-4 py-2 rounded-xl border backdrop-blur-xl text-[8px] font-black uppercase tracking-[0.2em] shadow-2xl ${c}">${esc(p.status)}</span>
+               <div class="w-10 h-10 rounded-xl glass border border-white/10 text-white shadow-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all transform translate-y-4 group-hover:translate-y-0 duration-500">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                </div>
             </div>
-            ${p.scheduled_time ? `<div class="absolute bottom-4 left-4 px-3 py-1 bg-indigo-600 text-white rounded-lg text-[8px] font-black uppercase tracking-tighter shadow-lg">Due: ${new Date(p.scheduled_time).toLocaleString()}</div>` : ''}
+            ${p.scheduled_time ? `<div class="absolute bottom-6 left-6 px-4 py-2 bg-brand text-white rounded-xl text-[8px] font-black uppercase tracking-widest shadow-2xl shadow-brand/20 italic">ETA: ${new Date(p.scheduled_time).toLocaleString()}</div>` : ''}
         </div>
-        <div class="p-5 flex flex-col flex-1">
-            <p class="text-[12px] text-slate-700 leading-relaxed font-medium mb-4 line-clamp-2">${esc(p.caption || '(No Caption Generated)')}</p>
-            <div class="mt-auto flex items-center justify-between border-t border-slate-100 pt-4">
-                <span class="text-[10px] font-bold text-slate-300 uppercase italic">${esc(p.source_type)}</span>
-                <button onclick="openPostEditor(${p.id})" class="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline">Manage Post</button>
+        <div class="p-8 flex flex-col flex-1">
+            <p class="text-[11px] text-muted leading-relaxed font-bold tracking-wide mb-6 line-clamp-2 italic">"${esc(p.caption || '(Void Caption)')}"</p>
+            <div class="mt-auto flex items-center justify-between border-t border-white/5 pt-6">
+                <span class="text-[8px] font-black text-muted/30 uppercase tracking-[0.2em] italic">${esc(p.source_type)}</span>
+                <button onclick="openPostEditor(${p.id})" class="text-[9px] font-black text-brand uppercase tracking-widest hover:text-white transition-colors italic">Interface Matrix</button>
             </div>
         </div>
     </div>`;
