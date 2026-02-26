@@ -40,6 +40,14 @@ APP_LAYOUT_HTML = """<!doctype html>
     .glass {{ background: var(--surface); backdrop-filter: blur(12px); border: 1px solid var(--border); }}
     .text-gradient {{ background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
     .nav-link.active {{ color: var(--brand); border-bottom: 2px solid var(--brand); }}
+    .studio-tab.active {{ background: var(--brand); color: white; border-color: var(--brand); }}
+    .visual-card.active {{ border-color: var(--brand); background: rgba(99, 102, 241, 0.1); }}
+    .visual-card.active .check-icon {{ display: block; }}
+    .visual-card .check-icon {{ display: none; }}
+    ::-webkit-scrollbar {{ width: 6px; }}
+    ::-webkit-scrollbar-track {{ background: transparent; }}
+    ::-webkit-scrollbar-thumb {{ background: rgba(255, 255, 255, 0.1); border-radius: 10px; }}
+    ::-webkit-scrollbar-thumb:hover {{ background: rgba(255, 255, 255, 0.2); }}
   </style>
 </head>
 <body class="ai-bg min-h-screen">
@@ -175,14 +183,163 @@ APP_LAYOUT_HTML = """<!doctype html>
         }} catch(e) {{ alert('Error approving'); }}
     }}
 
+    let currentStudioStep = 1;
+
+    function switchStudioSection(step) {{
+        currentStudioStep = step;
+        // Update Tabs
+        for (let i=1; i<=3; i++) {{
+            const tab = document.getElementById(`sectionTab${{i}}`);
+            const section = document.getElementById(`studioSection${{i}}`);
+            if (i === step) {{
+                tab.classList.add('studio-tab', 'active');
+                tab.classList.remove('text-muted');
+                section.classList.remove('hidden');
+            }} else {{
+                tab.classList.remove('studio-tab', 'active');
+                tab.classList.add('text-muted');
+                section.classList.add('hidden');
+            }}
+        }}
+
+        // Update Counter
+        document.getElementById('stepCounter').innerHTML = `0${{step}}<span class="text-brand/40">/03</span>`;
+        
+        // Update Buttons
+        document.getElementById('studioPrevBtn').classList.toggle('hidden', step === 1);
+        document.getElementById('studioNextBtn').classList.toggle('hidden', step === 3);
+        document.getElementById('studioSubmitBtn').classList.toggle('hidden', step !== 3);
+    }}
+
+    function nextStudioStep() {{
+        if (currentStudioStep < 3) switchStudioSection(currentStudioStep + 1);
+    }}
+
+    function prevStudioStep() {{
+        if (currentStudioStep > 1) switchStudioSection(currentStudioStep - 1);
+    }}
+
+    function switchSourceTab(tab) {{
+        const manual = document.getElementById('srcPaneManual');
+        const ai = document.getElementById('srcPaneAI');
+        const tabManual = document.getElementById('srcTabManual');
+        const tabAI = document.getElementById('srcTabAI');
+
+        if (tab === 'manual') {{
+            manual.classList.remove('hidden');
+            ai.classList.add('hidden');
+            tabManual.classList.add('studio-tab', 'active');
+            tabAI.classList.remove('studio-tab', 'active');
+            document.getElementById('summaryFoundation').innerText = 'Manual';
+        }} else {{
+            manual.classList.add('hidden');
+            ai.classList.remove('hidden');
+            tabManual.classList.remove('studio-tab', 'active');
+            tabAI.classList.add('studio-tab', 'active');
+            document.getElementById('summaryFoundation').innerText = 'AI Gen';
+        }}
+    }}
+
+    function setVisualMode(mode) {{
+        document.getElementById('studioVisualMode').value = mode;
+        document.getElementById('summaryVisual').innerText = mode.replace('_', ' ').toUpperCase();
+        
+        // Update Active Cards
+        document.querySelectorAll('.visual-card').forEach(card => card.classList.remove('active'));
+        
+        if (mode === 'upload') document.getElementById('modeUpload').classList.add('active');
+        if (mode === 'media_library') document.getElementById('modeMedia').classList.add('active');
+        if (mode === 'ai_background') document.getElementById('modeAI').classList.add('active');
+        if (mode === 'quote_card') document.getElementById('modeQuote').classList.add('active');
+
+        // Toggle UI Panels
+        document.getElementById('uiUpload').classList.toggle('hidden', mode !== 'upload' && mode !== 'quote_card');
+        document.getElementById('uiAI').classList.toggle('hidden', mode !== 'ai_background');
+    }}
+
+    function setAIPreset(preset) {{
+        const area = document.querySelector('textarea[name="visual_prompt"]');
+        const presets = {{
+            'nature': 'Minimalist nature scene, lush greenery, realistic landscape photography, 8k',
+            'mosque': 'Grand masjid silhouette, golden hour, soft light, spiritual atmosphere',
+            'abstract': 'Dynamic abstract patterns, Islamic geometric influence, vibrant gradients',
+            'minimal': 'Minimalist composition, neutral tones, high fashion aesthetic, professional'
+        }};
+        area.value = presets[preset] || '';
+    }}
+
+    function previewUpload(input) {{
+        if (input.files && input.files[0]) {{
+            const reader = new FileReader();
+            reader.onload = function(e) {{
+                document.getElementById('uploadPreview').src = e.target.result;
+                document.getElementById('uploadPreview').classList.remove('hidden');
+                document.getElementById('uploadHint').classList.add('hidden');
+            }}
+            reader.readAsDataURL(input.files[0]);
+        }}
+    }}
+
+    async function openLibraryDrawer() {{
+        document.getElementById('libraryDrawer').classList.remove('translate-x-full');
+        const content = document.getElementById('libraryDrawerContent');
+        content.innerHTML = '<div class="text-center py-10"><div class="animate-spin w-6 h-6 border-2 border-brand border-t-transparent rounded-full mx-auto"></div></div>';
+        
+        try {{
+            // We'll use the existing /library endpoint for docs, but we also want prebuilt packs
+            // For now, let's fetch docs
+            const res = await fetch('/library');
+            const docs = await res.json();
+            
+            content.innerHTML = '';
+            docs.forEach(doc => {{
+                const div = document.createElement('div');
+                div.className = 'glass p-4 rounded-xl border border-white/5 hover:border-brand/40 cursor-pointer transition-all';
+                div.innerHTML = `
+                    <div class="text-[10px] font-black text-white uppercase tracking-wider">${{doc.title}}</div>
+                    <div class="text-[8px] font-bold text-muted uppercase mt-1">${{doc.source_type}} source</div>
+                `;
+                div.onclick = () => selectLibraryDoc(doc);
+                content.appendChild(div);
+            }});
+
+            if (docs.length === 0) {{
+                content.innerHTML = '<div class="text-center py-10 text-muted text-[10px] font-black uppercase">No library sources found.</div>';
+            }}
+        }} catch(e) {{
+            content.innerHTML = '<div class="text-center py-10 text-rose-400 text-[10px] font-black uppercase">Failed to load library.</div>';
+        }}
+    }}
+
+    function closeLibraryDrawer() {{
+        document.getElementById('libraryDrawer').classList.add('translate-x-full');
+    }}
+
+    function selectLibraryDoc(doc) {{
+        document.getElementById('studioSourceText').value = doc.text || "";
+        document.getElementById('studioReference').value = doc.title || "";
+        document.getElementById('studioLibraryItemId').value = doc.id;
+        document.getElementById('summaryFoundation').innerText = 'LIBRARY';
+        document.getElementById('srcTabLibrary').classList.add('studio-tab', 'active');
+        document.getElementById('srcTabManual').classList.remove('studio-tab', 'active');
+        closeLibraryDrawer();
+    }}
     async function submitNewPost(event) {{
         event.preventDefault();
-        const btn = event.submitter;
-        const originalText = btn.innerText;
-        btn.innerText = 'Generating...';
-        btn.disabled = true;
+        const btn = document.getElementById('studioSubmitBtn');
+        const originalText = (btn ? btn.innerText : 'FINALIZING...');
+        if (btn) {{
+            btn.innerText = 'GENERATING...';
+            btn.disabled = true;
+        }}
 
         const formData = new FormData(event.target);
+        
+        // Ensure visual_mode is set
+        if (!formData.has('visual_mode')) {{
+            formData.append('visual_mode', document.getElementById('studioVisualMode').value);
+        }}
+
         try {{
             const res = await fetch('/posts/intake', {{
                 method: 'POST',
@@ -197,45 +354,297 @@ APP_LAYOUT_HTML = """<!doctype html>
         }} catch (e) {{
             alert('Upload failed: ' + e);
         }} finally {{
-            btn.innerText = originalText;
-            btn.disabled = false;
+            if (btn) {{
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }}
         }}
+    }}
+
+    async function launchLivePreview() {{
+        const modal = document.getElementById('previewModal');
+        const img = document.getElementById('previewImage');
+        const loader = document.getElementById('previewLoader');
+        
+        modal.classList.remove('hidden');
+        img.classList.add('hidden');
+        loader.classList.remove('hidden');
+
+        const formData = new FormData(document.querySelector('#newPostModal form'));
+        
+        try {{
+            const res = await fetch('/posts/preview_render', {{
+                method: 'POST',
+                body: formData
+            }});
+            const data = await res.json();
+            if (res.ok) {{
+                img.src = data.preview_url;
+                img.classList.remove('hidden');
+                loader.classList.add('hidden');
+            }} else {{
+                alert('Preview failed: ' + (data.detail || 'check console'));
+                modal.classList.add('hidden');
+            }}
+        }} catch (e) {{
+            alert('Network error');
+            modal.classList.add('hidden');
+        }}
+    }}
+
+    function closePreviewModal() {{
+        document.getElementById('previewModal').classList.add('hidden');
     }}
   </script>
 
-  <!-- New Post Modal -->
-  <div id="newPostModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-6 hidden">
-    <div class="glass max-w-lg w-full rounded-[2.5rem] p-10 space-y-8 animate-in fade-in zoom-in duration-300">
-      <div class="flex justify-between items-center">
-        <h3 class="text-2xl font-black italic text-white tracking-tight">Create <span class="text-brand">New Post</span></h3>
-        <button onclick="closeNewPostModal()" class="text-muted hover:text-white transition-colors">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-        </button>
+  <!-- Content Studio Modal (Overhauled New Post) -->
+  <div id="newPostModal" class="fixed inset-0 bg-black/90 backdrop-blur-xl z-[100] flex items-center justify-center p-4 md:p-10 hidden">
+    <div class="glass w-full h-full max-w-7xl rounded-[3rem] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-500 border-white/5 shadow-2xl">
+      <!-- Studio Header -->
+      <div class="px-10 py-6 border-b border-white/5 flex justify-between items-center bg-white/2">
+        <div>
+          <h3 class="text-2xl font-black italic text-white tracking-tight">Content <span class="text-brand">Studio</span></h3>
+          <p class="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Neural Creator Engine v2.0</p>
+        </div>
+        <div class="flex items-center gap-6">
+          <div class="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10">
+            <button type="button" onclick="switchStudioSection(1)" id="sectionTab1" class="px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all studio-tab active">1. Content</button>
+            <button type="button" onclick="switchStudioSection(2)" id="sectionTab2" class="px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-muted hover:text-white">2. Visuals</button>
+            <button type="button" onclick="switchStudioSection(3)" id="sectionTab3" class="px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all text-muted hover:text-white">3. Publish</button>
+          </div>
+          <button onclick="closeNewPostModal()" class="p-3 bg-white/5 hover:bg-rose-500/10 hover:text-rose-400 rounded-full transition-all">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
       </div>
 
-      <form onsubmit="submitNewPost(event)" class="space-y-6">
-        <div class="space-y-2">
-          <label class="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Select Account</label>
-          <select name="ig_account_id" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white outline-none focus:border-brand/40 transition-all">
-            {account_options}
-          </select>
+      <form onsubmit="submitNewPost(event)" class="flex-1 overflow-hidden flex flex-col md:flex-row">
+        <!-- Main Configuration Area -->
+        <div class="flex-1 overflow-y-auto p-10 space-y-12">
+          
+          <!-- SECTION 1: CONTENT SOURCE -->
+          <div id="studioSection1" class="space-y-8 animate-in slide-in-from-left-4 duration-500">
+            <div class="space-y-4">
+              <div class="flex justify-between items-end">
+                <div>
+                  <label class="text-[10px] font-black uppercase tracking-[0.2em] text-brand">Content Source</label>
+                  <h4 class="text-lg font-black text-white italic">Choose your foundation</h4>
+                </div>
+                <div class="flex gap-1 p-1 bg-white/5 rounded-xl border border-white/5">
+                  <button type="button" onclick="switchSourceTab('manual')" id="srcTabManual" class="px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all studio-tab active">Manual</button>
+                  <button type="button" id="srcTabLibrary" class="px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all text-muted hover:text-white" onclick="openLibraryDrawer()">From Library</button>
+                  <button type="button" onclick="switchSourceTab('ai')" id="srcTabAI" class="px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all text-muted hover:text-white">AI Gen</button>
+                </div>
+              </div>
+              
+              <!-- Manual Tab Area -->
+              <div id="srcPaneManual" class="space-y-4">
+                <textarea id="studioSourceText" name="source_text" required placeholder="Type your custom caption or directives here..." class="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-sm font-medium text-white outline-none focus:border-brand/40 transition-all h-48 resize-none"></textarea>
+                <div class="flex gap-4">
+                    <input type="text" id="studioReference" placeholder="Reference (Optional, e.g. Bukhari 123)" class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-brand/40">
+                    <button type="button" onclick="openLibraryDrawer()" class="px-4 bg-brand/10 text-brand border border-brand/20 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-brand/20 transition-all">
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                      Browse Library
+                    </button>
+                </div>
+              </div>
+
+              <!-- AI Gen Area (Hidden by default) -->
+              <div id="srcPaneAI" class="hidden space-y-6">
+                <div class="p-6 rounded-2xl bg-brand/5 border border-brand/20 space-y-4">
+                  <div class="space-y-1">
+                    <label class="text-[8px] font-black text-brand uppercase tracking-widest">Post Topic</label>
+                    <input type="text" id="aiTopic" placeholder="e.g. The importance of gratitude in Islam" class="w-full bg-transparent border-b border-white/10 py-2 text-sm text-white font-medium outline-none focus:border-brand">
+                  </div>
+                  <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                      <label class="text-[8px] font-black text-brand uppercase tracking-widest">Tone</label>
+                      <select id="aiTone" class="w-full bg-transparent text-[10px] text-white font-bold outline-none">
+                        <option>Philosophical</option>
+                        <option>Motivational</option>
+                        <option>Educational</option>
+                        <option>Deep Reflection</option>
+                      </select>
+                    </div>
+                    <div class="space-y-1">
+                      <label class="text-[8px] font-black text-brand uppercase tracking-widest">Creativity Slider</label>
+                      <input type="range" class="w-full accent-brand">
+                    </div>
+                  </div>
+                  <button type="button" onclick="generateAISource()" class="w-full py-3 bg-brand/20 text-brand rounded-xl font-black text-[10px] uppercase tracking-widest border border-brand/20">Analyze & Preview Ideas</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 2: VISUAL CONTROL -->
+          <div id="studioSection2" class="hidden space-y-8 animate-in slide-in-from-right-4 duration-500">
+            <div class="space-y-6">
+              <div>
+                <label class="text-[10px] font-black uppercase tracking-[0.2em] text-brand">Visual Selector</label>
+                <h4 class="text-lg font-black text-white italic">Define the aesthetic</h4>
+              </div>
+
+              <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div onclick="setVisualMode('upload')" id="modeUpload" class="visual-card active p-6 rounded-3xl border border-white/10 bg-white/2 cursor-pointer transition-all hover:bg-white/5 relative">
+                  <div class="absolute top-3 right-3 check-icon text-brand"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
+                  <div class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-white mb-4"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg></div>
+                  <div class="text-[10px] font-black text-white uppercase tracking-widest">Upload</div>
+                  <div class="text-[8px] font-bold text-muted uppercase mt-1">Manual File</div>
+                </div>
+
+                <div onclick="setVisualMode('media_library')" id="modeMedia" class="visual-card p-6 rounded-3xl border border-white/10 bg-white/2 cursor-pointer transition-all hover:bg-white/5 relative">
+                  <div class="absolute top-3 right-3 check-icon text-brand"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
+                  <div class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-white mb-4"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>
+                  <div class="text-[10px] font-black text-white uppercase tracking-widest">Vault</div>
+                  <div class="text-[8px] font-bold text-muted uppercase mt-1">From assets</div>
+                </div>
+
+                <div onclick="setVisualMode('ai_background')" id="modeAI" class="visual-card p-6 rounded-3xl border border-white/10 bg-white/2 cursor-pointer transition-all hover:bg-white/5 relative">
+                  <div class="absolute top-3 right-3 check-icon text-brand"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
+                  <div class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-white mb-4"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg></div>
+                  <div class="text-[10px] font-black text-white uppercase tracking-widest">Gen AI</div>
+                  <div class="text-[8px] font-bold text-muted uppercase mt-1">DALL-E 3</div>
+                </div>
+
+                <div onclick="setVisualMode('quote_card')" id="modeQuote" class="visual-card p-6 rounded-3xl border border-white/10 bg-white/2 cursor-pointer transition-all hover:bg-white/5 relative">
+                  <div class="absolute top-3 right-3 check-icon text-brand"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
+                  <div class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-white mb-4"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg></div>
+                  <div class="text-[10px] font-black text-white uppercase tracking-widest">Quote Card</div>
+                  <div class="text-[8px] font-bold text-muted uppercase mt-1">Text Overlay</div>
+                </div>
+              </div>
+
+              <!-- Specific Control Panels -->
+              <div id="visualControls" class="p-8 rounded-2xl bg-white/2 border border-white/5 space-y-4">
+                 <!-- Upload UI -->
+                 <div id="uiUpload" class="space-y-4">
+                    <label class="text-[8px] font-black text-muted uppercase tracking-widest">Selected Image</label>
+                    <div class="flex items-center gap-6">
+                      <div class="w-24 h-24 rounded-2xl bg-white/5 border border-dashed border-white/10 flex items-center justify-center text-muted overflow-hidden">
+                        <img id="uploadPreview" class="hidden w-full h-full object-cover">
+                        <span id="uploadHint">?</span>
+                      </div>
+                      <input type="file" name="image" id="studioImageInput" onchange="previewUpload(this)" class="hidden">
+                      <button type="button" onclick="document.getElementById('studioImageInput').click()" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black uppercase text-white">Select File</button>
+                    </div>
+                 </div>
+
+                 <!-- AI Background UI -->
+                 <div id="uiAI" class="hidden space-y-4">
+                    <div class="space-y-2">
+                       <label class="text-[8px] font-black text-muted uppercase tracking-widest">Visual Prompt</label>
+                       <textarea name="visual_prompt" placeholder="Describe the scene... e.g. Minimalist mosque silhouette at sunset, warm tones, high quality photography" class="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-[10px] text-white outline-none focus:border-brand h-24"></textarea>
+                    </div>
+                    <div class="grid grid-cols-4 gap-2">
+                       <button type="button" onclick="setAIPreset('nature')" class="py-2 bg-white/2 border border-white/5 rounded-lg text-[8px] font-black uppercase text-muted hover:text-white">Nature</button>
+                       <button type="button" onclick="setAIPreset('mosque')" class="py-2 bg-white/2 border border-white/5 rounded-lg text-[8px] font-black uppercase text-muted hover:text-white">Mosque</button>
+                       <button type="button" onclick="setAIPreset('abstract')" class="py-2 bg-white/2 border border-white/5 rounded-lg text-[8px] font-black uppercase text-muted hover:text-white">Abstract</button>
+                       <button type="button" onclick="setAIPreset('minimal')" class="py-2 bg-white/2 border border-white/5 rounded-lg text-[8px] font-black uppercase text-muted hover:text-white">Minimal</button>
+                    </div>
+                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 3: PUBLISH SETTINGS -->
+          <div id="studioSection3" class="hidden space-y-8 animate-in slide-in-from-right-4 duration-500">
+            <div class="space-y-6">
+              <div>
+                <label class="text-[10px] font-black uppercase tracking-[0.2em] text-brand">Final Settings</label>
+                <h4 class="text-lg font-black text-white italic">Confirm distribution</h4>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                 <div class="space-y-4">
+                    <div class="space-y-2">
+                      <label class="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Select Target Account</label>
+                      <select name="ig_account_id" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white outline-none focus:border-brand/40 transition-all">
+                        {account_options}
+                      </select>
+                    </div>
+                    <div class="space-y-2">
+                      <label class="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Schedule Time (UTC)</label>
+                      <input type="datetime-local" name="scheduled_time" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white outline-none focus:border-brand/40 transition-all">
+                    </div>
+                 </div>
+
+                 <!-- Preview / Summary -->
+                 <div class="p-8 rounded-[2rem] bg-brand/5 border border-brand/20 flex flex-col items-center justify-center text-center space-y-4">
+                    <div class="w-16 h-16 rounded-full bg-brand/20 flex items-center justify-center text-brand">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                    </div>
+                    <p class="text-[10px] font-bold text-brand uppercase tracking-widest">Review your composition</p>
+                    <button type="button" onclick="launchLivePreview()" class="text-xs font-black text-white hover:underline transition-all">Launch Live Preview &rarr;</button>
+                 </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="space-y-2">
-          <label class="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Topic / Instructions</label>
-          <textarea name="source_text" required placeholder="What should we post about?" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-medium text-white outline-none focus:border-brand/40 transition-all h-32 resize-none"></textarea>
-        </div>
+        <!-- Static Sidebar Control -->
+        <input type="hidden" name="visual_mode" id="studioVisualMode" value="upload">
+        <input type="hidden" name="library_item_id" id="studioLibraryItemId">
 
-        <div class="flex items-center gap-3 p-4 bg-brand/5 rounded-2xl border border-brand/20">
-            <input type="checkbox" name="use_ai_image" id="use_ai_image" class="w-4 h-4 rounded bg-white/5 border-white/10 text-brand focus:ring-brand focus:ring-offset-0">
-            <label for="use_ai_image" class="text-[10px] font-black uppercase tracking-widest text-brand">Generate AI Image Card</label>
-        </div>
+        <div class="w-full md:w-80 bg-black/40 border-l border-white/5 p-8 flex flex-col justify-between">
+           <div class="space-y-8">
+              <div class="space-y-1">
+                <div class="text-[8px] font-black text-muted uppercase tracking-[0.2em]">Current Step</div>
+                <div id="stepCounter" class="text-3xl font-black italic text-white tracking-widest">01<span class="text-brand/40">/03</span></div>
+              </div>
 
-        <div class="pt-4">
-          <button type="submit" class="w-full py-5 bg-brand rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-xl shadow-brand/40 hover:scale-[1.02] active:scale-[0.98] transition-all">Create Post &rarr;</button>
+              <div class="space-y-4 pt-4">
+                 <h5 class="text-[10px] font-black text-white uppercase tracking-widest">Composition Summary</h5>
+                 <div class="space-y-2">
+                    <div class="flex justify-between text-[8px] font-bold text-muted uppercase"><span>Status</span> <span class="text-white">Drafting</span></div>
+                    <div class="flex justify-between text-[8px] font-bold text-muted uppercase"><span>Foundation</span> <span id="summaryFoundation" class="text-white">Manual</span></div>
+                    <div class="flex justify-between text-[8px] font-bold text-muted uppercase"><span>Visual</span> <span id="summaryVisual" class="text-white">Upload</span></div>
+                 </div>
+              </div>
+           </div>
+
+           <div class="space-y-3">
+              <button type="button" onclick="prevStudioStep()" id="studioPrevBtn" class="w-full py-4 text-[10px] font-black uppercase tracking-widest text-muted hover:text-white transition-all hidden">Back</button>
+              <button type="button" onclick="nextStudioStep()" id="studioNextBtn" class="w-full py-5 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all">Continue Composition &rarr;</button>
+              <button type="submit" id="studioSubmitBtn" class="w-full py-5 bg-emerald-500 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all hidden">Finalize & Schedule</button>
+           </div>
         </div>
       </form>
     </div>
+  </div>
+
+  <!-- Library Explorer Side Drawer -->
+  <div id="libraryDrawer" class="fixed inset-y-0 right-0 w-full max-w-md bg-black/95 backdrop-blur-2xl z-[150] shadow-2xl border-l border-white/10 transform translate-x-full transition-transform duration-500 overflow-hidden flex flex-col">
+    <div class="p-8 border-b border-white/5 flex justify-between items-center">
+      <div>
+        <h3 class="text-xl font-black italic text-white">Neural <span class="text-brand">Library</span></h3>
+        <p class="text-[8px] font-black text-muted uppercase tracking-widest">Extract source materials</p>
+      </div>
+      <button onclick="closeLibraryDrawer()" class="p-2 text-muted hover:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+    </div>
+    <div class="p-6 border-b border-white/5">
+        <input type="text" placeholder="Search library quotes..." class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-brand/40 outline-none">
+    </div>
+    </div>
+  </div>
+
+  <!-- Preview Modal Overlay -->
+  <div id="previewModal" class="fixed inset-0 bg-black/95 z-[200] hidden flex flex-col items-center justify-center p-6 md:p-20">
+      <button type="button" onclick="closePreviewModal()" class="absolute top-10 right-10 p-4 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+      
+      <div id="previewLoader" class="flex flex-col items-center gap-4">
+          <div class="animate-spin w-12 h-12 border-4 border-brand border-t-transparent rounded-full"></div>
+          <p class="text-[10px] font-black text-brand uppercase tracking-[0.3em]">Rendering Intelligence...</p>
+      </div>
+      
+      <img id="previewImage" class="hidden max-w-full max-h-full rounded-3xl shadow-2xl border border-white/10 animate-in fade-in zoom-in duration-700">
+      
+      <div class="mt-8 flex gap-4 text-white">
+          <button type="button" onclick="closePreviewModal()" class="px-10 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all">Close Preview</button>
+          <button type="button" onclick="closePreviewModal()" class="px-10 py-4 bg-emerald-500 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:scale-105 transition-all">Looks Good</button>
+      </div>
   </div>
 </body>
 </html>
@@ -744,36 +1153,36 @@ async def app_dashboard_page(
         admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>'
         admin_cta = '<a href="/admin" class="px-6 py-3 bg-rose-500/10 border border-rose-500/20 rounded-xl font-black text-[10px] uppercase tracking-widest text-rose-400 hover:bg-rose-500/20 transition-all flex items-center gap-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>Owner Ops</a>'
 
-    content = APP_DASHBOARD_CONTENT.format(
-        admin_cta=admin_cta,
-        connection_cta=connection_cta,
-        weekly_post_count=weekly_post_count,
-        account_count=account_count,
-        next_post_countdown=next_post_countdown,
-        next_post_time=next_post_time,
-        next_post_caption=next_post_caption,
-        next_post_media=next_post_media,
-        calendar_headers=calendar_headers,
-        calendar_days=calendar_days,
-        recent_posts=recent_posts_html or '<div class="text-center py-6 text-[10px] font-black uppercase text-muted italic">No recent activity</div>',
-        next_post_id=next_post_id,
-        next_post_caption_json=next_post_caption_json,
-        next_post_time_iso=next_post_time_iso
-    )
+    content = APP_DASHBOARD_CONTENT.replace("{admin_cta}", admin_cta)\
+                                   .replace("{connection_cta}", connection_cta)\
+                                   .replace("{weekly_post_count}", str(weekly_post_count))\
+                                   .replace("{account_count}", str(account_count))\
+                                   .replace("{next_post_countdown}", next_post_countdown)\
+                                   .replace("{next_post_time}", next_post_time)\
+                                   .replace("{next_post_caption}", next_post_caption)\
+                                   .replace("{next_post_media}", next_post_media)\
+                                   .replace("{calendar_headers}", calendar_headers)\
+                                   .replace("{calendar_days}", calendar_days)\
+                                   .replace("{recent_posts}", recent_posts_html or '<div class="text-center py-6 text-[10px] font-black uppercase text-muted italic">No recent activity</div>')\
+                                   .replace("{next_post_id}", str(next_post_id))\
+                                   .replace("{next_post_caption_json}", str(next_post_caption_json))\
+                                   .replace("{next_post_time_iso}", str(next_post_time_iso))
     
-    return APP_LAYOUT_HTML.format(
-        title="Dashboard",
-        user_name=user.name or user.email,
-        org_name=org.name if org else "Personal Workspace",
-        admin_link=admin_link,
-        active_dashboard="active",
-        active_calendar="",
-        active_automations="",
-        active_library="",
-        active_media="",
-        content=content,
-        account_options=account_options
-    )
+    # --- GET ACCOUNT OPTIONS FOR STUDIO MODAL ---
+    accs = db.query(IGAccount).filter(IGAccount.org_id == user.active_org_id).all()
+    account_options = "".join([f'<option value="{a.id}">{a.name} (@{a.ig_user_id})</option>' for a in accs])
+
+    return APP_LAYOUT_HTML.replace("{title}", "Dashboard")\
+                          .replace("{user_name}", user.name or user.email)\
+                          .replace("{org_name}", org.name if org else "Personal Workspace")\
+                          .replace("{admin_link}", admin_link)\
+                          .replace("{active_dashboard}", "active")\
+                          .replace("{active_calendar}", "")\
+                          .replace("{active_automations}", "")\
+                          .replace("{active_library}", "")\
+                          .replace("{active_media}", "")\
+                          .replace("{content}", content)\
+                          .replace("{account_options}", account_options)
 
 @router.get("/app/calendar", response_class=HTMLResponse)
 async def app_calendar_page(
@@ -870,19 +1279,17 @@ async def app_calendar_page(
     </div>
     """
     
-    return APP_LAYOUT_HTML.format(
-        title="Calendar",
-        user_name=user.name or user.email,
-        org_name=org.name if org else "Personal Workspace",
-        admin_link=admin_link,
-        active_dashboard="",
-        active_calendar="active",
-        active_automations="",
-        active_library="",
-        active_media="",
-        content=content,
-        account_options=""
-    )
+    return APP_LAYOUT_HTML.replace("{title}", "Calendar")\
+                          .replace("{user_name}", user.name or user.email)\
+                          .replace("{org_name}", org.name if org else "Personal Workspace")\
+                          .replace("{admin_link}", admin_link)\
+                          .replace("{active_dashboard}", "")\
+                          .replace("{active_calendar}", "active")\
+                          .replace("{active_automations}", "")\
+                          .replace("{active_library}", "")\
+                          .replace("{active_media}", "")\
+                          .replace("{content}", content)\
+                          .replace("{account_options}", "")
 
 @router.get("/app/automations", response_class=HTMLResponse)
 async def app_automations_page(
@@ -1209,25 +1616,22 @@ async def app_automations_page(
           const res = await fetch(`/automations/${{id}}/run`, {{ method: 'POST' }});
           if (res.ok) alert('Neural loop triggered. Check dashboard for the new post.');
           else alert('Run failed');
-        }} catch(e) {{ alert('Network error'); }}
         finally {{ btn.disabled = false; btn.textContent = 'Run Now'; }}
       }}
     </script>
     """
     
-    return APP_LAYOUT_HTML.format(
-        title="Automations",
-        user_name=user.name or user.email,
-        org_name=org.name if org else "Personal Workspace",
-        admin_link=admin_link,
-        active_dashboard="",
-        active_calendar="",
-        active_automations="active",
-        active_library="",
-        active_media="",
-        content=content,
-        account_options=account_options
-    )
+    return APP_LAYOUT_HTML.replace("{title}", "Automations")\
+                          .replace("{user_name}", user.name or user.email)\
+                          .replace("{org_name}", org.name if org else "Personal Workspace")\
+                          .replace("{admin_link}", admin_link)\
+                          .replace("{active_dashboard}", "")\
+                          .replace("{active_calendar}", "")\
+                          .replace("{active_automations}", "active")\
+                          .replace("{active_library}", "")\
+                          .replace("{active_media}", "")\
+                          .replace("{content}", content)\
+                          .replace("{account_options}", account_options)
 
 @router.get("/app/media", response_class=HTMLResponse)
 async def app_media_page(
@@ -1248,19 +1652,17 @@ async def app_media_page(
     </div>
     """
     
-    return APP_LAYOUT_HTML.format(
-        title="Media",
-        user_name=user.name or user.email,
-        org_name=org.name if org else "Personal Workspace",
-        admin_link=admin_link,
-        active_dashboard="",
-        active_calendar="",
-        active_automations="",
-        active_library="",
-        active_media="active",
-        content=content,
-        account_options=""
-    )
+    return APP_LAYOUT_HTML.replace("{title}", "Media")\
+                          .replace("{user_name}", user.name or user.email)\
+                          .replace("{org_name}", org.name if org else "Personal Workspace")\
+                          .replace("{admin_link}", admin_link)\
+                          .replace("{active_dashboard}", "")\
+                          .replace("{active_calendar}", "")\
+                          .replace("{active_automations}", "")\
+                          .replace("{active_library}", "")\
+                          .replace("{active_media}", "active")\
+                          .replace("{content}", content)\
+                          .replace("{account_options}", "")
 
 @router.get("/app/library", response_class=HTMLResponse)
 async def app_library_page(
@@ -1461,19 +1863,17 @@ async def app_library_page(
     </script>
     """
     
-    return APP_LAYOUT_HTML.format(
-        title="Library",
-        user_name=user.name or user.email,
-        org_name=org.name if org else "Personal Workspace",
-        admin_link=admin_link,
-        active_dashboard="",
-        active_calendar="",
-        active_automations="",
-        active_library="active",
-        active_media="",
-        content=content,
-        account_options=""
-    )
+    return APP_LAYOUT_HTML.replace("{title}", "Library")\
+                          .replace("{user_name}", user.name or user.email)\
+                          .replace("{org_name}", org.name if org else "Personal Workspace")\
+                          .replace("{admin_link}", admin_link)\
+                          .replace("{active_dashboard}", "")\
+                          .replace("{active_calendar}", "")\
+                          .replace("{active_automations}", "")\
+                          .replace("{active_library}", "active")\
+                          .replace("{active_media}", "")\
+                          .replace("{content}", content)\
+                          .replace("{account_options}", "")
 
 @router.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_page(user: User = Depends(require_user)):
