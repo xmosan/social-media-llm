@@ -60,6 +60,8 @@ def register(
             detail="A user with this email already exists."
         )
 
+    from sqlalchemy.exc import IntegrityError
+    
     # 2. Create the User
     new_user = User(
         email=user_in.email.strip(),
@@ -69,7 +71,15 @@ def register(
         is_superadmin=False
     )
     db.add(new_user)
-    db.flush() # get user ID
+    
+    try:
+        db.flush() # get user ID
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A user with this email already exists."
+        )
 
     # 3. Auto-provision a default Workspace (Org)
     new_org = Org(name=f"{new_user.name}'s Workspace")
