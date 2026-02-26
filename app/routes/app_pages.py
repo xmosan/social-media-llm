@@ -25,7 +25,7 @@ APP_LAYOUT_HTML = """<!doctype html>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    :root {{
+    :root {
       --brand: #6366f1;
       --brand-hover: #4f46e5;
       --main-bg: #020617;
@@ -34,20 +34,20 @@ APP_LAYOUT_HTML = """<!doctype html>
       --text-muted: #94a3b8;
       --border: rgba(255, 255, 255, 0.1);
       --card-bg: rgba(255, 255, 255, 0.03);
-    }}
-    body {{ font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: var(--text-main); }}
-    .ai-bg {{ background: radial-gradient(circle at top right, #312e81, #020617, #020617); }}
-    .glass {{ background: var(--surface); backdrop-filter: blur(12px); border: 1px solid var(--border); }}
-    .text-gradient {{ background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
-    .nav-link.active {{ color: var(--brand); border-bottom: 2px solid var(--brand); }}
-    .studio-tab.active {{ background: var(--brand); color: white; border-color: var(--brand); }}
-    .visual-card.active {{ border-color: var(--brand); background: rgba(99, 102, 241, 0.1); }}
-    .visual-card.active .check-icon {{ display: block; }}
-    .visual-card .check-icon {{ display: none; }}
-    ::-webkit-scrollbar {{ width: 6px; }}
-    ::-webkit-scrollbar-track {{ background: transparent; }}
-    ::-webkit-scrollbar-thumb {{ background: rgba(255, 255, 255, 0.1); border-radius: 10px; }}
-    ::-webkit-scrollbar-thumb:hover {{ background: rgba(255, 255, 255, 0.2); }}
+    }
+    body { font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: var(--text-main); }
+    .ai-bg { background: radial-gradient(circle at top right, #312e81, #020617, #020617); }
+    .glass { background: var(--surface); backdrop-filter: blur(12px); border: 1px solid var(--border); }
+    .text-gradient { background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .nav-link.active { color: var(--brand); border-bottom: 2px solid var(--brand); }
+    .studio-tab.active { background: var(--brand); color: white; border-color: var(--brand); }
+    .visual-card.active { border-color: var(--brand); background: rgba(99, 102, 241, 0.1); }
+    .visual-card.active .check-icon { display: block; }
+    .visual-card .check-icon { display: none; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
   </style>
 </head>
 <body class="ai-bg min-h-screen">
@@ -82,50 +82,50 @@ APP_LAYOUT_HTML = """<!doctype html>
   </main>
 
   <script>
-    async function logout() {{
-      await fetch('/auth/logout', {{ method: 'POST' }});
+    async function logout() {
+      await fetch('/auth/logout', { method: 'POST' });
       window.location.href = '/';
-    }}
+    }
 
-    function syncAccounts() {{
+    function syncAccounts() {
         const btn = event.currentTarget;
         const originalText = btn.innerText;
         btn.innerText = 'Syncing...';
         btn.disabled = true;
         
-        setTimeout(() => {{
+        setTimeout(() => {
             btn.innerText = originalText;
             btn.disabled = false;
             window.location.reload();
-        }}, 1500);
-    }}
+        }, 1500);
+    }
 
-    function openNewPostModal() {{
+    function openNewPostModal() {
         document.getElementById('newPostModal').classList.remove('hidden');
-    }}
+    }
 
-    function closeNewPostModal() {{
+    function closeNewPostModal() {
         document.getElementById('newPostModal').classList.add('hidden');
-    }}
+    }
 
-    function openEditPostModal(id, caption, time) {{
+    function openEditPostModal(id, caption, time) {
         document.getElementById('editPostId').value = id;
         document.getElementById('editPostCaption').value = caption;
         // Format time for datetime-local
-        if (time) {{
+        if (time) {
             const d = new Date(time);
             const iso = d.toISOString().slice(0, 16);
             document.getElementById('editPostTime').value = iso;
-        }}
+        }
         document.getElementById('editPostModal').classList.remove('hidden');
-    }}
+    }
 
-    function closeEditPostModal() {{
+    function closeEditPostModal() {
         hideDeleteConfirm();
         document.getElementById('editPostModal').classList.add('hidden');
-    }}
+    }
 
-    async function savePostEdit() {{
+    async function savePostEdit() {
         const id = document.getElementById('editPostId').value;
         const caption = document.getElementById('editPostCaption').value;
         const time = document.getElementById('editPostTime').value;
@@ -134,113 +134,113 @@ APP_LAYOUT_HTML = """<!doctype html>
         btn.disabled = true;
         btn.innerText = 'SAVING...';
 
-        try {{
-            const res = await fetch(`/posts/${{id}}`, {{
+        try {
+            const res = await fetch(`/posts/${id}`, {
                 method: 'PATCH',
-                headers: {{ 'Content-Type': 'application/json' }},
-                body: JSON.stringify({{ caption: caption, scheduled_time: time }})
-            }});
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ caption: caption, scheduled_time: time })
+            });
             if (res.ok) window.location.reload();
             else alert('Failed to update post');
-        }} catch(e) {{ alert('Error updating post'); }}
-        finally {{ btn.disabled = false; btn.innerText = 'Apply Changes'; }}
-    }}
+        } catch(e) { alert('Error updating post'); }
+        finally { btn.disabled = false; btn.innerText = 'Apply Changes'; }
+    }
 
-    async function deletePost() {{
+    async function deletePost() {
         const btn = document.getElementById('confirmDeleteBtn');
         const id = document.getElementById('editPostId').value;
         
         btn.disabled = true;
         btn.innerText = 'DELETING...';
 
-        try {{
-            const res = await fetch(`/posts/${{id}}`, {{ method: 'DELETE' }});
+        try {
+            const res = await fetch(`/posts/${id}`, { method: 'DELETE' });
             if (res.ok) window.location.reload();
             else alert('Failed to delete post');
-        }} catch(e) {{ alert('Error deleting post'); }}
-        finally {{ btn.disabled = false; btn.innerText = 'Yes, Delete Post'; }}
-    }}
+        } catch(e) { alert('Error deleting post'); }
+        finally { btn.disabled = false; btn.innerText = 'Yes, Delete Post'; }
+    }
 
-    function showDeleteConfirm() {{
+    function showDeleteConfirm() {
         document.getElementById('editPostActions').classList.add('hidden');
         document.getElementById('deleteConfirmActions').classList.remove('hidden');
-    }}
+    }
 
-    function hideDeleteConfirm() {{
+    function hideDeleteConfirm() {
         document.getElementById('deleteConfirmActions').classList.add('hidden');
         document.getElementById('editPostActions').classList.remove('hidden');
-    }}
+    }
 
-    async function approvePost(id) {{
-        try {{
-            const res = await fetch(`/posts/${{id}}/approve`, {{
+    async function approvePost(id) {
+        try {
+            const res = await fetch(`/posts/${id}/approve`, {
                 method: 'POST',
-                headers: {{ 'Content-Type': 'application/json' }},
-                body: JSON.stringify({{ approve_anyway: true }})
-            }});
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ approve_anyway: true })
+            });
             if (res.ok) window.location.reload();
             else alert('Approval failed');
-        }} catch(e) {{ alert('Error approving'); }}
-    }}
+        } catch(e) { alert('Error approving'); }
+    }
 
     let currentStudioStep = 1;
 
-    function switchStudioSection(step) {{
+    function switchStudioSection(step) {
         currentStudioStep = step;
         // Update Tabs
-        for (let i=1; i<=3; i++) {{
-            const tab = document.getElementById(`sectionTab${{i}}`);
-            const section = document.getElementById(`studioSection${{i}}`);
-            if (i === step) {{
+        for (let i=1; i<=3; i++) {
+            const tab = document.getElementById(`sectionTab${i}`);
+            const section = document.getElementById(`studioSection${i}`);
+            if (i === step) {
                 tab.classList.add('studio-tab', 'active');
                 tab.classList.remove('text-muted');
                 section.classList.remove('hidden');
-            }} else {{
+            } else {
                 tab.classList.remove('studio-tab', 'active');
                 tab.classList.add('text-muted');
                 section.classList.add('hidden');
-            }}
-        }}
+            }
+        }
 
         // Update Counter
-        document.getElementById('stepCounter').innerHTML = `0${{step}}<span class="text-brand/40">/03</span>`;
+        document.getElementById('stepCounter').innerHTML = `0${step}<span class="text-brand/40">/03</span>`;
         
         // Update Buttons
         document.getElementById('studioPrevBtn').classList.toggle('hidden', step === 1);
         document.getElementById('studioNextBtn').classList.toggle('hidden', step === 3);
         document.getElementById('studioSubmitBtn').classList.toggle('hidden', step !== 3);
-    }}
+    }
 
-    function nextStudioStep() {{
+    function nextStudioStep() {
         if (currentStudioStep < 3) switchStudioSection(currentStudioStep + 1);
-    }}
+    }
 
-    function prevStudioStep() {{
+    function prevStudioStep() {
         if (currentStudioStep > 1) switchStudioSection(currentStudioStep - 1);
-    }}
+    }
 
-    function switchSourceTab(tab) {{
+    function switchSourceTab(tab) {
         const manual = document.getElementById('srcPaneManual');
         const ai = document.getElementById('srcPaneAI');
         const tabManual = document.getElementById('srcTabManual');
         const tabAI = document.getElementById('srcTabAI');
 
-        if (tab === 'manual') {{
+        if (tab === 'manual') {
             manual.classList.remove('hidden');
             ai.classList.add('hidden');
             tabManual.classList.add('studio-tab', 'active');
             tabAI.classList.remove('studio-tab', 'active');
             document.getElementById('summaryFoundation').innerText = 'Manual';
-        }} else {{
+        } else {
             manual.classList.add('hidden');
             ai.classList.remove('hidden');
             tabManual.classList.remove('studio-tab', 'active');
             tabAI.classList.add('studio-tab', 'active');
             document.getElementById('summaryFoundation').innerText = 'AI Gen';
-        }}
-    }}
+        }
+    }
 
-    function setVisualMode(mode) {{
+    function setVisualMode(mode) {
         document.getElementById('studioVisualMode').value = mode;
         document.getElementById('summaryVisual').innerText = mode.replace('_', ' ').toUpperCase();
         
@@ -255,67 +255,67 @@ APP_LAYOUT_HTML = """<!doctype html>
         // Toggle UI Panels
         document.getElementById('uiUpload').classList.toggle('hidden', mode !== 'upload' && mode !== 'quote_card');
         document.getElementById('uiAI').classList.toggle('hidden', mode !== 'ai_background');
-    }}
+    }
 
-    function setAIPreset(preset) {{
+    function setAIPreset(preset) {
         const area = document.querySelector('textarea[name="visual_prompt"]');
-        const presets = {{
+        const presets = {
             'nature': 'Minimalist nature scene, lush greenery, realistic landscape photography, 8k',
             'mosque': 'Grand masjid silhouette, golden hour, soft light, spiritual atmosphere',
             'abstract': 'Dynamic abstract patterns, Islamic geometric influence, vibrant gradients',
             'minimal': 'Minimalist composition, neutral tones, high fashion aesthetic, professional'
-        }};
+        };
         area.value = presets[preset] || '';
-    }}
+    }
 
-    function previewUpload(input) {{
-        if (input.files && input.files[0]) {{
+    function previewUpload(input) {
+        if (input.files && input.files[0]) {
             const reader = new FileReader();
-            reader.onload = function(e) {{
+            reader.onload = function(e) {
                 document.getElementById('uploadPreview').src = e.target.result;
                 document.getElementById('uploadPreview').classList.remove('hidden');
                 document.getElementById('uploadHint').classList.add('hidden');
-            }}
+            }
             reader.readAsDataURL(input.files[0]);
-        }}
-    }}
+        }
+    }
 
-    async function openLibraryDrawer() {{
+    async function openLibraryDrawer() {
         document.getElementById('libraryDrawer').classList.remove('translate-x-full');
         const content = document.getElementById('libraryDrawerContent');
         content.innerHTML = '<div class="text-center py-10"><div class="animate-spin w-6 h-6 border-2 border-brand border-t-transparent rounded-full mx-auto"></div></div>';
         
-        try {{
+        try {
             // We'll use the existing /library endpoint for docs, but we also want prebuilt packs
             // For now, let's fetch docs
             const res = await fetch('/library');
             const docs = await res.json();
             
             content.innerHTML = '';
-            docs.forEach(doc => {{
+            docs.forEach(doc => {
                 const div = document.createElement('div');
                 div.className = 'glass p-4 rounded-xl border border-white/5 hover:border-brand/40 cursor-pointer transition-all';
                 div.innerHTML = `
-                    <div class="text-[10px] font-black text-white uppercase tracking-wider">${{doc.title}}</div>
-                    <div class="text-[8px] font-bold text-muted uppercase mt-1">${{doc.source_type}} source</div>
+                    <div class="text-[10px] font-black text-white uppercase tracking-wider">${doc.title}</div>
+                    <div class="text-[8px] font-bold text-muted uppercase mt-1">${doc.source_type} source</div>
                 `;
                 div.onclick = () => selectLibraryDoc(doc);
                 content.appendChild(div);
-            }});
+            });
 
-            if (docs.length === 0) {{
+            if (docs.length === 0) {
                 content.innerHTML = '<div class="text-center py-10 text-muted text-[10px] font-black uppercase">No library sources found.</div>';
-            }}
-        }} catch(e) {{
+            }
+        } catch(e) {
             content.innerHTML = '<div class="text-center py-10 text-rose-400 text-[10px] font-black uppercase">Failed to load library.</div>';
-        }}
-    }}
+        }
+    }
 
-    function closeLibraryDrawer() {{
+    function closeLibraryDrawer() {
         document.getElementById('libraryDrawer').classList.add('translate-x-full');
-    }}
+    }
 
-    function selectLibraryDoc(doc) {{
+    function selectLibraryDoc(doc) {
         document.getElementById('studioSourceText').value = doc.text || "";
         document.getElementById('studioReference').value = doc.title || "";
         document.getElementById('studioLibraryItemId').value = doc.id;
@@ -323,45 +323,45 @@ APP_LAYOUT_HTML = """<!doctype html>
         document.getElementById('srcTabLibrary').classList.add('studio-tab', 'active');
         document.getElementById('srcTabManual').classList.remove('studio-tab', 'active');
         closeLibraryDrawer();
-    }}
-    async function submitNewPost(event) {{
+    }
+    async function submitNewPost(event) {
         event.preventDefault();
         const btn = document.getElementById('studioSubmitBtn');
         const originalText = (btn ? btn.innerText : 'FINALIZING...');
-        if (btn) {{
+        if (btn) {
             btn.innerText = 'GENERATING...';
             btn.disabled = true;
-        }}
+        }
 
         const formData = new FormData(event.target);
         
         // Ensure visual_mode is set
-        if (!formData.has('visual_mode')) {{
+        if (!formData.has('visual_mode')) {
             formData.append('visual_mode', document.getElementById('studioVisualMode').value);
-        }}
+        }
 
-        try {{
-            const res = await fetch('/posts/intake', {{
+        try {
+            const res = await fetch('/posts/intake', {
                 method: 'POST',
                 body: formData
-            }});
-            if (res.ok) {{
+            });
+            if (res.ok) {
                 window.location.reload();
-            }} else {{
+            } else {
                 const err = await res.json();
                 alert('Error: ' + (err.detail || 'Failed to create post'));
-            }}
-        }} catch (e) {{
+            }
+        } catch (e) {
             alert('Upload failed: ' + e);
-        }} finally {{
-            if (btn) {{
+        } finally {
+            if (btn) {
                 btn.innerText = originalText;
                 btn.disabled = false;
-            }}
-        }}
-    }}
+            }
+        }
+    }
 
-    async function launchLivePreview() {{
+    async function launchLivePreview() {
         const modal = document.getElementById('previewModal');
         const img = document.getElementById('previewImage');
         const loader = document.getElementById('previewLoader');
@@ -372,29 +372,29 @@ APP_LAYOUT_HTML = """<!doctype html>
 
         const formData = new FormData(document.querySelector('#newPostModal form'));
         
-        try {{
-            const res = await fetch('/posts/preview_render', {{
+        try {
+            const res = await fetch('/posts/preview_render', {
                 method: 'POST',
                 body: formData
-            }});
+            });
             const data = await res.json();
-            if (res.ok) {{
+            if (res.ok) {
                 img.src = data.preview_url;
                 img.classList.remove('hidden');
                 loader.classList.add('hidden');
-            }} else {{
+            } else {
                 alert('Preview failed: ' + (data.detail || 'check console'));
                 modal.classList.add('hidden');
-            }}
-        }} catch (e) {{
+            }
+        } catch (e) {
             alert('Network error');
             modal.classList.add('hidden');
-        }}
-    }}
+        }
+    }
 
-    function closePreviewModal() {{
+    function closePreviewModal() {
         document.getElementById('previewModal').classList.add('hidden');
-    }}
+    }
   </script>
 
   <!-- Content Studio Modal (Overhauled New Post) -->
@@ -1326,7 +1326,7 @@ async def app_automations_page(
             </div>
           </div>
           <div class="flex gap-3">
-            <button onclick='showEditModal({{
+            <button onclick='showEditModal({
               "id": a.id, 
               "name": a.name, 
               "topic": a.topic_prompt, 
@@ -1334,7 +1334,7 @@ async def app_automations_page(
               "seed_text": a.content_seed_text or "", 
               "time": a.post_time_local or "09:00",
               "library_scope": a.library_scope
-            }})' class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">Configure</button>
+            })' class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">Configure</button>
             <button onclick="runNow({a.id})" class="px-6 py-3 bg-brand/20 text-brand rounded-xl font-black text-[10px] uppercase tracking-widest border border-brand/20 hover:bg-brand/30 transition-all">Run Now</button>
           </div>
         </div>
@@ -1486,27 +1486,27 @@ async def app_automations_page(
     </div>
 
     <script>
-      function showNewAutoModal() {{
+      function showNewAutoModal() {
         document.getElementById('newAutoModal').classList.remove('hidden');
-      }}
+      }
 
-      function hideNewAutoModal() {{
+      function hideNewAutoModal() {
         document.getElementById('newAutoModal').classList.add('hidden');
-      }}
+      }
 
-      function toggleNewSeedText() {{
+      function toggleNewSeedText() {
         const mode = document.getElementById('newSeedMode').value;
         const group = document.getElementById('newSeedTextGroup');
         if (mode === 'manual') group.classList.remove('hidden');
         else group.classList.add('hidden');
-      }}
+      }
 
-      async function saveNewAutomation() {{
+      async function saveNewAutomation() {
         const scope = [];
         if (document.getElementById('newScopePrebuilt').checked) scope.push('prebuilt');
         if (document.getElementById('newScopeOrg').checked) scope.push('org_library');
 
-        const payload = {{
+        const payload = {
           name: document.getElementById('newName').value,
           ig_account_id: parseInt(document.getElementById('newAccount').value),
           topic_prompt: document.getElementById('newTopic').value,
@@ -1515,30 +1515,30 @@ async def app_automations_page(
           post_time_local: document.getElementById('newTime').value,
           library_scope: scope,
           enabled: true
-        }};
+        };
 
-        if (!payload.name || !payload.topic_prompt || isNaN(payload.ig_account_id)) {{
+        if (!payload.name || !payload.topic_prompt || isNaN(payload.ig_account_id)) {
           alert('Please fill Name, Topic, and select an Account');
           return;
-        }}
+        }
         
         const btn = event.target;
         btn.disabled = true;
         btn.textContent = 'CREATING...';
 
-        try {{
-          const res = await fetch('/automations', {{
+        try {
+          const res = await fetch('/automations', {
             method: 'POST',
-            headers: {{ 'Content-Type': 'application/json' }},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
-          }});
+          });
           if (res.ok) window.location.reload();
           else alert('Creation failed');
-        }} catch(e) {{ alert('Network error'); }}
-        finally {{ btn.disabled = false; btn.textContent = 'Create Intelligence'; }}
-      }}
+        } catch(e) { alert('Network error'); }
+        finally { btn.disabled = false; btn.textContent = 'Create Intelligence'; }
+      }
 
-      function showEditModal(data) {{
+      function showEditModal(data) {
         document.getElementById('editId').value = data.id;
         document.getElementById('editName').value = data.name;
         document.getElementById('editTopic').value = data.topic;
@@ -1552,72 +1552,72 @@ async def app_automations_page(
 
         toggleSeedText();
         document.getElementById('editModal').classList.remove('hidden');
-      }}
+      }
 
-      function hideEditModal() {{
+      function hideEditModal() {
         document.getElementById('editModal').classList.add('hidden');
-      }}
+      }
 
-      function toggleSeedText() {{
+      function toggleSeedText() {
         const mode = document.getElementById('editSeedMode').value;
         const group = document.getElementById('seedTextGroup');
         if (mode === 'manual') group.classList.remove('hidden');
         else group.classList.add('hidden');
-      }}
+      }
 
-      async function saveAutomation() {{
+      async function saveAutomation() {
         const id = document.getElementById('editId').value;
         const scope = [];
         if (document.getElementById('editScopePrebuilt').checked) scope.push('prebuilt');
         if (document.getElementById('editScopeOrg').checked) scope.push('org_library');
 
-        const payload = {{
+        const payload = {
           name: document.getElementById('editName').value,
           topic_prompt: document.getElementById('editTopic').value,
           content_seed_mode: document.getElementById('editSeedMode').value,
           content_seed_text: document.getElementById('editSeedText').value,
           post_time_local: document.getElementById('editTime').value,
           library_scope: scope
-        }};
+        };
         
         const btn = event.target;
         btn.disabled = true;
         btn.textContent = 'SAVING...';
 
-        try {{
-          const res = await fetch(`/automations/${{id}}`, {{
+        try {
+          const res = await fetch(`/automations/${id}`, {
             method: 'PATCH',
-            headers: {{ 'Content-Type': 'application/json' }},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
-          }});
+          });
           if (res.ok) window.location.reload();
           else alert('Save failed');
-        }} catch(e) {{ alert('Network error'); }}
-        finally {{ btn.disabled = false; btn.textContent = 'Apply Changes'; }}
-      }}
+        } catch(e) { alert('Network error'); }
+        finally { btn.disabled = false; btn.textContent = 'Apply Changes'; }
+      }
 
-      async function toggleAuto(id, enabled) {{
-        try {{
-          const res = await fetch(`/automations/${{id}}`, {{
+      async function toggleAuto(id, enabled) {
+        try {
+          const res = await fetch(`/automations/${id}`, {
             method: 'PATCH',
-            headers: {{ 'Content-Type': 'application/json' }},
-            body: JSON.stringify({{ enabled: enabled }})
-          }});
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: enabled })
+          });
           if (res.ok) window.location.reload();
-        }} catch(e) {{ alert('Error toggling'); }}
-      }}
+        } catch(e) { alert('Error toggling'); }
+      }
 
-      async function runNow(id) {{
+      async function runNow(id) {
         if (!confirm('Run this automation immediately? This will create a post in your pipeline.')) return;
         const btn = event.target;
         btn.disabled = true;
         btn.textContent = 'RUNNING...';
-        try {{
-          const res = await fetch(`/automations/${{id}}/run`, {{ method: 'POST' }});
+        try {
+          const res = await fetch(`/automations/${id}/run`, { method: 'POST' });
           if (res.ok) alert('Neural loop triggered. Check dashboard for the new post.');
           else alert('Run failed');
-        finally {{ btn.disabled = false; btn.textContent = 'Run Now'; }}
-      }}
+        finally { btn.disabled = false; btn.textContent = 'Run Now'; }
+      }
     </script>
     """
     
@@ -1787,17 +1787,17 @@ async def app_library_page(
     </div>
 
     <script>
-      function showUrlModal() {{ document.getElementById('urlModal').classList.remove('hidden'); }}
-      function hideUrlModal() {{ document.getElementById('urlModal').classList.add('hidden'); }}
+      function showUrlModal() { document.getElementById('urlModal').classList.remove('hidden'); }
+      function hideUrlModal() { document.getElementById('urlModal').classList.add('hidden'); }
 
-      function switchTab(tab) {{
+      function switchTab(tab) {
         const userTab = document.getElementById('tabUser');
         const defaultTab = document.getElementById('tabDefault');
         const userPane = document.getElementById('paneUser');
         const defaultPane = document.getElementById('paneDefault');
         const actionBtn = document.getElementById('actionButtons');
 
-        if (tab === 'user') {{
+        if (tab === 'user') {
           userTab.classList.add('text-white', 'border-brand');
           userTab.classList.remove('text-muted', 'border-transparent');
           defaultTab.classList.add('text-muted', 'border-transparent');
@@ -1805,7 +1805,7 @@ async def app_library_page(
           userPane.classList.remove('hidden');
           defaultPane.classList.add('hidden');
           actionBtn.classList.remove('opacity-0', 'pointer-events-none');
-        }} else {{
+        } else {
           defaultTab.classList.add('text-white', 'border-brand');
           defaultTab.classList.remove('text-muted', 'border-transparent');
           userTab.classList.add('text-muted', 'border-transparent');
@@ -1813,10 +1813,10 @@ async def app_library_page(
           defaultPane.classList.remove('hidden');
           userPane.classList.add('hidden');
           actionBtn.classList.add('opacity-0', 'pointer-events-none');
-        }}
-      }}
+        }
+      }
 
-      async function submitUrl() {{
+      async function submitUrl() {
         const title = document.getElementById('urlTitle').value;
         const url = document.getElementById('urlAddress').value;
         if (!url) return alert('URL is required');
@@ -1825,41 +1825,41 @@ async def app_library_page(
         btn.disabled = true;
         btn.textContent = 'INGESTING...';
 
-        try {{
-          const res = await fetch('/library/add_url', {{
+        try {
+          const res = await fetch('/library/add_url', {
             method: 'POST',
-            headers: {{ 'Content-Type': 'application/json' }},
-            body: JSON.stringify({{ title: title, source_type: 'url', original_url: url }})
-          }});
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: title, source_type: 'url', original_url: url })
+          });
           if (res.ok) window.location.reload();
           else alert('Extraction failed');
-        }} catch(e) {{ alert('Network error'); }}
-        finally {{ btn.disabled = false; btn.textContent = 'Extract & Ingest'; }}
-      }}
+        } catch(e) { alert('Network error'); }
+        finally { btn.disabled = false; btn.textContent = 'Extract & Ingest'; }
+      }
 
-      async function handleFileUpload(input) {{
+      async function handleFileUpload(input) {
         if (!input.files.length) return;
         const file = input.files[0];
         const formData = new FormData();
         formData.append('file', file);
         
-        try {{
-          const res = await fetch('/library/upload', {{
+        try {
+          const res = await fetch('/library/upload', {
             method: 'POST',
             body: formData
-          }});
+          });
           if (res.ok) window.location.reload();
           else alert('Upload failed');
-        }} catch(e) {{ alert('Network error'); }}
-      }}
+        } catch(e) { alert('Network error'); }
+      }
 
-      async function deleteDoc(id) {{
+      async function deleteDoc(id) {
         if (!confirm('Are you sure you want to delete this source and all its knowledge chunks?')) return;
-        try {{
-          const res = await fetch(`/library/${{id}}`, {{ method: 'DELETE' }});
+        try {
+          const res = await fetch(`/library/${id}`, { method: 'DELETE' });
           if (res.ok) window.location.reload();
-        }} catch(e) {{ alert('Network error'); }}
-      }}
+        } catch(e) { alert('Network error'); }
+      }
     </script>
     """
     
