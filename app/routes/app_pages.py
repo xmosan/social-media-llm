@@ -654,6 +654,8 @@ async def app_dashboard_page(
         if p.status == "published": status_color = "text-emerald-400"
         if p.status == "scheduled": status_color = "text-brand"
         
+        escaped_caption = (p.caption or "").replace('`', '\\`').replace('${', '\\${')
+        
         recent_posts_html += f"""
         <div class="glass p-4 rounded-2xl flex justify-between items-center">
           <div class="flex items-center gap-4">
@@ -666,7 +668,7 @@ async def app_dashboard_page(
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="openEditPostModal('{p.id}', \`{p.caption.replace('`','\\\\`').replace('${','\\\\${') if p.caption else ''}\`, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}')" class="p-2 text-muted hover:text-white transition-colors">
+            <button onclick="openEditPostModal('{p.id}', \`{escaped_caption}\`, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}')" class="p-2 text-muted hover:text-white transition-colors">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
             </button>
             <div class="text-[8px] font-black uppercase tracking-widest {status_color}">{p.status}</div>
