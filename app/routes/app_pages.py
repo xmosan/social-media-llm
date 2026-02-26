@@ -721,6 +721,10 @@ async def app_dashboard_page(
         user_name=user.name or user.email,
         org_name=org.name if org else "Personal Workspace",
         admin_link=admin_link,
+        active_dashboard="active",
+        active_calendar="",
+        active_automations="",
+        active_library="",
         active_media="",
         content=content,
         account_options=account_options
@@ -826,6 +830,10 @@ async def app_calendar_page(
         user_name=user.name or user.email,
         org_name=org.name if org else "Personal Workspace",
         admin_link=admin_link,
+        active_dashboard="",
+        active_calendar="active",
+        active_automations="",
+        active_library="",
         active_media="",
         content=content,
         account_options=""
