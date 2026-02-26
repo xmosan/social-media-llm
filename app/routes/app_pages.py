@@ -113,6 +113,7 @@ APP_LAYOUT_HTML = """<!doctype html>
     }}
 
     function closeEditPostModal() {{
+        hideDeleteConfirm();
         document.getElementById('editPostModal').classList.add('hidden');
     }}
 
@@ -138,10 +139,8 @@ APP_LAYOUT_HTML = """<!doctype html>
     }}
 
     async function deletePost() {{
-        if (!confirm('Are you absolutely sure you want to delete this scheduled post?')) return;
-        
+        const btn = document.getElementById('confirmDeleteBtn');
         const id = document.getElementById('editPostId').value;
-        const btn = document.getElementById('deletePostBtn');
         
         btn.disabled = true;
         btn.innerText = 'DELETING...';
@@ -151,7 +150,17 @@ APP_LAYOUT_HTML = """<!doctype html>
             if (res.ok) window.location.reload();
             else alert('Failed to delete post');
         }} catch(e) {{ alert('Error deleting post'); }}
-        finally {{ btn.disabled = false; btn.innerText = 'Delete Post'; }}
+        finally {{ btn.disabled = false; btn.innerText = 'Yes, Delete Post'; }}
+    }}
+
+    function showDeleteConfirm() {{
+        document.getElementById('editPostActions').classList.add('hidden');
+        document.getElementById('deleteConfirmActions').classList.remove('hidden');
+    }}
+
+    function hideDeleteConfirm() {{
+        document.getElementById('deleteConfirmActions').classList.add('hidden');
+        document.getElementById('editPostActions').classList.remove('hidden');
     }}
 
     async function approvePost(id) {{
@@ -343,11 +352,27 @@ APP_DASHBOARD_CONTENT = """
           </div>
         </div>
 
-        <div class="flex gap-4 pt-4">
-          <button id="deletePostBtn" onclick="deletePost()" class="flex-1 py-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl font-black text-xs uppercase tracking-widest text-rose-400 hover:bg-rose-500/20 transition-all">Delete Post</button>
+        <div id="editPostActions" class="flex gap-4 pt-4">
+          <button id="deletePostBtn" onclick="showDeleteConfirm()" class="flex-1 py-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl font-black text-xs uppercase tracking-widest text-rose-400 hover:bg-rose-500/20 transition-all">Delete Post</button>
           <div class="flex-1 flex gap-2">
             <button onclick="closeEditPostModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest text-white hover:bg-white/10 transition-all">Cancel</button>
             <button id="savePostBtn" onclick="savePostEdit()" class="flex-[2] py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Apply</button>
+          </div>
+        </div>
+
+        <div id="deleteConfirmActions" class="hidden pt-4">
+          <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 mb-4 hstack gap-3">
+             <div class="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
+               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+             </div>
+             <div>
+               <h4 class="text-sm font-black text-white">Delete Scheduled Post?</h4>
+               <p class="text-[10px] font-bold text-muted uppercase tracking-widest mt-1">This action cannot be undone.</p>
+             </div>
+          </div>
+          <div class="flex gap-4">
+            <button onclick="hideDeleteConfirm()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest text-white hover:bg-white/10 transition-all">Cancel</button>
+            <button id="confirmDeleteBtn" onclick="deletePost()" class="flex-1 py-4 bg-rose-500 hover:bg-rose-600 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-rose-500/20 transition-all">Yes, Delete Post</button>
           </div>
         </div>
       </div>
