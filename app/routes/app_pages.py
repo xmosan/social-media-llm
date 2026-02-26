@@ -767,7 +767,15 @@ async def app_automations_page(
             </div>
           </div>
           <div class="flex gap-3">
-            <button onclick='showEditModal({json.dumps({"id": a.id, "name": a.name, "topic": a.topic_prompt, "seed_mode": a.content_seed_mode, "seed_text": a.content_seed_text or "", "time": a.post_time_local or "09:00"})})' class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">Configure</button>
+            <button onclick='showEditModal({{
+              "id": a.id, 
+              "name": a.name, 
+              "topic": a.topic_prompt, 
+              "seed_mode": a.content_seed_mode, 
+              "seed_text": a.content_seed_text or "", 
+              "time": a.post_time_local or "09:00",
+              "library_scope": a.library_scope
+            }})' class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">Configure</button>
             <button onclick="runNow({a.id})" class="px-6 py-3 bg-brand/20 text-brand rounded-xl font-black text-[10px] uppercase tracking-widest border border-brand/20 hover:bg-brand/30 transition-all">Run Now</button>
           </div>
         </div>
@@ -823,6 +831,20 @@ async def app_automations_page(
             <div id="seedTextGroup" class="space-y-1 hidden">
               <label class="text-[10px] font-black uppercase tracking-widest text-muted">Manual Seed Text</label>
               <textarea id="editSeedText" rows="5" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-[10px] outline-none focus:ring-2 focus:ring-brand placeholder-white/20" placeholder="Paste the content you want the AI to ground its generation on..."></textarea>
+            </div>
+            
+            <div class="space-y-2 pt-2">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Library Sourcing Scope</label>
+              <div class="flex gap-4">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="editScopePrebuilt" class="w-4 h-4 rounded border-white/10 bg-white/5 text-brand focus:ring-brand">
+                  <span class="text-[10px] font-bold text-white uppercase">Prebuilt Packs</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="editScopeOrg" class="w-4 h-4 rounded border-white/10 bg-white/5 text-brand focus:ring-brand">
+                  <span class="text-[10px] font-bold text-white uppercase">Org Library</span>
+                </label>
+              </div>
             </div>
             <div class="p-4 bg-brand/10 border border-brand/20 rounded-xl">
               <p class="text-[9px] font-bold text-brand uppercase tracking-widest leading-relaxed">
@@ -880,6 +902,20 @@ async def app_automations_page(
               <label class="text-[10px] font-black uppercase tracking-widest text-muted">Manual Seed Text</label>
               <textarea id="newSeedText" rows="5" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-[10px] outline-none focus:ring-2 focus:ring-brand placeholder-white/20" placeholder="Paste the content you want the AI to ground its generation on..."></textarea>
             </div>
+            
+            <div class="space-y-2 pt-2">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Library Sourcing Scope</label>
+              <div class="flex gap-4">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="newScopePrebuilt" checked class="w-4 h-4 rounded border-white/10 bg-white/5 text-brand focus:ring-brand">
+                  <span class="text-[10px] font-bold text-white uppercase">Prebuilt Packs</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="newScopeOrg" checked class="w-4 h-4 rounded border-white/10 bg-white/5 text-brand focus:ring-brand">
+                  <span class="text-[10px] font-bold text-white uppercase">Org Library</span>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -907,6 +943,10 @@ async def app_automations_page(
       }}
 
       async function saveNewAutomation() {{
+        const scope = [];
+        if (document.getElementById('newScopePrebuilt').checked) scope.push('prebuilt');
+        if (document.getElementById('newScopeOrg').checked) scope.push('org_library');
+
         const payload = {{
           name: document.getElementById('newName').value,
           ig_account_id: parseInt(document.getElementById('newAccount').value),
@@ -914,6 +954,7 @@ async def app_automations_page(
           content_seed_mode: document.getElementById('newSeedMode').value,
           content_seed_text: document.getElementById('newSeedText').value,
           post_time_local: document.getElementById('newTime').value,
+          library_scope: scope,
           enabled: true
         }};
 
@@ -946,6 +987,10 @@ async def app_automations_page(
         document.getElementById('editSeedText').value = data.seed_text;
         document.getElementById('editTime').value = data.time;
         
+        const scope = data.library_scope || [];
+        document.getElementById('editScopePrebuilt').checked = scope.includes('prebuilt');
+        document.getElementById('editScopeOrg').checked = scope.includes('org_library');
+
         toggleSeedText();
         document.getElementById('editModal').classList.remove('hidden');
       }}
@@ -963,12 +1008,17 @@ async def app_automations_page(
 
       async function saveAutomation() {{
         const id = document.getElementById('editId').value;
+        const scope = [];
+        if (document.getElementById('editScopePrebuilt').checked) scope.push('prebuilt');
+        if (document.getElementById('editScopeOrg').checked) scope.push('org_library');
+
         const payload = {{
           name: document.getElementById('editName').value,
           topic_prompt: document.getElementById('editTopic').value,
           content_seed_mode: document.getElementById('editSeedMode').value,
           content_seed_text: document.getElementById('editSeedText').value,
-          post_time_local: document.getElementById('editTime').value
+          post_time_local: document.getElementById('editTime').value,
+          library_scope: scope
         }};
         
         const btn = event.target;
