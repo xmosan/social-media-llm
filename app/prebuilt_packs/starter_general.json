@@ -1,0 +1,55 @@
+{
+    "slug": "starter_general",
+    "name": "Starter Pack: General Reminders",
+    "description": "Short authentic reminders with clear references.",
+    "items": [
+        {
+            "id": "sg_01",
+            "text": "Indeed, Allah does not look at your appearance or wealth, but He looks at your hearts and your deeds.",
+            "reference": "Sahih Muslim 2564",
+            "source": "Sahih Muslim",
+            "tags": [
+                "sincerity",
+                "heart",
+                "intentions"
+            ],
+            "language": "en"
+        },
+        {
+            "id": "sg_02",
+            "text": "The strong person is not the one who overcomes others by strength, but the one who controls himself while in anger.",
+            "reference": "Sahih al-Bukhari 6114",
+            "source": "Sahih al-Bukhari",
+            "tags": [
+                "anger",
+                "self-control",
+                "character"
+            ],
+            "language": "en"
+        },
+        {
+            "id": "sg_03",
+            "text": "And whoever relies upon Allah – then He is sufficient for him.",
+            "reference": "Qur’an 65:3",
+            "source": "The Qur’an",
+            "tags": [
+                "tawakkul",
+                "trust",
+                "reliance"
+            ],
+            "language": "en"
+        },
+        {
+            "id": "sg_04",
+            "text": "The most beloved deeds to Allah are those that are consistent, even if small.",
+            "reference": "Sahih al-Bukhari 6464",
+            "source": "Sahih al-Bukhari",
+            "tags": [
+                "consistency",
+                "discipline",
+                "worship"
+            ],
+            "language": "en"
+        }
+    ]
+}

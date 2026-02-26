@@ -84,6 +84,15 @@ def generate_topic_caption(
             grounding_prompt = f"\nMANUAL SEED CONTENT:\n{extra_context['manual_seed']}\n"
             special_instructions.append("The caption must be grounded in and reflect the provided manual seed content.")
         
+        elif mode == "grounded_library" and extra_context.get("snippet"):
+            s = extra_context["snippet"]
+            grounding_prompt = f"\nGROUNDED LIBRARY SNIPPET (Source of Truth):\nText: {s['text']}\nReference: {s.get('reference') or 'N/A'}\nSource: {s.get('source') or 'N/A'}\n"
+            special_instructions.append("Summarize the snippet OR quote MAX 1 short sentence from it.")
+            special_instructions.append(f"You MUST include the reference exactly as provided: {s.get('reference') or ''}")
+            special_instructions.append("DO NOT fabricate new references or hadith.")
+            special_instructions.append("DO NOT add generic filler like 'Enhance your daily reminder'.")
+            special_instructions.append("If no snippet is relevant, do NOT pretend there is one.")
+        
         # Backward compatibility or additional instructions
         if extra_context.get("instructions"):
             if isinstance(extra_context["instructions"], list):
@@ -126,23 +135,49 @@ def generate_topic_caption(
     system_msg = content_profile_prompt if content_profile_prompt else "You are a professional social media manager specializing in high-engagement content."
     system_msg += f" Creativity Level: {creativity_level}/5."
     
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": system_msg},
-            {"role": "user", "content": prompt}
-        ],
-        response_format={"type": "json_object"}
-    )
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"}
+        )
+    except Exception as e:
+        print(f"[LLM] OpenAI API call failed: {e}")
+        raise RuntimeError(f"LLM Generation failed: {str(e)}")
     
     result = json.loads(response.choices[0].message.content)
     caption = result.get("caption", "").strip()
     
-    # GUARDRAIL: Topic mismatch or generic error
-    if not caption or caption.lower() == topic.lower() or caption.startswith("AUTO:"):
-        print(f"[LLM] Guardrail triggered: Caption is generic or identical to topic. Retrying with stricter instructions.")
-        # We could retry here, but for now we'll just log it and let the runner handle it
-        # Actually, let's just return what we have but it might be caught by the runner's guardrails.
+    # STRICT VALIDATION
+    is_invalid = False
+    fail_reason = None
+    
+    if not caption:
+        is_invalid = True
+        fail_reason = "empty_caption"
+    elif caption.lower() == topic.lower():
+        is_invalid = True
+        fail_reason = "caption_equals_topic"
+    elif caption.startswith("AUTO:"):
+        is_invalid = True
+        fail_reason = "caption_starts_with_auto"
+    elif "enhance your daily reminder" in caption.lower():
+        is_invalid = True
+        fail_reason = "contains_generic_filler"
+    elif len(caption) < 20:
+        is_invalid = True
+        fail_reason = "caption_too_short"
+
+    if is_invalid:
+        print(f"[LLM] Validation failed: {fail_reason}. Raw output: {caption}")
+        # According to requirement D.2:
+        # mark post.status = "failed", set flags.reason = "invalid_generated_caption"
+        # Since this function returns a dict to the runner, we add these flags.
+        result["validation_failed"] = True
+        result["fail_reason"] = fail_reason
     
     # Final check on hashtags if they come back as strings or other types
     if not isinstance(result.get("hashtags"), list):

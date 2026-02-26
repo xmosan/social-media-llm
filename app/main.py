@@ -231,7 +231,8 @@ def on_startup():
                 ("content_seed_text", "TEXT"),
                 ("items_per_post", "INTEGER DEFAULT 1"),
                 ("selection_mode", "VARCHAR DEFAULT 'random'"),
-                ("last_item_cursor", "VARCHAR")
+                ("last_item_cursor", "VARCHAR"),
+                ("library_scope", "JSONB" if is_postgres else "TEXT")
             ]
             for col, col_def in auto_cols:
                 try:
@@ -245,7 +246,8 @@ def on_startup():
             post_cols = [
                 ("media_asset_id", "INTEGER"),
                 ("used_source_id", "INTEGER"),
-                ("used_content_item_ids", "JSONB" if is_postgres else "TEXT")
+                ("used_content_item_ids", "JSONB" if is_postgres else "TEXT"),
+                ("last_error", "TEXT")
             ]
             for col, col_def in post_cols:
                 try:

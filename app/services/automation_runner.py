@@ -8,6 +8,7 @@ from app.services.publisher import publish_to_instagram
 from app.services.content_library import pick_content_item
 from app.services.image_card import create_quote_card
 from app.services.library_retrieval import retrieve_relevant_chunks
+from app.services.prebuilt_loader import load_prebuilt_packs
 from app.services.image_card import create_quote_card
 from app.config import settings
 import pytz
@@ -222,6 +223,43 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 "manual_seed": seed_text
             }
         
+        # NEW: Prebuilt Packs Retrieval
+        lib_scope = getattr(automation, "library_scope", []) or []
+        if "prebuilt" in lib_scope:
+            packs = load_prebuilt_packs()
+            match = None
+            norm_topic = topic.lower().strip()
+            
+            # Simple keyword/tag matcher
+            for pack in packs:
+                for item in pack.get("items", []):
+                    # Check tags
+                    if norm_topic in [t.lower() for t in item.get("tags", [])]:
+                        match = item
+                        break
+                    # Check keywords in text
+                    if norm_topic in item["text"].lower():
+                        match = item
+                        break
+                if match: break
+            
+            if match:
+                # If we already have library_context from auto_library, we might want to prioritize prebuilt
+                # or merge. The requirement says: "Select MAX 1 snippet. Pass into generate_topic_caption as structured extra_context"
+                # So we override or set it.
+                library_context = {
+                    "mode": "grounded_library",
+                    "topic": topic,
+                    "snippet": {
+                        "text": match["text"],
+                        "reference": match.get("reference"),
+                        "source": match.get("source")
+                    }
+                }
+            elif not library_context:
+                # If no prebuilt match and no auto_library context, set a default
+                library_context = {"mode": "none"}
+        
         # 3. Content Selection (Legacy/Other Sources)
         new_cursor = automation.last_item_cursor
 
@@ -419,7 +457,7 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             scheduled_time=compute_next_run_time(db.get(IGAccount, automation.ig_account_id), automation) if status == "scheduled" else None
         )
         
-        # 5. Guardrail
+        # 5. Guardrail & Validation
         auto_str = f"AUTO: {automation.name}"
         caption_lower = caption.lower()
         filler_indicators = ["enhance your daily reminder", "welcome to our page", "here is your caption"]
@@ -428,15 +466,23 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         is_too_short = len(caption) < 20
         is_default = caption.strip() == topic.strip() or caption.strip() == auto_str
         
-        if not caption or is_default or is_filler or is_too_short:
-            reason = "invalid_caption"
+        validation_failed = result.get("validation_failed", False)
+        fail_reason = result.get("fail_reason", "invalid_caption")
+        
+        if validation_failed or not caption or is_default or is_filler or is_too_short:
+            reason = fail_reason
             if is_filler: reason = "filler_detected"
             if is_too_short: reason = "too_short"
+            if is_default: reason = "default_text_echo"
             
             print(f"[AUTO] FAILED GUARDRAIL: {reason}. Output: {caption[:50]}...")
             log_event("automation_guardrail_failed", automation_id=automation.id, reason=reason)
             new_post.status = "failed"
-            new_post.flags = {"automation_error": f"LLM returned invalid/filler caption: {caption}", "reason": reason}
+            new_post.flags = {
+                "automation_error": f"LLM returned invalid/filler caption: {caption}", 
+                "reason": reason,
+                "raw_result": result
+            }
             automation.last_error = f"Guardrail check failed: {reason}"
             db.add(new_post)
             db.commit()

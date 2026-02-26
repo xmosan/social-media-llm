@@ -1,0 +1,31 @@
+{
+    "slug": "starter_ramadan",
+    "name": "Starter Pack: Ramadan",
+    "description": "Authentic Ramadan reminders with references.",
+    "items": [
+        {
+            "id": "sr_01",
+            "text": "Whoever fasts Ramadan with faith and seeking reward will have his past sins forgiven.",
+            "reference": "Sahih al-Bukhari 38; Sahih Muslim 760",
+            "source": "Sahih al-Bukhari & Muslim",
+            "tags": [
+                "ramadan",
+                "fasting",
+                "forgiveness"
+            ],
+            "language": "en"
+        },
+        {
+            "id": "sr_02",
+            "text": "The gates of Paradise are opened in Ramadan, and the gates of Hell are closed.",
+            "reference": "Sahih al-Bukhari 1899",
+            "source": "Sahih al-Bukhari",
+            "tags": [
+                "ramadan",
+                "mercy",
+                "paradise"
+            ],
+            "language": "en"
+        }
+    ]
+}

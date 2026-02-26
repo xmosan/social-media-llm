@@ -108,6 +108,7 @@ class Post(Base):
     alt_text = Column(Text, nullable=True)
 
     flags = Column(JSON, nullable=False, default=dict)
+    last_error = Column(Text, nullable=True)
 
     scheduled_time = Column(DateTime(timezone=True), nullable=True)
     published_time = Column(DateTime(timezone=True), nullable=True)
@@ -185,6 +186,7 @@ class TopicAutomation(Base):
     avoid_repeat_days = Column(Integer, default=30)
     content_type = Column(String, nullable=True) # "hadith", "quote", etc.
     include_arabic = Column(Boolean, default=False)
+    library_scope = Column(JSON, nullable=True) # ["prebuilt", "org_library"]
     
     post_time_local = Column(String, nullable=True) # "HH:MM"
     timezone = Column(String, nullable=True) 
