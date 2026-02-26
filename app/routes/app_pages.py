@@ -1486,27 +1486,27 @@ async def app_automations_page(
     </div>
 
     <script>
-      function showNewAutoModal() {
+      function showNewAutoModal() {{
         document.getElementById('newAutoModal').classList.remove('hidden');
-      }
+      }}
 
-      function hideNewAutoModal() {
+      function hideNewAutoModal() {{
         document.getElementById('newAutoModal').classList.add('hidden');
-      }
+      }}
 
-      function toggleNewSeedText() {
+      function toggleNewSeedText() {{
         const mode = document.getElementById('newSeedMode').value;
         const group = document.getElementById('newSeedTextGroup');
         if (mode === 'manual') group.classList.remove('hidden');
         else group.classList.add('hidden');
-      }
+      }}
 
-      async function saveNewAutomation() {
+      async function saveNewAutomation() {{
         const scope = [];
         if (document.getElementById('newScopePrebuilt').checked) scope.push('prebuilt');
         if (document.getElementById('newScopeOrg').checked) scope.push('org_library');
 
-        const payload = {
+        const payload = {{
           name: document.getElementById('newName').value,
           ig_account_id: parseInt(document.getElementById('newAccount').value),
           topic_prompt: document.getElementById('newTopic').value,
@@ -1515,30 +1515,30 @@ async def app_automations_page(
           post_time_local: document.getElementById('newTime').value,
           library_scope: scope,
           enabled: true
-        };
+        }};
 
-        if (!payload.name || !payload.topic_prompt || isNaN(payload.ig_account_id)) {
+        if (!payload.name || !payload.topic_prompt || isNaN(payload.ig_account_id)) {{
           alert('Please fill Name, Topic, and select an Account');
           return;
-        }
+        }}
         
         const btn = event.target;
         btn.disabled = true;
         btn.textContent = 'CREATING...';
 
-        try {
-          const res = await fetch('/automations', {
+        try {{
+          const res = await fetch('/automations', {{
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {{ 'Content-Type': 'application/json' }},
             body: JSON.stringify(payload)
-          });
+          }});
           if (res.ok) window.location.reload();
           else alert('Creation failed');
-        } catch(e) { alert('Network error'); }
-        finally { btn.disabled = false; btn.textContent = 'Create Intelligence'; }
-      }
+        }} catch(e) {{ alert('Network error'); }}
+        finally {{ btn.disabled = false; btn.textContent = 'Create Intelligence'; }}
+      }}
 
-      function showEditModal(data) {
+      function showEditModal(data) {{
         document.getElementById('editId').value = data.id;
         document.getElementById('editName').value = data.name;
         document.getElementById('editTopic').value = data.topic;
@@ -1552,72 +1552,72 @@ async def app_automations_page(
 
         toggleSeedText();
         document.getElementById('editModal').classList.remove('hidden');
-      }
+      }}
 
-      function hideEditModal() {
+      function hideEditModal() {{
         document.getElementById('editModal').classList.add('hidden');
-      }
+      }}
 
-      function toggleSeedText() {
+      function toggleSeedText() {{
         const mode = document.getElementById('editSeedMode').value;
         const group = document.getElementById('seedTextGroup');
         if (mode === 'manual') group.classList.remove('hidden');
         else group.classList.add('hidden');
-      }
+      }}
 
-      async function saveAutomation() {
+      async function saveAutomation() {{
         const id = document.getElementById('editId').value;
         const scope = [];
         if (document.getElementById('editScopePrebuilt').checked) scope.push('prebuilt');
         if (document.getElementById('editScopeOrg').checked) scope.push('org_library');
 
-        const payload = {
+        const payload = {{
           name: document.getElementById('editName').value,
           topic_prompt: document.getElementById('editTopic').value,
           content_seed_mode: document.getElementById('editSeedMode').value,
           content_seed_text: document.getElementById('editSeedText').value,
           post_time_local: document.getElementById('editTime').value,
           library_scope: scope
-        };
+        }};
         
         const btn = event.target;
         btn.disabled = true;
         btn.textContent = 'SAVING...';
 
-        try {
-          const res = await fetch(`/automations/${id}`, {
+        try {{
+          const res = await fetch(`/automations/${{id}}`, {{
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {{ 'Content-Type': 'application/json' }},
             body: JSON.stringify(payload)
-          });
+          }});
           if (res.ok) window.location.reload();
           else alert('Save failed');
-        } catch(e) { alert('Network error'); }
-        finally { btn.disabled = false; btn.textContent = 'Apply Changes'; }
-      }
+        }} catch(e) {{ alert('Network error'); }}
+        finally {{ btn.disabled = false; btn.textContent = 'Apply Changes'; }}
+      }}
 
-      async function toggleAuto(id, enabled) {
-        try {
-          const res = await fetch(`/automations/${id}`, {
+      async function toggleAuto(id, enabled) {{
+        try {{
+          const res = await fetch(`/automations/${{id}}`, {{
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ enabled: enabled })
-          });
+            headers: {{ 'Content-Type': 'application/json' }},
+            body: JSON.stringify({{ enabled: enabled }})
+          }});
           if (res.ok) window.location.reload();
-        } catch(e) { alert('Error toggling'); }
-      }
+        }} catch(e) {{ alert('Error toggling'); }}
+      }}
 
-      async function runNow(id) {
+      async function runNow(id) {{
         if (!confirm('Run this automation immediately? This will create a post in your pipeline.')) return;
         const btn = event.target;
         btn.disabled = true;
         btn.textContent = 'RUNNING...';
-        try {
-          const res = await fetch(`/automations/${id}/run`, { method: 'POST' });
+        try {{
+          const res = await fetch(`/automations/${{id}}/run`, {{ method: 'POST' }});
           if (res.ok) alert('Neural loop triggered. Check dashboard for the new post.');
           else alert('Run failed');
-        finally { btn.disabled = false; btn.textContent = 'Run Now'; }
-      }
+        finally {{ btn.disabled = false; btn.textContent = 'Run Now'; }}
+      }}
     </script>
     """
     
@@ -1787,17 +1787,17 @@ async def app_library_page(
     </div>
 
     <script>
-      function showUrlModal() { document.getElementById('urlModal').classList.remove('hidden'); }
-      function hideUrlModal() { document.getElementById('urlModal').classList.add('hidden'); }
+      function showUrlModal() {{ document.getElementById('urlModal').classList.remove('hidden'); }}
+      function hideUrlModal() {{ document.getElementById('urlModal').classList.add('hidden'); }}
 
-      function switchTab(tab) {
+      function switchTab(tab) {{
         const userTab = document.getElementById('tabUser');
         const defaultTab = document.getElementById('tabDefault');
         const userPane = document.getElementById('paneUser');
         const defaultPane = document.getElementById('paneDefault');
         const actionBtn = document.getElementById('actionButtons');
 
-        if (tab === 'user') {
+        if (tab === 'user') {{
           userTab.classList.add('text-white', 'border-brand');
           userTab.classList.remove('text-muted', 'border-transparent');
           defaultTab.classList.add('text-muted', 'border-transparent');
@@ -1805,7 +1805,7 @@ async def app_library_page(
           userPane.classList.remove('hidden');
           defaultPane.classList.add('hidden');
           actionBtn.classList.remove('opacity-0', 'pointer-events-none');
-        } else {
+        }} else {{
           defaultTab.classList.add('text-white', 'border-brand');
           defaultTab.classList.remove('text-muted', 'border-transparent');
           userTab.classList.add('text-muted', 'border-transparent');
@@ -1813,10 +1813,10 @@ async def app_library_page(
           defaultPane.classList.remove('hidden');
           userPane.classList.add('hidden');
           actionBtn.classList.add('opacity-0', 'pointer-events-none');
-        }
-      }
+        }}
+      }}
 
-      async function submitUrl() {
+      async function submitUrl() {{
         const title = document.getElementById('urlTitle').value;
         const url = document.getElementById('urlAddress').value;
         if (!url) return alert('URL is required');
@@ -1825,48 +1825,48 @@ async def app_library_page(
         btn.disabled = true;
         btn.textContent = 'INGESTING...';
 
-        try {
-          const res = await fetch('/library/add_url', {
+        try {{
+          const res = await fetch('/library/add_url', {{
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: title, source_type: 'url', original_url: url })
-          });
+            headers: {{ 'Content-Type': 'application/json' }},
+            body: JSON.stringify({{ title: title, source_type: 'url', original_url: url }})
+          }});
           if (res.ok) window.location.reload();
           else alert('Extraction failed');
-        } catch(e) { alert('Network error'); }
-        finally { btn.disabled = false; btn.textContent = 'Extract & Ingest'; }
-      }
+        }} catch(e) {{ alert('Network error'); }}
+        finally {{ btn.disabled = false; btn.textContent = 'Extract & Ingest'; }}
+      }}
 
-      async function handleFileUpload(input) {
+      async function handleFileUpload(input) {{
         if (!input.files.length) return;
         const file = input.files[0];
         const formData = new FormData();
         formData.append('file', file);
         
-        try {
-          const res = await fetch('/library/upload', {
+        try {{
+          const res = await fetch('/library/upload', {{
             method: 'POST',
             body: formData
-          });
+          }});
           if (res.ok) window.location.reload();
           else alert('Upload failed');
-        } catch(e) { alert('Network error'); }
-      }
+        }} catch(e) {{ alert('Network error'); }}
+      }}
 
-      async function deleteDoc(id) {
+      async function deleteDoc(id) {{
         if (!confirm('Are you sure you want to delete this source and all its knowledge chunks?')) return;
-        try {
-          const res = await fetch(`/library/${id}`, { method: 'DELETE' });
+        try {{
+          const res = await fetch(`/library/${{id}}`, {{ method: 'DELETE' }});
           if (res.ok) window.location.reload();
-        } catch(e) { alert('Network error'); }
-      }
+        }} catch(e) {{ alert('Network error'); }}
+      }}
     </script>
     """
     
-    return APP_LAYOUT_HTML.replace("{title}", "Library")\
-                          .replace("{user_name}", user.name or user.email)\
-                          .replace("{org_name}", org.name if org else "Personal Workspace")\
-                          .replace("{admin_link}", admin_link)\
+    return APP_LAYOUT_HTML.replace("{{title}}", "Library")\
+                          .replace("{{user_name}}", user.name or user.email)\
+                          .replace("{{org_name}}", org.name if org else "Personal Workspace")\
+                          .replace("{{admin_link}}", admin_link)\
                           .replace("{active_dashboard}", "")\
                           .replace("{active_calendar}", "")\
                           .replace("{active_automations}", "")\
