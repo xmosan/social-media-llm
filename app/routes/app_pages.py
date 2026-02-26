@@ -5,6 +5,8 @@ from sqlalchemy import select, func
 from app.db import get_db
 from app.models import User, Org, OrgMember, IGAccount, Post, TopicAutomation, ContentProfile
 from app.security.auth import require_user, optional_user
+from app.services.prebuilt_loader import load_prebuilt_packs
+from app.services.automation_runner import run_automation_once
 from app.security.rbac import get_current_org_id
 from typing import Optional
 import json, calendar
@@ -1125,6 +1127,7 @@ async def app_library_page(
     from app.models import SourceDocument
     docs = db.query(SourceDocument).filter(SourceDocument.org_id == org_id).order_by(SourceDocument.created_at.desc()).all()
     
+    # 1. User Knowledge Base (Docs)
     docs_html = ""
     for d in docs:
         icon = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>'
@@ -1148,6 +1151,35 @@ async def app_library_page(
         </div>
         """
 
+    # 2. Default System Library (Prebuilt Packs)
+    prebuilt_packs = load_prebuilt_packs()
+    prebuilt_html = ""
+    for pack in prebuilt_packs:
+        items_html = ""
+        for item in pack.get("items", []):
+            tags_html = "".join([f'<span class="px-2 py-0.5 bg-brand/10 text-brand rounded text-[8px] font-bold uppercase mr-1">{t}</span>' for t in item.get("tags", [])])
+            items_html += f"""
+            <div class="p-5 border-b border-white/5 last:border-0 hover:bg-white/2 transition-colors">
+              <p class="text-[11px] text-white/90 leading-relaxed font-medium">"{item['text']}"</p>
+              <div class="flex justify-between items-end mt-3">
+                <div class="text-[9px] font-black text-brand uppercase tracking-widest">{item.get('reference')}</div>
+                <div class="flex">{tags_html}</div>
+              </div>
+            </div>
+            """
+        
+        prebuilt_html += f"""
+        <div class="glass overflow-hidden rounded-3xl mb-6">
+          <div class="px-6 py-4 bg-white/5 border-b border-white/10">
+            <h3 class="text-sm font-black italic text-white tracking-tight">{pack['name']}</h3>
+            <p class="text-[9px] font-bold text-muted uppercase tracking-widest">{pack.get('description')}</p>
+          </div>
+          <div class="divide-y divide-white/5">
+            {items_html}
+          </div>
+        </div>
+        """
+
     content = f"""
     <div class="space-y-8">
       <div class="flex justify-between items-end">
@@ -1155,15 +1187,29 @@ async def app_library_page(
           <h1 class="text-3xl font-black italic tracking-tight text-white">Source <span class="text-brand">Library</span></h1>
           <p class="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Knowledge Base Management</p>
         </div>
-        <div class="flex gap-4">
+        <div id="actionButtons" class="flex gap-4">
           <input type="file" id="pdfUpload" class="hidden" accept=".pdf,.txt" onchange="handleFileUpload(this)">
           <button onclick="document.getElementById('pdfUpload').click()" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">Upload PDF/TXT</button>
           <button onclick="showUrlModal()" class="px-6 py-3 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20">Add URL Source</button>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-        {docs_html or '<div class="col-span-full py-20 text-center glass rounded-3xl"><p class="text-muted font-black text-[10px] uppercase tracking-widest">Your library is empty. Upload your first source to begin grounded generation.</p></div>'}
+      <!-- Tab Switcher -->
+      <div class="flex border-b border-white/5">
+        <button onclick="switchTab('user')" id="tabUser" class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white border-b-2 border-brand relative transition-all">My Knowledge Base</button>
+        <button onclick="switchTab('default')" id="tabDefault" class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted border-b-2 border-transparent hover:text-white transition-all">Default Library</button>
+      </div>
+
+      <div id="paneUser" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
+          {docs_html or '<div class="col-span-full py-20 text-center glass rounded-3xl"><p class="text-muted font-black text-[10px] uppercase tracking-widest">Your library is empty. Upload your first source to begin grounded generation.</p></div>'}
+        </div>
+      </div>
+
+      <div id="paneDefault" class="hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
+        <div class="max-w-3xl">
+          {prebuilt_html or '<div class="py-20 text-center glass rounded-3xl"><p class="text-muted font-black text-[10px] uppercase tracking-widest">Default prebuilt packs are currently unavailable.</p></div>'}
+        </div>
       </div>
     </div>
 
@@ -1191,6 +1237,32 @@ async def app_library_page(
     <script>
       function showUrlModal() {{ document.getElementById('urlModal').classList.remove('hidden'); }}
       function hideUrlModal() {{ document.getElementById('urlModal').classList.add('hidden'); }}
+
+      function switchTab(tab) {{
+        const userTab = document.getElementById('tabUser');
+        const defaultTab = document.getElementById('tabDefault');
+        const userPane = document.getElementById('paneUser');
+        const defaultPane = document.getElementById('paneDefault');
+        const actionBtn = document.getElementById('actionButtons');
+
+        if (tab === 'user') {{
+          userTab.classList.add('text-white', 'border-brand');
+          userTab.classList.remove('text-muted', 'border-transparent');
+          defaultTab.classList.add('text-muted', 'border-transparent');
+          defaultTab.classList.remove('text-white', 'border-brand');
+          userPane.classList.remove('hidden');
+          defaultPane.classList.add('hidden');
+          actionBtn.classList.remove('opacity-0', 'pointer-events-none');
+        }} else {{
+          defaultTab.classList.add('text-white', 'border-brand');
+          defaultTab.classList.remove('text-muted', 'border-transparent');
+          userTab.classList.add('text-muted', 'border-transparent');
+          userTab.classList.remove('text-white', 'border-brand');
+          defaultPane.classList.remove('hidden');
+          userPane.classList.add('hidden');
+          actionBtn.classList.add('opacity-0', 'pointer-events-none');
+        }}
+      }}
 
       async function submitUrl() {{
         const title = document.getElementById('urlTitle').value;
