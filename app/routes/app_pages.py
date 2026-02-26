@@ -10,7 +10,7 @@ from app.services.automation_runner import run_automation_once
 from app.security.rbac import get_current_org_id
 from typing import Optional
 import json, calendar
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 router = APIRouter()
 
