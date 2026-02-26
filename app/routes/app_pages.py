@@ -9,7 +9,7 @@ from app.services.prebuilt_loader import load_prebuilt_packs
 from app.services.automation_runner import run_automation_once
 from app.security.rbac import get_current_org_id
 from typing import Optional
-import json, calendar
+import json, calendar, html
 from datetime import datetime, timedelta, timezone
 
 router = APIRouter()
@@ -268,7 +268,7 @@ APP_DASHBOARD_CONTENT = """
               {next_post_caption}
             </p>
             <div class="pt-4 flex gap-2">
-              <button onclick="openEditPostModal('{next_post_id}', \`{next_post_caption_raw}\`, '{next_post_time_iso}')" class="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all">Edit</button>
+              <button onclick="openEditPostModal('{next_post_id}', {next_post_caption_json}, '{next_post_time_iso}')" class="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all">Edit</button>
               <button onclick="approvePost('{next_post_id}')" class="flex-1 py-3 bg-brand/20 text-brand rounded-xl font-black text-[10px] uppercase tracking-widest border border-brand/20">Approve</button>
             </div>
           </div>
@@ -600,7 +600,7 @@ async def app_dashboard_page(
     next_post_media = '<div class="w-full h-full flex items-center justify-center text-muted font-black text-xs uppercase italic">No Media</div>'
     
     next_post_id = ""
-    next_post_caption_raw = ""
+    next_post_caption_json = "null"
     next_post_time_iso = ""
     
     if next_post:
@@ -612,7 +612,7 @@ async def app_dashboard_page(
         next_post_caption = next_post.caption or "No caption generated."
         
         next_post_id = str(next_post.id)
-        next_post_caption_raw = (next_post.caption or "").replace("`", "\\`").replace("${", "\\${")
+        next_post_caption_json = html.escape(json.dumps(next_post.caption or ""), quote=True)
         next_post_time_iso = next_post.scheduled_time.isoformat()
         
         if next_post.media_url:
@@ -654,7 +654,7 @@ async def app_dashboard_page(
         if p.status == "published": status_color = "text-emerald-400"
         if p.status == "scheduled": status_color = "text-brand"
         
-        escaped_caption = (p.caption or "").replace('`', '\\`').replace('${', '\\${')
+        caption_json = html.escape(json.dumps(p.caption or ""), quote=True)
         
         recent_posts_html += f"""
         <div class="glass p-4 rounded-2xl flex justify-between items-center">
@@ -668,7 +668,7 @@ async def app_dashboard_page(
             </div>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="openEditPostModal('{p.id}', \`{escaped_caption}\`, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}')" class="p-2 text-muted hover:text-white transition-colors">
+            <button onclick="openEditPostModal('{p.id}', {caption_json}, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}')" class="p-2 text-muted hover:text-white transition-colors">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
             </button>
             <div class="text-[8px] font-black uppercase tracking-widest {status_color}">{p.status}</div>
@@ -712,7 +712,7 @@ async def app_dashboard_page(
         calendar_days=calendar_days,
         recent_posts=recent_posts_html or '<div class="text-center py-6 text-[10px] font-black uppercase text-muted italic">No recent activity</div>',
         next_post_id=next_post_id,
-        next_post_caption_raw=next_post_caption_raw,
+        next_post_caption_json=next_post_caption_json,
         next_post_time_iso=next_post_time_iso
     )
     
