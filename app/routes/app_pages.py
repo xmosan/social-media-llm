@@ -743,6 +743,12 @@ async def app_automations_page(
     
     autos = db.query(TopicAutomation).filter(TopicAutomation.org_id == user.active_org_id).all()
     
+    # Fetch accounts for "New Automation" selection
+    accounts = db.query(IGAccount).filter(IGAccount.org_id == user.active_org_id).all()
+    account_options = "".join([f'<option value="{a.id}">{a.name} (@{a.ig_user_id})</option>' for a in accounts])
+    if not accounts:
+        account_options = '<option value="">No accounts connected</option>'
+    
     autos_html = ""
     for a in autos:
         status_btn = f'<button onclick="toggleAuto({a.id}, {str(not a.enabled).lower()})" class="px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest { "bg-emerald-500/20 text-emerald-400" if a.enabled else "bg-rose-500/20 text-rose-400" }">{ "Enabled" if a.enabled else "Disabled" }</button>'
@@ -774,7 +780,7 @@ async def app_automations_page(
           <h1 class="text-3xl font-black italic tracking-tight text-white">Neural <span class="text-brand">Automations</span></h1>
           <p class="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Neural Loop Configuration</p>
         </div>
-        <button onclick="alert('Creating new automations is coming in the next update. Use onboarding to add your first one.')" class="px-8 py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20">+ New Automation</button>
+        <button onclick="showNewAutoModal()" class="px-8 py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20">+ New Automation</button>
       </div>
 
       <div class="space-y-4">
@@ -834,7 +840,104 @@ async def app_automations_page(
       </div>
     </div>
 
+    <!-- New Automation Modal -->
+    <div id="newAutoModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-6">
+      <div class="glass max-w-2xl w-full p-10 rounded-[2.5rem] space-y-6 max-h-[90vh] overflow-y-auto">
+        <h2 class="text-2xl font-black italic text-white tracking-tight">New <span class="text-brand">Neural Automation</span></h2>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-4">
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Automation Name</label>
+              <input type="text" id="newName" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="e.g. Daily Motivation">
+            </div>
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Target Instagram Account</label>
+              <select id="newAccount" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand appearance-none text-white">
+                {account_options}
+              </select>
+            </div>
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Core Topic Prompt</label>
+              <textarea id="newTopic" rows="3" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="Describe the focus of this automation..."></textarea>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Posting Time (Local)</label>
+              <input type="time" id="newTime" value="09:00" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand">
+            </div>
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Content Strategy</label>
+              <select id="newSeedMode" onchange="toggleNewSeedText()" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand appearance-none text-white">
+                <option value="none">None (Pure AI Generation)</option>
+                <option value="manual">Manual Seed (Provide text below)</option>
+                <option value="auto_library">Auto-Library (Knowledge Base)</option>
+              </select>
+            </div>
+            <div id="newSeedTextGroup" class="space-y-1 hidden">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Manual Seed Text</label>
+              <textarea id="newSeedText" rows="5" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-[10px] outline-none focus:ring-2 focus:ring-brand placeholder-white/20" placeholder="Paste the content you want the AI to ground its generation on..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-4 pt-4 border-t border-white/5">
+          <button onclick="hideNewAutoModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest">Discard</button>
+          <button onclick="saveNewAutomation()" class="flex-[2] py-4 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg shadow-brand/20">Create Intelligence</button>
+        </div>
+      </div>
+    </div>
+
     <script>
+      function showNewAutoModal() {{
+        document.getElementById('newAutoModal').classList.remove('hidden');
+      }}
+
+      function hideNewAutoModal() {{
+        document.getElementById('newAutoModal').classList.add('hidden');
+      }}
+
+      function toggleNewSeedText() {{
+        const mode = document.getElementById('newSeedMode').value;
+        const group = document.getElementById('newSeedTextGroup');
+        if (mode === 'manual') group.classList.remove('hidden');
+        else group.classList.add('hidden');
+      }}
+
+      async function saveNewAutomation() {{
+        const payload = {{
+          name: document.getElementById('newName').value,
+          ig_account_id: parseInt(document.getElementById('newAccount').value),
+          topic_prompt: document.getElementById('newTopic').value,
+          content_seed_mode: document.getElementById('newSeedMode').value,
+          content_seed_text: document.getElementById('newSeedText').value,
+          post_time_local: document.getElementById('newTime').value,
+          enabled: true
+        }};
+
+        if (!payload.name || !payload.topic_prompt || isNaN(payload.ig_account_id)) {{
+          alert('Please fill Name, Topic, and select an Account');
+          return;
+        }}
+        
+        const btn = event.target;
+        btn.disabled = true;
+        btn.textContent = 'CREATING...';
+
+        try {{
+          const res = await fetch('/automations', {{
+            method: 'POST',
+            headers: {{ 'Content-Type': 'application/json' }},
+            body: JSON.stringify(payload)
+          }});
+          if (res.ok) window.location.reload();
+          else alert('Creation failed');
+        }} catch(e) {{ alert('Network error'); }}
+        finally {{ btn.disabled = false; btn.textContent = 'Create Intelligence'; }}
+      }}
+
       function showEditModal(data) {{
         document.getElementById('editId').value = data.id;
         document.getElementById('editName').value = data.name;
@@ -921,7 +1024,7 @@ async def app_automations_page(
         active_library="",
         active_media="",
         content=content,
-        account_options=""
+        account_options=account_options
     )
 
 @router.get("/app/media", response_class=HTMLResponse)

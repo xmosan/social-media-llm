@@ -178,6 +178,7 @@ class TopicAutomationCreate(BaseModel):
     tone: str = "medium" # short, medium, long
     language: str = "english" # english, arabic_mix
     banned_phrases: list[str] = Field(default_factory=list)
+    library_scope: list[str] = Field(default_factory=list) # ["prebuilt", "org_library"]
     posting_mode: str = "schedule"
     approval_mode: str = "auto_approve"
     image_mode: str = "reuse_last_upload"
@@ -218,6 +219,7 @@ class TopicAutomationUpdate(BaseModel):
     tone: str | None = None
     language: str | None = None
     banned_phrases: list[str] | None = None
+    library_scope: list[str] | None = None # ["prebuilt", "org_library"]
     posting_mode: str | None = None
     approval_mode: str | None = None
     image_mode: str | None = None
