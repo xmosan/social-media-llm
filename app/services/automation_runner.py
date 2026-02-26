@@ -230,15 +230,23 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             match = None
             norm_topic = topic.lower().strip()
             
-            # Simple keyword/tag matcher
+            # Simple keyword/tag matcher with synonyms
+            synonyms = {
+                "patience": ["trust", "reliance", "anger", "self-control", "patience", "sabr"],
+                "faith": ["iman", "faith", "belief"],
+                "charity": ["zakat", "sadakah", "charity"]
+            }
+            search_terms = [norm_topic]
+            if norm_topic in synonyms:
+                search_terms.extend(synonyms[norm_topic])
+
             for pack in packs:
                 for item in pack.get("items", []):
-                    # Check tags
-                    if norm_topic in [t.lower() for t in item.get("tags", [])]:
-                        match = item
-                        break
-                    # Check keywords in text
-                    if norm_topic in item["text"].lower():
+                    item_tags = [t.lower() for t in item.get("tags", [])]
+                    item_text = item["text"].lower()
+                    
+                    if any(term in item_tags for term in search_terms) or \
+                       any(term in item_text for term in search_terms):
                         match = item
                         break
                 if match: break
@@ -464,26 +472,28 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         
         is_filler = any(f in caption_lower for f in filler_indicators)
         is_too_short = len(caption) < 20
-        is_default = caption.strip() == topic.strip() or caption.strip() == auto_str
+        is_default = caption.strip() == topic.strip() or caption.strip() == auto_str or caption.strip() == automation.name
         
         validation_failed = result.get("validation_failed", False)
         fail_reason = result.get("fail_reason", "invalid_caption")
         
         if validation_failed or not caption or is_default or is_filler or is_too_short:
-            reason = fail_reason
-            if is_filler: reason = "filler_detected"
-            if is_too_short: reason = "too_short"
-            if is_default: reason = "default_text_echo"
+            reason = "invalid_generated_caption"
+            detail_reason = fail_reason
+            if is_filler: detail_reason = "filler_detected"
+            if is_too_short: detail_reason = "too_short"
+            if is_default: detail_reason = "default_text_echo"
             
-            print(f"[AUTO] FAILED GUARDRAIL: {reason}. Output: {caption[:50]}...")
-            log_event("automation_guardrail_failed", automation_id=automation.id, reason=reason)
+            print(f"[AUTO] FAILED GUARDRAIL: {detail_reason}. Output: {caption[:50]}...")
+            log_event("automation_guardrail_failed", automation_id=automation.id, reason=detail_reason)
             new_post.status = "failed"
             new_post.flags = {
                 "automation_error": f"LLM returned invalid/filler caption: {caption}", 
                 "reason": reason,
+                "detail_reason": detail_reason,
                 "raw_result": result
             }
-            automation.last_error = f"Guardrail check failed: {reason}"
+            automation.last_error = f"Guardrail check failed: {detail_reason}"
             db.add(new_post)
             db.commit()
             return new_post

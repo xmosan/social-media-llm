@@ -87,11 +87,12 @@ def generate_topic_caption(
         elif mode == "grounded_library" and extra_context.get("snippet"):
             s = extra_context["snippet"]
             grounding_prompt = f"\nGROUNDED LIBRARY SNIPPET (Source of Truth):\nText: {s['text']}\nReference: {s.get('reference') or 'N/A'}\nSource: {s.get('source') or 'N/A'}\n"
-            special_instructions.append("Summarize the snippet OR quote MAX 1 short sentence from it.")
+            special_instructions.append("Summarize the snippet OR quote exactly ONE short sentence from it.")
             special_instructions.append(f"You MUST include the reference exactly as provided: {s.get('reference') or ''}")
-            special_instructions.append("DO NOT fabricate new references or hadith.")
-            special_instructions.append("DO NOT add generic filler like 'Enhance your daily reminder'.")
-            special_instructions.append("If no snippet is relevant, do NOT pretend there is one.")
+            special_instructions.append("STRICT: Do NOT fabricate hadith. Do NOT fabricate references. Summarize instead of quoting if unsure.")
+            special_instructions.append("STRICT: Do NOT add generic filler like 'Enhance your daily reminder' or 'AUTO:'.")
+            if not s.get("text"):
+                special_instructions.append("IMPORTANT: No valid snippet was found. Generate a generic Islamic reflection without any specific quotes or references.")
         
         # Backward compatibility or additional instructions
         if extra_context.get("instructions"):
@@ -113,14 +114,15 @@ def generate_topic_caption(
     {grounding_prompt}
     {extra_instructions_str}
 
-    Task: Generate a professional social media caption, hashtags, and alt text.
-    Strict Requirements:
-    1. DO NOT include generic filler like "Enhance your daily reminder" or "Welcome to our page".
+    Task: Generate a professional social media caption, hashtags, and alt text for an Islamic reminder.
+    
+    CRITICAL RULES:
+    1. DO NOT include generic filler like "Enhance your daily reminder", "Welcome to our page", or "Here is your caption".
     2. Write a unique, meaningful caption specifically about the topic/concept provided.
-    3. If grounding content is provided, you MUST use it and cite it as instructed.
-    4. NO meta-talk like "Certainly, here is your caption".
-    5. Output must be ready to publish.
-    6. DO NOT return the topic as the caption itself.
+    3. If grounding content (snippet) is provided, you MUST base the content STRICTLY on it.
+    4. NO meta-talk. No "Certainly", no "Here is your caption".
+    5. DO NOT return the topic or the automation name as the caption itself.
+    6. If citing hadith, use the provided reference EXACTLY. NEVER make up a reference.
     
     Return JSON:
     {{
