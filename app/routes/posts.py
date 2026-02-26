@@ -224,6 +224,22 @@ def update_post(
     db.commit()
     db.refresh(post)
     return post
+
+@router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_post(
+    post_id: int,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id),
+):
+    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    # Optional logic: delete associated media file if local, etc.
+    db.delete(post)
+    db.commit()
+    return None
+
 @router.post("/{post_id}/regenerate-caption", response_model=PostOut)
 def regenerate_caption(
     post_id: int,

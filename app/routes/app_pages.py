@@ -137,6 +137,23 @@ APP_LAYOUT_HTML = """<!doctype html>
         finally {{ btn.disabled = false; btn.innerText = 'Apply Changes'; }}
     }}
 
+    async function deletePost() {
+        if (!confirm('Are you absolutely sure you want to delete this scheduled post?')) return;
+        
+        const id = document.getElementById('editPostId').value;
+        const btn = document.getElementById('deletePostBtn');
+        
+        btn.disabled = true;
+        btn.innerText = 'DELETING...';
+
+        try {
+            const res = await fetch(`/posts/${id}`, { method: 'DELETE' });
+            if (res.ok) window.location.reload();
+            else alert('Failed to delete post');
+        } catch(e) { alert('Error deleting post'); }
+        finally { btn.disabled = false; btn.innerText = 'Delete Post'; }
+    }
+
     async function approvePost(id) {{
         try {{
             const res = await fetch(`/posts/${{id}}/approve`, {{
@@ -327,8 +344,11 @@ APP_DASHBOARD_CONTENT = """
         </div>
 
         <div class="flex gap-4 pt-4">
-          <button onclick="closeEditPostModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest text-white hover:bg-white/10 transition-all">Cancel</button>
-          <button id="savePostBtn" onclick="savePostEdit()" class="flex-1 py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Apply Changes</button>
+          <button id="deletePostBtn" onclick="deletePost()" class="flex-1 py-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl font-black text-xs uppercase tracking-widest text-rose-400 hover:bg-rose-500/20 transition-all">Delete Post</button>
+          <div class="flex-1 flex gap-2">
+            <button onclick="closeEditPostModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest text-white hover:bg-white/10 transition-all">Cancel</button>
+            <button id="savePostBtn" onclick="savePostEdit()" class="flex-[2] py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Apply</button>
+          </div>
         </div>
       </div>
     </div>
