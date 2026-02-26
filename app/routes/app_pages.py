@@ -100,6 +100,55 @@ APP_LAYOUT_HTML = """<!doctype html>
         document.getElementById('newPostModal').classList.add('hidden');
     }}
 
+    function openEditPostModal(id, caption, time) {{
+        document.getElementById('editPostId').value = id;
+        document.getElementById('editPostCaption').value = caption;
+        // Format time for datetime-local
+        if (time) {{
+            const d = new Date(time);
+            const iso = d.toISOString().slice(0, 16);
+            document.getElementById('editPostTime').value = iso;
+        }}
+        document.getElementById('editPostModal').classList.remove('hidden');
+    }}
+
+    function closeEditPostModal() {{
+        document.getElementById('editPostModal').classList.add('hidden');
+    }}
+
+    async function savePostEdit() {{
+        const id = document.getElementById('editPostId').value;
+        const caption = document.getElementById('editPostCaption').value;
+        const time = document.getElementById('editPostTime').value;
+        const btn = document.getElementById('savePostBtn');
+
+        btn.disabled = true;
+        btn.innerText = 'SAVING...';
+
+        try {{
+            const res = await fetch(`/posts/${{id}}`, {{
+                method: 'PATCH',
+                headers: {{ 'Content-Type': 'application/json' }},
+                body: JSON.stringify({{ caption: caption, scheduled_time: time }})
+            }});
+            if (res.ok) window.location.reload();
+            else alert('Failed to update post');
+        }} catch(e) {{ alert('Error updating post'); }}
+        finally {{ btn.disabled = false; btn.innerText = 'Apply Changes'; }}
+    }}
+
+    async function approvePost(id) {{
+        try {{
+            const res = await fetch(`/posts/${{id}}/approve`, {{
+                method: 'POST',
+                headers: {{ 'Content-Type': 'application/json' }},
+                body: JSON.stringify({{ approve_anyway: true }})
+            }});
+            if (res.ok) window.location.reload();
+            else alert('Approval failed');
+        }} catch(e) {{ alert('Error approving'); }}
+    }}
+
     async function submitNewPost(event) {{
         event.preventDefault();
         const btn = event.submitter;
@@ -219,8 +268,8 @@ APP_DASHBOARD_CONTENT = """
               {next_post_caption}
             </p>
             <div class="pt-4 flex gap-2">
-              <button class="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all">Edit</button>
-              <button class="flex-1 py-3 bg-brand/20 text-brand rounded-xl font-black text-[10px] uppercase tracking-widest border border-brand/20">Approve</button>
+              <button onclick="openEditPostModal('{next_post_id}', \`{next_post_caption_raw}\`, '{next_post_time_iso}')" class="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all">Edit</button>
+              <button onclick="approvePost('{next_post_id}')" class="flex-1 py-3 bg-brand/20 text-brand rounded-xl font-black text-[10px] uppercase tracking-widest border border-brand/20">Approve</button>
             </div>
           </div>
         </div>
@@ -248,6 +297,38 @@ APP_DASHBOARD_CONTENT = """
           <div class="space-y-2">
             {recent_posts}
           </div>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <!-- Edit Post Modal -->
+    <div id="editPostModal" class="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] hidden flex items-center justify-center p-6">
+      <div class="glass w-full max-w-xl rounded-[3rem] p-10 space-y-8 animate-in zoom-in-95 duration-300 border-brand/20">
+        <div class="flex justify-between items-center">
+          <div>
+            <h2 class="text-2xl font-black italic text-white tracking-tight">Edit <span class="text-brand">Post</span></h2>
+            <p class="text-[10px] font-bold text-muted uppercase tracking-widest">Modify scheduled content</p>
+          </div>
+          <button onclick="closeEditPostModal()" class="p-2 text-muted hover:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+        </div>
+
+        <input type="hidden" id="editPostId">
+        
+        <div class="space-y-6">
+          <div class="space-y-2">
+            <label class="text-[10px] font-black text-muted uppercase tracking-widest ml-1">Caption / Content</label>
+            <textarea id="editPostCaption" rows="6" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white text-sm focus:border-brand/50 focus:ring-0 transition-all font-medium"></textarea>
+          </div>
+          <div class="space-y-2">
+            <label class="text-[10px] font-black text-muted uppercase tracking-widest ml-1">Scheduled Time (UTC)</label>
+            <input type="datetime-local" id="editPostTime" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white text-sm focus:border-brand/50 focus:ring-0 transition-all">
+          </div>
+        </div>
+
+        <div class="flex gap-4 pt-4">
+          <button onclick="closeEditPostModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest text-white hover:bg-white/10 transition-all">Cancel</button>
+          <button id="savePostBtn" onclick="savePostEdit()" class="flex-1 py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Apply Changes</button>
         </div>
       </div>
     </div>
@@ -506,10 +587,11 @@ async def app_dashboard_page(
         account_options = '<option value="">No accounts connected</option>'
     
     # Next Post
+    now_utc = datetime.now(timezone.utc)
     next_post = db.query(Post).filter(
         Post.org_id == org_id,
         Post.status == "scheduled",
-        Post.scheduled_time > datetime.now()
+        Post.scheduled_time > now_utc
     ).order_by(Post.scheduled_time.asc()).first()
 
     next_post_countdown = "No posts scheduled"
@@ -517,13 +599,22 @@ async def app_dashboard_page(
     next_post_caption = "Create your first automation to see content here."
     next_post_media = '<div class="w-full h-full flex items-center justify-center text-muted font-black text-xs uppercase italic">No Media</div>'
     
+    next_post_id = ""
+    next_post_caption_raw = ""
+    next_post_time_iso = ""
+    
     if next_post:
-        diff = next_post.scheduled_time - datetime.now()
+        diff = next_post.scheduled_time - now_utc
         hours, remainder = divmod(diff.seconds, 3600)
         minutes, _ = divmod(remainder, 60)
         next_post_countdown = f"{diff.days}d {hours}h {minutes}m"
         next_post_time = next_post.scheduled_time.strftime("%b %d, %H:%M")
         next_post_caption = next_post.caption or "No caption generated."
+        
+        next_post_id = str(next_post.id)
+        next_post_caption_raw = (next_post.caption or "").replace("`", "\\`").replace("${", "\\${")
+        next_post_time_iso = next_post.scheduled_time.isoformat()
+        
         if next_post.media_url:
             next_post_media = f'<img src="{next_post.media_url}" class="w-full h-full object-cover">'
 
@@ -536,7 +627,7 @@ async def app_dashboard_page(
         calendar_headers += f'<div class="py-2 text-[8px] font-black text-center uppercase tracking-widest text-muted">{day.strftime("%a")}</div>'
         
         # Count posts for this day
-        day_start = datetime(day.year, day.month, day.day)
+        day_start = datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
         day_end = day_start + timedelta(days=1)
         post_count = db.query(func.count(Post.id)).filter(
             Post.org_id == org_id,
@@ -574,7 +665,12 @@ async def app_dashboard_page(
               <div class="text-[8px] font-bold text-muted uppercase tracking-widest">{p.created_at.strftime("%b %d, %H:%M")}</div>
             </div>
           </div>
-          <div class="text-[8px] font-black uppercase tracking-widest {status_color}">{p.status}</div>
+          <div class="flex items-center gap-2">
+            <button onclick="openEditPostModal('{p.id}', \`{p.caption.replace('`','\\\\`').replace('${','\\\\${') if p.caption else ''}\`, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}')" class="p-2 text-muted hover:text-white transition-colors">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+            </button>
+            <div class="text-[8px] font-black uppercase tracking-widest {status_color}">{p.status}</div>
+          </div>
         </div>
         """
     
@@ -612,7 +708,10 @@ async def app_dashboard_page(
         next_post_media=next_post_media,
         calendar_headers=calendar_headers,
         calendar_days=calendar_days,
-        recent_posts=recent_posts_html or '<div class="text-center py-6 text-[10px] font-black uppercase text-muted italic">No recent activity</div>'
+        recent_posts=recent_posts_html or '<div class="text-center py-6 text-[10px] font-black uppercase text-muted italic">No recent activity</div>',
+        next_post_id=next_post_id,
+        next_post_caption_raw=next_post_caption_raw,
+        next_post_time_iso=next_post_time_iso
     )
     
     return APP_LAYOUT_HTML.format(
@@ -620,10 +719,6 @@ async def app_dashboard_page(
         user_name=user.name or user.email,
         org_name=org.name if org else "Personal Workspace",
         admin_link=admin_link,
-        active_dashboard="active",
-        active_calendar="",
-        active_automations="",
-        active_library="",
         active_media="",
         content=content,
         account_options=account_options
@@ -652,11 +747,15 @@ async def app_calendar_page(
         month_end = datetime(year + 1, 1, 1)
     else:
         month_end = datetime(year, month + 1, 1)
+
+    # Use a wider range to avoid TZ boundary issues
+    query_start = month_start - timedelta(days=1)
+    query_end = month_end + timedelta(days=1)
         
     posts = db.query(Post).filter(
         Post.org_id == org.id,
-        Post.scheduled_time >= month_start,
-        Post.scheduled_time < month_end
+        Post.scheduled_time >= query_start,
+        Post.scheduled_time < query_end
     ).all()
     
     # Map posts to days
@@ -725,10 +824,6 @@ async def app_calendar_page(
         user_name=user.name or user.email,
         org_name=org.name if org else "Personal Workspace",
         admin_link=admin_link,
-        active_dashboard="",
-        active_calendar="active",
-        active_automations="",
-        active_library="",
         active_media="",
         content=content,
         account_options=""
