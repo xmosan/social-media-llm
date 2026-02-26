@@ -7,7 +7,7 @@ from app.models import User, Org, OrgMember, IGAccount, Post, TopicAutomation, C
 from app.security.auth import require_user, optional_user
 from app.security.rbac import get_current_org_id
 from typing import Optional
-import json
+import json, calendar
 from datetime import datetime, timedelta
 
 router = APIRouter()
@@ -76,7 +76,90 @@ APP_LAYOUT_HTML = """<!doctype html>
       await fetch('/auth/logout', {{ method: 'POST' }});
       window.location.href = '/';
     }}
+
+    function syncAccounts() {{
+        const btn = event.currentTarget;
+        const originalText = btn.innerText;
+        btn.innerText = 'Syncing...';
+        btn.disabled = true;
+        
+        setTimeout(() => {{
+            btn.innerText = originalText;
+            btn.disabled = false;
+            window.location.reload();
+        }}, 1500);
+    }}
+
+    function openNewPostModal() {{
+        document.getElementById('newPostModal').classList.remove('hidden');
+    }}
+
+    function closeNewPostModal() {{
+        document.getElementById('newPostModal').classList.add('hidden');
+    }}
+
+    async function submitNewPost(event) {{
+        event.preventDefault();
+        const btn = event.submitter;
+        const originalText = btn.innerText;
+        btn.innerText = 'Generating...';
+        btn.disabled = true;
+
+        const formData = new FormData(event.target);
+        try {{
+            const res = await fetch('/posts/intake', {{
+                method: 'POST',
+                body: formData
+            }});
+            if (res.ok) {{
+                window.location.reload();
+            }} else {{
+                const err = await res.json();
+                alert('Error: ' + (err.detail || 'Failed to create post'));
+            }}
+        }} catch (e) {{
+            alert('Upload failed: ' + e);
+        }} finally {{
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }}
+    }}
   </script>
+
+  <!-- New Post Modal -->
+  <div id="newPostModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-6 hidden">
+    <div class="glass max-w-lg w-full rounded-[2.5rem] p-10 space-y-8 animate-in fade-in zoom-in duration-300">
+      <div class="flex justify-between items-center">
+        <h3 class="text-2xl font-black italic text-white tracking-tight">Create <span class="text-brand">New Post</span></h3>
+        <button onclick="closeNewPostModal()" class="text-muted hover:text-white transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <form onsubmit="submitNewPost(event)" class="space-y-6">
+        <div class="space-y-2">
+          <label class="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Select Account</label>
+          <select name="ig_account_id" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-bold text-white outline-none focus:border-brand/40 transition-all">
+            {account_options}
+          </select>
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-[10px] font-black uppercase tracking-[0.2em] text-muted">Topic / Instructions</label>
+          <textarea name="source_text" required placeholder="What should we post about?" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm font-medium text-white outline-none focus:border-brand/40 transition-all h-32 resize-none"></textarea>
+        </div>
+
+        <div class="flex items-center gap-3 p-4 bg-brand/5 rounded-2xl border border-brand/20">
+            <input type="checkbox" name="use_ai_image" id="use_ai_image" class="w-4 h-4 rounded bg-white/5 border-white/10 text-brand focus:ring-brand focus:ring-offset-0">
+            <label for="use_ai_image" class="text-[10px] font-black uppercase tracking-widest text-brand">Generate AI Image Card</label>
+        </div>
+
+        <div class="pt-4">
+          <button type="submit" class="w-full py-5 bg-brand rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-xl shadow-brand/40 hover:scale-[1.02] active:scale-[0.98] transition-all">Create Post &rarr;</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </body>
 </html>
 """
@@ -90,8 +173,8 @@ APP_DASHBOARD_CONTENT = """
       </div>
       <div class="flex gap-2">
         {admin_cta}
-        <button class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">New Post</button>
-        <button class="px-6 py-3 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20">Sync Accounts</button>
+        <button onclick="openNewPostModal()" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">New Post</button>
+        <button onclick="syncAccounts()" class="px-6 py-3 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20">Sync Accounts</button>
       </div>
     </div>
 
@@ -414,6 +497,12 @@ async def app_dashboard_page(
     
     account_count = db.query(func.count(IGAccount.id)).filter(IGAccount.org_id == org_id).scalar() or 0
     
+    # Accounts for modal
+    accounts = db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
+    account_options = "".join([f'<option value="{a.id}">{a.name} (@{a.ig_user_id})</option>' for a in accounts])
+    if not accounts:
+        account_options = '<option value="">No accounts connected</option>'
+    
     # Next Post
     next_post = db.query(Post).filter(
         Post.org_id == org_id,
@@ -534,7 +623,8 @@ async def app_dashboard_page(
         active_automations="",
         active_library="",
         active_media="",
-        content=content
+        content=content,
+        account_options=account_options
     )
 
 @router.get("/app/calendar", response_class=HTMLResponse)
@@ -546,12 +636,84 @@ async def app_calendar_page(
     org = db.query(Org).filter(Org.id == user.active_org_id).first()
     admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>' if user.is_superadmin else ""
     
-    content = """
-    <div class="space-y-6">
-        <h1 class="text-3xl font-black italic tracking-tight text-white">Content <span class="text-brand">Calendar</span></h1>
-        <div class="glass p-12 rounded-[3rem] border-brand/20 bg-brand/5 text-center">
-            <h3 class="text-xl font-black italic text-white mb-2">Scheduling Engine</h3>
-            <p class="text-muted text-sm max-w-md mx-auto">Full calendar view is under construction. Your upcoming posts are visible on the dashboard pipeline.</p>
+    today = datetime.now()
+    year = today.year
+    month = today.month
+    
+    # Get calendar days
+    cal = calendar.Calendar(firstweekday=6) # Sunday start
+    month_days = cal.monthdayscalendar(year, month)
+    
+    # Range for query
+    month_start = datetime(year, month, 1)
+    if month == 12:
+        month_end = datetime(year + 1, 1, 1)
+    else:
+        month_end = datetime(year, month + 1, 1)
+        
+    posts = db.query(Post).filter(
+        Post.org_id == org.id,
+        Post.scheduled_time >= month_start,
+        Post.scheduled_time < month_end
+    ).all()
+    
+    # Map posts to days
+    post_map = {}
+    for p in posts:
+        day = p.scheduled_time.day
+        if day not in post_map: post_map[day] = []
+        post_map[day].append(p)
+        
+    calendar_html = ""
+    headers = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    for h in headers:
+        calendar_html += f'<div class="py-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted text-center">{h}</div>'
+        
+    for week in month_days:
+        for day in week:
+            if day == 0:
+                calendar_html += '<div class="aspect-square glass/5 border border-white/5 opacity-20"></div>'
+            else:
+                day_posts = post_map.get(day, [])
+                indicators = ""
+                for dp in day_posts[:3]:
+                    color = "bg-brand" if dp.status == "scheduled" else "bg-emerald-400"
+                    indicators += f'<div class="w-1.5 h-1.5 rounded-full {color}"></div>'
+                
+                is_today = (day == today.day)
+                today_class = "border-brand/40 bg-brand/5 shadow-[0_0_20px_rgba(99,102,241,0.1)]" if is_today else "border-white/5 hover:border-white/20"
+                
+                calendar_html += f"""
+                <div class="aspect-square glass border rounded-xl p-3 flex flex-col justify-between transition-all {today_class}">
+                    <span class="text-xs font-black { 'text-brand' if is_today else 'text-white/40' }">{day}</span>
+                    <div class="flex gap-1 flex-wrap">
+                        {indicators}
+                    </div>
+                </div>
+                """
+
+    content = f"""
+    <div class="space-y-8">
+        <div class="flex justify-between items-end">
+            <div>
+                <h1 class="text-3xl font-black italic tracking-tight text-white">{today.strftime('%B')} <span class="text-brand">{year}</span></h1>
+                <p class="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Automated Content Distribution Hub</p>
+            </div>
+            <div class="flex gap-2">
+                <button class="px-4 py-2 glass rounded-lg text-[10px] font-black uppercase text-white opacity-50 cursor-not-allowed">&larr; Prev</button>
+                <button class="px-4 py-2 glass rounded-lg text-[10px] font-black uppercase text-white opacity-50 cursor-not-allowed">Next &rarr;</button>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-7 gap-3">
+            {calendar_html}
+        </div>
+        
+        <div class="glass p-8 rounded-[2rem] border-white/5 space-y-4">
+            <h3 class="text-xs font-black uppercase tracking-widest text-white">Upcoming Pipeline</h3>
+            <div class="space-y-2">
+                { "".join([f'<div class="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 text-[10px] font-bold text-white"><div class="flex items-center gap-3"><div class="w-1.5 h-1.5 rounded-full bg-brand"></div>{p.caption[:60] if p.caption else "No Caption"}...</div><div class="text-muted tracking-widest">{p.scheduled_time.strftime("%b %d, %H:%M")}</div></div>' for p in posts if p.status == "scheduled"][:5]) or '<div class="text-center py-4 text-muted italic">No upcoming posts</div>' }
+            </div>
         </div>
     </div>
     """
@@ -566,7 +728,8 @@ async def app_calendar_page(
         active_automations="",
         active_library="",
         active_media="",
-        content=content
+        content=content,
+        account_options=""
     )
 
 @router.get("/app/automations", response_class=HTMLResponse)
@@ -757,7 +920,8 @@ async def app_automations_page(
         active_automations="active",
         active_library="",
         active_media="",
-        content=content
+        content=content,
+        account_options=""
     )
 
 @router.get("/app/media", response_class=HTMLResponse)
@@ -789,7 +953,8 @@ async def app_media_page(
         active_automations="",
         active_library="",
         active_media="active",
-        content=content
+        content=content,
+        account_options=""
     )
 
 @router.get("/app/library", response_class=HTMLResponse)
@@ -931,7 +1096,8 @@ async def app_library_page(
         active_automations="",
         active_library="active",
         active_media="",
-        content=content
+        content=content,
+        account_options=""
     )
 
 @router.get("/onboarding", response_class=HTMLResponse)
