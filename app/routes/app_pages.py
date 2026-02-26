@@ -575,7 +575,7 @@ async def app_dashboard_page(
     # Stats Calculation
     weekly_post_count = db.query(func.count(Post.id)).filter(
         Post.org_id == org_id,
-        Post.created_at >= datetime.now() - timedelta(days=7)
+        Post.created_at >= datetime.now(timezone.utc) - timedelta(days=7)
     ).scalar() or 0
     
     account_count = db.query(func.count(IGAccount.id)).filter(IGAccount.org_id == org_id).scalar() or 0
@@ -621,7 +621,7 @@ async def app_dashboard_page(
     # Calendar Construction (Next 7 days)
     calendar_headers = ""
     calendar_days = ""
-    today = datetime.now()
+    today = datetime.now(timezone.utc)
     for i in range(7):
         day = today + timedelta(days=i)
         calendar_headers += f'<div class="py-2 text-[8px] font-black text-center uppercase tracking-widest text-muted">{day.strftime("%a")}</div>'
@@ -735,7 +735,7 @@ async def app_calendar_page(
     org = db.query(Org).filter(Org.id == user.active_org_id).first()
     admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>' if user.is_superadmin else ""
     
-    today = datetime.now()
+    today = datetime.now(timezone.utc)
     year = today.year
     month = today.month
     
