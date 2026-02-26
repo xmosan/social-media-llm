@@ -137,7 +137,7 @@ APP_LAYOUT_HTML = """<!doctype html>
         finally {{ btn.disabled = false; btn.innerText = 'Apply Changes'; }}
     }}
 
-    async function deletePost() {
+    async function deletePost() {{
         if (!confirm('Are you absolutely sure you want to delete this scheduled post?')) return;
         
         const id = document.getElementById('editPostId').value;
@@ -146,13 +146,13 @@ APP_LAYOUT_HTML = """<!doctype html>
         btn.disabled = true;
         btn.innerText = 'DELETING...';
 
-        try {
-            const res = await fetch(`/posts/${id}`, { method: 'DELETE' });
+        try {{
+            const res = await fetch(`/posts/${{id}}`, {{ method: 'DELETE' }});
             if (res.ok) window.location.reload();
             else alert('Failed to delete post');
-        } catch(e) { alert('Error deleting post'); }
-        finally { btn.disabled = false; btn.innerText = 'Delete Post'; }
-    }
+        }} catch(e) {{ alert('Error deleting post'); }}
+        finally {{ btn.disabled = false; btn.innerText = 'Delete Post'; }}
+    }}
 
     async function approvePost(id) {{
         try {{
