@@ -1924,39 +1924,50 @@ async def app_library_page(
 
     <!-- Entry Modal -->
     <div id="entryModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] hidden flex items-center justify-center p-6">
-      <div class="glass max-w-2xl w-full p-10 rounded-[2.5rem] space-y-6 max-h-[90vh] overflow-y-auto">
-        <h2 id="entryModalTitle" class="text-2xl font-black italic text-white tracking-tight">Add <span class="text-brand">Library Entry</span></h2>
+      <div class="glass max-w-4xl w-full p-10 rounded-[2.5rem] space-y-6 max-h-[95vh] overflow-y-auto">
+        <div class="flex justify-between items-center mb-4">
+            <h2 id="entryModalTitle" class="text-2xl font-black italic text-white tracking-tight">Add <span class="text-brand">Library Entry</span></h2>
+            <div class="flex items-center gap-4">
+                <label class="text-[10px] font-black uppercase tracking-widest text-muted">Type</label>
+                <select id="entryType" onchange="updateEntryFields()" class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs outline-none focus:ring-2 focus:ring-brand text-white appearance-none">
+                    <option value="note">Basic Note</option>
+                    <option value="quran">Quran Verse</option>
+                    <option value="hadith">Hadith Narration</option>
+                    <option value="book">Book Excerpt</option>
+                </select>
+            </div>
+        </div>
+        
         <input type="hidden" id="entryId">
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="space-y-4">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <!-- Main Content Pane (Chat Style) -->
+          <div class="lg:col-span-2 space-y-6">
             <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Entry Type</label>
-              <select id="entryType" onchange="updateEntryFields()" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand text-white appearance-none">
-                <option value="note">Basic Note</option>
-                <option value="quran">Quran Verse</option>
-                <option value="hadith">Hadith Narration</option>
-                <option value="book">Book Excerpt</option>
-              </select>
+              <label id="mainTextLabel" class="text-[10px] font-black uppercase tracking-widest text-muted">Primary Knowledge (English)</label>
+              <div class="relative">
+                <textarea id="entryText" rows="12" class="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-6 text-sm outline-none focus:ring-2 focus:ring-brand leading-relaxed placeholder:text-white/10" placeholder="Type or paste the primary knowledge resource here..."></textarea>
+                <div class="absolute bottom-4 right-6 text-[8px] font-bold text-white/20 uppercase tracking-widest pointer-events-none">Spectral Node</div>
+              </div>
             </div>
+            
             <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Main Text (English)</label>
-              <textarea id="entryText" rows="6" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs outline-none focus:ring-2 focus:ring-brand" placeholder="Primary content text..."></textarea>
-            </div>
-            <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Original Text (Arabic / Optional)</label>
-              <textarea id="entryArabic" rows="4" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm min-h-[100px] outline-none focus:ring-2 focus:ring-brand text-right dir-rtl font-serif" placeholder="أدخل النص الأصلي هنا..."></textarea>
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Original Scripture (Arabic / Optional)</label>
+              <textarea id="entryArabic" rows="5" class="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-6 text-lg min-h-[120px] outline-none focus:ring-2 focus:ring-brand text-right dir-rtl font-serif leading-loose" placeholder="أدخل النص الأصلي هنا..."></textarea>
             </div>
           </div>
 
-          <div id="metaFields" class="space-y-4 bg-white/5 p-6 rounded-[2rem] border border-white/5">
-            <!-- Dynamic fields -->
+          <!-- Metadata Pane -->
+          <div class="space-y-6 flex flex-col">
+            <div id="metaFields" class="flex-1 bg-white/5 p-8 rounded-[2.5rem] border border-white/5 space-y-6">
+                <!-- Dynamic fields -->
+            </div>
+            
+            <div class="flex flex-col gap-3 pt-4">
+                <button onclick="saveEntry()" class="w-full py-5 bg-brand rounded-2xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/30 hover:scale-[1.02] transition-all">Save Entry</button>
+                <button onclick="hideEntryModal()" class="w-full py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all">Cancel</button>
+            </div>
           </div>
-        </div>
-
-        <div class="flex gap-4 pt-4">
-          <button onclick="hideEntryModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
-          <button onclick="saveEntry()" class="flex-[2] py-4 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg shadow-brand/20">Save Entry</button>
         </div>
       </div>
     </div>
@@ -2143,50 +2154,62 @@ async def app_library_page(
       function updateEntryFields(meta = {{}}) {{
           const type = document.getElementById('entryType').value;
           const container = document.getElementById('metaFields');
-          container.innerHTML = `<h4 class="text-[9px] font-black uppercase tracking-widest text-brand mb-2">Structured Metadata</h4>`;
+          container.innerHTML = `<h4 class="text-[10px] font-black uppercase tracking-widest text-brand mb-4">Node Metadata</h4>`;
           
           if (type === 'quran') {{
               container.innerHTML += `
+                  <div class="space-y-1">
+                      <label class="text-[8px] font-black uppercase text-muted">Surah / Book Name</label>
+                      <input type="text" id="meta_surah_name" value="${{meta.surah_name || 'Quran'}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand">
+                  </div>
                   <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-1">
-                        <label class="text-[8px] font-black uppercase text-muted">Surah Number</label>
-                        <input type="number" id="meta_surah_number" value="${{meta.surah_number || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand">
+                        <label class="text-[8px] font-black uppercase text-muted">Surah #</label>
+                        <input type="number" id="meta_surah_number" value="${{meta.surah_number || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand">
                     </div>
                     <div class="space-y-1">
-                        <label class="text-[8px] font-black uppercase text-muted">Verse Start</label>
-                        <input type="number" id="meta_verse_start" value="${{meta.verse_start || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand">
+                        <label class="text-[8px] font-black uppercase text-muted">Verse #</label>
+                        <input type="number" id="meta_verse_start" value="${{meta.verse_start || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand">
                     </div>
                   </div>
                   <div class="space-y-1">
                       <label class="text-[8px] font-black uppercase text-muted">Translator</label>
-                      <input type="text" id="meta_translator" value="${{meta.translator || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand">
+                      <input type="text" id="meta_translator" value="${{meta.translator || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand" placeholder="e.g. Sahih International">
                   </div>
               `;
           }} else if (type === 'hadith') {{
               container.innerHTML += `
                   <div class="space-y-1">
-                      <label class="text-[8px] font-black uppercase text-muted">Collection</label>
-                      <input type="text" id="meta_collection" value="${{meta.collection || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand" placeholder="e.g. Bukhari">
+                      <label class="text-[8px] font-black uppercase text-muted">Collection / Source Name</label>
+                      <input type="text" id="meta_collection" value="${{meta.collection || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand" placeholder="e.g. Sahih Al-Bukhari">
                   </div>
                   <div class="space-y-1">
-                      <label class="text-[8px] font-black uppercase text-muted">Hadith Number</label>
-                      <input type="text" id="meta_hadith_number" value="${{meta.hadith_number || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand">
+                      <label class="text-[8px] font-black uppercase text-muted">Hadith #</label>
+                      <input type="text" id="meta_hadith_number" value="${{meta.hadith_number || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand">
                   </div>
                   <div class="space-y-1">
-                      <label class="text-[8px] font-black uppercase text-muted">Grade (Optional)</label>
-                      <input type="text" id="meta_grade" value="${{meta.grade || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand" placeholder="Sahih, Hasan, etc.">
+                      <label class="text-[8px] font-black uppercase text-muted">Narrator</label>
+                      <input type="text" id="meta_narrator" value="${{meta.narrator || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand" placeholder="e.g. Abu Huraira">
                   </div>
               `;
           }} else if (type === 'book' || type === 'article') {{
                container.innerHTML += `
                   <div class="space-y-1">
-                      <label class="text-[8px] font-black uppercase text-muted">Title</label>
-                      <input type="text" id="meta_title" value="${{meta.title || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand">
+                      <label class="text-[8px] font-black uppercase text-muted">Title / Source Name</label>
+                      <input type="text" id="meta_title" value="${{meta.title || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand">
                   </div>
                   <div class="space-y-1">
                       <label class="text-[8px] font-black uppercase text-muted">Author</label>
-                      <input type="text" id="meta_author" value="${{meta.author || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand">
+                      <input type="text" id="meta_author" value="${{meta.author || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand">
                   </div>
+                  <div class="space-y-1">
+                      <label class="text-[8px] font-black uppercase text-muted">Page #</label>
+                      <input type="text" id="meta_page_start" value="${{meta.page_start || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand">
+                  </div>
+              `;
+          }} else {{
+              container.innerHTML += `
+                  <p class="text-[8px] font-bold text-muted uppercase leading-relaxed">Basic notes do not require structured metadata fields.</p>
               `;
           }}
       }}
@@ -2197,16 +2220,18 @@ async def app_library_page(
           
           const meta = {{}};
           if (type === 'quran') {{
+              meta.surah_name = document.getElementById('meta_surah_name').value;
               meta.surah_number = parseInt(document.getElementById('meta_surah_number').value);
               meta.verse_start = parseInt(document.getElementById('meta_verse_start').value);
               meta.translator = document.getElementById('meta_translator').value;
           }} else if (type === 'hadith') {{
               meta.collection = document.getElementById('meta_collection').value;
               meta.hadith_number = document.getElementById('meta_hadith_number').value;
-              meta.grade = document.getElementById('meta_grade').value;
+              meta.narrator = document.getElementById('meta_narrator').value;
           }} else if (type === 'book' || type === 'article') {{
               meta.title = document.getElementById('meta_title').value;
               meta.author = document.getElementById('meta_author').value;
+              meta.page_start = document.getElementById('meta_page_start').value;
           }}
 
           const payload = {{
@@ -2317,10 +2342,10 @@ async def app_library_page(
     </script>
     """
     
-    return APP_LAYOUT_HTML.replace("{{title}}", "Library")\
-                          .replace("{{user_name}}", user.name or user.email)\
-                          .replace("{{org_name}}", org.name if org else "Personal Workspace")\
-                          .replace("{{admin_link}}", admin_link)\
+    return APP_LAYOUT_HTML.replace("{title}", "Library")\
+                          .replace("{user_name}", user.name or user.email)\
+                          .replace("{org_name}", org.name if org else "Personal Workspace")\
+                          .replace("{admin_link}", admin_link)\
                           .replace("{active_dashboard}", "")\
                           .replace("{active_calendar}", "")\
                           .replace("{active_automations}", "")\
