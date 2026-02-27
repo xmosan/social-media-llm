@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from typing import List, Optional
@@ -59,15 +59,18 @@ def list_sources(
 @router.post("/sources", response_model=ContentSourceOut)
 def create_source(
     data: ContentSourceCreate,
+    request: Request,
     is_global: bool = Query(False),
     db: Session = Depends(get_db),
-    user: User = Depends(require_user),
-    org_id: int = Depends(get_current_org_id)
+    user: User = Depends(require_user)
 ):
     if is_global:
         require_superadmin(user)
         target_org_id = None
     else:
+        # Manually resolve org_id to avoid blocking if the user has no active org context
+        from app.security.rbac import get_current_org_id
+        org_id = get_current_org_id(request, user, request.headers.get("X-Org-Id"), db)
         check_library_admin_access(user, org_id, db)
         target_org_id = org_id
         
