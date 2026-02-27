@@ -236,9 +236,11 @@ class TopicAutomation(Base):
 class ContentSource(Base):
     __tablename__ = "content_sources"
     id = Column(Integer, primary_key=True, index=True)
-    org_id = Column(Integer, ForeignKey("orgs.id"), nullable=False, index=True)
+    org_id = Column(Integer, ForeignKey("orgs.id"), nullable=True, index=True) # Changed: nullable=True for Global
     name = Column(String, nullable=False) 
     source_type = Column(String, nullable=False) # manual_library, rss, url_list
+    category = Column(String, nullable=True) # New: for grouping
+    description = Column(Text, nullable=True) # New: details
     config = Column(JSON, nullable=False, default=dict)
     enabled = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -250,12 +252,16 @@ class ContentSource(Base):
 class ContentItem(Base):
     __tablename__ = "content_items"
     id = Column(Integer, primary_key=True, index=True)
-    org_id = Column(Integer, ForeignKey("orgs.id"), nullable=False, index=True)
+    org_id = Column(Integer, ForeignKey("orgs.id"), nullable=True, index=True) # Changed: nullable=True for Global
     source_id = Column(Integer, ForeignKey("content_sources.id"), nullable=False, index=True)
     
+    item_type = Column(String, default="note", nullable=False) # New: quran, hadith, book, etc.
     title = Column(String, nullable=True)
     text = Column(Text, nullable=False)
+    arabic_text = Column(Text, nullable=True) # New: original text
+    translation = Column(Text, nullable=True) # New: translation
     url = Column(Text, nullable=True)
+    meta = Column(JSON, nullable=False, default=dict) # New: structured metadata
     tags = Column(JSON, nullable=False, default=list)
     
     last_used_at = Column(DateTime(timezone=True), nullable=True)

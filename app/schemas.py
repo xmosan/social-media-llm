@@ -259,50 +259,71 @@ class TopicAutomationUpdate(BaseModel):
                 return []
         return v
 
-class ContentItemOut(BaseModel):
+class ContentSourceOut(BaseModel):
     id: int
-    org_id: int
-    type: str
-    title: str | None
-    text_en: str
-    text_ar: str | None
-    source_name: str | None
-    reference: str | None
-    url: str | None
-    grade: str | None
-    topics: list[str]
-    language: str
+    org_id: int | None
+    name: str
+    source_type: str
+    category: str | None
+    description: str | None
     enabled: bool
     created_at: datetime
     updated_at: datetime
     class Config:
         from_attributes = True
 
-class ContentItemCreate(BaseModel):
-    type: str = "hadith"
-    title: str | None = None
-    text_en: str
-    text_ar: str | None = None
-    source_name: str | None = None
-    reference: str | None = None
-    url: str | None = None
-    grade: str | None = None
-    topics: list[str] = Field(default_factory=list)
-    language: str = "english"
+class ContentSourceCreate(BaseModel):
+    name: str
+    source_type: str = "manual_library"
+    category: str | None = None
+    description: str | None = None
     enabled: bool = True
 
-class ContentItemUpdate(BaseModel):
-    type: str | None = None
-    title: str | None = None
-    text_en: str | None = None
-    text_ar: str | None = None
-    source_name: str | None = None
-    reference: str | None = None
-    url: str | None = None
-    grade: str | None = None
-    topics: list[str] | None = None
-    language: str | None = None
+class ContentSourceUpdate(BaseModel):
+    name: str | None = None
+    category: str | None = None
+    description: str | None = None
     enabled: bool | None = None
+
+class ContentItemOut(BaseModel):
+    id: int
+    org_id: int | None
+    source_id: int
+    item_type: str
+    title: str | None
+    text: str
+    arabic_text: str | None
+    translation: str | None
+    url: str | None
+    meta: dict
+    tags: list[str]
+    use_count: int
+    last_used_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+    class Config:
+        from_attributes = True
+
+class ContentItemCreate(BaseModel):
+    source_id: int
+    item_type: str = "note"
+    title: str | None = None
+    text: str
+    arabic_text: str | None = None
+    translation: str | None = None
+    url: str | None = None
+    meta: dict = Field(default_factory=dict)
+    tags: list[str] = Field(default_factory=list)
+
+class ContentItemUpdate(BaseModel):
+    item_type: str | None = None
+    title: str | None = None
+    text: str | None = None
+    arabic_text: str | None = None
+    translation: str | None = None
+    url: str | None = None
+    meta: dict | None = None
+    tags: list[str] | None = None
 
 class MediaAssetOut(BaseModel):
     id: int

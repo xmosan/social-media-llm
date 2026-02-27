@@ -1735,6 +1735,14 @@ async def app_library_page(
     if not user.onboarding_complete: return RedirectResponse(url="/onboarding")
     org_id = user.active_org_id
     org = db.query(Org).filter(Org.id == org_id).first()
+    
+    # Check if user is admin for this org or superadmin
+    is_admin = user.is_superadmin
+    if not is_admin:
+        membership = db.query(OrgMember).filter(OrgMember.user_id == user.id, OrgMember.org_id == org_id).first()
+        if membership and membership.role in ["admin", "owner"]:
+            is_admin = True
+
     admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>' if user.is_superadmin else ""
     
     from app.models import SourceDocument
@@ -1793,14 +1801,28 @@ async def app_library_page(
         </div>
         """
 
+    manage_btn = ""
+    if is_admin:
+        manage_btn = f"""
+        <button onclick="toggleManageMode()" id="manageToggleBtn" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-brand hover:bg-brand/10 transition-all flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+            Manager Mode
+        </button>
+        """
+
     content = f"""
-    <div class="space-y-8">
+    <style>
+        .dir-rtl {{ direction: rtl; unicode-bidi: bidi-override; }}
+        .font-serif {{ font-family: 'Amiri', 'Traditional Arabic', serif; }}
+    </style>
+    <div id="standardView" class="space-y-8">
       <div class="flex justify-between items-end">
         <div>
           <h1 class="text-3xl font-black italic tracking-tight text-white">Source <span class="text-brand">Library</span></h1>
           <p class="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Knowledge Base Management</p>
         </div>
         <div id="actionButtons" class="flex gap-4">
+          {manage_btn}
           <input type="file" id="pdfUpload" class="hidden" accept=".pdf,.txt" onchange="handleFileUpload(this)">
           <button onclick="document.getElementById('pdfUpload').click()" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">Upload PDF/TXT</button>
           <button onclick="showUrlModal()" class="px-6 py-3 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20">Add URL Source</button>
@@ -1826,28 +1848,399 @@ async def app_library_page(
       </div>
     </div>
 
-    <!-- URL Modal -->
-    <div id="urlModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-6">
+    <!-- ADMIN MANAGER VIEW -->
+    <div id="manageView" class="hidden space-y-8">
+        <div class="flex justify-between items-end">
+            <div>
+              <h1 class="text-3xl font-black italic tracking-tight text-white">Admin <span class="text-brand">Library Manager</span></h1>
+              <p class="text-[10px] font-black text-muted uppercase tracking-[0.3em]">System Content Curation</p>
+            </div>
+            <button onclick="toggleManageMode()" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">Return to Library</button>
+        </div>
+
+        <div class="flex gap-8 h-[70vh]">
+            <!-- Left Pane: Sources -->
+            <div class="w-1/3 glass rounded-[2.5rem] flex flex-col overflow-hidden">
+                <div class="p-6 border-b border-white/10 flex justify-between items-center">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-white">Content Sources</h3>
+                    <button onclick="openSourceModal()" class="w-8 h-8 bg-brand/20 text-brand rounded-lg flex items-center justify-center hover:bg-brand/30 transition-all">+</button>
+                </div>
+                <div id="sourceList" class="flex-1 overflow-y-auto p-4 space-y-2">
+                    <!-- Loaded via JS -->
+                </div>
+            </div>
+
+            <!-- Right Pane: Entries -->
+            <div class="flex-1 glass rounded-[2.5rem] flex flex-col overflow-hidden">
+                <div class="p-6 border-b border-white/10 flex justify-between items-center">
+                    <div class="flex items-center gap-6">
+                        <h3 class="text-xs font-black uppercase tracking-widest text-white">Library Entries</h3>
+                        <div class="relative">
+                            <input type="text" id="entrySearch" oninput="debounceEntryQuery()" placeholder="Search entries..." class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-bold text-white outline-none focus:border-brand/40 w-48">
+                        </div>
+                    </div>
+                    <button id="addEntryBtn" onclick="openEntryModal()" class="px-4 py-2 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white disabled:opacity-50" disabled>+ Add Entry</button>
+                </div>
+                <div id="entryList" class="flex-1 overflow-y-auto p-4 space-y-3">
+                    <div class="h-full flex items-center justify-center text-muted font-black text-[10px] uppercase tracking-widest">Select a source to view entries</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Source Modal -->
+    <div id="sourceModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] hidden flex items-center justify-center p-6">
       <div class="glass max-w-lg w-full p-10 rounded-[2.5rem] space-y-6">
-        <h2 class="text-2xl font-black italic text-white tracking-tight">Add <span class="text-brand">URL Source</span></h2>
+        <h2 id="sourceModalTitle" class="text-2xl font-black italic text-white tracking-tight">Add <span class="text-brand">Source</span></h2>
+        <input type="hidden" id="sourceId">
         <div class="space-y-4">
           <div class="space-y-1">
-            <label class="text-[10px] font-black uppercase tracking-widest text-muted">Document Title</label>
-            <input type="text" id="urlTitle" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="e.g. My Organization Handbook">
+            <label class="text-[10px] font-black uppercase tracking-widest text-muted">Source Name</label>
+            <input type="text" id="sourceName" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="e.g. Sahih al-Bukhari">
           </div>
           <div class="space-y-1">
-            <label class="text-[10px] font-black uppercase tracking-widest text-muted">URL Address</label>
-            <input type="url" id="urlAddress" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="https://example.com/source">
+            <label class="text-[10px] font-black uppercase tracking-widest text-muted">Category</label>
+            <input type="text" id="sourceCategory" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="e.g. Hadith">
+          </div>
+          <div class="space-y-1">
+            <label class="text-[10px] font-black uppercase tracking-widest text-muted">Source Type</label>
+            <select id="sourceType" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand text-white appearance-none">
+              <option value="manual_library">Manual Library</option>
+              <option value="rss">RSS Feed</option>
+              <option value="url_list">URL List</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-3">
+            <input type="checkbox" id="sourceIsGlobal" class="w-4 h-4 rounded border-white/10 bg-white/5 text-brand focus:ring-brand">
+            <label for="sourceIsGlobal" class="text-[10px] font-black uppercase tracking-widest text-white">Make Global (Admin Only)</label>
           </div>
         </div>
         <div class="flex gap-4 pt-4">
-          <button onclick="hideUrlModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
-          <button onclick="submitUrl()" class="flex-[2] py-4 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white">Extract & Ingest</button>
+          <button onclick="hideSourceModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
+          <button onclick="saveSource()" class="flex-[2] py-4 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg shadow-brand/20">Save Source</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Entry Modal -->
+    <div id="entryModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] hidden flex items-center justify-center p-6">
+      <div class="glass max-w-2xl w-full p-10 rounded-[2.5rem] space-y-6 max-h-[90vh] overflow-y-auto">
+        <h2 id="entryModalTitle" class="text-2xl font-black italic text-white tracking-tight">Add <span class="text-brand">Library Entry</span></h2>
+        <input type="hidden" id="entryId">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-4">
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Entry Type</label>
+              <select id="entryType" onchange="updateEntryFields()" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand text-white appearance-none">
+                <option value="note">Basic Note</option>
+                <option value="quran">Quran Verse</option>
+                <option value="hadith">Hadith Narration</option>
+                <option value="book">Book Excerpt</option>
+              </select>
+            </div>
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Main Text (English)</label>
+              <textarea id="entryText" rows="6" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-xs outline-none focus:ring-2 focus:ring-brand" placeholder="Primary content text..."></textarea>
+            </div>
+            <div class="space-y-1">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Original Text (Arabic / Optional)</label>
+              <textarea id="entryArabic" rows="4" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm min-h-[100px] outline-none focus:ring-2 focus:ring-brand text-right dir-rtl font-serif" placeholder="أدخل النص الأصلي هنا..."></textarea>
+            </div>
+          </div>
+
+          <div id="metaFields" class="space-y-4 bg-white/5 p-6 rounded-[2rem] border border-white/5">
+            <!-- Dynamic fields -->
+          </div>
+        </div>
+
+        <div class="flex gap-4 pt-4">
+          <button onclick="hideEntryModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
+          <button onclick="saveEntry()" class="flex-[2] py-4 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg shadow-brand/20">Save Entry</button>
         </div>
       </div>
     </div>
 
     <script>
+      let currentSourceId = null;
+      let manageMode = false;
+      let entrySearchTimeout;
+
+      function toggleManageMode() {{
+          manageMode = !manageMode;
+          if (manageMode) {{
+              document.getElementById('standardView').classList.add('hidden');
+              document.getElementById('manageView').classList.remove('hidden');
+              loadSources();
+          }} else {{
+              document.getElementById('standardView').classList.remove('hidden');
+              document.getElementById('manageView').classList.add('hidden');
+          }}
+      }}
+
+      async function loadSources() {{
+          const list = document.getElementById('sourceList');
+          list.innerHTML = '<div class="text-center py-10 text-[10px] text-muted font-bold uppercase animate-pulse">Loading sources...</div>';
+          
+          try {{
+              const res = await fetch('/api/admin/library/sources?scope=all');
+              const sources = await res.json();
+              
+              list.innerHTML = '';
+              sources.forEach(s => {{
+                  const el = document.createElement('div');
+                  el.className = `p-5 rounded-3xl cursor-pointer transition-all border ${{currentSourceId == s.id ? 'bg-brand border-brand ring-4 ring-brand/20' : 'bg-white/5 border-white/5 hover:bg-white/10'}}`;
+                  el.onclick = () => selectSource(s);
+                  el.innerHTML = `
+                      <div class="flex justify-between items-start mb-1">
+                          <span class="text-[10px] font-black ${{currentSourceId == s.id ? 'text-white' : 'text-white'}} uppercase tracking-wider">${{s.name}}</span>
+                          <span class="text-[8px] font-black ${{s.org_id ? 'text-amber-400 bg-amber-400/10' : 'text-brand bg-brand/10'}} px-2 py-0.5 rounded-full uppercase">${{s.org_id ? 'Org' : 'Global'}}</span>
+                      </div>
+                      <div class="text-[8px] font-bold text-muted uppercase tracking-widest mb-3">${{s.category || 'Uncategorized'}}</div>
+                      <div class="flex gap-4 pt-2 border-t border-white/10">
+                           <button onclick="event.stopPropagation(); openSourceModal(${{JSON.stringify(s).replace(/"/g, '&quot;')}})" class="text-[8px] font-black text-muted hover:text-white uppercase transition-colors">Edit</button>
+                           <button onclick="event.stopPropagation(); deleteSource(${{s.id}})" class="text-[8px] font-black text-rose-400 hover:text-rose-200 uppercase transition-colors">Delete</button>
+                      </div>
+                  `;
+                  list.appendChild(el);
+              }});
+          }} catch(e) {{
+              list.innerHTML = '<div class="text-rose-400 text-[10px] font-bold p-4">Failed to load sources</div>';
+          }}
+      }}
+
+      function selectSource(source) {{
+          currentSourceId = source.id;
+          document.getElementById('addEntryBtn').disabled = false;
+          loadSources();
+          loadEntries();
+      }}
+
+      async function loadEntries() {{
+          const list = document.getElementById('entryList');
+          const query = document.getElementById('entrySearch').value;
+          list.innerHTML = '<div class="text-center py-20 text-[10px] text-muted font-bold uppercase animate-pulse">Scanning knowledge nodes...</div>';
+
+          try {{
+              const res = await fetch(`/api/admin/library/entries?source_id=${{currentSourceId}}&query=${{encodeURIComponent(query)}}`);
+              const entries = await res.json();
+              
+              if (entries.length === 0) {{
+                  list.innerHTML = '<div class="h-full flex items-center justify-center text-muted font-black text-[10px] uppercase tracking-widest">No spectral matches in this source</div>';
+                  return;
+              }}
+
+              list.innerHTML = '';
+              entries.forEach(e => {{
+                  const el = document.createElement('div');
+                  el.className = 'glass p-6 rounded-[2rem] border border-white/5 hover:border-brand/30 transition-all group relative';
+                  
+                  let metaTitle = 'Reference';
+                  if (e.item_type === 'quran') metaTitle = `Surah ${{e.meta.surah_number}}:${{e.meta.verse_start}}${{e.meta.verse_end ? '-' + e.meta.verse_end : ''}}`;
+                  else if (e.item_type === 'hadith') metaTitle = `${{e.meta.collection}} #${{e.meta.hadith_number}}`;
+                  else if (e.item_type === 'book') metaTitle = e.title || 'Excerpt';
+
+                  el.innerHTML = `
+                      <div class="flex justify-between items-start mb-4">
+                          <span class="text-[9px] font-black text-brand uppercase tracking-[0.25em]">${{e.item_type}} • ${{metaTitle}}</span>
+                          <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                              <button onclick="openEntryModal(${{JSON.stringify(e).replace(/"/g, '&quot;')}})" class="p-2 bg-white/5 rounded-lg text-white hover:bg-brand hover:text-white transition-all"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                              <button onclick="deleteEntry(${{e.id}})" class="p-2 bg-white/5 rounded-lg text-rose-400 hover:bg-rose-500 hover:text-white transition-all"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                          </div>
+                      </div>
+                      <p class="text-[11px] font-medium text-white/90 leading-relaxed">${{e.text}}</p>
+                      ${{e.arabic_text ? `<div class="mt-4 p-4 bg-white/2 rounded-2xl border-r-4 border-brand/40"><p class="text-sm text-right font-serif text-white/70 dir-rtl leading-loose">${{e.arabic_text}}</p></div>` : ''}}
+                  `;
+                  list.appendChild(el);
+              }});
+          }} catch(e) {{
+              list.innerHTML = '<div class="text-rose-400 text-[10px] font-bold p-10">Neural transmission error</div>';
+          }}
+      }}
+
+      function debounceEntryQuery() {{
+          clearTimeout(entrySearchTimeout);
+          entrySearchTimeout = setTimeout(() => {{ if (currentSourceId) loadEntries(); }}, 500);
+      }}
+
+      // --- SOURCE HELPERS ---
+      function openSourceModal(source = null) {{
+          document.getElementById('sourceModal').classList.remove('hidden');
+          if (source) {{
+              document.getElementById('sourceModalTitle').innerHTML = 'Edit <span class="text-brand">Source</span>';
+              document.getElementById('sourceId').value = source.id;
+              document.getElementById('sourceName').value = source.name;
+              document.getElementById('sourceCategory').value = source.category || '';
+              document.getElementById('sourceType').value = source.source_type;
+              document.getElementById('sourceIsGlobal').checked = source.org_id === null;
+          }} else {{
+              document.getElementById('sourceModalTitle').innerHTML = 'Add <span class="text-brand">Source</span>';
+              document.getElementById('sourceId').value = '';
+              document.getElementById('sourceName').value = '';
+              document.getElementById('sourceCategory').value = '';
+              document.getElementById('sourceIsGlobal').checked = false;
+          }}
+      }}
+
+      function hideSourceModal() {{ document.getElementById('sourceModal').classList.add('hidden'); }}
+
+      async function saveSource() {{
+          const id = document.getElementById('sourceId').value;
+          const payload = {{
+              name: document.getElementById('sourceName').value,
+              category: document.getElementById('sourceCategory').value,
+              source_type: document.getElementById('sourceType').value,
+              enabled: true
+          }};
+          const isGlobal = document.getElementById('sourceIsGlobal').checked;
+          
+          const method = id ? 'PATCH' : 'POST';
+          const url = id ? `/api/admin/library/sources/${{id}}` : `/api/admin/library/sources?is_global=${{isGlobal}}`;
+
+          try {{
+              const res = await fetch(url, {{
+                  method: method,
+                  headers: {{ 'Content-Type': 'application/json' }},
+                  body: JSON.stringify(payload)
+              }});
+              if (res.ok) {{
+                  hideSourceModal();
+                  loadSources();
+              }} else alert('Operation failed');
+          }} catch(e) {{ alert('Network error'); }}
+      }}
+
+      async function deleteSource(id) {{
+          if (!confirm('Destroy this source and all its knowledge children?')) return;
+          try {{
+              const res = await fetch(`/api/admin/library/sources/${{id}}`, {{ method: 'DELETE' }});
+              if (res.ok) loadSources();
+          }} catch(e) {{ alert('Network error'); }}
+      }}
+
+      // --- ENTRY HELPERS ---
+      function openEntryModal(entry = null) {{
+          document.getElementById('entryModal').classList.remove('hidden');
+          if (entry) {{
+              document.getElementById('entryModalTitle').innerHTML = 'Edit <span class="text-brand">Entry</span>';
+              document.getElementById('entryId').value = entry.id;
+              document.getElementById('entryType').value = entry.item_type;
+              document.getElementById('entryText').value = entry.text;
+              document.getElementById('entryArabic').value = entry.arabic_text || '';
+              updateEntryFields(entry.meta);
+          }} else {{
+              document.getElementById('entryModalTitle').innerHTML = 'Add <span class="text-brand">Entry</span>';
+              document.getElementById('entryId').value = '';
+              document.getElementById('entryType').value = 'note';
+              document.getElementById('entryText').value = '';
+              document.getElementById('entryArabic').value = '';
+              updateEntryFields();
+          }}
+      }}
+
+      function hideEntryModal() {{ document.getElementById('entryModal').classList.add('hidden'); }}
+
+      function updateEntryFields(meta = {{}}) {{
+          const type = document.getElementById('entryType').value;
+          const container = document.getElementById('metaFields');
+          container.innerHTML = `<h4 class="text-[9px] font-black uppercase tracking-widest text-brand mb-2">Structured Metadata</h4>`;
+          
+          if (type === 'quran') {{
+              container.innerHTML += `
+                  <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1">
+                        <label class="text-[8px] font-black uppercase text-muted">Surah Number</label>
+                        <input type="number" id="meta_surah_number" value="${{meta.surah_number || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[8px] font-black uppercase text-muted">Verse Start</label>
+                        <input type="number" id="meta_verse_start" value="${{meta.verse_start || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand">
+                    </div>
+                  </div>
+                  <div class="space-y-1">
+                      <label class="text-[8px] font-black uppercase text-muted">Translator</label>
+                      <input type="text" id="meta_translator" value="${{meta.translator || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand">
+                  </div>
+              `;
+          }} else if (type === 'hadith') {{
+              container.innerHTML += `
+                  <div class="space-y-1">
+                      <label class="text-[8px] font-black uppercase text-muted">Collection</label>
+                      <input type="text" id="meta_collection" value="${{meta.collection || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand" placeholder="e.g. Bukhari">
+                  </div>
+                  <div class="space-y-1">
+                      <label class="text-[8px] font-black uppercase text-muted">Hadith Number</label>
+                      <input type="text" id="meta_hadith_number" value="${{meta.hadith_number || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand">
+                  </div>
+                  <div class="space-y-1">
+                      <label class="text-[8px] font-black uppercase text-muted">Grade (Optional)</label>
+                      <input type="text" id="meta_grade" value="${{meta.grade || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand" placeholder="Sahih, Hasan, etc.">
+                  </div>
+              `;
+          }} else if (type === 'book' || type === 'article') {{
+               container.innerHTML += `
+                  <div class="space-y-1">
+                      <label class="text-[8px] font-black uppercase text-muted">Title</label>
+                      <input type="text" id="meta_title" value="${{meta.title || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand">
+                  </div>
+                  <div class="space-y-1">
+                      <label class="text-[8px] font-black uppercase text-muted">Author</label>
+                      <input type="text" id="meta_author" value="${{meta.author || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand">
+                  </div>
+              `;
+          }}
+      }}
+
+      async function saveEntry() {{
+          const id = document.getElementById('entryId').value;
+          const type = document.getElementById('entryType').value;
+          
+          const meta = {{}};
+          if (type === 'quran') {{
+              meta.surah_number = parseInt(document.getElementById('meta_surah_number').value);
+              meta.verse_start = parseInt(document.getElementById('meta_verse_start').value);
+              meta.translator = document.getElementById('meta_translator').value;
+          }} else if (type === 'hadith') {{
+              meta.collection = document.getElementById('meta_collection').value;
+              meta.hadith_number = document.getElementById('meta_hadith_number').value;
+              meta.grade = document.getElementById('meta_grade').value;
+          }} else if (type === 'book' || type === 'article') {{
+              meta.title = document.getElementById('meta_title').value;
+              meta.author = document.getElementById('meta_author').value;
+          }}
+
+          const payload = {{
+              source_id: currentSourceId,
+              item_type: type,
+              text: document.getElementById('entryText').value,
+              arabic_text: document.getElementById('entryArabic').value,
+              meta: meta
+          }};
+
+          const method = id ? 'PATCH' : 'POST';
+          const url = id ? `/api/admin/library/entries/${{id}}` : `/api/admin/library/entries`;
+
+          try {{
+              const res = await fetch(url, {{
+                  method: method,
+                  headers: {{ 'Content-Type': 'application/json' }},
+                  body: JSON.stringify(payload)
+              }});
+              if (res.ok) {{
+                  hideEntryModal();
+                  loadEntries();
+              }} else alert('Operation failed');
+          }} catch(e) {{ alert('Network error'); }}
+      }}
+
+      async function deleteEntry(id) {{
+          if (!confirm('Erase this knowledge node?')) return;
+          try {{
+              const res = await fetch(`/api/admin/library/entries/${{id}}`, {{ method: 'DELETE' }});
+              if (res.ok) loadEntries();
+          }} catch(e) {{ alert('Network error'); }}
+      }}
+
       function showUrlModal() {{ document.getElementById('urlModal').classList.remove('hidden'); }}
       function hideUrlModal() {{ document.getElementById('urlModal').classList.add('hidden'); }}
 

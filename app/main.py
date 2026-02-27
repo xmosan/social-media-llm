@@ -15,7 +15,7 @@ import uuid
 from .db import engine, SessionLocal, get_db
 from .models import Base, Org, ApiKey, IGAccount, User, OrgMember
 from .security.auth import get_password_hash
-from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles, auth_google, public, sources, app_pages
+from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles, auth_google, public, sources, app_pages, admin_library
 from .services.scheduler import start_scheduler
 from .config import settings
 from .logging_setup import setup_logging, request_id_var, log_event
@@ -24,6 +24,52 @@ import logging
 logger = logging.getLogger(__name__)
 
 setup_logging()
+
+# --- DATABASE MIGRATION (Admin Library Manager) ---
+def run_admin_library_migration():
+    from sqlalchemy import text
+    with engine.begin() as conn:
+        print("MIGRATION: Checking content_sources and content_items schema...")
+        is_postgres = "postgresql" in engine.drivername
+        
+        # Sources
+        for col, col_def in [("category", "VARCHAR"), ("description", "TEXT")]:
+            try:
+                if is_postgres:
+                    conn.execute(text(f"ALTER TABLE content_sources ADD COLUMN IF NOT EXISTS {col} {col_def}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE content_sources ADD COLUMN {col} {col_def}"))
+            except Exception: pass
+            
+        if is_postgres:
+            try: conn.execute(text("ALTER TABLE content_sources ALTER COLUMN org_id DROP NOT NULL"))
+            except Exception: pass
+
+        # Items
+        for col, col_def in [
+            ("item_type", "VARCHAR DEFAULT 'note'"),
+            ("arabic_text", "TEXT"),
+            ("translation", "TEXT"),
+            ("meta", "JSONB" if is_postgres else "JSON")
+        ]:
+            try:
+                if is_postgres:
+                    conn.execute(text(f"ALTER TABLE content_items ADD COLUMN IF NOT EXISTS {col} {col_def}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE content_items ADD COLUMN {col} {col_def}"))
+            except Exception: pass
+            
+        if is_postgres:
+            try: conn.execute(text("ALTER TABLE content_items ALTER COLUMN org_id DROP NOT NULL"))
+            except Exception: pass
+    print("MIGRATION: Finished admin library checks.")
+
+# Try to run it once at module level (startup)
+try:
+    run_admin_library_migration()
+except Exception as migration_e:
+    print(f"MIGRATION ERROR (non-fatal): {migration_e}")
+# -------------------------------------------------
 
 # Startup validation checks
 REQUIRED_VARS = ["OPENAI_API_KEY", "IG_ACCESS_TOKEN", "DATABASE_URL", "JWT_SECRET"]
@@ -145,6 +191,7 @@ app.include_router(auth.router)
 app.include_router(auth_google.router)
 app.include_router(profiles.router)
 app.include_router(sources.router)
+app.include_router(admin_library.router)
 
 def bootstrap_saas():
     """Seed initial Org, API Key, and Superadmin User."""
