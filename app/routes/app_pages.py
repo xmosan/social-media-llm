@@ -26,6 +26,21 @@ APP_LAYOUT_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{title} | Social Media LLM</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {{
+      theme: {{
+        extend: {{
+          colors: {{
+            brand: '#6366f1',
+            'brand-hover': '#4f46e5',
+            surface: 'rgba(255, 255, 255, 0.03)',
+            'text-main': '#ffffff',
+            'text-muted': '#94a3b8',
+          }}
+        }}
+      }}
+    }}
+  </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -1895,8 +1910,8 @@ async def app_library_page(
         <input type="hidden" id="sourceId">
         <div class="space-y-4">
           <div class="space-y-1">
-            <label class="text-[10px] font-black uppercase tracking-widest text-muted">Source Name</label>
-            <input type="text" id="sourceName" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="e.g. Sahih al-Bukhari">
+            <label class="text-[10px] font-black uppercase tracking-widest text-muted">Reference Book / Source Name</label>
+            <input type="text" id="sourceName" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="e.g. Quran, Sahih al-Bukhari, or Book Title">
           </div>
           <div class="space-y-1">
             <label class="text-[10px] font-black uppercase tracking-widest text-muted">Category</label>
@@ -1963,8 +1978,14 @@ async def app_library_page(
                 <!-- Dynamic fields -->
             </div>
             
+            <div class="bg-brand/10 p-4 rounded-2xl border border-brand/20">
+                <p class="text-[9px] font-bold text-brand uppercase tracking-widest leading-relaxed">
+                    <span class="text-white">Note:</span> Knowledge nodes added here will be used for grounded AI generation and social content.
+                </p>
+            </div>
+            
             <div class="flex flex-col gap-3 pt-4">
-                <button onclick="saveEntry()" class="w-full py-5 bg-brand rounded-2xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/30 hover:scale-[1.02] transition-all">Save Entry</button>
+                <button onclick="saveEntry()" class="w-full py-5 bg-brand rounded-2xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/30 hover:bg-brand-hover transition-all">Save Entry</button>
                 <button onclick="hideEntryModal()" class="w-full py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all">Cancel</button>
             </div>
           </div>
