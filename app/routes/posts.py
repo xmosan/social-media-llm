@@ -47,9 +47,17 @@ def intake_post(
     use_ai_image: bool = Form(False),
     visual_mode: str = Form("upload"),
     visual_prompt: str | None = Form(None),
-    library_item_id: int | None = Form(None),
+    library_item_id: str | None = Form(None), # Changed to str to handle empty string
     org_id: int = Depends(get_current_org_id),
 ):
+    # Parse library_item_id
+    lib_id = None
+    if library_item_id and library_item_id.strip():
+        try:
+            lib_id = int(library_item_id)
+        except ValueError:
+            pass
+
     print(f"DEBUG: Intake attempt - Account={ig_account_id}, AI={use_ai_image}, File={image.filename if image else 'None'}")
     _ensure_uploads_dir()
     acc = db.query(IGAccount).filter(IGAccount.id == ig_account_id, IGAccount.org_id == org_id).first()
@@ -111,7 +119,7 @@ def intake_post(
         media_url=public_url,
         visual_mode=visual_mode,
         visual_prompt=visual_prompt,
-        library_item_id=library_item_id,
+        library_item_id=lib_id,
         flags={},
     )
     db.add(post)
@@ -125,12 +133,20 @@ async def preview_render(
     visual_mode: str = Form(...),
     source_text: str = Form(""),
     visual_prompt: str | None = Form(None),
-    library_item_id: int | None = Form(None),
+    library_item_id: str | None = Form(None), # Changed to str
     reference: str | None = Form(""),
     image: UploadFile | None = File(None),
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id),
 ):
+    # Parse library_item_id
+    lib_id = None
+    if library_item_id and library_item_id.strip():
+        try:
+            lib_id = int(library_item_id)
+        except ValueError:
+            pass
+
     """
     Generates a temporary quote card preview without creating a database entry.
     """
@@ -163,8 +179,8 @@ async def preview_render(
     elif visual_mode == "media_library":
         # For now, if no specific ID, we try to find the latest media asset or a default
         asset = None
-        if library_item_id:
-            asset = db.query(MediaAsset).filter(MediaAsset.id == library_item_id).first()
+        if lib_id:
+            asset = db.query(MediaAsset).filter(MediaAsset.id == lib_id).first()
         
         if not asset:
             asset = db.query(MediaAsset).filter(MediaAsset.org_id == org_id).order_by(MediaAsset.created_at.desc()).first()

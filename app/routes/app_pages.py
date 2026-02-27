@@ -384,8 +384,14 @@ APP_LAYOUT_HTML = """<!doctype html>
             if (res.ok) {
                 window.location.reload();
             } else {
-                const err = await res.json();
-                alert('Error: ' + (err.detail || 'Failed to create post'));
+                let errDetail = 'Failed to create post';
+                try {
+                    const err = await res.json();
+                    errDetail = err.detail || JSON.stringify(err);
+                } catch(e) {
+                    errDetail = await res.text();
+                }
+                alert('Error: ' + errDetail);
             }
         } catch (e) {
             alert('Upload failed: ' + e);
@@ -419,11 +425,12 @@ APP_LAYOUT_HTML = """<!doctype html>
                 img.classList.remove('hidden');
                 loader.classList.add('hidden');
             } else {
-                alert('Preview failed: ' + (data.detail || 'check console'));
+                const detail = data.detail || JSON.stringify(data.detail || data);
+                alert('Preview failed: ' + detail);
                 modal.classList.add('hidden');
             }
         } catch (e) {
-            alert('Network error');
+            alert('Network error: ' + e);
             modal.classList.add('hidden');
         }
     }
@@ -477,7 +484,7 @@ APP_LAYOUT_HTML = """<!doctype html>
               <div id="srcPaneManual" class="space-y-4">
                 <textarea id="studioSourceText" name="source_text" required placeholder="Type your custom caption or directives here..." class="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-sm font-medium text-white outline-none focus:border-brand/40 transition-all h-48 resize-none"></textarea>
                 <div class="flex gap-4">
-                    <input type="text" id="studioReference" placeholder="Reference (Optional, e.g. Bukhari 123)" class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-brand/40">
+                    <input type="text" id="studioReference" name="reference" placeholder="Reference (Optional, e.g. Bukhari 123)" class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-brand/40">
                     <button type="button" onclick="openLibraryDrawer()" class="px-4 bg-brand/10 text-brand border border-brand/20 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-brand/20 transition-all">
                       <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
                       Browse Library
