@@ -64,28 +64,35 @@ def create_source(
     db: Session = Depends(get_db),
     user: User = Depends(require_user)
 ):
-    if is_global:
-        require_superadmin(user)
-        target_org_id = None
-    else:
-        # Manually resolve org_id to avoid blocking if the user has no active org context
-        from app.security.rbac import get_current_org_id
-        org_id = get_current_org_id(request, user, request.headers.get("X-Org-Id"), db)
-        check_library_admin_access(user, org_id, db)
-        target_org_id = org_id
-        
-    source = ContentSource(
-        org_id=target_org_id,
-        name=data.name,
-        source_type=data.source_type,
-        category=data.category,
-        description=data.description,
-        enabled=data.enabled
-    )
-    db.add(source)
-    db.commit()
-    db.refresh(source)
-    return source
+    try:
+        if is_global:
+            require_superadmin(user)
+            target_org_id = None
+        else:
+            # Note: using the top-level import
+            org_id = get_current_org_id(request, user, request.headers.get("X-Org-Id"), db)
+            check_library_admin_access(user, org_id, db)
+            target_org_id = org_id
+            
+        source = ContentSource(
+            org_id=target_org_id,
+            name=data.name,
+            source_type=data.source_type,
+            category=data.category,
+            description=data.description,
+            enabled=data.enabled
+        )
+        db.add(source)
+        db.commit()
+        db.refresh(source)
+        return source
+    except Exception as e:
+        import traceback
+        print(f"ERROR in create_source: {e}")
+        traceback.print_exc()
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.patch("/sources/{id}", response_model=ContentSourceOut)
 def update_source(

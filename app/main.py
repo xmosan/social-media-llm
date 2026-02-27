@@ -13,7 +13,7 @@ from starlette.middleware.sessions import SessionMiddleware
 import uuid
 
 from .db import engine, SessionLocal, get_db
-from .models import Base, Org, ApiKey, IGAccount, User, OrgMember
+from .models import Base, Org, ApiKey, IGAccount, User, OrgMember, ContentSource, ContentItem, ContentUsage
 from .security.auth import get_password_hash
 from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles, auth_google, public, sources, app_pages, admin_library
 from .services.scheduler import start_scheduler
@@ -28,6 +28,12 @@ setup_logging()
 # --- DATABASE MIGRATION (Admin Library Manager) ---
 def run_admin_library_migration():
     from sqlalchemy import text
+    from .models import Base
+    
+    # Force creation of all tables first
+    print("MIGRATION: Ensuring all tables exist...")
+    Base.metadata.create_all(bind=engine)
+    
     with engine.begin() as conn:
         print("MIGRATION: Checking content_sources and content_items schema...")
         is_postgres = "postgresql" in engine.drivername
