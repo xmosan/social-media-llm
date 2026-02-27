@@ -280,31 +280,56 @@ APP_LAYOUT_HTML = """<!doctype html>
         }
     }
 
-    async function openLibraryDrawer() {
+    async function openLibraryDrawer(tab = 'my_library') {
         document.getElementById('libraryDrawer').classList.remove('translate-x-full');
+        
+        // Update tab styling
+        const myLibTab = document.getElementById('drawerTabMyLib');
+        const defaultTab = document.getElementById('drawerTabDefault');
+        if (tab === 'my_library') {
+            myLibTab.classList.add('text-white', 'border-brand');
+            myLibTab.classList.remove('text-muted', 'border-transparent');
+            defaultTab.classList.add('text-muted', 'border-transparent');
+            defaultTab.classList.remove('text-white', 'border-brand');
+        } else {
+            defaultTab.classList.add('text-white', 'border-brand');
+            defaultTab.classList.remove('text-muted', 'border-transparent');
+            myLibTab.classList.add('text-muted', 'border-transparent');
+            myLibTab.classList.remove('text-white', 'border-brand');
+        }
+
         const content = document.getElementById('libraryDrawerContent');
         content.innerHTML = '<div class="text-center py-10"><div class="animate-spin w-6 h-6 border-2 border-brand border-t-transparent rounded-full mx-auto"></div></div>';
         
         try {
-            // We'll use the existing /library endpoint for docs, but we also want prebuilt packs
-            // For now, let's fetch docs
-            const res = await fetch('/library');
+            const endpoint = tab === 'my_library' ? '/library' : '/library/all_prebuilt';
+            const res = await fetch(endpoint);
             const docs = await res.json();
             
             content.innerHTML = '';
             docs.forEach(doc => {
                 const div = document.createElement('div');
                 div.className = 'glass p-4 rounded-xl border border-white/5 hover:border-brand/40 cursor-pointer transition-all';
+                
+                // Handle different schemas between My Library (db) and Prebuilt (json)
+                const docTitle = doc.title || doc.name || 'Untitled';
+                const docSource = doc.source_type || 'prebuilt pack';
+                const docText = doc.text || doc.description || '';
+                
                 div.innerHTML = `
-                    <div class="text-[10px] font-black text-white uppercase tracking-wider">${doc.title}</div>
-                    <div class="text-[8px] font-bold text-muted uppercase mt-1">${doc.source_type} source</div>
+                    <div class="text-[10px] font-black text-white uppercase tracking-wider">${docTitle}</div>
+                    <div class="text-[8px] font-bold text-muted uppercase mt-1">${docSource} source</div>
                 `;
-                div.onclick = () => selectLibraryDoc(doc);
+                div.onclick = () => selectLibraryDoc({
+                    id: doc.id || doc.name, 
+                    title: docTitle, 
+                    text: docText
+                });
                 content.appendChild(div);
             });
 
             if (docs.length === 0) {
-                content.innerHTML = '<div class="text-center py-10 text-muted text-[10px] font-black uppercase">No library sources found.</div>';
+                content.innerHTML = `<div class="text-center py-10 text-muted text-[10px] font-black uppercase">No ${tab === 'my_library' ? 'custom documents' : 'prebuilt packs'} found.</div>`;
             }
         } catch(e) {
             content.innerHTML = '<div class="text-center py-10 text-rose-400 text-[10px] font-black uppercase">Failed to load library.</div>';
@@ -615,16 +640,27 @@ APP_LAYOUT_HTML = """<!doctype html>
 
   <!-- Library Explorer Side Drawer -->
   <div id="libraryDrawer" class="fixed inset-y-0 right-0 w-full max-w-md bg-black/95 backdrop-blur-2xl z-[150] shadow-2xl border-l border-white/10 transform translate-x-full transition-transform duration-500 overflow-hidden flex flex-col">
-    <div class="p-8 border-b border-white/5 flex justify-between items-center">
+    <div class="p-8 pb-4 border-b border-white/5 flex justify-between items-center">
       <div>
         <h3 class="text-xl font-black italic text-white">Neural <span class="text-brand">Library</span></h3>
         <p class="text-[8px] font-black text-muted uppercase tracking-widest">Extract source materials</p>
       </div>
       <button onclick="closeLibraryDrawer()" class="p-2 text-muted hover:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
     </div>
+    
+    <!-- Drawer Tabs -->
+    <div class="flex px-8 border-b border-white/5">
+        <button id="drawerTabMyLib" onclick="openLibraryDrawer('my_library')" class="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-white border-b-2 border-brand transition-all">My Library</button>
+        <button id="drawerTabDefault" onclick="openLibraryDrawer('default_packs')" class="flex-1 py-4 text-[10px] font-black uppercase tracking-widest text-muted border-b-2 border-transparent hover:text-white transition-all">Default Packs</button>
+    </div>
+
     <div class="p-6 border-b border-white/5">
         <input type="text" placeholder="Search library quotes..." class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs text-white focus:border-brand/40 outline-none">
     </div>
+    <div class="flex-1 overflow-y-auto p-6">
+        <div id="libraryDrawerContent" class="space-y-4">
+            <!-- Populated via Javascript -->
+        </div>
     </div>
   </div>
 
