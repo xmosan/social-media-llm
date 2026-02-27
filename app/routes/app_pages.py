@@ -2147,8 +2147,11 @@ async def app_library_page(
               if (res.ok) {{
                   hideSourceModal();
                   loadSources();
-              }} else alert('Operation failed');
-          }} catch(e) {{ alert('Network error'); }}
+              }} else {{
+                  const err = await res.json();
+                  alert(`Operation failed (${{res.status}}): ${{err.detail || 'Unknown error'}}`);
+              }}
+          }} catch(e) {{ alert('Network error: ' + e.message); }}
       }}
 
       async function deleteSource(id) {{
@@ -2284,8 +2287,11 @@ async def app_library_page(
               if (res.ok) {{
                   hideEntryModal();
                   loadEntries();
-              }} else alert('Operation failed');
-          }} catch(e) {{ alert('Network error'); }}
+              }} else {{
+                  const err = await res.json();
+                  alert(`Operation failed (${{res.status}}): ${{err.detail || 'Unknown error'}}`);
+              }}
+          }} catch(e) {{ alert('Network error: ' + e.message); }}
       }}
 
       async function deleteEntry(id) {{
