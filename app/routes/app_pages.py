@@ -2136,7 +2136,7 @@ async def app_library_page(
           const isGlobal = document.getElementById('sourceIsGlobal').checked;
           
           const method = id ? 'PATCH' : 'POST';
-          const url = id ? `/api/admin/library/sources/${{id}}` : `/api/admin/library/sources?is_global=${{isGlobal}}`;
+          const url = id ? `/api/admin/library/sources/${{id}}` : `/api/admin/library/sources?is_global=${{isGlobal ? 'true' : 'false'}}`;
 
           try {{
               const res = await fetch(url, {{

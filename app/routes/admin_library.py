@@ -59,7 +59,7 @@ def list_sources(
 @router.post("/sources", response_model=ContentSourceOut)
 def create_source(
     data: ContentSourceCreate,
-    is_global: bool = False,
+    is_global: bool = Query(False),
     db: Session = Depends(get_db),
     user: User = Depends(require_user),
     org_id: int = Depends(get_current_org_id)
