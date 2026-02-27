@@ -90,6 +90,34 @@ def run_admin_library_migration():
         except Exception as e:
             print(f"MIGRATION: Item table creation status: {e}")
             
+        # 1. Force Column Check (Fix for broken/partial tables)
+        tables_cols = {
+            "content_sources": [
+                ("org_id", "INTEGER"),
+                ("category", "VARCHAR"),
+                ("description", "TEXT")
+            ],
+            "content_items": [
+                ("org_id", "INTEGER"),
+                ("item_type", "VARCHAR DEFAULT 'note'"),
+                ("arabic_text", "TEXT"),
+                ("translation", "TEXT"),
+                ("meta", "JSONB" if is_postgres else "JSON"),
+                ("tags", "JSONB" if is_postgres else "JSON")
+            ]
+        }
+        
+        for tbl, cols in tables_cols.items():
+            for col_name, col_def in cols:
+                try:
+                    if is_postgres:
+                        conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS {col_name} {col_def}"))
+                    else:
+                        conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN {col_name} {col_def}"))
+                    print(f"MIGRATION: Checked/Added {col_name} to {tbl}")
+                except Exception:
+                    pass
+
         # Ensure org_id is nullable (important for global)
         if is_postgres:
             try: conn.execute(text("ALTER TABLE content_sources ALTER COLUMN org_id DROP NOT NULL"))
