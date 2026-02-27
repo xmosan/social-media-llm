@@ -62,6 +62,10 @@ APP_LAYOUT_HTML = """<!doctype html>
     .visual-card.active { border-color: var(--brand); background: rgba(99, 102, 241, 0.1); }
     .visual-card.active .check-icon { display: block; }
     .visual-card .check-icon { display: none; }
+    .bg-brand { background-color: var(--brand) !important; }
+    .bg-brand-hover:hover { background-color: var(--brand-hover) !important; }
+    .text-brand { color: var(--brand) !important; }
+    .border-brand { border-color: var(--brand) !important; }
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
@@ -1930,9 +1934,14 @@ async def app_library_page(
             <label for="sourceIsGlobal" class="text-[10px] font-black uppercase tracking-widest text-white">Make Global (Admin Only)</label>
           </div>
         </div>
+        <div class="bg-brand/5 p-4 rounded-2xl border border-brand/20 mb-4">
+            <p class="text-[9px] font-bold text-brand uppercase tracking-widest leading-relaxed">
+                <span class="text-white">Tip:</span> Create a source first (like "Quran"), then select it to add individual verses or hadiths.
+            </p>
+        </div>
         <div class="flex gap-4 pt-4">
           <button onclick="hideSourceModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
-          <button onclick="saveSource()" class="flex-[2] py-4 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg shadow-brand/20">Save Source</button>
+          <button onclick="saveSource()" class="flex-[2] py-4 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/40">Create Source</button>
         </div>
       </div>
     </div>
