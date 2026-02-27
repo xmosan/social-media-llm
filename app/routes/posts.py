@@ -68,7 +68,7 @@ def intake_post(
          raise HTTPException(status_code=400, detail="Incomplete IG Account connection. Please reconnect your account.")
     public_url = None
     # 1. Handle AI Generation
-    if use_ai_image:
+    if use_ai_image or visual_mode == "ai_background":
         if not source_text:
             raise HTTPException(status_code=400, detail="Source text/Directives required for AI image generation")
         
@@ -92,10 +92,12 @@ def intake_post(
         except Exception as e:
             print(f"FAILED AI IMAGE SAVE: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to save AI generated image: {str(e)}")
+
     # 2. Handle Manual Upload
-    elif image:
+    elif visual_mode == "upload" and image and image.filename:
         if image.content_type not in ("image/png", "image/jpeg", "image/jpg", "image/webp"):
             raise HTTPException(status_code=400, detail=f"File type '{image.content_type}' is not supported. Use PNG, JPG, or WEBP.")
+        
         filename = f"{int(_utcnow().timestamp())}_{image.filename}"
         local_path = os.path.join(settings.uploads_dir, filename)
         try:
@@ -106,9 +108,15 @@ def intake_post(
             print(f"FAILED FILE SAVE: {e}")
             raise HTTPException(status_code=500, detail="Critical error: Could not save uploaded file. Check disk space/permissions.")
     
+    # 3. Handle Media Library
+    elif visual_mode == "media_library" and lib_id:
+        asset = db.query(MediaAsset).filter(MediaAsset.id == lib_id).first()
+        if asset:
+             public_url = asset.url
+
     else:
-        # Allow text-only initial intake
-        print("[INTAKE] No image provided. Creating text-only draft.")
+        # Allow text-only initial intake or fallback if nothing else matched
+        print("[INTAKE] No specific media resolve path hit.")
         pass
     post = Post(
         org_id=org_id,

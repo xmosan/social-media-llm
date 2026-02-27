@@ -370,10 +370,14 @@ APP_LAYOUT_HTML = """<!doctype html>
         }
 
         const formData = new FormData(event.target);
+        const visualMode = formData.get('visual_mode') || document.getElementById('studioVisualMode').value;
         
-        // Ensure visual_mode is set
         if (!formData.has('visual_mode')) {
-            formData.append('visual_mode', document.getElementById('studioVisualMode').value);
+            formData.set('visual_mode', visualMode);
+        }
+        
+        if (visualMode === 'ai_background') {
+            formData.set('use_ai_image', 'true');
         }
 
         try {
