@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Mohammed Hassan. All rights reserved.
+# Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
+
 from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, ForeignKey, Boolean, UniqueConstraint
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
@@ -113,13 +116,19 @@ class Post(Base):
     scheduled_time = Column(DateTime(timezone=True), nullable=True)
     published_time = Column(DateTime(timezone=True), nullable=True)
 
+    # NEW: Content Studio Upgrades
+    visual_mode = Column(String, default="upload", nullable=False) # upload, media_library, ai_background, quote_card
+    visual_prompt = Column(Text, nullable=True)
+    library_item_id = Column(Integer, ForeignKey("content_items.id"), nullable=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
     org = relationship("Org", back_populates="posts")
     ig_account = relationship("IGAccount", back_populates="posts")
     automation = relationship("TopicAutomation", back_populates="generated_posts")
-    content_item = relationship("ContentItem", back_populates="posts")
+    content_item = relationship("ContentItem", back_populates="posts", foreign_keys=[content_item_id])
+    library_item = relationship("ContentItem", back_populates="library_posts", foreign_keys=[library_item_id])
     media_asset = relationship("MediaAsset", back_populates="posts")
     content_usage = relationship("ContentUsage", back_populates="post", uselist=False)
 
@@ -257,7 +266,8 @@ class ContentItem(Base):
 
     org = relationship("Org", back_populates="content_items")
     source = relationship("ContentSource", back_populates="items")
-    posts = relationship("Post", back_populates="content_item")
+    posts = relationship("Post", back_populates="content_item", foreign_keys="[Post.content_item_id]")
+    library_posts = relationship("Post", back_populates="library_item", foreign_keys="[Post.library_item_id]")
     usages = relationship("ContentUsage", back_populates="content_item")
 
 class ContentUsage(Base):

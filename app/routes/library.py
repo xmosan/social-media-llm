@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Mohammed Hassan. All rights reserved.
+# Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional

@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Mohammed Hassan. All rights reserved.
+# Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
+
 import requests
 import time
 from datetime import datetime, timezone

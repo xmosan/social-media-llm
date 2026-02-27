@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Mohammed Hassan. All rights reserved.
+# Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
+
 import random
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select, and_, not_, or_

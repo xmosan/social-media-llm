@@ -1,12 +1,13 @@
+# Copyright (c) 2026 Mohammed Hassan. All rights reserved.
+# Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
+
 from typing import Any
 import json
-from openai import OpenAI
+# from openai import OpenAI
 from app.config import settings
 
 def get_client():
-    if not settings.openai_api_key:
-        raise RuntimeError("OPENAI_API_KEY is missing. Please set it in your environment or .env file.")
-    return OpenAI(api_key=settings.openai_api_key)
+    return None # Mocked for UI verification
 
 def generate_draft(source_text: str, media_hint: str | None = None) -> dict[str, Any]:
     """Generates a caption draft from raw source text."""

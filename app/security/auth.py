@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Mohammed Hassan. All rights reserved.
+# Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
+
 import hashlib
 from typing import Annotated
 from datetime import datetime, timedelta, timezone as dt_timezone

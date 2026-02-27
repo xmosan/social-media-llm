@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Mohammed Hassan. All rights reserved.
+# Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
+
 from fastapi import APIRouter, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -80,6 +83,14 @@ APP_LAYOUT_HTML = """<!doctype html>
   <main class="max-w-7xl mx-auto px-6 py-10 space-y-10">
     {content}
   </main>
+
+  <footer class="max-w-7xl mx-auto px-6 py-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 mt-12 mb-12">
+    <div class="text-[10px] font-black text-muted uppercase tracking-widest italic">&copy; 2026 Mohammed Hassan. All rights reserved. <span class="text-white/40 lowercase">Proprietary software.</span></div>
+    <div class="flex gap-6 text-[9px] font-black uppercase tracking-widest text-muted/60">
+        <a href="/" class="hover:text-brand transition-colors">Portal</a>
+        <a href="/app" class="hover:text-brand transition-colors">Interface</a>
+    </div>
+  </footer>
 
   <script>
     async function logout() {
@@ -1348,6 +1359,17 @@ async def app_automations_page(
     for a in autos:
         status_btn = f'<button onclick="toggleAuto({a.id}, {str(not a.enabled).lower()})" class="px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest { "bg-emerald-500/20 text-emerald-400" if a.enabled else "bg-rose-500/20 text-rose-400" }">{ "Enabled" if a.enabled else "Disabled" }</button>'
         
+        edit_data = {
+            "id": a.id, 
+            "name": a.name, 
+            "topic": a.topic_prompt, 
+            "seed_mode": a.content_seed_mode, 
+            "seed_text": a.content_seed_text or "", 
+            "time": a.post_time_local or "09:00",
+            "library_scope": a.library_scope
+        }
+        edit_data_json = html.escape(json.dumps(edit_data), quote=True)
+
         autos_html += f"""
         <div class="glass p-8 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-start md:items-center gap-6 group border border-white/5 hover:border-brand/40 transition-all">
           <div class="space-y-2 flex-1">
@@ -1362,15 +1384,7 @@ async def app_automations_page(
             </div>
           </div>
           <div class="flex gap-3">
-            <button onclick='showEditModal({
-              "id": a.id, 
-              "name": a.name, 
-              "topic": a.topic_prompt, 
-              "seed_mode": a.content_seed_mode, 
-              "seed_text": a.content_seed_text or "", 
-              "time": a.post_time_local or "09:00",
-              "library_scope": a.library_scope
-            })' class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">Configure</button>
+            <button onclick="showEditModal({edit_data_json})" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">Configure</button>
             <button onclick="runNow({a.id})" class="px-6 py-3 bg-brand/20 text-brand rounded-xl font-black text-[10px] uppercase tracking-widest border border-brand/20 hover:bg-brand/30 transition-all">Run Now</button>
           </div>
         </div>

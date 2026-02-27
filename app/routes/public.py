@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Mohammed Hassan. All rights reserved.
+# Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
+
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -122,7 +125,7 @@ LANDING_HTML = """<!doctype html>
 
   <!-- Footer -->
   <footer class="max-w-7xl mx-auto px-6 py-20 border-t border-white/5 mt-20 flex flex-col md:flex-row justify-between items-center gap-8">
-    <div class="text-muted font-bold text-xs uppercase tracking-widest italic">&copy; 2026 Social Media LLM. All Rights Reserved.</div>
+    <div class="text-muted font-bold text-xs uppercase tracking-widest italic">&copy; 2026 Mohammed Hassan. All rights reserved. <span class="text-white/50 lowercase">Proprietary software.</span></div>
     <div class="flex gap-8 text-[10px] font-black uppercase tracking-widest text-muted">
       <a href="/contact" class="hover:text-brand transition-colors">Support</a>
       <a href="/demo" class="hover:text-brand transition-colors">Demo</a>

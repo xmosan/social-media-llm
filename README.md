@@ -1,5 +1,7 @@
 # Social Media LLM - SaaS
 
+> **NOTICE**: This repository contains proprietary software owned by Mohammed Hassan. It is shared strictly for academic grading purposes. Unauthorized copying, modification, distribution, or use is prohibited.
+
 ## Disaster Recovery Plan
 
 This platform is built with production reliability mechanisms to quickly recover from regional or system-wide disruptions. 

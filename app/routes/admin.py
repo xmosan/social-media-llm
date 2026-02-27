@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Mohammed Hassan. All rights reserved.
+# Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
+
 from fastapi import APIRouter, Depends, Request, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -972,6 +975,14 @@ HTML = r"""<!doctype html>
         </div>
     </div>
   </main>
+
+  <footer class="max-w-7xl mx-auto px-6 py-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 mt-12 mb-12">
+    <div class="text-[10px] font-black text-muted uppercase tracking-widest italic">&copy; 2026 Mohammed Hassan. All rights reserved. <span class="text-white/40 lowercase">Proprietary software.</span></div>
+    <div class="flex gap-6 text-[9px] font-black uppercase tracking-widest text-muted/60">
+        <a href="/" class="hover:text-brand transition-colors">Portal</a>
+        <a href="/app" class="hover:text-brand transition-colors">Interface</a>
+    </div>
+  </footer>
 <script>
 async function logout() {
     await request("/auth/logout", { method: "POST" });

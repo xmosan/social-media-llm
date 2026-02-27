@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Mohammed Hassan. All rights reserved.
+# Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
+
 import os
 import time
 from fastapi import FastAPI, Request, Depends
@@ -51,6 +54,13 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
             response.headers["X-Request-ID"] = req_id
+            
+            # Inject proprietary headers for HTML responses
+            content_type = response.headers.get("content-type", "")
+            if content_type and content_type.startswith("text/html"):
+                response.headers["X-Content-Owner"] = "Mohammed Hassan"
+                response.headers["X-License"] = "Proprietary"
+                
             status_code = response.status_code
         except Exception as e:
             status_code = 500

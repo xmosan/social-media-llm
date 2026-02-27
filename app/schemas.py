@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Mohammed Hassan. All rights reserved.
+# Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
+
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
 from typing import Any
@@ -36,6 +39,10 @@ class PostOut(BaseModel):
     media_url: str | None = None
     media_asset_id: int | None = None
     content_item_id: int | None = None
+    library_item_id: int | None = None
+    
+    visual_mode: str = "upload"
+    visual_prompt: str | None = None
 
     caption: str | None = None
     hashtags: list[str] | None = None
@@ -373,4 +380,7 @@ class PostUpdate(BaseModel):
     source_text: str | None = None
     media_url: str | None = None
     media_asset_id: int | None = None
+    visual_mode: str | None = None
+    visual_prompt: str | None = None
+    library_item_id: int | None = None
     flags: dict[str, Any] | None = None
