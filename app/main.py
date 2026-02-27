@@ -30,45 +30,74 @@ def run_admin_library_migration():
     from sqlalchemy import text
     from .models import Base
     
-    # Force creation of all tables first
     print("MIGRATION: Ensuring all tables exist...")
-    Base.metadata.create_all(bind=engine)
-    
+    try:
+        # Standard creation
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"MIGRATION: Metadata creation failed: {e}")
+
     with engine.begin() as conn:
-        print("MIGRATION: Checking content_sources and content_items schema...")
+        print("MIGRATION: Checking/Creating content_sources and content_items manually...")
         is_postgres = "postgresql" in engine.drivername
         
-        # Sources
-        for col, col_def in [("category", "VARCHAR"), ("description", "TEXT")]:
-            try:
-                if is_postgres:
-                    conn.execute(text(f"ALTER TABLE content_sources ADD COLUMN IF NOT EXISTS {col} {col_def}"))
-                else:
-                    conn.execute(text(f"ALTER TABLE content_sources ADD COLUMN {col} {col_def}"))
-            except Exception: pass
+        # Manual Source Table Creation (Fallback)
+        try:
+            id_col = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
+            json_type = "JSONB" if is_postgres else "JSON"
             
+            conn.execute(text(f"""
+                CREATE TABLE IF NOT EXISTS content_sources (
+                    id {id_col},
+                    org_id INTEGER REFERENCES orgs(id),
+                    name VARCHAR NOT NULL,
+                    source_type VARCHAR NOT NULL,
+                    category VARCHAR,
+                    description TEXT,
+                    config {json_type} NOT NULL DEFAULT '{{}}',
+                    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+        except Exception as e:
+            print(f"MIGRATION: Source table creation status: {e}")
+
+        # Manual Item Table Creation
+        try:
+            id_col = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
+            json_type = "JSONB" if is_postgres else "JSON"
+            
+            conn.execute(text(f"""
+                CREATE TABLE IF NOT EXISTS content_items (
+                    id {id_col},
+                    org_id INTEGER REFERENCES orgs(id),
+                    source_id INTEGER NOT NULL REFERENCES content_sources(id),
+                    item_type VARCHAR DEFAULT 'note',
+                    title VARCHAR,
+                    text TEXT NOT NULL,
+                    arabic_text TEXT,
+                    translation TEXT,
+                    url TEXT,
+                    meta {json_type} NOT NULL DEFAULT '{{}}',
+                    tags {json_type} NOT NULL DEFAULT '[]',
+                    last_used_at TIMESTAMP WITH TIME ZONE,
+                    use_count INTEGER DEFAULT 0,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+        except Exception as e:
+            print(f"MIGRATION: Item table creation status: {e}")
+            
+        # Ensure org_id is nullable (important for global)
         if is_postgres:
             try: conn.execute(text("ALTER TABLE content_sources ALTER COLUMN org_id DROP NOT NULL"))
             except Exception: pass
-
-        # Items
-        for col, col_def in [
-            ("item_type", "VARCHAR DEFAULT 'note'"),
-            ("arabic_text", "TEXT"),
-            ("translation", "TEXT"),
-            ("meta", "JSONB" if is_postgres else "JSON")
-        ]:
-            try:
-                if is_postgres:
-                    conn.execute(text(f"ALTER TABLE content_items ADD COLUMN IF NOT EXISTS {col} {col_def}"))
-                else:
-                    conn.execute(text(f"ALTER TABLE content_items ADD COLUMN {col} {col_def}"))
-            except Exception: pass
-            
-        if is_postgres:
             try: conn.execute(text("ALTER TABLE content_items ALTER COLUMN org_id DROP NOT NULL"))
             except Exception: pass
-    print("MIGRATION: Finished admin library checks.")
+
+    print("MIGRATION: Finished aggressive library schema checks.")
 
 # Try to run it once at module level (startup)
 try:
