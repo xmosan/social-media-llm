@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from ..db import get_db
 from ..config import settings
-from ..models import Post, IGAccount, TopicAutomation
+from ..models import Post, IGAccount, TopicAutomation, MediaAsset, ContentItem
+from ..services.image_renderer import render_quote_card
 from ..schemas import PostOut, ApproveIn, GenerateOut, PostUpdate
 from ..services.llm import generate_draft, generate_ai_image
 import requests
@@ -41,6 +42,9 @@ def intake_post(
     ig_account_id: int = Form(...),
     image: UploadFile | None = File(None),
     use_ai_image: bool = Form(False),
+    visual_mode: str = Form("upload"),
+    visual_prompt: str | None = Form(None),
+    library_item_id: int | None = Form(None),
     org_id: int = Depends(get_current_org_id),
 ):
     print(f"DEBUG: Intake attempt - Account={ig_account_id}, AI={use_ai_image}, File={image.filename if image else 'None'}")
@@ -102,6 +106,9 @@ def intake_post(
         source_type=source_type,
         source_text=source_text,
         media_url=public_url,
+        visual_mode=visual_mode,
+        visual_prompt=visual_prompt,
+        library_item_id=library_item_id,
         flags={},
     )
     db.add(post)
@@ -109,6 +116,90 @@ def intake_post(
     db.refresh(post)
     log_event("post_intake", post_id=post.id, org_id=org_id, ig_account_id=ig_account_id, ai_generated=use_ai_image)
     return post
+
+@router.post("/preview_render")
+async def preview_render(
+    visual_mode: str = Form(...),
+    source_text: str = Form(""),
+    visual_prompt: str | None = Form(None),
+    library_item_id: int | None = Form(None),
+    reference: str | None = Form(""),
+    image: UploadFile | None = File(None),
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id),
+):
+    """
+    Generates a temporary quote card preview without creating a database entry.
+    """
+    _ensure_uploads_dir()
+    background_local_path = None
+    
+    # 1. Resolve Background
+    if visual_mode == "upload" and image:
+        temp_fn = f"prev_up_{int(_utcnow().timestamp())}.jpg"
+        temp_path = os.path.join(settings.uploads_dir, temp_fn)
+        with open(temp_path, "wb") as f:
+            shutil.copyfileobj(image.file, f)
+        background_local_path = temp_path
+    
+    elif visual_mode == "ai_background":
+        prompt = visual_prompt or source_text
+        if not prompt:
+            raise HTTPException(status_code=400, detail="AI prompt or source text required")
+        
+        ai_url = generate_ai_image(prompt)
+        if ai_url:
+            temp_fn = f"prev_ai_{int(_utcnow().timestamp())}.jpg"
+            temp_path = os.path.join(settings.uploads_dir, temp_fn)
+            resp = requests.get(ai_url, timeout=30)
+            if resp.status_code == 200:
+                with open(temp_path, "wb") as f:
+                    f.write(resp.content)
+                background_local_path = temp_path
+    
+    elif visual_mode == "media_library":
+        # For now, if no specific ID, we try to find the latest media asset or a default
+        asset = None
+        if library_item_id:
+            asset = db.query(MediaAsset).filter(MediaAsset.id == library_item_id).first()
+        
+        if not asset:
+            asset = db.query(MediaAsset).filter(MediaAsset.org_id == org_id).order_by(MediaAsset.created_at.desc()).first()
+            
+        if asset and asset.storage_path and os.path.exists(asset.storage_path):
+            background_local_path = asset.storage_path
+        elif asset and asset.url.startswith("http"):
+            # Download it
+            temp_fn = f"prev_vault_{int(_utcnow().timestamp())}.jpg"
+            temp_path = os.path.join(settings.uploads_dir, temp_fn)
+            resp = requests.get(asset.url, timeout=30)
+            if resp.status_code == 200:
+                with open(temp_path, "wb") as f:
+                    f.write(resp.content)
+                background_local_path = temp_path
+
+    # Fallback to a placeholder if still nothing
+    if not background_local_path:
+        # Create a solid black background if nothing else works
+        from PIL import Image
+        temp_fn = "placeholder_bg.jpg"
+        background_local_path = os.path.join(settings.uploads_dir, temp_fn)
+        if not os.path.exists(background_local_path):
+            img = Image.new('RGB', (1080, 1080), color=(20, 20, 20))
+            img.save(background_local_path)
+
+    # 2. Render Quote Card
+    try:
+        render_url = render_quote_card(
+            background_local_path=background_local_path,
+            quote=source_text or "Preview Quote Text",
+            reference=reference or "",
+            output_dir=settings.uploads_dir
+        )
+        return {"preview_url": render_url}
+    except Exception as e:
+        print(f"PREVIEW RENDER FAILED: {e}")
+        raise HTTPException(status_code=500, detail=f"Rendering failed: {str(e)}")
 @router.post("/{post_id}/generate", response_model=GenerateOut)
 def generate_for_post(
     post_id: int, 
