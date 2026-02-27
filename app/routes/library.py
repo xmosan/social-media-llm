@@ -6,8 +6,24 @@ from app.models import SourceDocument
 from app.schemas import SourceDocumentOut, SourceDocumentCreate
 from app.security.rbac import get_current_org_id
 from app.services.ingestion import ingest_document
+from app.services.prebuilt_loader import load_prebuilt_packs
 
 router = APIRouter(prefix="/library", tags=["library"])
+
+@router.get("/all_prebuilt")
+def get_all_prebuilt_items():
+    """Returns a flattened list of all prebuilt pack items for the UI drawer."""
+    packs = load_prebuilt_packs()
+    items = []
+    for p in packs:
+        for i in p.get("items", []):
+            items.append({
+                "id": str(i.get("id")),
+                "title": f"[{p.get('name', 'Pack')}] {i.get('reference', '')}".strip(),
+                "text": i.get("text", ""),
+                "source_type": i.get("source") or "prebuilt pack"
+            })
+    return items
 
 @router.get("", response_model=List[SourceDocumentOut])
 def list_library_documents(
