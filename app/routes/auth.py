@@ -19,15 +19,27 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ) -> dict[str, Any]:
-    from sqlalchemy import func
+    print(f"AUTH DIAGNOSTIC: Login attempt for user: {form_data.username}")
     user = db.query(User).filter(func.lower(User.email) == func.lower(form_data.username.strip())).first()
-    if not user or not verify_password(form_data.password, user.password_hash):
+    
+    if not user:
+        print(f"AUTH DIAGNOSTIC: User not found: {form_data.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
         
+    if not verify_password(form_data.password, user.password_hash):
+        print(f"AUTH DIAGNOSTIC: Password mismatch for user: {form_data.username}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+    print(f"AUTH DIAGNOSTIC: Login successful for user: {user.email} (ID: {user.id})")
+    
     # Ensure active_org_id is set
     if not user.active_org_id:
         membership = db.query(OrgMember).filter(OrgMember.user_id == user.id).first()
@@ -38,6 +50,7 @@ def login(
     access_token = create_access_token(data={"sub": str(user.id)})
     
     # Set HttpOnly cookie for web clients
+    print(f"AUTH DIAGNOSTIC: Setting access_token cookie for {user.email}")
     response.set_cookie(
         key="access_token",
         value=access_token,

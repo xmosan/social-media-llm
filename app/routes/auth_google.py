@@ -41,11 +41,15 @@ async def google_login(request: Request):
 async def google_auth(request: Request, db: Session = Depends(get_db)):
     """Handles the OAuth callback, provisions users/orgs, and sets the JWT cookie."""
     try:
+        print("AUTH DIAGNOSTIC: Google OAuth callback received")
         token = await oauth.google.authorize_access_token(request)
         user_info = token.get('userinfo')
         if not user_info:
+            print("AUTH DIAGNOSTIC: Google user_info is missing")
             raise Exception("Failed to fetch user info from Google")
+        print(f"AUTH DIAGNOSTIC: Google user info: {user_info.get('email')}")
     except Exception as e:
+        print(f"AUTH DIAGNOSTIC: Google OAuth callback ERROR: {e}")
         raise HTTPException(status_code=400, detail=f"OAuth verification failed: {e}")
 
     google_id = user_info.get("sub")
@@ -59,6 +63,7 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
     user = db.query(User).filter((User.google_id == google_id) | (User.email == email)).first()
     
     if not user:
+        print(f"AUTH DIAGNOSTIC: Creating NEW user via Google: {email}")
         # Create new User
         user = User(
             email=email,
@@ -82,6 +87,7 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
     else:
+        print(f"AUTH DIAGNOSTIC: Found existing user via Google: {user.email}")
         # User exists, optionally synchronize google_id if matched via email
         if not user.google_id:
             user.google_id = google_id
@@ -93,6 +99,7 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
         data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
     
+    print(f"AUTH DIAGNOSTIC: Google login successful for {user.email}. Setting cookie...")
     response = RedirectResponse(url="/admin")
     response.set_cookie(
         key="access_token",

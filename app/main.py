@@ -182,9 +182,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             
         return response
 
+app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
-app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -257,8 +257,9 @@ def bootstrap_saas():
     print("DIAGNOSTIC: Bootstrapping SaaS...")
     db = SessionLocal()
     try:
-        # SUPERADMIN BOOTSTRAP
-        if not db.query(User).filter(User.is_superadmin == True).first():
+        # 1. SUPERADMIN BOOTSTRAP
+        superadmin = db.query(User).filter(User.is_superadmin == True).first()
+        if not superadmin:
             if settings.superadmin_email and settings.superadmin_password:
                 print(f"Bootstrap: Creating superadmin {settings.superadmin_email}...")
                 superadmin = User(
@@ -270,36 +271,41 @@ def bootstrap_saas():
                 )
                 db.add(superadmin)
                 db.flush()
+            else:
+                print("Bootstrap: WARNING: SUPERADMIN_EMAIL or SUPERADMIN_PASSWORD not set in env.")
+        else:
+            print(f"Bootstrap: Existing superadmin found: {superadmin.email}")
 
-        # Check if any Org exists
-        if db.query(Org).first():
-            db.commit()
-            return
+        # 2. ORG CHECK
+        org = db.query(Org).first()
+        if not org:
+            print("Bootstrap: Seeding initial multi-tenant data (Default Org)...")
+            org = Org(name="Default Workspace")
+            db.add(org)
+            db.flush()
+            
+            # 3. API KEY
+            raw_key = os.getenv("INITIAL_API_KEY", settings.admin_api_key or "SaaS_Secret_123")
+            import hashlib
+            api_key = ApiKey(
+                org_id=org.id,
+                name="Default Key",
+                key_hash=hashlib.sha256(raw_key.encode()).hexdigest()
+            )
+            db.add(api_key)
+            db.flush()
+        else:
+            print(f"Bootstrap: Existing organization found: {org.name}")
 
-        print("Bootstrap: Seeding initial multi-tenant data...")
+        # 4. RELATIONSHIP CHECK
+        if superadmin and org:
+            is_member = db.query(OrgMember).filter(OrgMember.user_id == superadmin.id, OrgMember.org_id == org.id).first()
+            if not is_member:
+                print(f"Bootstrap: Linking superadmin {superadmin.email} to org {org.name}...")
+                member = OrgMember(org_id=org.id, user_id=superadmin.id, role="owner")
+                db.add(member)
         
-        # 2. Create Default Org
-        org = Org(name="Default Workspace")
-        db.add(org)
-        db.flush() # get ID
-
-        # 3. Create initial API Key
-        raw_key = os.getenv("INITIAL_API_KEY", settings.admin_api_key or "SaaS_Secret_123")
-        import hashlib
-        api_key = ApiKey(
-            org_id=org.id,
-            name="Default Key",
-            key_hash=hashlib.sha256(raw_key.encode()).hexdigest()
-        )
-        db.add(api_key)
-
-        # 3.5 Ensure superadmin is in the default org if just created
-        superadmin = db.query(User).filter(User.is_superadmin == True).first()
-        if superadmin:
-            member = OrgMember(org_id=org.id, user_id=superadmin.id, role="owner")
-            db.add(member)
-
-        # 4. (Optional) Create initial IG Account from existing env
+        # 5. (Optional) Create initial IG Account from existing env
         if settings.ig_user_id and settings.ig_access_token:
             acc = IGAccount(
                 org_id=org.id,
