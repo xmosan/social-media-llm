@@ -285,6 +285,7 @@ LOGIN_HTML = """<!doctype html>
     <div class="text-center space-y-2">
       <h1 class="text-2xl font-black italic tracking-tighter text-gradient">Social Media LLM</h1>
       <h2 class="text-xl font-bold">Welcome back</h2>
+      <div class="text-[8px] font-black text-white/20 uppercase tracking-[0.4em]">v4.0.0-DIAG</div>
     </div>
 
     <form id="loginForm" class="space-y-4">

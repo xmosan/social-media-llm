@@ -23,7 +23,7 @@ def login(
     user = db.query(User).filter(func.lower(User.email) == func.lower(form_data.username.strip())).first()
     
     if not user:
-        detail = f"User not found ({form_data.username})"
+        detail = f"AUTH_ERR_001: User not found ({form_data.username})"
         print(f"AUTH DIAGNOSTIC: {detail}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -32,7 +32,7 @@ def login(
         )
         
     if not verify_password(form_data.password, user.password_hash):
-        detail = f"Password mismatch for {user.email}"
+        detail = f"AUTH_ERR_002: Password mismatch for {user.email}"
         print(f"AUTH DIAGNOSTIC: {detail}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
