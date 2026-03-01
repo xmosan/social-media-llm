@@ -27,15 +27,24 @@ oauth.register(
 @router.get("/start")
 async def google_login(request: Request):
     """Redirects the user to the Google OAuth consent screen."""
-    if not oauth.google.client_id or not oauth.google.client_secret:
-        raise HTTPException(status_code=500, detail="Google Client ID or Secret not configured on server.")
-    
-    redirect_uri = request.url_for('google_auth')
-    # Force HTTPS for production redirects
-    if "railway.app" in str(request.url) or request.headers.get("x-forwarded-proto") == "https":
-        redirect_uri = str(redirect_uri).replace("http://", "https://")
+    try:
+        print("AUTH DIAGNOSTIC: Initiating Google OAuth redirect...")
+        if not oauth.google.client_id or not oauth.google.client_secret:
+            print("AUTH DIAGNOSTIC: Google Client ID/Secret missing or empty")
+            raise HTTPException(status_code=500, detail="Google Client ID or Secret not configured on server.")
         
-    return await oauth.google.authorize_redirect(request, str(redirect_uri))
+        redirect_uri = request.url_for('google_auth')
+        # Force HTTPS for production redirects
+        if "railway.app" in str(request.url) or request.headers.get("x-forwarded-proto") == "https":
+            redirect_uri = str(redirect_uri).replace("http://", "https://")
+        
+        print(f"AUTH DIAGNOSTIC: Google redirect_uri: {redirect_uri}")
+        return await oauth.google.authorize_redirect(request, str(redirect_uri))
+    except Exception as e:
+        print(f"AUTH DIAGNOSTIC: Google Login start ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/callback")
 async def google_auth(request: Request, db: Session = Depends(get_db)):
