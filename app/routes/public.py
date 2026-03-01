@@ -678,6 +678,8 @@ async def process_contact(payload: ContactPayload, db: Session = Depends(get_db)
 def api_auth_debug(db: Session = Depends(get_db)):
     from app.models import User, Org
     from app.config import settings
+    from app.main import STARTUP_LOG
+    import os
     
     users = db.query(User).all()
     user_list = [
@@ -694,11 +696,23 @@ def api_auth_debug(db: Session = Depends(get_db)):
     orgs = db.query(Org).all()
     
     return {
+        "status": "ready",
+        "startup_log": STARTUP_LOG,
         "user_count": len(users),
         "users": user_list,
         "org_count": len(orgs),
-        "superadmin_config_email": settings.superadmin_email,
-        "database_url_present": bool(settings.database_url)
+        "env": {
+            "SUPERADMIN_EMAIL": bool(os.environ.get("SUPERADMIN_EMAIL")),
+            "SUPERADMIN_PASSWORD": bool(os.environ.get("SUPERADMIN_PASSWORD")),
+            "GOOGLE_CLIENT_ID": bool(os.environ.get("GOOGLE_CLIENT_ID")),
+            "GOOGLE_CLIENT_SECRET": bool(os.environ.get("GOOGLE_CLIENT_SECRET")),
+            "DATABASE_URL": bool(os.environ.get("DATABASE_URL")),
+        },
+        "settings": {
+            "superadmin_email": settings.superadmin_email,
+            "google_client_id_present": bool(settings.google_client_id),
+            "database_url_type": "sqlite" if "sqlite" in str(settings.database_url) else "postgres"
+        }
     }
 
 @router.get("/api/debug-automations")

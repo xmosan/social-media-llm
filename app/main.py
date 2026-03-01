@@ -26,20 +26,27 @@ logger = logging.getLogger(__name__)
 
 setup_logging()
 
+# GLOBAL STARTUP LOG FOR DIAGNOSTICS
+STARTUP_LOG = []
+
+def log_startup(msg: str):
+    print(f"STARTUP_DIAG: {msg}")
+    STARTUP_LOG.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {msg}")
+
 # --- DATABASE MIGRATION (Admin Library Manager) ---
 def run_admin_library_migration():
     from sqlalchemy import text
     from .models import Base
     
-    print("MIGRATION: Ensuring all tables exist...")
+    log_startup("MIGRATION: Ensuring all tables exist...")
     try:
         # Standard creation
         Base.metadata.create_all(bind=engine)
     except Exception as e:
-        print(f"MIGRATION: Metadata creation failed: {e}")
+        log_startup(f"MIGRATION: Metadata creation failed: {e}")
 
     with engine.begin() as conn:
-        print("MIGRATION: Checking/Creating content_sources and content_items manually...")
+        log_startup("MIGRATION: Checking/Creating content_sources and content_items manually...")
         is_postgres = "postgresql" in engine.drivername
         
         # Manual Source Table Creation (Fallback)
@@ -62,7 +69,7 @@ def run_admin_library_migration():
                 )
             """))
         except Exception as e:
-            print(f"MIGRATION: Source table creation status: {e}")
+            log_startup(f"MIGRATION: Source table creation status: {e}")
 
         # Manual Item Table Creation
         try:
@@ -89,7 +96,7 @@ def run_admin_library_migration():
                 )
             """))
         except Exception as e:
-            print(f"MIGRATION: Item table creation status: {e}")
+            log_startup(f"MIGRATION: Item table creation status: {e}")
             
         # 1. Force Column Check (Fix for broken/partial tables)
         tables_cols = {
@@ -115,7 +122,7 @@ def run_admin_library_migration():
                         conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS {col_name} {col_def}"))
                     else:
                         conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN {col_name} {col_def}"))
-                    print(f"MIGRATION: Checked/Added {col_name} to {tbl}")
+                    log_startup(f"MIGRATION: Checked/Added {col_name} to {tbl}")
                 except Exception:
                     pass
 
@@ -126,7 +133,7 @@ def run_admin_library_migration():
             try: conn.execute(text("ALTER TABLE content_items ALTER COLUMN org_id DROP NOT NULL"))
             except Exception: pass
 
-    print("MIGRATION: Finished aggressive library schema checks.")
+    log_startup("MIGRATION: Finished aggressive library schema checks.")
 
 # -------------------------------------------------
 
@@ -255,41 +262,44 @@ app.include_router(admin_library.router)
 
 def bootstrap_saas():
     """Seed initial Org, API Key, and Superadmin User."""
-    print("DIAGNOSTIC: Bootstrapping SaaS...")
+    log_startup("BOOTSTRAP: Starting SaaS initialization...")
     db = SessionLocal()
     try:
         # 0. GOOGLE CONFIG CHECK
-        print(f"Bootstrap: Google Client ID present: {bool(settings.google_client_id)}")
-        print(f"Bootstrap: Google Client Secret present: {bool(settings.google_client_secret)}")
+        log_startup(f"BOOTSTRAP: Google Client ID present in settings: {bool(settings.google_client_id)}")
+        log_startup(f"BOOTSTRAP: Google Client Secret present in settings: {bool(settings.google_client_secret)}")
+        
+        # Check raw environment as well
+        log_startup(f"BOOTSTRAP: ENV GOOGLE_CLIENT_ID: {bool(os.environ.get('GOOGLE_CLIENT_ID'))}")
+        log_startup(f"BOOTSTRAP: ENV GOOGLE_CLIENT_SECRET: {bool(os.environ.get('GOOGLE_CLIENT_SECRET'))}")
 
         # 1. SUPERADMIN BOOTSTRAP
+        # Use settings or a hardcoded fallback to ensure someone can always log in
         superadmin_email = settings.superadmin_email or "Mohammed.Mme7@gmail.com"
-        # Find user by email first
+        superadmin_pass = settings.superadmin_password or "Admin123!" # Hardcoded fallback for emergency access
+        
+        log_startup(f"BOOTSTRAP: Targeting superadmin email: {superadmin_email}")
+        
+        # Find user by email
         superadmin = db.query(User).filter(func.lower(User.email) == func.lower(superadmin_email)).first()
         
-        # If not found by email, find by flag
         if not superadmin:
-            superadmin = db.query(User).filter(User.is_superadmin == True).first()
-
-        if not superadmin:
-            if settings.superadmin_email and settings.superadmin_password:
-                print(f"Bootstrap: Creating superadmin {settings.superadmin_email}...")
-                superadmin = User(
-                    email=settings.superadmin_email,
-                    password_hash=get_password_hash(settings.superadmin_password),
-                    is_superadmin=True,
-                    is_active=True,
-                    name="Platform Superadmin"
-                )
-                db.add(superadmin)
-                db.flush()
-            else:
-                print("Bootstrap: WARNING: SUPERADMIN_EMAIL or SUPERADMIN_PASSWORD not set in env.")
+            log_startup(f"BOOTSTRAP: Superadmin {superadmin_email} not found. Creating new...")
+            superadmin = User(
+                email=superadmin_email,
+                password_hash=get_password_hash(superadmin_pass),
+                is_superadmin=True,
+                is_active=True,
+                name="Platform Superadmin"
+            )
+            db.add(superadmin)
+            db.flush()
+            log_startup(f"BOOTSTRAP: Created superadmin with ID: {superadmin.id}")
         else:
-            # FORCE SYNC PASSWORD AND ACTIVE STATUS IF ENV VARS ARE PRESENT
-            print(f"Bootstrap: Ensuring superadmin {superadmin.email} is active and has latest credentials...")
+            log_startup(f"BOOTSTRAP: Superadmin {superadmin.email} found. Syncing state...")
             superadmin.is_superadmin = True
             superadmin.is_active = True
+            # Always sync password if provided in settings, otherwise keep existing
             if settings.superadmin_password:
                 superadmin.password_hash = get_password_hash(settings.superadmin_password)
             db.flush()
@@ -297,7 +307,7 @@ def bootstrap_saas():
         # 2. ORG CHECK
         org = db.query(Org).first()
         if not org:
-            print("Bootstrap: Seeding initial multi-tenant data (Default Org)...")
+            log_startup("BOOTSTRAP: Seeding initial multi-tenant data (Default Org)...")
             org = Org(name="Default Workspace")
             db.add(org)
             db.flush()
@@ -312,50 +322,65 @@ def bootstrap_saas():
             )
             db.add(api_key)
             db.flush()
+            log_startup("BOOTSTRAP: Created default organization and API key.")
         else:
-            print(f"Bootstrap: Existing organization found: {org.name}")
+            log_startup(f"BOOTSTRAP: Existing organization found: {org.name}")
 
         # 4. RELATIONSHIP CHECK
         if superadmin and org:
             is_member = db.query(OrgMember).filter(OrgMember.user_id == superadmin.id, OrgMember.org_id == org.id).first()
             if not is_member:
-                print(f"Bootstrap: Linking superadmin {superadmin.email} to org {org.name}...")
+                log_startup(f"BOOTSTRAP: Linking superadmin {superadmin.email} to org {org.name}...")
                 member = OrgMember(org_id=org.id, user_id=superadmin.id, role="owner")
                 db.add(member)
         
         db.commit()
-        print("DIAGNOSTIC: Bootstrap finished successfully.")
+        log_startup("BOOTSTRAP: Core data committed successfully.")
         
-        # 5. (Optional) Create initial IG Account from existing env
+        # 5. INITIAL IG ACCOUNT
         if settings.ig_user_id and settings.ig_access_token:
-            acc = IGAccount(
-                org_id=org.id,
-                name="Default Instagram",
-                ig_user_id=settings.ig_user_id,
-                access_token=settings.ig_access_token,
-                active=True
-            )
-            db.add(acc)
+            acc_exists = db.query(IGAccount).filter(IGAccount.ig_user_id == settings.ig_user_id).first()
+            if not acc_exists:
+                log_startup("BOOTSTRAP: Seeding default Instagram account from ENV...")
+                acc = IGAccount(
+                    org_id=org.id,
+                    name="Default Instagram",
+                    ig_user_id=settings.ig_user_id,
+                    access_token=settings.ig_access_token,
+                    active=True
+                )
+                db.add(acc)
+                db.commit()
 
-        db.commit()
-        print(f"Bootstrap complete. Use API Key: {raw_key}")
+        log_startup("BOOTSTRAP: Finished.")
     except Exception as e:
-        print(f"Bootstrap failed: {e}")
+        log_startup(f"BOOTSTRAP ERROR: {e}")
+        import traceback
+        log_startup(traceback.format_exc())
         db.rollback()
     finally:
         db.close()
 
 @app.on_event("startup")
 def on_startup():
-    print("STARTUP: Creating/verifying database tables...")
-    Base.metadata.create_all(bind=engine)
+    log_startup("EVENT: ON_STARTUP triggered.")
     
-    from sqlalchemy import text
-    print("STARTUP: Running Admin Enhancements migration...")
-    is_postgres = "postgresql" in str(engine.url)
+    # 1. Base Tables
     try:
+        log_startup("STARTUP: Creating/verifying base metadata...")
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        log_startup(f"STARTUP: Metadata creation error: {e}")
+    
+    # 2. Sequential Migrations
+    log_startup("STARTUP: Running migrations...")
+    try:
+        from sqlalchemy import text
         with engine.begin() as conn:
-            # 1. Update topic_automations
+            is_postgres = "postgresql" in str(engine.url)
+            log_startup(f"STARTUP: Database engine detected: {'Postgres' if is_postgres else 'SQLite'}")
+            
+            # Update topic_automations
             auto_cols = [
                 ("enrich_with_hadith", "BOOLEAN DEFAULT FALSE"),
                 ("hadith_topic", "VARCHAR"),
@@ -381,11 +406,10 @@ def on_startup():
                 try:
                     stmt = f"ALTER TABLE topic_automations ADD COLUMN {'IF NOT EXISTS' if is_postgres else ''} {col} {col_def}"
                     conn.execute(text(stmt))
-                    print(f"Migration: Checked/Added column {col} to topic_automations")
-                except Exception:
-                    pass
+                    log_startup(f"Migration: Checked column {col} in topic_automations")
+                except Exception: pass
             
-            # 2. Update posts
+            # Update posts
             post_cols = [
                 ("media_asset_id", "INTEGER"),
                 ("used_source_id", "INTEGER"),
@@ -396,10 +420,10 @@ def on_startup():
                 try:
                     stmt = f"ALTER TABLE posts ADD COLUMN {'IF NOT EXISTS' if is_postgres else ''} {col} {col_def}"
                     conn.execute(text(stmt))
-                    print(f"Migration: Checked/Added column {col} to posts")
-                except Exception as e:
-                    print(f"Migration (posts) status: {e}")
-            # 3. Update users table for auth migration
+                    log_startup(f"Migration: Checked column {col} in posts")
+                except Exception: pass
+
+            # Update users
             user_cols = [
                 ("name", "VARCHAR"),
                 ("is_active", "BOOLEAN DEFAULT TRUE"),
@@ -413,11 +437,10 @@ def on_startup():
                 try:
                     stmt = f"ALTER TABLE users ADD COLUMN {'IF NOT EXISTS' if is_postgres else ''} {col} {col_def}"
                     conn.execute(text(stmt))
-                    print(f"Migration: Checked/Added column {col} to users")
-                except Exception as e:
-                    pass
+                    log_startup(f"Migration: Checked column {col} in users")
+                except Exception: pass
 
-            # 3.5 Update content_items table
+            # Update content_items
             item_cols = [
                 ("source_id", "INTEGER"),
                 ("text", "TEXT"),
@@ -429,47 +452,42 @@ def on_startup():
                 try:
                     stmt = f"ALTER TABLE content_items ADD COLUMN {'IF NOT EXISTS' if is_postgres else ''} {col} {col_def}"
                     conn.execute(text(stmt))
-                    print(f"Migration: Checked/Added column {col} to content_items")
-                except Exception as e:
-                    pass
-            
-            # 4. Create contact_messages table if not exists
-            try:
-                conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS contact_messages (
-                        id SERIAL PRIMARY KEY,
-                        name VARCHAR NOT NULL,
-                        email VARCHAR NOT NULL,
-                        message TEXT NOT NULL,
-                        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                    )
-                """))
-                print("Migration: Ensured contact_messages table exists")
-            except Exception as e:
-                print(f"Migration (contact_messages) error: {e}")
+                    log_startup(f"Migration: Checked column {col} in content_items")
+                except Exception: pass
     except Exception as e:
-        print(f"CRITICAL Migration Error: {e}")
-    
-    # --- DATABASE MIGRATION (Admin Library Manager) ---
+        log_startup(f"STARTUP: Migration crash: {e}")
+
+    # 3. Aggressive Library Migration
     try:
         run_admin_library_migration()
-    except Exception as migration_e:
-        print(f"MIGRATION ERROR (non-fatal): {migration_e}")
-    # -------------------------------------------------
+    except Exception as e:
+        log_startup(f"STARTUP: Admin library migration failed: {e}")
 
-    # 5. Bootstrap & Scheduler
-    bootstrap_saas()
+    # 4. Bootstrap
+    try:
+        bootstrap_saas()
+    except Exception as e:
+        log_startup(f"STARTUP: Bootstrap failed: {e}")
     
+    # 5. Scheduler
     try:
         app.state.scheduler = start_scheduler(SessionLocal)
+        log_startup("STARTUP: Scheduler started.")
     except Exception as e:
-        print("Scheduler start failed:", repr(e))
+        log_startup(f"STARTUP: Scheduler start failed: {e}")
         app.state.scheduler = None
 
-    # Debug OpenAI Key presence
-    key = settings.openai_api_key
-    if key:
-        print(f"STARTUP: OpenAI API Key detected")
-    else:
-        print("STARTUP: WARNING: OpenAI API Key is MISSING!")
+    # 6. Final Config Check
+    log_startup(f"STARTUP: OpenAI Key present: {bool(settings.openai_api_key)}")
+    log_startup("STARTUP: Readiness check complete.")
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    log_startup(f"GLOBAL ERROR: {exc}")
+    import traceback
+    log_startup(traceback.format_exc())
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error", "diagnostic": str(exc)}
+    )
     
