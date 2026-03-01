@@ -673,6 +673,32 @@ async def process_contact(payload: ContactPayload, db: Session = Depends(get_db)
     db.commit()
     return {"status": "success"}
 
+@router.get("/api/auth-debug")
+def api_auth_debug(db: Session = Depends(get_db)):
+    from app.models import User, Org
+    from app.config import settings
+    
+    users = db.query(User).all()
+    user_list = [
+        {
+            "id": u.id, 
+            "email": u.email, 
+            "is_superadmin": u.is_superadmin, 
+            "google_id": bool(u.google_id),
+            "has_password": bool(u.password_hash)
+        } for u in users
+    ]
+    
+    orgs = db.query(Org).all()
+    
+    return {
+        "user_count": len(users),
+        "users": user_list,
+        "org_count": len(orgs),
+        "superadmin_config_email": settings.superadmin_email,
+        "database_url_present": bool(settings.database_url)
+    }
+
 @router.get("/api/debug-automations")
 def api_debug_automations(db: Session = Depends(get_db)):
     autos = db.query(TopicAutomation).all()
