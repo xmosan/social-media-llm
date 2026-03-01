@@ -258,6 +258,10 @@ def bootstrap_saas():
     print("DIAGNOSTIC: Bootstrapping SaaS...")
     db = SessionLocal()
     try:
+        # 0. GOOGLE CONFIG CHECK
+        print(f"Bootstrap: Google Client ID present: {bool(settings.google_client_id)}")
+        print(f"Bootstrap: Google Client Secret present: {bool(settings.google_client_secret)}")
+
         # 1. SUPERADMIN BOOTSTRAP
         superadmin_email = settings.superadmin_email or "Mohammed.Mme7@gmail.com"
         # Find user by email first

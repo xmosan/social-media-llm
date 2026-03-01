@@ -23,7 +23,9 @@ def login(
     user = db.query(User).filter(func.lower(User.email) == func.lower(form_data.username.strip())).first()
     
     if not user:
-        detail = f"AUTH_ERR_001: User not found ({form_data.username})"
+        # DEEP DIAGNOSTIC: List all users to see what's in there
+        all_emails = [u.email for u in db.query(User).all()]
+        detail = f"AUTH_ERR_001: User not found ({form_data.username}). DB has {len(all_emails)} users: {all_emails}"
         print(f"AUTH DIAGNOSTIC: {detail}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
