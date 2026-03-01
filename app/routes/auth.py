@@ -23,18 +23,20 @@ def login(
     user = db.query(User).filter(func.lower(User.email) == func.lower(form_data.username.strip())).first()
     
     if not user:
-        print(f"AUTH DIAGNOSTIC: User not found: {form_data.username}")
+        detail = f"User not found ({form_data.username})"
+        print(f"AUTH DIAGNOSTIC: {detail}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail=detail,
             headers={"WWW-Authenticate": "Bearer"},
         )
         
     if not verify_password(form_data.password, user.password_hash):
-        print(f"AUTH DIAGNOSTIC: Password mismatch for user: {form_data.username}")
+        detail = f"Password mismatch for {user.email}"
+        print(f"AUTH DIAGNOSTIC: {detail}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail=detail,
             headers={"WWW-Authenticate": "Bearer"},
         )
         

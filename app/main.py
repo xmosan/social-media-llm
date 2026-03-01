@@ -258,7 +258,14 @@ def bootstrap_saas():
     db = SessionLocal()
     try:
         # 1. SUPERADMIN BOOTSTRAP
-        superadmin = db.query(User).filter(User.is_superadmin == True).first()
+        superadmin_email = settings.superadmin_email or "Mohammed.Mme7@gmail.com"
+        # Find user by email first
+        superadmin = db.query(User).filter(func.lower(User.email) == func.lower(superadmin_email)).first()
+        
+        # If not found by email, find by flag
+        if not superadmin:
+            superadmin = db.query(User).filter(User.is_superadmin == True).first()
+
         if not superadmin:
             if settings.superadmin_email and settings.superadmin_password:
                 print(f"Bootstrap: Creating superadmin {settings.superadmin_email}...")
@@ -274,7 +281,13 @@ def bootstrap_saas():
             else:
                 print("Bootstrap: WARNING: SUPERADMIN_EMAIL or SUPERADMIN_PASSWORD not set in env.")
         else:
-            print(f"Bootstrap: Existing superadmin found: {superadmin.email}")
+            # FORCE SYNC PASSWORD AND ACTIVE STATUS IF ENV VARS ARE PRESENT
+            print(f"Bootstrap: Ensuring superadmin {superadmin.email} is active and has latest credentials...")
+            superadmin.is_superadmin = True
+            superadmin.is_active = True
+            if settings.superadmin_password:
+                superadmin.password_hash = get_password_hash(settings.superadmin_password)
+            db.flush()
 
         # 2. ORG CHECK
         org = db.query(Org).first()
@@ -304,6 +317,9 @@ def bootstrap_saas():
                 print(f"Bootstrap: Linking superadmin {superadmin.email} to org {org.name}...")
                 member = OrgMember(org_id=org.id, user_id=superadmin.id, role="owner")
                 db.add(member)
+        
+        db.commit()
+        print("DIAGNOSTIC: Bootstrap finished successfully.")
         
         # 5. (Optional) Create initial IG Account from existing env
         if settings.ig_user_id and settings.ig_access_token:

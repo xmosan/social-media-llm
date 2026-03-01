@@ -684,6 +684,7 @@ def api_auth_debug(db: Session = Depends(get_db)):
             "id": u.id, 
             "email": u.email, 
             "is_superadmin": u.is_superadmin, 
+            "is_active": u.is_active,
             "google_id": bool(u.google_id),
             "has_password": bool(u.password_hash)
         } for u in users
