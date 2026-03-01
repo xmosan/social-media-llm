@@ -127,11 +127,6 @@ def run_admin_library_migration():
 
     print("MIGRATION: Finished aggressive library schema checks.")
 
-# Try to run it once at module level (startup)
-try:
-    run_admin_library_migration()
-except Exception as migration_e:
-    print(f"MIGRATION ERROR (non-fatal): {migration_e}")
 # -------------------------------------------------
 
 # Startup validation checks
@@ -189,6 +184,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -427,6 +423,13 @@ def on_startup():
     except Exception as e:
         print(f"CRITICAL Migration Error: {e}")
     
+    # --- DATABASE MIGRATION (Admin Library Manager) ---
+    try:
+        run_admin_library_migration()
+    except Exception as migration_e:
+        print(f"MIGRATION ERROR (non-fatal): {migration_e}")
+    # -------------------------------------------------
+
     # 5. Bootstrap & Scheduler
     bootstrap_saas()
     
