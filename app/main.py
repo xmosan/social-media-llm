@@ -16,7 +16,7 @@ import uuid
 from .db import engine, SessionLocal, get_db
 from .models import Base, Org, ApiKey, IGAccount, User, OrgMember, ContentSource, ContentItem, ContentUsage
 from .security.auth import get_password_hash
-from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles, auth_google, public, sources, app_pages, admin_library
+from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles, auth_google, public, sources, app_pages, admin_library, admin_global_library
 from .services.scheduler import start_scheduler
 from .config import settings
 from .logging_setup import setup_logging, request_id_var, log_event
@@ -259,6 +259,7 @@ app.include_router(auth_google.router)
 app.include_router(profiles.router)
 app.include_router(sources.router)
 app.include_router(admin_library.router)
+app.include_router(admin_global_library.router)
 
 def bootstrap_saas():
     """Seed initial Org, API Key, and Superadmin User."""

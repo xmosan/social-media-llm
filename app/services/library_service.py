@@ -27,7 +27,7 @@ def validate_entry_meta(item_type: str, text: str, arabic_text: Optional[str], m
         if not text:
              raise HTTPException(status_code=400, detail="Excerpt text is required for books/articles.")
 
-def create_library_entry(db: Session, org_id: int, data: ContentItemCreate):
+def create_library_entry(db: Session, org_id: Optional[int], data: ContentItemCreate):
     # 1. Handle Source Creation if needed
     source_id = data.source_id
     if not source_id and data.source_name:

@@ -105,6 +105,44 @@ def delete_library_entry(
     db.commit()
     return {"status": "success"}
 
+@router.post("/entries/{id}/clone", response_model=ContentItemOut)
+def clone_library_entry(
+    id: int,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
+):
+    """Clones a global library entry into the user's active organization."""
+    item = db.query(ContentItem).filter(ContentItem.id == id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    
+    # Must be global or same org
+    if item.org_id is not None and item.org_id != org_id:
+        raise HTTPException(status_code=403, detail="Cannot clone entries from other organizations")
+
+    # Determine target source (cloning a global item might need a local equivalent of the source)
+    # For simplicity, we clone the record but keep it in the SAME source ID if it's a manual-library source
+    # or create a local copy of the source if it's global? 
+    # Actually, pattern says clone it into their org.
+    
+    new_item = ContentItem(
+        org_id=org_id,
+        source_id=item.source_id,
+        item_type=item.item_type,
+        title=item.title,
+        text=item.text,
+        arabic_text=item.arabic_text,
+        translation=item.translation,
+        url=item.url,
+        meta=item.meta.copy() if item.meta else {},
+        tags=list(item.tags) if item.tags else [],
+        topics=list(item.topics) if item.topics else []
+    )
+    db.add(new_item)
+    db.commit()
+    db.refresh(new_item)
+    return new_item
+
 # --- PREBUILT LIBRARY ---
 
 @router.get("/all_prebuilt")

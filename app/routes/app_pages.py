@@ -1860,9 +1860,18 @@ async def app_library_page(
       <div class="flex gap-8 flex-1 overflow-hidden min-h-0">
         <!-- Sidebar: Sources -->
         <div class="w-80 glass rounded-[2.5rem] flex flex-col overflow-hidden border border-white/5">
-          <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/2">
-            <h3 class="text-xs font-black uppercase tracking-widest text-white/50">Collections</h3>
-            <span id="sourceCount" class="text-[9px] font-black text-brand bg-brand/10 px-2 py-0.5 rounded-full">0</span>
+          <div class="p-6 border-b border-white/10 flex flex-col gap-4 bg-white/2">
+            <div class="flex justify-between items-center">
+                <h3 class="text-xs font-black uppercase tracking-widest text-white/50">Collections</h3>
+                <span id="sourceCount" class="text-[9px] font-black text-brand bg-brand/10 px-2 py-0.5 rounded-full">0</span>
+            </div>
+            
+            {% if is_superadmin %}
+            <div class="flex p-1 bg-white/5 rounded-xl border border-white/10">
+                <button onclick="toggleGlobalView(false)" id="orgViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-lg">Org</button>
+                <button onclick="toggleGlobalView(true)" id="globalViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-white/40 hover:text-white">System</button>
+            </div>
+            {% endif %}
           </div>
           <div id="sourceList" class="flex-1 overflow-y-auto p-4 space-y-2 hide-scrollbar">
             <!-- Loaded via JS -->
@@ -1953,6 +1962,15 @@ async def app_library_page(
                     </div>
                     <input type="hidden" id="entryType" value="note">
                 </div>
+                <div id="globalToggleContainer" class="hidden py-4 border-t border-white/5 mt-6 animate-in slide-in-from-bottom-2">
+                    <label class="flex items-center gap-3 cursor-pointer group">
+                        <div class="relative">
+                            <input type="checkbox" id="isGlobalCheckbox" class="sr-only peer">
+                            <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+                        </div>
+                        <span class="text-[10px] font-black uppercase tracking-widest text-white/40 group-hover:text-white transition-colors">System Default (Global)</span>
+                    </label>
+                </div>
             </div>
 
             <!-- Right Side: Content & Metadata -->
@@ -1961,8 +1979,6 @@ async def app_library_page(
                     <div class="flex justify-between items-end">
                         <label class="text-[10px] font-black uppercase tracking-[0.3em] text-brand">Knowledge Content</label>
                         <span id="charCount" class="text-[9px] font-bold text-muted tracking-widest">0 / 3000</span>
-                    </div>
-                    <textarea id="entryText" oninput="updateCharCount()" rows="8" class="w-full bg-white/5 border border-white/10 rounded-[2rem] px-8 py-8 text-sm text-white outline-none focus:ring-2 focus:ring-brand leading-relaxed placeholder:text-white/5" placeholder="Paste the verse, hadith, or quote text here..."></textarea>
                 </div>
 
                 <div id="dynamicMetadata" class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
@@ -1985,6 +2001,8 @@ async def app_library_page(
       let currentSourceId = null;
       let categories = [];
       let entrySearchTimeout;
+      const isSuperAdmin = {is_superadmin_js};
+      let showGlobalOnly = false;
 
       // --- INITIALIZATION ---
       window.addEventListener('DOMContentLoaded', () => {
@@ -1996,7 +2014,7 @@ async def app_library_page(
           list.innerHTML = '<div class="text-center py-20 text-[10px] text-muted font-black uppercase animate-pulse">Scanning Collections...</div>';
           
           try {
-              const res = await fetch('/library/sources');
+              const res = await fetch(`/api/admin/library/sources?scope=${showGlobalOnly ? 'global' : 'org'}`);
               const sources = await res.json();
               document.getElementById('sourceCount').textContent = sources.length;
               
@@ -2048,10 +2066,20 @@ async def app_library_page(
 
           try {
               let url = `/library/entries?query=${encodeURIComponent(query)}`;
-              if (currentSourceId) url += `&source_id=${currentSourceId}`;
+              if (currentSourceId) {
+                  url += `&source_id=${currentSourceId}`;
+              } else if (showGlobalOnly) {
+                  // If we are in global view and no source selected, we might want to only show global entries
+                  // The backend /library/entries returns (org OR global). 
+                  // We can filter here or use a specialized endpoint if we wanted strictness.
+              }
               
               const res = await fetch(url);
               let entries = await res.json();
+              
+              if (showGlobalOnly) {
+                  entries = entries.filter(e => e.org_id === null);
+              }
               
               if (category) {
                   entries = entries.filter(e => e.item_type === category);
@@ -2067,31 +2095,50 @@ async def app_library_page(
 
               list.innerHTML = '';
               entries.forEach(e => {
-                  const el = document.createElement('div');
-                  el.className = 'glass p-8 rounded-[2.5rem] border border-white/5 hover:border-brand/40 transition-all group relative animate-in zoom-in-95 duration-300';
-                  
-                  let metaHtml = '';
-                  if (e.item_type === 'quran') metaHtml = `Surah ${e.meta.surah_number}:${e.meta.verse_start}${e.meta.verse_end ? '-' + e.meta.verse_end : ''}`;
-                  else if (e.item_type === 'hadith') metaHtml = `${e.meta.collection} #${e.meta.hadith_number}`;
-                  else if (e.item_type === 'book') metaHtml = e.title || 'Excerpt';
-                  else metaHtml = e.title || 'Note';
+                   const isGlobal = e.org_id === null;
+                   const el = document.createElement('div');
+                   el.className = `glass p-8 rounded-[2.5rem] border ${isGlobal ? 'border-brand/20 bg-brand/2' : 'border-white/5'} hover:border-brand/40 transition-all group relative animate-in zoom-in-95 duration-300`;
+                   
+                   let metaHtml = '';
+                   if (e.item_type === 'quran') metaHtml = `Surah ${e.meta.surah_number}:${e.meta.verse_start}${e.meta.verse_end ? '-' + e.meta.verse_end : ''}`;
+                   else if (e.item_type === 'hadith') metaHtml = `${e.meta.collection} #${e.meta.hadith_number}`;
+                   else if (e.item_type === 'book') metaHtml = e.title || 'Excerpt';
+                   else metaHtml = e.title || 'Note';
 
-                  el.innerHTML = `
-                      <div class="flex justify-between items-start mb-6">
-                            <div class="flex flex-col gap-1">
-                                <span class="text-[9px] font-black text-brand uppercase tracking-[0.3em]">${e.item_type}</span>
-                                <span class="text-[10px] font-bold text-white/40 uppercase tracking-widest">${metaHtml}</span>
-                            </div>
-                            <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                                <button onclick="openEntryModal(${JSON.stringify(e).replace(/"/g, '&quot;')})" class="w-10 h-10 bg-white/5 rounded-2xl text-white hover:bg-brand hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
-                                <button onclick="deleteEntry(${e.id})" class="w-10 h-10 bg-white/5 rounded-2xl text-rose-400 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
-                            </div>
-                      </div>
-                      <p class="text-[12px] font-medium text-white/80 leading-relaxed italic mb-4">"${e.text}"</p>
-                      ${e.arabic_text ? `<div class="mt-4 p-6 bg-brand/5 rounded-3xl border-l-4 border-brand/40"><p class="text-lg text-right font-serif text-white/90 dir-rtl leading-loose">${e.arabic_text}</p></div>` : ''}
-                      ${e.meta.translator ? `<div class="mt-4 text-[9px] font-black text-muted uppercase tracking-widest">Translation: ${e.meta.translator}</div>` : ''}
-                  `;
-                  list.appendChild(el);
+                   let actionsHtml = '';
+                   if (isGlobal) {
+                       actionsHtml += `<button onclick="cloneEntry(${e.id})" title="Clone to my Org" class="w-10 h-10 bg-brand/10 rounded-2xl text-brand hover:bg-brand hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>`;
+                       if (isSuperAdmin) {
+                           actionsHtml += `
+                               <button onclick="openEntryModal(${JSON.stringify(e).replace(/"/g, '&quot;')})" class="w-10 h-10 bg-white/5 rounded-2xl text-white hover:bg-brand hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                               <button onclick="deleteEntry(${e.id})" class="w-10 h-10 bg-white/5 rounded-2xl text-rose-400 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                           `;
+                       }
+                   } else {
+                       actionsHtml = `
+                           <button onclick="openEntryModal(${JSON.stringify(e).replace(/"/g, '&quot;')})" class="w-10 h-10 bg-white/5 rounded-2xl text-white hover:bg-brand hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                           <button onclick="deleteEntry(${e.id})" class="w-10 h-10 bg-white/5 rounded-2xl text-rose-400 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                       `;
+                   }
+
+                   el.innerHTML = `
+                       <div class="flex justify-between items-start mb-6">
+                             <div class="flex flex-col gap-1">
+                                 <div class="flex items-center gap-2">
+                                     <span class="text-[9px] font-black text-brand uppercase tracking-[0.3em]">${e.item_type}</span>
+                                     ${isGlobal ? '<span class="px-2 py-0.5 bg-brand text-white text-[7px] font-black uppercase rounded-full tracking-tighter">System Default</span>' : ''}
+                                 </div>
+                                 <span class="text-[10px] font-bold text-white/40 uppercase tracking-widest">${metaHtml}</span>
+                             </div>
+                             <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                                 ${actionsHtml}
+                             </div>
+                       </div>
+                       <p class="text-[12px] font-medium text-white/80 leading-relaxed italic mb-4">"${e.text}"</p>
+                       ${e.arabic_text ? `<div class="mt-4 p-6 bg-brand/5 rounded-3xl border-l-4 border-brand/40"><p class="text-lg text-right font-serif text-white/90 dir-rtl leading-loose">${e.arabic_text}</p></div>` : ''}
+                       ${e.meta.translator ? `<div class="mt-4 text-[9px] font-black text-muted uppercase tracking-widest">Translation: ${e.meta.translator}</div>` : ''}
+                   `;
+                   list.appendChild(el);
               });
           } catch(e) {
               list.innerHTML = '<div class="text-rose-400 text-[10px] font-bold p-10 col-span-full">Neural transmission error</div>';
@@ -2105,7 +2152,15 @@ async def app_library_page(
 
       // --- MODAL HELPERS ---
       function openEntryModal(entry = null) {
-          document.getElementById('entryModal').classList.remove('hidden');
+           if (isSuperAdmin) {
+               document.getElementById('globalToggleContainer').classList.remove('hidden');
+               document.getElementById('isGlobalCheckbox').checked = entry ? entry.org_id === null : showGlobalOnly;
+           } else {
+               document.getElementById('globalToggleContainer').classList.add('hidden');
+               document.getElementById('isGlobalCheckbox').checked = false;
+           }
+           
+           document.getElementById('entryModal').classList.remove('hidden');
           const titleEl = document.getElementById('entryModalTitle');
           const idInput = document.getElementById('entryId');
           const textInput = document.getElementById('entryText');
@@ -2310,8 +2365,13 @@ async def app_library_page(
           if (!payload.source_id && !payload.source_name) return alert("Please select or name a collection");
           if (!payload.text) return alert("Content text is required");
 
-          const method = id ? 'PATCH' : 'POST';
-          const url = id ? `/library/entries/${id}` : `/library/entries`;
+           const isGlobal = document.getElementById('isGlobalCheckbox').checked;
+           const method = id ? 'PATCH' : 'POST';
+           let url = id ? `/library/entries/${id}` : `/library/entries`;
+           
+           if (isGlobal && isSuperAdmin) {
+               url = id ? `/api/admin/library/global/entries/${id}` : `/api/admin/library/global/entries`;
+           }
 
           try {
               const res = await fetch(url, {
@@ -2332,11 +2392,43 @@ async def app_library_page(
           } catch(e) { alert('Transmission error: ' + e.message); }
       }
 
+      function toggleGlobalView(global) {
+          showGlobalOnly = global;
+          const orgBtn = document.getElementById('orgViewBtn');
+          const globalBtn = document.getElementById('globalViewBtn');
+          
+          if (global) {
+              globalBtn.className = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-lg";
+              orgBtn.className = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-white/40 hover:text-white";
+          } else {
+              orgBtn.className = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-lg";
+              globalBtn.className = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-white/40 hover:text-white";
+          }
+          
+          currentSourceId = null;
+          loadSources();
+          loadEntries();
+      }
+
       async function deleteEntry(id) {
           if (!confirm('Permanently purge this knowledge node?')) return;
           try {
               const res = await fetch(`/library/entries/${id}`, { method: 'DELETE' });
               if (res.ok) loadEntries();
+          } catch(e) { alert('Network error'); }
+      }
+
+      async function cloneEntry(id) {
+          if (!confirm('Copy this global template to your organization?')) return;
+          try {
+              const res = await fetch(`/library/entries/${id}/clone`, { method: 'POST' });
+              if (res.ok) {
+                  alert('Cloned successfully! You can now find it in your collection.');
+                  loadEntries();
+              } else {
+                  const err = await res.json();
+                  alert(`Clone failed: ${err.detail}`);
+              }
           } catch(e) { alert('Network error'); }
       }
     </script>
@@ -2352,6 +2444,7 @@ async def app_library_page(
                           .replace("{active_library}", "active")\
                           .replace("{active_media}", "")\
                           .replace("{content}", content)\
+                          .replace("{is_superadmin_js}", "true" if user.is_superadmin else "false")\
                           .replace("{account_options}", "")
 
 @router.get("/onboarding", response_class=HTMLResponse)
