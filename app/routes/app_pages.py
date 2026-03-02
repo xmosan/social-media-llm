@@ -2242,14 +2242,13 @@ async def app_library_page(
         </div>
       </div>
     </div>
-        </div>
 
     <script>
+      console.log("Library Neural Interface: Online");
+      let libraryEntries = {}; // Global entry map for safer access
       let currentSourceId = null;
-      let selectedTopic = null;
-      let entrySearchTimeout;
-      const isSuperAdmin = {is_superadmin_js};
       let showGlobalOnly = false;
+      const isSuperAdmin = {is_superadmin_js};
 
       // --- INITIALIZATION ---
       window.addEventListener('DOMContentLoaded', () => {
@@ -2359,52 +2358,53 @@ async def app_library_page(
                   return;
               }
 
-              list.innerHTML = '';
-              entries.forEach(e => {
-                   const isGlobal = e.org_id === null;
-                   const el = document.createElement('div');
-                   el.className = `glass p-8 rounded-[2.5rem] border ${isGlobal ? 'border-brand/20 bg-brand/2' : 'border-white/5'} hover:border-brand/40 transition-all group relative animate-in zoom-in-95 duration-300`;
-                   
-                   let metaHtml = '';
-                   if (e.item_type === 'quran') metaHtml = `Surah ${e.meta.surah_number}:${e.meta.verse_start}${e.meta.verse_end ? '-' + e.meta.verse_end : ''}`;
-                   else if (e.item_type === 'hadith') metaHtml = `${e.meta.collection} #${e.meta.hadith_number}`;
-                   else if (e.item_type === 'book') metaHtml = e.title || 'Excerpt';
-                   else metaHtml = e.title || 'Note';
+               list.innerHTML = '';
+               libraryEntries = {}; // Reset map
+               entries.forEach(e => {
+                    libraryEntries[e.id] = e;
+                    const isGlobal = e.org_id === null;
+                    const el = document.createElement('div');
+                    el.className = `glass p-8 rounded-[2.5rem] border ${isGlobal ? 'border-brand/20 bg-brand/2' : 'border-white/5'} hover:border-brand/40 transition-all group relative animate-in zoom-in-95 duration-300`;
+                    
+                    let metaHtml = '';
+                    if (e.item_type === 'quran') metaHtml = `Surah ${e.meta.surah_number}:${e.meta.verse_start}${e.meta.verse_end ? '-' + e.meta.verse_end : ''}`;
+                    else if (e.item_type === 'hadith') metaHtml = `${e.meta.collection} #${e.meta.hadith_number}`;
+                    else if (e.item_type === 'book') metaHtml = e.title || 'Excerpt';
+                    else metaHtml = e.title || 'Note';
 
-                   let actionsHtml = '';
-                   if (isGlobal) {
-                       actionsHtml += `<button onclick="cloneEntry(${e.id})" title="Clone to my Org" class="w-10 h-10 bg-brand/10 rounded-2xl text-brand hover:bg-brand hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>`;
-                       if (isSuperAdmin) {
-                           actionsHtml += `
-                               <button onclick="openEntryModal(${JSON.stringify(e).replace(/"/g, '&quot;')})" class="w-10 h-10 bg-white/5 rounded-2xl text-white hover:bg-brand hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
-                               <button onclick="deleteEntry(${e.id})" class="w-10 h-10 bg-white/5 rounded-2xl text-rose-400 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
-                           `;
-                       }
-                   } else {
-                       actionsHtml = `
-                           <button onclick="openEntryModal(${JSON.stringify(e).replace(/"/g, '&quot;')})" class="w-10 h-10 bg-white/5 rounded-2xl text-white hover:bg-brand hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
-                           <button onclick="deleteEntry(${e.id})" class="w-10 h-10 bg-white/5 rounded-2xl text-rose-400 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
-                       `;
-                   }
+                    let actionsHtml = `<div class="absolute top-6 right-6 flex gap-3 opacity-0 group-hover:opacity-100 transition-all">`;
+                    if (isGlobal) {
+                        actionsHtml += `<button onclick="cloneEntry(${e.id})" title="Clone to my Org" class="w-10 h-10 bg-brand/10 rounded-2xl text-brand hover:bg-brand hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>`;
+                        if (isSuperAdmin) {
+                            actionsHtml += `
+                                <button onclick="openEntryModalById(${e.id})" class="w-10 h-10 bg-white/5 rounded-2xl text-white hover:bg-brand hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                                <button onclick="deleteEntry(${e.id})" class="w-10 h-10 bg-white/5 rounded-2xl text-rose-400 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                            `;
+                        }
+                    } else {
+                        actionsHtml += `
+                            <button onclick="openEntryModalById(${e.id})" class="w-10 h-10 bg-brand/10 rounded-2xl text-brand hover:bg-brand hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                            <button onclick="deleteEntry(${e.id})" class="w-10 h-10 bg-white/5 rounded-2xl text-rose-400 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                        `;
+                    }
+                    actionsHtml += `</div>`;
 
-                   el.innerHTML = `
-                       <div class="flex justify-between items-start mb-6">
-                             <div class="flex flex-col gap-1">
-                                 <div class="flex items-center gap-2">
-                                     <span class="text-[9px] font-black text-brand uppercase tracking-[0.3em]">${e.item_type}</span>
-                                     ${isGlobal ? '<span class="px-2 py-0.5 bg-brand text-white text-[7px] font-black uppercase rounded-full tracking-tighter">System Default</span>' : ''}
-                                 </div>
-                                 <span class="text-[10px] font-bold text-white/40 uppercase tracking-widest">${metaHtml}</span>
-                             </div>
-                             <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                                 ${actionsHtml}
-                             </div>
-                       </div>
-                       <p class="text-[12px] font-medium text-white/80 leading-relaxed italic mb-4">"${e.text}"</p>
-                       ${e.arabic_text ? `<div class="mt-4 p-6 bg-brand/5 rounded-3xl border-l-4 border-brand/40"><p class="text-lg text-right font-serif text-white/90 dir-rtl leading-loose">${e.arabic_text}</p></div>` : ''}
-                       ${e.meta.translator ? `<div class="mt-4 text-[9px] font-black text-muted uppercase tracking-widest">Translation: ${e.meta.translator}</div>` : ''}
-                   `;
-                   list.appendChild(el);
+                    el.innerHTML = `
+                        ${actionsHtml}
+                        <div class="flex flex-col h-full justify-between space-y-6">
+                            <div class="space-y-4">
+                                <div class="flex items-center gap-3">
+                                    <span class="w-8 h-8 rounded-xl ${isGlobal ? 'bg-brand/10 text-brand' : 'bg-white/5 text-muted'} flex items-center justify-center text-[10px] font-black">${e.item_type[0].toUpperCase()}</span>
+                                    <span class="text-[10px] font-black uppercase tracking-widest ${isGlobal ? 'text-brand' : 'text-muted'}">${metaHtml}</span>
+                                </div>
+                                <p class="text-white/80 text-sm leading-relaxed font-medium line-clamp-6">${e.text}</p>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                ${ (e.topics || []).map(t => `<span class="px-3 py-1 bg-white/5 rounded-lg text-[8px] font-black uppercase tracking-tighter text-muted transition-all hover:bg-white/10 hover:text-white cursor-default">${t}</span>`).join('') }
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(el);
               });
           } catch(e) {
               list.innerHTML = '<div class="text-rose-400 text-[10px] font-bold p-10 col-span-full">Neural transmission error</div>';
@@ -2417,7 +2417,11 @@ async def app_library_page(
       }
 
       // --- MODAL HELPERS ---
-      function openEntryModal(entry = null) {
+       function openEntryModalById(id) {
+           openEntryModal(libraryEntries[id]);
+       }
+
+       function openEntryModal(entry = null) {
            if (isSuperAdmin) {
                document.getElementById('globalToggleContainer').classList.remove('hidden');
                document.getElementById('isGlobalCheckbox').checked = entry ? entry.org_id === null : showGlobalOnly;
