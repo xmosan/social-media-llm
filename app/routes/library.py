@@ -5,16 +5,21 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.db import get_db
-from app.models import SourceDocument, ContentSource, ContentItem
+from sqlalchemy import or_, func
+from app.security.rbac import get_current_org_id, require_superadmin
+from app.models import SourceDocument, ContentSource, ContentItem, LibraryTopicSynonym
 from app.schemas import (
     SourceDocumentOut, SourceDocumentCreate,
-    ContentSourceOut, ContentItemOut, ContentItemCreate, ContentItemUpdate
+    ContentSourceOut, ContentItemOut, ContentItemCreate, ContentItemUpdate,
+    TopicSuggestRequest, TopicSuggestResponse, LibraryTopicSynonymOut, LibraryTopicSynonymBase
 )
-from sqlalchemy import or_
-from app.security.rbac import get_current_org_id
 from app.services.ingestion import ingest_document
 from app.services.prebuilt_loader import load_prebuilt_packs
-from app.services.library_service import create_library_entry, validate_entry_meta
+from app.services.library_service import (
+    create_library_entry, validate_entry_meta, generate_topics_slugs, suggest_library_topics
+)
+from app.security.auth import require_user
+from app.models import User
 
 router = APIRouter(prefix="/library", tags=["library"])
 
@@ -23,32 +28,73 @@ router = APIRouter(prefix="/library", tags=["library"])
 @router.get("/sources", response_model=List[ContentSourceOut])
 def list_library_sources(
     db: Session = Depends(get_db),
-    org_id: int = Depends(get_current_org_id)
+    org_id: int = Depends(get_current_org_id),
+    user: User = Depends(require_user)
 ):
-    """Lists all manual library sources for the org (including global)."""
+    """Lists all manual library sources accessible (Org + Global + Personal)."""
     sources = db.query(ContentSource).filter(
-        or_(ContentSource.org_id == org_id, ContentSource.org_id == None)
+        or_(
+            ContentSource.org_id == org_id, 
+            ContentSource.org_id == None
+        )
     ).all()
     return sources
+
+@router.get("/topics")
+def list_library_topics(
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id),
+    user: User = Depends(require_user)
+):
+    """Returns top topics across merged dataset."""
+    items = db.query(ContentItem).filter(
+        or_(
+            ContentItem.org_id == org_id,
+            ContentItem.org_id == None,
+            ContentItem.owner_user_id == user.id
+        )
+    ).all()
+    
+    counts = {}
+    for it in items:
+        for s in (it.topics_slugs or []):
+            counts[s] = counts.get(s, 0) + 1
+            
+    # Sort and return
+    sorted_topics = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+    return [{"slug": t[0], "count": t[1]} for t in sorted_topics]
 
 @router.get("/entries", response_model=List[ContentItemOut])
 def list_library_entries(
     source_id: Optional[int] = None,
+    topic: Optional[str] = None,
     query: Optional[str] = None,
+    item_type: Optional[str] = None,
     db: Session = Depends(get_db),
-    org_id: int = Depends(get_current_org_id)
+    org_id: int = Depends(get_current_org_id),
+    user: User = Depends(require_user)
 ):
-    """Lists entries in the library with filtering."""
+    """Lists entries with unified scope filtering."""
     q = db.query(ContentItem).filter(
-        or_(ContentItem.org_id == org_id, ContentItem.org_id == None)
+        or_(
+            ContentItem.org_id == org_id,
+            ContentItem.org_id == None,
+            ContentItem.owner_user_id == user.id
+        )
     )
     if source_id:
         q = q.filter(ContentItem.source_id == source_id)
+    if topic:
+        # Match by slug in the topics_slugs list
+        q = q.filter(ContentItem.topics_slugs.contains([topic]))
+    if item_type:
+        q = q.filter(ContentItem.item_type == item_type)
     if query:
         q = q.filter(or_(
             ContentItem.text.ilike(f"%{query}%"),
             ContentItem.title.ilike(f"%{query}%"),
-            ContentItem.arabic_text.ilike(f"%{query}%")
+            ContentItem.arabic_text.ilike(f"%{query}%"),
+            ContentItem.topic.ilike(f"%{query}%")
         ))
     return q.order_by(ContentItem.created_at.desc()).all()
 
@@ -56,10 +102,11 @@ def list_library_entries(
 def add_library_entry(
     data: ContentItemCreate,
     db: Session = Depends(get_db),
-    org_id: int = Depends(get_current_org_id)
+    org_id: int = Depends(get_current_org_id),
+    user: User = Depends(require_user)
 ):
     """Adds a new library entry, optionally creating a source inline."""
-    return create_library_entry(db, org_id, data)
+    return create_library_entry(db, org_id, data, owner_user_id=user.id)
 
 @router.patch("/entries/{id}", response_model=ContentItemOut)
 def update_library_entry(
@@ -85,6 +132,12 @@ def update_library_entry(
         
     for field, value in update_data.items():
         setattr(item, field, value)
+        
+    # Recalculate slugs if topics changed
+    if "topic" in update_data or "topics" in update_data:
+        source = db.query(ContentSource).filter(ContentSource.id == item.source_id).first()
+        item.topics_slugs = generate_topics_slugs(item.topic, item.topics, source.category if source else None)
+
     db.commit()
     db.refresh(item)
     return item
@@ -142,6 +195,57 @@ def clone_library_entry(
     db.commit()
     db.refresh(new_item)
     return new_item
+
+# --- SMART SUGGESTIONS & SYNONYMS ---
+
+@router.post("/topic-suggest", response_model=TopicSuggestResponse)
+def get_topic_suggestions(
+    data: TopicSuggestRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_user)
+):
+    """Returns ranked topic suggestions for a given text prompt."""
+    suggestions = suggest_library_topics(db, data.text, data.max)
+    return {"suggestions": suggestions}
+
+@router.get("/synonyms", response_model=List[LibraryTopicSynonymOut])
+def list_synonyms(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_superadmin)
+):
+    """Lists all library topic synonyms (Admin only)."""
+    return db.query(LibraryTopicSynonym).all()
+
+@router.post("/synonyms", response_model=LibraryTopicSynonymOut)
+def create_synonym(
+    data: LibraryTopicSynonymBase,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_superadmin)
+):
+    """Creates or updates a synonym mapping for a topic (Admin only)."""
+    existing = db.query(LibraryTopicSynonym).filter(LibraryTopicSynonym.slug == data.slug).first()
+    if existing:
+        existing.synonyms = data.synonyms
+        db.commit()
+        db.refresh(existing)
+        return existing
+    
+    new_syn = LibraryTopicSynonym(slug=data.slug, synonyms=data.synonyms)
+    db.add(new_syn)
+    db.commit()
+    db.refresh(new_syn)
+    return new_syn
+
+@router.delete("/synonyms/{slug}")
+def delete_synonym(
+    slug: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_superadmin)
+):
+    """Deletes a synonym mapping (Admin only)."""
+    db.query(LibraryTopicSynonym).filter(LibraryTopicSynonym.slug == slug).delete()
+    db.commit()
+    return {"status": "success"}
 
 # --- PREBUILT LIBRARY ---
 

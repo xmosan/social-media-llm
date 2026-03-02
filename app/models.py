@@ -170,7 +170,7 @@ class TopicAutomation(Base):
     topic_prompt = Column(Text, nullable=False)
     style_preset = Column(String, nullable=False, default="islamic_reminder")
     custom_style_instructions = Column(Text, nullable=True)
-    content_seed = Column(Text, nullable=True) # Legacy seed text
+    library_topic_slug = Column(String, nullable=True) # Added: Link to library topic
     content_seed_mode = Column(String, default="none") # none, manual, auto_library
     content_seed_text = Column(Text, nullable=True) # User provided seed text or specific content
     
@@ -254,6 +254,7 @@ class ContentItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     org_id = Column(Integer, ForeignKey("orgs.id"), nullable=True, index=True) # Changed: nullable=True for Global
     source_id = Column(Integer, ForeignKey("content_sources.id"), nullable=False, index=True)
+    owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True) # New: Personal scoping
     
     item_type = Column(String, default="note", nullable=False) # New: quran, hadith, book, etc.
     title = Column(String, nullable=True)
@@ -263,19 +264,25 @@ class ContentItem(Base):
     url = Column(Text, nullable=True)
     meta = Column(JSON, nullable=False, default=dict) # New: structured metadata
     tags = Column(JSON, nullable=False, default=list)
-    topics = Column(JSON, nullable=False, default=list) # Added: semantic topics
+    topic = Column(String, nullable=True) # New: primary topic
+    topics = Column(JSON, nullable=False, default=list) # Multi-topic tags
+    topics_slugs = Column(JSON, nullable=False, default=list) # Added: normalized slugs for matching
     
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     use_count = Column(Integer, nullable=False, default=0)
-
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-    org = relationship("Org", back_populates="content_items")
-    source = relationship("ContentSource", back_populates="items")
+    
+    usages = relationship("ContentUsage", back_populates="content_item")
     posts = relationship("Post", back_populates="content_item", foreign_keys="[Post.content_item_id]")
     library_posts = relationship("Post", back_populates="library_item", foreign_keys="[Post.library_item_id]")
-    usages = relationship("ContentUsage", back_populates="content_item")
+    source = relationship("ContentSource", back_populates="items")
+
+class LibraryTopicSynonym(Base):
+    __tablename__ = "library_topic_synonyms"
+    id = Column(Integer, primary_key=True, index=True)
+    slug = Column(String, unique=True, index=True, nullable=False)
+    synonyms = Column(JSON, nullable=False, default=list) # List of alternative terms
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 class ContentUsage(Base):
     __tablename__ = "content_usages"

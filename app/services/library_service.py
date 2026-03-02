@@ -27,7 +27,25 @@ def validate_entry_meta(item_type: str, text: str, arabic_text: Optional[str], m
         if not text:
              raise HTTPException(status_code=400, detail="Excerpt text is required for books/articles.")
 
-def create_library_entry(db: Session, org_id: Optional[int], data: ContentItemCreate):
+def generate_topics_slugs(topic: Optional[str], topics: list[str], category: Optional[str] = None) -> list[str]:
+    """Generates normalized slugs (lowercase, trimmed, underscores) for matching."""
+    slugs = set()
+    to_process = []
+    if topic: to_process.append(topic)
+    if topics: to_process.extend(topics)
+    if category: to_process.append(category)
+    
+    import re
+    for text in to_process:
+        if not text: continue
+        # Lowercase, replace non-alphanumeric with underscore, collapse underscores
+        s = text.lower().strip()
+        s = re.sub(r'[^a-zA-Z0-9]', '_', s)
+        s = re.sub(r'_+', '_', s).strip('_')
+        if s: slugs.add(s)
+    return list(slugs)
+
+def create_library_entry(db: Session, org_id: Optional[int], data: ContentItemCreate, owner_user_id: Optional[int] = None):
     # 1. Handle Source Creation if needed
     source_id = data.source_id
     if not source_id and data.source_name:
@@ -64,10 +82,14 @@ def create_library_entry(db: Session, org_id: Optional[int], data: ContentItemCr
     # 3. Validate Meta
     validate_entry_meta(data.item_type, data.text, data.arabic_text, data.meta)
 
-    # 4. Create Item
+    # 4. Generate Slugs
+    slugs = generate_topics_slugs(data.topic, data.topics, source.category)
+
+    # 5. Create Item
     item = ContentItem(
         org_id=org_id,
         source_id=source_id,
+        owner_user_id=owner_user_id or data.owner_user_id,
         item_type=data.item_type,
         title=data.title,
         text=data.text,
@@ -76,9 +98,77 @@ def create_library_entry(db: Session, org_id: Optional[int], data: ContentItemCr
         url=data.url,
         meta=data.meta,
         tags=data.tags,
-        topics=data.topics
+        topic=data.topic,
+        topics=data.topics,
+        topics_slugs=slugs
     )
     db.add(item)
     db.commit()
     db.refresh(item)
-    return item
+from app.models import ContentSource, ContentItem, LibraryTopicSynonym
+
+def suggest_library_topics(db: Session, text: str, max_results: int = 5):
+    """
+    Suggests the best matching library topics based on input text.
+    Uses layered scoring: Exact Match > Synonym Match > Partial Match.
+    """
+    if not text:
+        return []
+
+    import re
+    # Normalize input
+    clean_text = text.lower().strip()
+    words = set(re.findall(r'\w+', clean_text))
+    
+    # Get all distinct topics (slugs) from ContentItem
+    # In a real app with many topics, we'd cache this or use a search index.
+    all_items = db.query(ContentItem.topic, ContentItem.topics_slugs).all()
+    unique_topics = {} # slug -> display_name
+    for item in all_items:
+        if item.topic:
+            slug = generate_topics_slugs(item.topic, [])[0]
+            unique_topics[slug] = item.topic
+        for s in (item.topics_slugs or []):
+            if s not in unique_topics:
+                unique_topics[s] = s.replace('_', ' ').title()
+
+    # Get synonyms
+    synonyms_map = {s.slug: s.synonyms for s in db.query(LibraryTopicSynonym).all()}
+    
+    suggestions = []
+    
+    for slug, display in unique_topics.items():
+        score = 0.0
+        reason = ""
+        
+        # 1. Exact slug match
+        if slug in words:
+            score = 1.0
+            reason = "exact keyword match"
+        
+        # 2. Synonym match
+        elif any(syn in words for syn in synonyms_map.get(slug, [])):
+            score = 0.9
+            reason = "synonym match"
+            
+        # 3. Partial slug match
+        elif any(word in slug for word in words if len(word) > 3):
+            score = 0.7
+            reason = "partial topic match"
+            
+        # 4. Fuzzy word match (simple containment)
+        elif any(slug in word for word in words):
+            score = 0.6
+            reason = "contextual match"
+
+        if score > 0:
+            suggestions.append({
+                "topic": display,
+                "slug": slug,
+                "score": score,
+                "reason": reason
+            })
+
+    # Sort by score desc
+    suggestions.sort(key=lambda x: x['score'], reverse=True)
+    return suggestions[:max_results]

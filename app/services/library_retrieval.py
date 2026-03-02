@@ -4,57 +4,57 @@ from app.models import SourceDocument, SourceChunk, ContentItem, ContentSource
 from typing import List, Dict, Any
 import re
 
-def retrieve_relevant_chunks(db: Session, org_id: int, query: str, k: int = 5) -> List[Dict[str, Any]]:
+def retrieve_relevant_chunks(db: Session, org_id: int, query: str, k: int = 5, topic_slug: str = None) -> List[Dict[str, Any]]:
     """Retrieves relevant knowledge snippets from BOTH documents and structured library entries."""
-    if not query:
+    if not query and not topic_slug:
         return []
     
-    keywords = set(re.findall(r'\w+', query.lower()))
-    if not keywords:
-        return []
+    keywords = set(re.findall(r'\w+', query.lower())) if query else set()
     
     scored_results = []
     
     # --- 1. SEARCH UNSTRUCTURED CHUNKS (SourceDocs) ---
-    chunks = db.query(SourceChunk, SourceDocument.title, SourceDocument.original_url)\
-        .join(SourceDocument, SourceChunk.document_id == SourceDocument.id)\
-        .filter(SourceChunk.org_id == org_id)\
-        .all()
-        
-    for chunk, doc_title, doc_url in chunks:
-        text_lower = chunk.chunk_text.lower()
-        score = sum(1 for kw in keywords if kw in text_lower)
-        if score > 0:
-            scored_results.append({
-                "score": score,
-                "type": "unstructured",
-                "source": doc_title,
-                "url": doc_url,
-                "text": chunk.chunk_text,
-                "metadata": chunk.chunk_metadata
-            })
+    if keywords:
+        chunks = db.query(SourceChunk, SourceDocument.title, SourceDocument.original_url)\
+            .join(SourceDocument, SourceChunk.document_id == SourceDocument.id)\
+            .filter(SourceChunk.org_id == org_id)\
+            .all()
+            
+        for chunk, doc_title, doc_url in chunks:
+            text_lower = chunk.chunk_text.lower()
+            score = sum(1 for kw in keywords if kw in text_lower)
+            if score > 0:
+                scored_results.append({
+                    "score": score,
+                    "type": "unstructured",
+                    "source": doc_title,
+                    "url": doc_url,
+                    "text": chunk.chunk_text,
+                    "metadata": chunk.chunk_metadata
+                })
 
     # --- 2. SEARCH STRUCTURED ENTRIES (ContentItems) ---
+    # Merge items where org_id matches OR is NULL (System)
     entries = db.query(ContentItem, ContentSource.name)\
         .join(ContentSource, ContentItem.source_id == ContentSource.id)\
-        .filter(ContentItem.org_id == org_id)\
+        .filter(or_(ContentItem.org_id == org_id, ContentItem.org_id == None))\
         .all()
         
     for entry, src_name in entries:
-        # Check text, arabic_text, translation, and tags/topics
-        search_field = (entry.text or "") + " " + (entry.translation or "") + " " + (entry.title or "")
-        text_lower = search_field.lower()
+        score = 0
+        text_lower = (entry.text or "").lower()
         
-        # Base score from keyword matches in text
-        score = sum(1 for kw in keywords if kw in text_lower)
-        
-        # Heavy weighting for topic/tag matches
-        entry_topics = [t.lower() for t in (entry.topics or [])]
-        entry_tags = [t.lower() for t in (entry.tags or [])]
-        score += sum(5 for kw in keywords if kw in entry_topics or kw in entry_tags)
+        # Keyword matches
+        if keywords:
+            score += sum(1 for kw in keywords if kw in text_lower)
+            entry_topics = [t.lower() for t in (entry.topics or [])]
+            score += sum(5 for kw in keywords if kw in entry_topics)
+
+        # Topic Slug match (EXACT GROUNDING)
+        if topic_slug and topic_slug in (entry.topics_slugs or []):
+            score += 25 # High priority for the linked topic
         
         if score > 0:
-            # Format as a snippet compatible with automation runner expectations
             item_ref = src_name
             if entry.item_type == 'quran':
                 item_ref = f"Quran {entry.meta.get('surah_number')}:{entry.meta.get('verse_start')}"

@@ -134,7 +134,8 @@ class TopicAutomationOut(BaseModel):
     ig_account_id: int
     name: str
     topic_prompt: str
-    style_preset: str
+    library_topic_slug: str | None
+    content_seed_mode: str
     tone: str = "medium"
     language: str = "english"
     banned_phrases: list[str] = Field(default_factory=list)
@@ -142,37 +143,6 @@ class TopicAutomationOut(BaseModel):
     post_time_local: str | None = None
     last_run_at: datetime | None = None
     last_error: str | None = None
-
-    # New Content Focus fields
-    content_profile_id: int | None = None
-    creativity_level: int = 3
-    content_seed: str | None = None
-    content_seed_mode: str = "none"
-    content_seed_text: str | None = None
-
-    # New Library fields
-    use_content_library: bool
-    avoid_repeat_days: int
-    content_type: str | None
-    include_arabic: bool
-    image_mode: str
-    posting_mode: str
-    approval_mode: str
-
-    # Media Library fields
-    media_asset_id: int | None = None
-    media_tag_query: list[str] | None = None
-    media_rotation_mode: str | None = None
-
-    @validator("media_tag_query", pre=True)
-    def parse_media_tag_query(cls, v):
-        if isinstance(v, str):
-            try:
-                import json
-                return json.loads(v)
-            except:
-                return []
-        return v
 
     class Config:
         from_attributes = True
@@ -193,6 +163,7 @@ class TopicAutomationCreate(BaseModel):
     content_profile_id: int | None = None
     creativity_level: int = 3
     content_seed: str | None = None
+    library_topic_slug: str | None = None
     content_seed_mode: str = "none"
     content_seed_text: str | None = None
     
@@ -233,13 +204,13 @@ class TopicAutomationUpdate(BaseModel):
     
     content_profile_id: int | None = None
     creativity_level: int | None = None
-    content_seed: str | None = None
+    topic_prompt: str | None = None
+    library_topic_slug: str | None = None
     content_seed_mode: str | None = None
     content_seed_text: str | None = None
     
     use_content_library: bool | None = None
     avoid_repeat_days: int | None = None
-    content_type: str | None = None
     include_arabic: bool | None = None
     post_time_local: str | None = None
     timezone: str | None = None
@@ -298,6 +269,8 @@ class ContentItemOut(BaseModel):
     meta: dict
     tags: list[str]
     topics: list[str] = Field(default_factory=list)
+    topics_slugs: list[str] = Field(default_factory=list)
+    owner_user_id: int | None
     use_count: int
     last_used_at: datetime | None
     created_at: datetime
@@ -317,7 +290,9 @@ class ContentItemCreate(BaseModel):
     url: str | None = None
     meta: dict = Field(default_factory=dict)
     tags: list[str] = Field(default_factory=list)
+    topic: str | None = None
     topics: list[str] = Field(default_factory=list)
+    owner_user_id: int | None = None
 
 class ContentItemUpdate(BaseModel):
     item_type: str | None = None
@@ -328,6 +303,8 @@ class ContentItemUpdate(BaseModel):
     url: str | None = None
     meta: dict | None = None
     tags: list[str] | None = None
+    topic: str | None = None
+    topics: list[str] | None = None
     topics: list[str] | None = None
 
 class MediaAssetOut(BaseModel):
@@ -410,3 +387,25 @@ class PostUpdate(BaseModel):
     visual_prompt: str | None = None
     library_item_id: int | None = None
     flags: dict[str, Any] | None = None
+
+class LibraryTopicSynonymBase(BaseModel):
+    slug: str
+    synonyms: list[str] = Field(default_factory=list)
+
+class LibraryTopicSynonymOut(LibraryTopicSynonymBase):
+    id: int
+    class Config:
+        from_attributes = True
+
+class TopicSuggestion(BaseModel):
+    topic: str
+    slug: str
+    score: float
+    reason: str
+
+class TopicSuggestRequest(BaseModel):
+    text: str
+    max: int = 5
+
+class TopicSuggestResponse(BaseModel):
+    suggestions: list[TopicSuggestion]

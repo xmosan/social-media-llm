@@ -204,7 +204,13 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         seed_mode = getattr(automation, "content_seed_mode", "none") or "none"
         
         if seed_mode == "auto_library":
-            chunks = retrieve_relevant_chunks(db, automation.org_id, topic, k=5)
+            chunks = retrieve_relevant_chunks(
+                db, 
+                automation.org_id, 
+                topic, 
+                k=5, 
+                topic_slug=getattr(automation, "library_topic_slug", None)
+            )
             if chunks:
                 library_context = {
                     "mode": "auto_library",

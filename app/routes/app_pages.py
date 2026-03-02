@@ -1454,8 +1454,12 @@ async def app_automations_page(
               <input type="text" id="editName" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand">
             </div>
             <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Core Topic Prompt</label>
+              <div class="flex justify-between items-center">
+                <label class="text-[10px] font-black uppercase tracking-widest text-muted">Core Topic Prompt</label>
+                <button onclick="suggestAutomationTopic('editTopic', 'editLibraryTopic')" class="text-[8px] font-bold text-brand uppercase hover:text-white transition-all">Suggest Library Topic</button>
+              </div>
               <textarea id="editTopic" rows="3" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand"></textarea>
+              <input type="hidden" id="editLibraryTopic">
             </div>
             <div class="space-y-1">
               <label class="text-[10px] font-black uppercase tracking-widest text-muted">Posting Time (Local)</label>
@@ -1473,7 +1477,13 @@ async def app_automations_page(
               </select>
             </div>
             <div id="seedTextGroup" class="space-y-1 hidden">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Manual Seed Text</label>
+              <div class="flex justify-between items-center">
+                <label class="text-[10px] font-black uppercase tracking-widest text-muted">Manual Seed Text</label>
+                <button onclick="openLibraryPicker('editSeedText')" class="text-[9px] font-black uppercase text-brand hover:text-white transition-colors flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                    Insert from Library
+                </button>
+              </div>
               <textarea id="editSeedText" rows="5" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-[10px] outline-none focus:ring-2 focus:ring-brand placeholder-white/20" placeholder="Paste the content you want the AI to ground its generation on..."></textarea>
             </div>
             
@@ -1524,8 +1534,12 @@ async def app_automations_page(
               </select>
             </div>
             <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Core Topic Prompt</label>
+              <div class="flex justify-between items-center">
+                <label class="text-[10px] font-black uppercase tracking-widest text-muted">Core Topic Prompt</label>
+                <button onclick="suggestAutomationTopic('newTopic', 'newLibraryTopic')" class="text-[8px] font-bold text-brand uppercase hover:text-white transition-all">Suggest Library Topic</button>
+              </div>
               <textarea id="newTopic" rows="3" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="Describe the focus of this automation..."></textarea>
+              <input type="hidden" id="newLibraryTopic">
             </div>
           </div>
 
@@ -1543,7 +1557,13 @@ async def app_automations_page(
               </select>
             </div>
             <div id="newSeedTextGroup" class="space-y-1 hidden">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Manual Seed Text</label>
+              <div class="flex justify-between items-center">
+                <label class="text-[10px] font-black uppercase tracking-widest text-muted">Manual Seed Text</label>
+                <button onclick="openLibraryPicker('newSeedText')" class="text-[9px] font-black uppercase text-brand hover:text-white transition-colors flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                    Insert from Library
+                </button>
+              </div>
               <textarea id="newSeedText" rows="5" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-[10px] outline-none focus:ring-2 focus:ring-brand placeholder-white/20" placeholder="Paste the content you want the AI to ground its generation on..."></textarea>
             </div>
             
@@ -1566,6 +1586,50 @@ async def app_automations_page(
         <div class="flex gap-4 pt-4 border-t border-white/5">
           <button onclick="hideNewAutoModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest">Discard</button>
           <button onclick="saveNewAutomation()" class="flex-[2] py-4 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg shadow-brand/20">Create Intelligence</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Library Picker Modal -->
+    <div id="libraryPickerModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[150] hidden flex items-center justify-center p-6">
+      <div class="glass max-w-2xl w-full p-8 rounded-[2.5rem] space-y-6 border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="flex justify-between items-center">
+            <h2 class="text-xl font-black italic text-white tracking-tight">Insert <span class="text-brand">Knowledge</span></h2>
+            <button onclick="closeLibraryPicker()" class="p-2 hover:bg-white/10 rounded-full transition-all text-white/40">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+            </button>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="relative flex-1">
+                <input type="text" id="pickerSearch" oninput="loadPickerEntries()" placeholder="Filter knowledge..." class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-brand/40 transition-all placeholder:text-white/20">
+            </div>
+            <div class="flex gap-2">
+                <select id="pickerTopic" onchange="loadPickerEntries()" class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none appearance-none">
+                    <option value="">All Topics</option>
+                </select>
+                <select id="pickerType" onchange="loadPickerEntries()" class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none appearance-none font-black uppercase">
+                    <option value="">All Types</option>
+                    <option value="quran">Quran</option>
+                    <option value="hadith">Hadith</option>
+                    <option value="quote">Quote</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="flex justify-end px-2">
+            <button onclick="suggestPickerTopic()" class="text-[9px] font-black uppercase text-brand flex items-center gap-2 hover:text-white transition-all">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                Suggest from my prompt
+            </button>
+        </div>
+
+        <div id="pickerResults" class="flex-1 overflow-y-auto space-y-3 min-h-[300px] pr-2 custom-scrollbar">
+            <!-- Results via JS -->
+        </div>
+        
+        <div class="text-[8px] font-bold text-muted uppercase tracking-widest text-center">
+            Click an entry to insert its text and auto-formatted citation.
         </div>
       </div>
     </div>
@@ -1627,6 +1691,7 @@ async def app_automations_page(
         document.getElementById('editId').value = data.id;
         document.getElementById('editName').value = data.name;
         document.getElementById('editTopic').value = data.topic;
+        document.getElementById('editLibraryTopic').value = data.library_topic_slug || '';
         document.getElementById('editSeedMode').value = data.seed_mode || 'none';
         document.getElementById('editSeedText').value = data.seed_text;
         document.getElementById('editTime').value = data.time;
@@ -1637,10 +1702,6 @@ async def app_automations_page(
 
         toggleSeedText();
         document.getElementById('editModal').classList.remove('hidden');
-      }}
-
-      function hideEditModal() {{
-        document.getElementById('editModal').classList.add('hidden');
       }}
 
       function toggleSeedText() {{
@@ -1659,6 +1720,7 @@ async def app_automations_page(
         const payload = {{
           name: document.getElementById('editName').value,
           topic_prompt: document.getElementById('editTopic').value,
+          library_topic_slug: document.getElementById('editLibraryTopic').value,
           content_seed_mode: document.getElementById('editSeedMode').value,
           content_seed_text: document.getElementById('editSeedText').value,
           post_time_local: document.getElementById('editTime').value,
@@ -1679,6 +1741,122 @@ async def app_automations_page(
           else alert('Save failed');
         }} catch(e) {{ alert('Network error'); }}
         finally {{ btn.disabled = false; btn.textContent = 'Apply Changes'; }}
+      }}
+
+      async function suggestAutomationTopic(inputId, hiddenId) {{
+          const prompt = document.getElementById(inputId).value;
+          if (!prompt) return alert("Please enter a prompt first");
+          
+          const btn = event.target;
+          const originalText = btn.textContent;
+          btn.textContent = 'SUGGESTING...';
+          btn.disabled = true;
+          
+          try {{
+              const res = await fetch('/library/topic-suggest', {{
+                  method: 'POST',
+                  headers: {{ 'Content-Type': 'application/json' }},
+                  body: JSON.stringify({{ text: prompt, max: 1 }})
+              }});
+              const data = await res.json();
+              if (data.suggestions && data.suggestions.length > 0) {{
+                  const s = data.suggestions[0];
+                  if (confirm(`Suggested Library Topic: ${{s.topic}}\\n(${{s.reason}})\\n\\nApply this for grounding?`)) {{
+                      document.getElementById(hiddenId).value = s.slug;
+                      btn.textContent = `LINKED: ${{s.topic.toUpperCase()}}`;
+                      btn.classList.add('text-green-400');
+                  }} else {{ btn.textContent = originalText; }}
+              }} else {{
+                  alert("No direct library topic matches found. AI will generate freely.");
+                  btn.textContent = originalText;
+              }}
+          }} catch(e) {{ btn.textContent = originalText; }}
+          finally {{ btn.disabled = false; }}
+      }}
+
+      // REUSED from library to support picker across pages
+      let pickerTargetId = null;
+      function openLibraryPicker(targetId) {{
+          pickerTargetId = targetId;
+          document.getElementById('libraryPickerModal').classList.remove('hidden');
+          loadPickerTopics();
+          loadPickerEntries();
+      }}
+      function closeLibraryPicker() {{
+          document.getElementById('libraryPickerModal').classList.add('hidden');
+          pickerTargetId = null;
+      }}
+      async function loadPickerTopics() {{
+          try {{
+              const res = await fetch('/library/topics');
+              const topics = await res.json();
+              const select = document.getElementById('pickerTopic');
+              select.innerHTML = '<option value="">All Topics</option>';
+              topics.forEach(t => {{
+                  const opt = document.createElement('option');
+                  opt.value = t.slug;
+                  opt.textContent = t.slug.replace(/_/g, ' ').toUpperCase();
+                  select.appendChild(opt);
+              }});
+          }} catch(e) {{}}
+      }}
+      async function loadPickerEntries() {{
+          const query = document.getElementById('pickerSearch').value;
+          const topic = document.getElementById('pickerTopic').value;
+          const type = document.getElementById('pickerType').value;
+          const list = document.getElementById('pickerResults');
+          list.innerHTML = '<div class="text-center py-10 text-[9px] font-black uppercase text-muted animate-pulse">Scanning Library...</div>';
+          try {{
+              let url = `/library/entries?query=${{encodeURIComponent(query)}}`;
+              if (topic) url += `&topic=${{encodeURIComponent(topic)}}`;
+              if (type) url += `&item_type=${{encodeURIComponent(type)}}`;
+              const res = await fetch(url);
+              const entries = await res.json();
+              if (entries.length === 0) {{
+                  list.innerHTML = '<div class="text-center py-10 text-[9px] font-black uppercase text-muted opacity-40">No entries found</div>';
+                  return;
+              }}
+              list.innerHTML = '';
+              entries.forEach(e => {{
+                  const div = document.createElement('div');
+                  div.className = "p-4 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-brand/30 transition-all cursor-pointer space-y-2";
+                  div.onclick = () => selectPickerEntry(e);
+                  div.innerHTML = `
+                      <div class="flex justify-between items-center">
+                        <span class="text-[7px] font-black text-brand uppercase tracking-widest">${{e.item_type}}</span>
+                        <span class="text-[8px] font-black text-muted">${{e.topic || ''}}</span>
+                      </div>
+                      <p class="text-[10px] text-white/70 line-clamp-2">${{e.text.substring(0, 150)}}...</p>
+                  `;
+                  list.appendChild(div);
+              }});
+          }} catch(e) {{}}
+      }}
+      async function suggestPickerTopic() {{
+          const query = document.getElementById('pickerSearch').value;
+          if (!query) return;
+          try {{
+              const res = await fetch('/library/topic-suggest', {{
+                  method: 'POST',
+                  headers: {{ 'Content-Type': 'application/json' }},
+                  body: JSON.stringify({{ text: query, max: 1 }})
+              }});
+              const data = await res.json();
+              if (data.suggestions && data.suggestions.length > 0) {{
+                  document.getElementById('pickerTopic').value = data.suggestions[0].slug;
+                  loadPickerEntries();
+              }}
+          }} catch(e) {{}}
+      }}
+      function selectPickerEntry(entry) {{
+          const target = document.getElementById(pickerTargetId);
+          if (target) {{
+              let credit = "";
+              if (entry.item_type === 'hadith') credit = `\\n\\n[Ref: ${{entry.meta.collection}} #${{entry.meta.hadith_number}}]`;
+              else if (entry.item_type === 'quran') credit = `\\n\\n[Quran ${{entry.meta.surah_number}}:${{entry.meta.verse_start}}]`;
+              target.value = entry.text + credit;
+          }}
+          closeLibraryPicker();
       }}
 
       async function toggleAuto(id, enabled) {{
@@ -1884,14 +2062,30 @@ async def app_library_page(
               </div>
             </div>
             <div class="flex items-center gap-4 ml-4">
+                <div class="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2 relative">
+                    <span class="text-[9px] font-black uppercase text-white/30">Topic:</span>
+                    <select id="filterTopic" onchange="loadEntries()" class="bg-transparent text-[10px] font-black uppercase tracking-widest text-white outline-none cursor-pointer">
+                        <option value="">All Topics</option>
+                        <!-- Populated via JS -->
+                    </select>
+                    <button onclick="suggestTopicFromSearch()" class="text-brand hover:text-white transition-all ml-2" title="Suggest Topic">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                    </button>
+                    <div id="topicSuggestDropdown" class="absolute top-full left-0 right-0 mt-2 bg-black/95 backdrop-blur-xl border border-white/10 rounded-2xl p-3 hidden z-[200] shadow-2xl min-w-[200px]"></div>
+                </div>
                 <select id="filterCategory" onchange="loadEntries()" class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white outline-none cursor-pointer hover:bg-white/10">
-                    <option value="">All Categories</option>
+                    <option value="">All Types</option>
                     <option value="quran">Quran</option>
                     <option value="hadith">Hadith</option>
                     <option value="book">Book</option>
                     <option value="quote">Quote</option>
                 </select>
             </div>
+          </div>
+          
+          <!-- Topic Chips -->
+          <div id="topicChips" class="px-8 py-3 border-b border-white/5 flex gap-3 overflow-x-auto hide-scrollbar bg-white/[0.01]">
+                <!-- Populated via JS -->
           </div>
           <div id="entryList" class="flex-1 overflow-y-auto p-8 grid grid-cols-1 xl:grid-cols-2 gap-6 items-start content-start hide-scrollbar">
             <!-- Loaded via JS -->
@@ -1990,28 +2184,116 @@ async def app_library_page(
         </div>
       </div>
     </div>
+
+    <!-- Library Picker Modal (Reused) -->
+    <div id="libraryPickerModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[150] hidden flex items-center justify-center p-6">
+      <div class="glass max-w-2xl w-full p-8 rounded-[2.5rem] space-y-6 border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div class="flex justify-between items-center">
+            <h2 class="text-xl font-black italic text-white tracking-tight">Insert <span class="text-brand">Knowledge</span></h2>
+            <button onclick="closeLibraryPicker()" class="p-2 hover:bg-white/10 rounded-full transition-all text-white/40">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+            </button>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="relative flex-1">
+                <input type="text" id="pickerSearch" oninput="loadPickerEntries()" placeholder="Filter knowledge..." class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-brand/40 transition-all placeholder:text-white/20">
+            </div>
+            <div class="flex gap-2">
+                <select id="pickerTopic" onchange="loadPickerEntries()" class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none appearance-none">
+                    <option value="">All Topics</option>
+                </select>
+                <select id="pickerType" onchange="loadPickerEntries()" class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none appearance-none font-black uppercase">
+                    <option value="">All Types</option>
+                    <option value="quran">Quran</option>
+                    <option value="hadith">Hadith</option>
+                    <option value="quote">Quote</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="flex justify-end px-2">
+            <button onclick="suggestPickerTopic()" class="text-[9px] font-black uppercase text-brand flex items-center gap-2 hover:text-white transition-all">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                Suggest from my prompt
+            </button>
+        </div>
+
+        <div id="pickerResults" class="flex-1 overflow-y-auto space-y-3 min-h-[300px] pr-2 custom-scrollbar">
+            <!-- Results via JS -->
         </div>
       </div>
     </div>
 
+    <!-- Synonym Management Modal (Admin Only) -->
+    <div id="synonymModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[150] hidden flex items-center justify-center p-6">
+      <div class="glass max-w-xl w-full p-8 rounded-[2.5rem] space-y-6 border border-brand/20 shadow-2xl flex flex-col max-h-[80vh]">
+        <div class="flex justify-between items-center">
+            <h2 class="text-xl font-black italic text-white tracking-tight">Topic <span class="text-brand">Synonyms</span></h2>
+            <button onclick="closeSynonymModal()" class="p-2 hover:bg-white/10 rounded-full transition-all text-white/40">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+            </button>
+        </div>
+        
+        <div class="bg-white/5 p-6 rounded-2xl border border-white/5 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <input type="text" id="syn_slug" placeholder="topic_slug" class="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none">
+                <input type="text" id="syn_list" placeholder="comma, separated, synonyms" class="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none">
+            </div>
+            <button onclick="saveSynonym()" class="w-full py-3 bg-brand text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:scale-105 transition-all">Register Synonyms</button>
+        </div>
+
+        <div id="synonymTable" class="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+            <!-- List via JS -->
+        </div>
+      </div>
+    </div>
+        </div>
+
     <script>
       let currentSourceId = null;
-      let categories = [];
+      let selectedTopic = null;
       let entrySearchTimeout;
       const isSuperAdmin = {is_superadmin_js};
       let showGlobalOnly = false;
 
       // --- INITIALIZATION ---
       window.addEventListener('DOMContentLoaded', () => {
+          loadTopics();
           loadSources();
+          loadEntries();
       });
 
+      async function loadTopics() {
+          try {
+              const res = await fetch('/library/topics');
+              const topics = await res.json();
+              const select = document.getElementById('filterTopic');
+              const chips = document.getElementById('topicChips');
+              
+              select.innerHTML = '<option value="">All Topics</option>';
+              chips.innerHTML = '';
+              
+              topics.slice(0, 15).forEach(t => {
+                  const opt = document.createElement('option');
+                  opt.value = t.slug;
+                  opt.textContent = t.slug.replace(/_/g, ' ').toUpperCase();
+                  select.appendChild(opt);
+                  
+                  const chip = document.createElement('button');
+                  chip.onclick = () => { select.value = t.slug; loadEntries(); };
+                  chip.className = "flex-shrink-0 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/40 hover:bg-brand/20 hover:text-brand transition-all";
+                  chip.textContent = t.slug.replace(/_/g, ' ');
+                  chips.appendChild(chip);
+              });
+          } catch(e) { console.error("Topic load failed", e); }
+      }
       async function loadSources() {
           const list = document.getElementById('sourceList');
           list.innerHTML = '<div class="text-center py-20 text-[10px] text-muted font-black uppercase animate-pulse">Scanning Collections...</div>';
           
           try {
-              const res = await fetch(`/api/admin/library/sources?scope=${showGlobalOnly ? 'global' : 'org'}`);
+              const res = await fetch(`/library/sources?scope=${showGlobalOnly ? 'global' : 'org'}`);
               const sources = await res.json();
               document.getElementById('sourceCount').textContent = sources.length;
               
@@ -2058,18 +2340,15 @@ async def app_library_page(
           const list = document.getElementById('entryList');
           const query = document.getElementById('entrySearch').value;
           const category = document.getElementById('filterCategory').value;
+          const topic = document.getElementById('filterTopic').value;
           
           list.innerHTML = '<div class="col-span-full text-center py-20 text-[10px] text-muted font-bold uppercase animate-pulse">Retrieving Knowledge Nodes...</div>';
 
           try {
               let url = `/library/entries?query=${encodeURIComponent(query)}`;
-              if (currentSourceId) {
-                  url += `&source_id=${currentSourceId}`;
-              } else if (showGlobalOnly) {
-                  // If we are in global view and no source selected, we might want to only show global entries
-                  // The backend /library/entries returns (org OR global). 
-                  // We can filter here or use a specialized endpoint if we wanted strictness.
-              }
+              if (currentSourceId) url += `&source_id=${currentSourceId}`;
+              if (topic) url += `&topic=${encodeURIComponent(topic)}`;
+              if (category) url += `&item_type=${encodeURIComponent(category)}`;
               
               const res = await fetch(url);
               let entries = await res.json();
@@ -2078,10 +2357,6 @@ async def app_library_page(
                   entries = entries.filter(e => e.org_id === null);
               }
               
-              if (category) {
-                  entries = entries.filter(e => e.item_type === category);
-              }
-
               if (entries.length === 0) {
                   list.innerHTML = `
                     <div class="col-span-full h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50 py-20">
@@ -2323,6 +2598,181 @@ async def app_library_page(
           }
       }
 
+      async function suggestTopicFromSearch() {
+          const query = document.getElementById('entrySearch').value;
+          if (!query) return alert("Type something in search first to get suggestions");
+          
+          const dropdown = document.getElementById('topicSuggestDropdown');
+          dropdown.innerHTML = '<div class="text-[9px] font-black uppercase text-muted animate-pulse">Analyzing Library...</div>';
+          dropdown.classList.remove('hidden');
+          
+          try {
+              const res = await fetch('/library/topic-suggest', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ text: query, max: 3 })
+              });
+              const data = await res.json();
+              if (data.suggestions && data.suggestions.length > 0) {
+                  dropdown.innerHTML = data.suggestions.map(s => `
+                      <button onclick="applySuggestedTopic('${s.slug}')" class="w-full text-left p-2 hover:bg-brand/10 rounded-lg group transition-all">
+                          <div class="flex justify-between items-center">
+                              <span class="text-[10px] font-black uppercase text-white group-hover:text-brand">${s.topic}</span>
+                              <span class="text-[8px] font-bold text-muted">${Math.round(s.score * 100)}%</span>
+                          </div>
+                          <div class="text-[7px] font-medium text-muted uppercase tracking-tighter">${s.reason}</div>
+                      </button>
+                  `).join('');
+              } else {
+                  dropdown.innerHTML = '<div class="text-[9px] font-black uppercase text-muted">No matches found</div>';
+                  setTimeout(() => dropdown.classList.add('hidden'), 2000);
+              }
+          } catch(e) { dropdown.classList.add('hidden'); }
+      }
+
+      function applySuggestedTopic(slug) {
+          document.getElementById('filterTopic').value = slug;
+          document.getElementById('topicSuggestDropdown').classList.add('hidden');
+          loadEntries();
+      }
+
+      // Picker Helpers
+      let pickerTargetId = null;
+      function openLibraryPicker(targetId) {
+          pickerTargetId = targetId;
+          document.getElementById('libraryPickerModal').classList.remove('hidden');
+          loadPickerTopics();
+          loadPickerEntries();
+      }
+      function closeLibraryPicker() {
+          document.getElementById('libraryPickerModal').classList.add('hidden');
+          pickerTargetId = null;
+      }
+      async function loadPickerTopics() {
+          try {
+              const res = await fetch('/library/topics');
+              const topics = await res.json();
+              const select = document.getElementById('pickerTopic');
+              select.innerHTML = '<option value="">All Topics</option>';
+              topics.forEach(t => {
+                  const opt = document.createElement('option');
+                  opt.value = t.slug;
+                  opt.textContent = t.slug.replace(/_/g, ' ').toUpperCase();
+                  select.appendChild(opt);
+              });
+          } catch(e) {}
+      }
+      async function loadPickerEntries() {
+          const query = document.getElementById('pickerSearch').value;
+          const topic = document.getElementById('pickerTopic').value;
+          const type = document.getElementById('pickerType').value;
+          const list = document.getElementById('pickerResults');
+          list.innerHTML = '<div class="text-center py-10 text-[9px] font-black uppercase text-muted animate-pulse">Scanning Library...</div>';
+          try {
+              let url = `/library/entries?query=${encodeURIComponent(query)}`;
+              if (topic) url += `&topic=${encodeURIComponent(topic)}`;
+              if (type) url += `&item_type=${encodeURIComponent(type)}`;
+              const res = await fetch(url);
+              const entries = await res.json();
+              if (entries.length === 0) {
+                  list.innerHTML = '<div class="text-center py-10 text-[9px] font-black uppercase text-muted opacity-40">No entries found</div>';
+                  return;
+              }
+              list.innerHTML = '';
+              entries.forEach(e => {
+                  const div = document.createElement('div');
+                  div.className = "p-4 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-brand/30 transition-all cursor-pointer space-y-2";
+                  div.onclick = () => selectPickerEntry(e);
+                  div.innerHTML = `
+                      <div class="flex justify-between items-center">
+                        <span class="text-[7px] font-black text-brand uppercase tracking-widest">${e.item_type}</span>
+                        <span class="text-[8px] font-black text-muted">${e.topic || ''}</span>
+                      </div>
+                      <p class="text-[10px] text-white/70 line-clamp-2">${e.text.substring(0, 150)}...</p>
+                  `;
+                  list.appendChild(div);
+              });
+          } catch(e) {}
+      }
+      async function suggestPickerTopic() {
+          const query = document.getElementById('pickerSearch').value;
+          if (!query) return;
+          try {
+              const res = await fetch('/library/topic-suggest', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ text: query, max: 1 })
+              });
+              const data = await res.json();
+              if (data.suggestions && data.suggestions.length > 0) {
+                  document.getElementById('pickerTopic').value = data.suggestions[0].slug;
+                  loadPickerEntries();
+              }
+          } catch(e) {}
+      }
+      function selectPickerEntry(entry) {
+          const target = document.getElementById(pickerTargetId);
+          if (target) {
+              let credit = "";
+              if (entry.item_type === 'hadith') credit = `\n\n[Ref: ${entry.meta.collection} #${entry.meta.hadith_number}]`;
+              else if (entry.item_type === 'quran') credit = `\n\n[Quran ${entry.meta.surah_number}:${entry.meta.verse_start}]`;
+              target.value = entry.text + credit;
+          }
+          closeLibraryPicker();
+      }
+
+      // Synonym Management
+      function openSynonymModal() {
+          document.getElementById('synonymModal').classList.remove('hidden');
+          loadSynonyms();
+      }
+      function closeSynonymModal() {
+          document.getElementById('synonymModal').classList.add('hidden');
+      }
+      async function loadSynonyms() {
+          const table = document.getElementById('synonymTable');
+          table.innerHTML = '<div class="text-center py-4 text-muted animate-pulse font-black text-[9px] uppercase">Retrieving Map...</div>';
+          try {
+              const res = await fetch('/api/library/synonyms');
+              const data = await res.json();
+              table.innerHTML = data.map(s => `
+                  <div class="flex justify-between items-center p-4 bg-white/5 rounded-xl border border-white/5 group">
+                      <div>
+                          <div class="text-[9px] font-black text-brand uppercase">${s.slug}</div>
+                          <div class="text-[8px] font-bold text-white/40 uppercase">${s.synonyms.join(', ')}</div>
+                      </div>
+                      <button onclick="deleteSynonym('${s.slug}')" class="p-2 text-rose-400 opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500/20 rounded-lg">
+                          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                      </button>
+                  </div>
+              `).join('');
+          } catch(e) {}
+      }
+      async function saveSynonym() {
+          const slug = document.getElementById('syn_slug').value.trim();
+          const list = document.getElementById('syn_list').value.split(',').map(s => s.trim()).filter(s => s);
+          if (!slug || !list.length) return alert("Slug and synonyms required");
+          try {
+              const res = await fetch('/api/library/synonyms', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ slug, synonyms: list })
+              });
+              if (res.ok) {
+                  document.getElementById('syn_slug').value = '';
+                  document.getElementById('syn_list').value = '';
+                  loadSynonyms();
+              }
+          } catch(e) {}
+      }
+      async function deleteSynonym(slug) {
+          if (!confirm(`Delete synonyms for ${slug}?`)) return;
+          try {
+              const res = await fetch(`/api/library/synonyms/${slug}`, { method: 'DELETE' });
+              if (res.ok) loadSynonyms();
+          } catch(e) {}
+      }
+
       async function saveEntry() {
           const id = document.getElementById('entryId').value;
           const type = document.getElementById('entryType').value;
@@ -2389,6 +2839,99 @@ async def app_library_page(
           } catch(e) { alert('Transmission error: ' + e.message); }
       }
 
+      let pickerTargetId = null;
+
+      function openLibraryPicker(targetId) {
+          pickerTargetId = targetId;
+          document.getElementById('libraryPickerModal').classList.remove('hidden');
+          loadPickerTopics();
+          loadPickerEntries();
+      }
+      
+      function closeLibraryPicker() {
+          document.getElementById('libraryPickerModal').classList.add('hidden');
+          pickerTargetId = null;
+      }
+
+      async function loadPickerTopics() {
+          try {
+              const res = await fetch('/library/topics');
+              const topics = await res.json();
+              const select = document.getElementById('pickerTopic');
+              select.innerHTML = '<option value="">All Topics</option>';
+              topics.forEach(t => {
+                  const opt = document.createElement('option');
+                  opt.value = t.slug;
+                  opt.textContent = t.slug.replace(/_/g, ' ').toUpperCase();
+                  select.appendChild(opt);
+              });
+          } catch(e) {}
+      }
+
+      async function loadPickerEntries() {
+          const query = document.getElementById('pickerSearch').value;
+          const topic = document.getElementById('pickerTopic').value;
+          const type = document.getElementById('pickerType').value;
+          const list = document.getElementById('pickerResults');
+          
+          list.innerHTML = '<div class="text-center py-10 text-[9px] font-black uppercase text-muted animate-pulse">Scanning Neural Library...</div>';
+          
+          try {
+              let url = `/library/entries?query=${encodeURIComponent(query)}`;
+              if (topic) url += `&topic=${encodeURIComponent(topic)}`;
+              if (type) url += `&item_type=${encodeURIComponent(type)}`;
+              
+              const res = await fetch(url);
+              const entries = await res.json();
+              
+              if (entries.length === 0) {
+                  list.innerHTML = '<div class="text-center py-10 text-[9px] font-black uppercase text-muted opacity-40">No knowledge found for this topic</div>';
+                  return;
+              }
+              
+              list.innerHTML = '';
+              entries.forEach(e => {
+                  const div = document.createElement('div');
+                  div.className = "p-4 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-brand/30 transition-all cursor-pointer space-y-2";
+                  
+                  let scope = "SYSTEM";
+                  let scopeClass = "bg-brand/10 text-brand";
+                  if (e.org_id) { scope = "WORKSPACE"; scopeClass = "bg-white/10 text-white/40"; }
+                  if (e.owner_user_id) { scope = "PERSONAL"; scopeClass = "bg-amber-500/10 text-amber-500"; }
+
+                  div.onclick = () => selectPickerEntry(e);
+                  div.innerHTML = `
+                      <div class="flex justify-between items-center">
+                        <div class="flex gap-2">
+                            <span class="px-2 py-0.5 rounded-md ${scopeClass} text-[7px] font-black uppercase">${scope}</span>
+                            <span class="text-[7px] font-black text-white/30 uppercase tracking-widest">${e.item_type}</span>
+                        </div>
+                        <span class="text-[8px] font-black text-muted">${e.topic || ''}</span>
+                      </div>
+                      <p class="text-[10px] text-white/70 line-clamp-2 leading-relaxed font-medium">${e.text.substring(0, 150)}...</p>
+                  `;
+                  list.appendChild(div);
+              });
+          } catch(e) {}
+      }
+
+      function selectPickerEntry(entry) {
+          const target = document.getElementById(pickerTargetId);
+          if (target) {
+              let credit = "";
+              if (entry.item_type === 'hadith') {
+                  credit = `\n\n[Reference: ${entry.meta.collection || 'Hadith'} - #${entry.meta.hadith_number || 'N/A'}]`;
+              } else if (entry.item_type === 'quran') {
+                  credit = `\n\n[Quran ${entry.meta.surah_number}:${entry.meta.verse_with_number || entry.meta.verse_start}]`;
+              } else if (entry.item_type === 'book') {
+                  credit = `\n\n[Source: ${entry.meta.title || 'Book'} by ${entry.meta.author || 'Unknown'}]`;
+              }
+              
+              target.value = entry.text + credit;
+          }
+          closeLibraryPicker();
+      }
+
       function toggleGlobalView(global) {
           showGlobalOnly = global;
           const orgBtn = document.getElementById('orgViewBtn');
@@ -2441,9 +2984,12 @@ async def app_library_page(
                           .replace("{active_library}", "active")\
                           .replace("{active_media}", "")\
                           .replace("{content}", content.replace("{superadmin_controls}", f"""
-            <div class="flex p-1 bg-white/5 rounded-xl border border-white/10">
+            <div class="flex p-1 bg-white/5 rounded-xl border border-white/10 gap-2">
                 <button onclick="toggleGlobalView(false)" id="orgViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-lg">Org</button>
                 <button onclick="toggleGlobalView(true)" id="globalViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-white/40 hover:text-white">System</button>
+                <button onclick="openSynonymModal()" class="px-3 py-1.5 border border-brand/20 rounded-lg text-brand hover:bg-brand hover:text-white transition-all">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                </button>
             </div>
             """ if user.is_superadmin else ""))\
                           .replace("{is_superadmin_js}", "true" if user.is_superadmin else "false")\
