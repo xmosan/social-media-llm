@@ -1866,12 +1866,7 @@ async def app_library_page(
                 <span id="sourceCount" class="text-[9px] font-black text-brand bg-brand/10 px-2 py-0.5 rounded-full">0</span>
             </div>
             
-            {% if is_superadmin %}
-            <div class="flex p-1 bg-white/5 rounded-xl border border-white/10">
-                <button onclick="toggleGlobalView(false)" id="orgViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-lg">Org</button>
-                <button onclick="toggleGlobalView(true)" id="globalViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-white/40 hover:text-white">System</button>
-            </div>
-            {% endif %}
+            {superadmin_controls}
           </div>
           <div id="sourceList" class="flex-1 overflow-y-auto p-4 space-y-2 hide-scrollbar">
             <!-- Loaded via JS -->
@@ -1979,6 +1974,8 @@ async def app_library_page(
                     <div class="flex justify-between items-end">
                         <label class="text-[10px] font-black uppercase tracking-[0.3em] text-brand">Knowledge Content</label>
                         <span id="charCount" class="text-[9px] font-bold text-muted tracking-widest">0 / 3000</span>
+                    </div>
+                    <textarea id="entryText" oninput="updateCharCount()" rows="8" class="w-full bg-white/5 border border-white/10 rounded-[2rem] px-8 py-8 text-sm text-white outline-none focus:ring-2 focus:ring-brand leading-relaxed placeholder:text-white/5" placeholder="Paste the verse, hadith, or quote text here..."></textarea>
                 </div>
 
                 <div id="dynamicMetadata" class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
@@ -2443,7 +2440,12 @@ async def app_library_page(
                           .replace("{active_automations}", "")\
                           .replace("{active_library}", "active")\
                           .replace("{active_media}", "")\
-                          .replace("{content}", content)\
+                          .replace("{content}", content.replace("{superadmin_controls}", f"""
+            <div class="flex p-1 bg-white/5 rounded-xl border border-white/10">
+                <button onclick="toggleGlobalView(false)" id="orgViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-lg">Org</button>
+                <button onclick="toggleGlobalView(true)" id="globalViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-white/40 hover:text-white">System</button>
+            </div>
+            """ if user.is_superadmin else ""))\
                           .replace("{is_superadmin_js}", "true" if user.is_superadmin else "false")\
                           .replace("{account_options}", "")
 
