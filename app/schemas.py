@@ -297,6 +297,7 @@ class ContentItemOut(BaseModel):
     url: str | None
     meta: dict
     tags: list[str]
+    topics: list[str] = Field(default_factory=list)
     use_count: int
     last_used_at: datetime | None
     created_at: datetime
@@ -305,7 +306,9 @@ class ContentItemOut(BaseModel):
         from_attributes = True
 
 class ContentItemCreate(BaseModel):
-    source_id: int
+    source_id: int | None = None # Optional if source_name is provided
+    source_name: str | None = None # New: for auto-source creation
+    source_category: str | None = None
     item_type: str = "note"
     title: str | None = None
     text: str
@@ -314,6 +317,7 @@ class ContentItemCreate(BaseModel):
     url: str | None = None
     meta: dict = Field(default_factory=dict)
     tags: list[str] = Field(default_factory=list)
+    topics: list[str] = Field(default_factory=list)
 
 class ContentItemUpdate(BaseModel):
     item_type: str | None = None
@@ -324,6 +328,7 @@ class ContentItemUpdate(BaseModel):
     url: str | None = None
     meta: dict | None = None
     tags: list[str] | None = None
+    topics: list[str] | None = None
 
 class MediaAssetOut(BaseModel):
     id: int

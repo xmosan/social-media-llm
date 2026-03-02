@@ -1,10 +1,9 @@
-.env
-Token.env
-
 .venv/
-__pycache__/
-*.pyc
-
+.venv_new/
+.venv_studio/
+venv2/
+backups/
+test_500.py
 *.sqlite
 *.sqlite3
 app.db
@@ -12,8 +11,6 @@ saas.db
 saas.db-shm
 saas.db-wal
 uploads/
-
-# Tunnels & Logs
 ngrok
 *.log
 *.js.map
@@ -21,5 +18,7 @@ debug_script.js
 served_script*.js
 lt.log
 tunnel.log
-!*.py\n.venv_new
-venv2/
+__pycache__/
+*.pyc
+.env
+Token.env

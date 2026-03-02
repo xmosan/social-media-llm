@@ -40,7 +40,7 @@ def pick_content_item(
     query = query.filter(cast(ContentItem.topics, String).like(f'%"{norm_topic}"%'))
         
     if content_type:
-        query = query.filter(ContentItem.type == content_type)
+        query = query.filter(ContentItem.item_type == content_type)
         
     # 2. Exclude recently used items
     repeat_cutoff = datetime.now(timezone.utc) - timedelta(days=avoid_repeat_days)

@@ -316,53 +316,52 @@ APP_LAYOUT_HTML = """<!doctype html>
         // Update tab styling
         const myLibTab = document.getElementById('drawerTabMyLib');
         const defaultTab = document.getElementById('drawerTabDefault');
-        if (tab === 'my_library') {
-            myLibTab.classList.add('text-white', 'border-brand');
-            myLibTab.classList.remove('text-muted', 'border-transparent');
-            defaultTab.classList.add('text-muted', 'border-transparent');
-            defaultTab.classList.remove('text-white', 'border-brand');
-        } else {
+        if (tab === 'all') {
             defaultTab.classList.add('text-white', 'border-brand');
             defaultTab.classList.remove('text-muted', 'border-transparent');
             myLibTab.classList.add('text-muted', 'border-transparent');
             myLibTab.classList.remove('text-white', 'border-brand');
+        } else {
+            myLibTab.classList.add('text-white', 'border-brand');
+            myLibTab.classList.remove('text-muted', 'border-transparent');
+            defaultTab.classList.add('text-muted', 'border-transparent');
+            defaultTab.classList.remove('text-white', 'border-brand');
         }
 
         const content = document.getElementById('libraryDrawerContent');
         content.innerHTML = '<div class="text-center py-10"><div class="animate-spin w-6 h-6 border-2 border-brand border-t-transparent rounded-full mx-auto"></div></div>';
         
         try {
-            const endpoint = tab === 'my_library' ? '/library' : '/library/all_prebuilt';
-            const res = await fetch(endpoint);
-            const docs = await res.json();
+            // New structured endpoint
+            const res = await fetch('/library/entries');
+            const entries = await res.json();
             
             content.innerHTML = '';
-            docs.forEach(doc => {
+            entries.forEach(e => {
                 const div = document.createElement('div');
-                div.className = 'glass p-4 rounded-xl border border-white/5 hover:border-brand/40 cursor-pointer transition-all';
+                div.className = 'glass p-5 rounded-2xl border border-white/5 hover:border-brand/40 cursor-pointer transition-all space-y-2';
                 
-                // Handle different schemas between My Library (db) and Prebuilt (json)
-                const docTitle = doc.title || doc.name || 'Untitled';
-                const docSource = doc.source_type || 'prebuilt pack';
-                const docText = doc.text || doc.description || '';
-                
+                let metaInfo = '';
+                if (e.item_type === 'quran') metaInfo = `Surah ${e.meta.surah_number}:${e.meta.verse_start}`;
+                else if (e.item_type === 'hadith') metaInfo = `${e.meta.collection} #${e.meta.hadith_number}`;
+                else metaInfo = e.meta.title || e.item_type;
+
                 div.innerHTML = `
-                    <div class="text-[10px] font-black text-white uppercase tracking-wider">${docTitle}</div>
-                    <div class="text-[8px] font-bold text-muted uppercase mt-1">${docSource} source</div>
+                    <div class="flex justify-between items-start">
+                        <span class="text-[9px] font-black text-brand uppercase tracking-widest">${e.item_type}</span>
+                        <span class="text-[8px] font-bold text-muted uppercase tracking-tighter">${metaInfo}</span>
+                    </div>
+                    <div class="text-[11px] text-white/80 line-clamp-3 font-medium italic">"${e.text}"</div>
                 `;
-                div.onclick = () => selectLibraryDoc({
-                    id: doc.id || doc.name, 
-                    title: docTitle, 
-                    text: docText
-                });
+                div.onclick = () => selectLibraryDoc(e);
                 content.appendChild(div);
             });
 
-            if (docs.length === 0) {
-                content.innerHTML = `<div class="text-center py-10 text-muted text-[10px] font-black uppercase">No ${tab === 'my_library' ? 'custom documents' : 'prebuilt packs'} found.</div>`;
+            if (entries.length === 0) {
+                content.innerHTML = `<div class="text-center py-20 opacity-40"><p class="text-[10px] font-black uppercase tracking-widest">Knowledge Base Empty</p></div>`;
             }
         } catch(e) {
-            content.innerHTML = '<div class="text-center py-10 text-rose-400 text-[10px] font-black uppercase">Failed to load library.</div>';
+            content.innerHTML = '<div class="text-center py-10 text-rose-400 text-[10px] font-black uppercase">Neural link failure.</div>';
         }
     }
 
@@ -370,10 +369,16 @@ APP_LAYOUT_HTML = """<!doctype html>
         document.getElementById('libraryDrawer').classList.add('translate-x-full');
     }
 
-    function selectLibraryDoc(doc) {
-        document.getElementById('studioSourceText').value = doc.text || "";
-        document.getElementById('studioReference').value = doc.title || "";
-        document.getElementById('studioLibraryItemId').value = doc.id;
+    function selectLibraryDoc(e) {
+        document.getElementById('studioSourceText').value = e.text || "";
+        
+        let ref = '';
+        if (e.item_type === 'quran') ref = `Quran ${e.meta.surah_number}:${e.meta.verse_start}`;
+        else if (e.item_type === 'hadith') ref = `${e.meta.collection} #${e.meta.hadith_number}`;
+        else ref = e.meta.title || e.item_type;
+
+        document.getElementById('studioReference').value = ref;
+        document.getElementById('studioLibraryItemId').value = e.id;
         document.getElementById('summaryFoundation').innerText = 'LIBRARY';
         document.getElementById('srcTabLibrary').classList.add('studio-tab', 'active');
         document.getElementById('srcTabManual').classList.remove('studio-tab', 'active');
@@ -1829,552 +1834,511 @@ async def app_library_page(
         </button>
         """
 
-    content = f"""
+    content = """
     <style>
         .dir-rtl {{ direction: rtl; unicode-bidi: bidi-override; }}
         .font-serif {{ font-family: 'Amiri', 'Traditional Arabic', serif; }}
+        .hide-scrollbar::-webkit-scrollbar {{ display: none; }}
+        .hide-scrollbar {{ -ms-overflow-style: none; scrollbar-width: none; }}
     </style>
-    <div id="standardView" class="space-y-8">
-      <div class="flex justify-between items-end">
+    
+    <div class="space-y-8 h-full flex flex-col">
+      <div class="flex justify-between items-end flex-shrink-0">
         <div>
           <h1 class="text-3xl font-black italic tracking-tight text-white">Source <span class="text-brand">Library</span></h1>
           <p class="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Knowledge Base Management</p>
         </div>
-        <div id="actionButtons" class="flex gap-4">
-          {manage_btn}
-          <input type="file" id="pdfUpload" class="hidden" accept=".pdf,.txt" onchange="handleFileUpload(this)">
-          <button onclick="document.getElementById('pdfUpload').click()" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">Upload PDF/TXT</button>
-          <button onclick="showUrlModal()" class="px-6 py-3 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20">Add URL Source</button>
+        <div class="flex gap-4">
+          <button onclick="openEntryModal()" class="px-8 py-4 bg-brand rounded-2xl font-black text-[11px] uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+            Add Library Entry
+          </button>
         </div>
       </div>
 
-      <!-- Tab Switcher -->
-      <div class="flex border-b border-white/5">
-        <button onclick="switchTab('user')" id="tabUser" class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white border-b-2 border-brand relative transition-all">My Knowledge Base</button>
-        <button onclick="switchTab('default')" id="tabDefault" class="px-8 py-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted border-b-2 border-transparent hover:text-white transition-all">Default Library</button>
-      </div>
-
-      <div id="paneUser" class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-          {docs_html or '<div class="col-span-full py-20 text-center glass rounded-3xl"><p class="text-muted font-black text-[10px] uppercase tracking-widest">Your library is empty. Upload your first source to begin grounded generation.</p></div>'}
-        </div>
-      </div>
-
-      <div id="paneDefault" class="hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
-        <div class="max-w-3xl">
-          {prebuilt_html or '<div class="py-20 text-center glass rounded-3xl"><p class="text-muted font-black text-[10px] uppercase tracking-widest">Default prebuilt packs are currently unavailable.</p></div>'}
-        </div>
-      </div>
-    </div>
-
-    <!-- ADMIN MANAGER VIEW -->
-    <div id="manageView" class="hidden space-y-8">
-        <div class="flex justify-between items-end">
-            <div>
-              <h1 class="text-3xl font-black italic tracking-tight text-white">Admin <span class="text-brand">Library Manager</span></h1>
-              <p class="text-[10px] font-black text-muted uppercase tracking-[0.3em]">System Content Curation</p>
-            </div>
-            <button onclick="toggleManageMode()" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">Return to Library</button>
-        </div>
-
-        <div class="flex gap-8 h-[70vh]">
-            <!-- Left Pane: Sources -->
-            <div class="w-1/3 glass rounded-[2.5rem] flex flex-col overflow-hidden">
-                <div class="p-6 border-b border-white/10 flex justify-between items-center">
-                    <h3 class="text-xs font-black uppercase tracking-widest text-white">Content Sources</h3>
-                    <button onclick="openSourceModal()" class="w-8 h-8 bg-brand/20 text-brand rounded-lg flex items-center justify-center hover:bg-brand/30 transition-all">+</button>
-                </div>
-                <div id="sourceList" class="flex-1 overflow-y-auto p-4 space-y-2">
-                    <!-- Loaded via JS -->
-                </div>
-            </div>
-
-            <!-- Right Pane: Entries -->
-            <div class="flex-1 glass rounded-[2.5rem] flex flex-col overflow-hidden">
-                <div class="p-6 border-b border-white/10 flex justify-between items-center">
-                    <div class="flex items-center gap-6">
-                        <h3 class="text-xs font-black uppercase tracking-widest text-white">Library Entries</h3>
-                        <div class="relative">
-                            <input type="text" id="entrySearch" oninput="debounceEntryQuery()" placeholder="Search entries..." class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-bold text-white outline-none focus:border-brand/40 w-48">
-                        </div>
-                    </div>
-                    <button id="addEntryBtn" onclick="openEntryModal()" class="px-4 py-2 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white disabled:opacity-50" disabled>+ Add Entry</button>
-                </div>
-                <div id="entryList" class="flex-1 overflow-y-auto p-4 space-y-3">
-                    <div class="h-full flex items-center justify-center text-muted font-black text-[10px] uppercase tracking-widest">Select a source to view entries</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Source Modal -->
-    <div id="sourceModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] hidden flex items-center justify-center p-6">
-      <div class="glass max-w-lg w-full p-10 rounded-[2.5rem] space-y-6">
-        <h2 id="sourceModalTitle" class="text-2xl font-black italic text-white tracking-tight">Add <span class="text-brand">Source</span></h2>
-        <input type="hidden" id="sourceId">
-        <div class="space-y-4">
-          <div class="space-y-1">
-            <label class="text-[10px] font-black uppercase tracking-widest text-muted">Reference Book / Source Name</label>
-            <input type="text" id="sourceName" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="e.g. Quran, Sahih al-Bukhari, or Book Title">
+      <!-- Main Layout: Sidebar + List -->
+      <div class="flex gap-8 flex-1 overflow-hidden min-h-0">
+        <!-- Sidebar: Sources -->
+        <div class="w-80 glass rounded-[2.5rem] flex flex-col overflow-hidden border border-white/5">
+          <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/2">
+            <h3 class="text-xs font-black uppercase tracking-widest text-white/50">Collections</h3>
+            <span id="sourceCount" class="text-[9px] font-black text-brand bg-brand/10 px-2 py-0.5 rounded-full">0</span>
           </div>
-          <div class="space-y-1">
-            <label class="text-[10px] font-black uppercase tracking-widest text-muted">Category</label>
-            <input type="text" id="sourceCategory" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="e.g. Hadith">
-          </div>
-          <div class="space-y-1">
-            <label class="text-[10px] font-black uppercase tracking-widest text-muted">Source Type</label>
-            <select id="sourceType" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand text-white appearance-none">
-              <option value="manual_library">Manual Library</option>
-              <option value="rss">RSS Feed</option>
-              <option value="url_list">URL List</option>
-            </select>
-          </div>
-          <div class="flex items-center gap-3">
-            <input type="checkbox" id="sourceIsGlobal" class="w-4 h-4 rounded border-white/10 bg-white/5 text-brand focus:ring-brand">
-            <label for="sourceIsGlobal" class="text-[10px] font-black uppercase tracking-widest text-white">Make Global (Admin Only)</label>
+          <div id="sourceList" class="flex-1 overflow-y-auto p-4 space-y-2 hide-scrollbar">
+            <!-- Loaded via JS -->
           </div>
         </div>
-        <div class="bg-brand/5 p-4 rounded-2xl border border-brand/20 mb-4">
-            <p class="text-[9px] font-bold text-brand uppercase tracking-widest leading-relaxed">
-                <span class="text-white">Tip:</span> Create a source first (like "Quran"), then select it to add individual verses or hadiths.
-            </p>
-        </div>
-        <div class="flex gap-4 pt-4">
-          <button onclick="hideSourceModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest">Cancel</button>
-          <button onclick="saveSource()" class="flex-[2] py-4 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/40">Create Source</button>
-        </div>
-      </div>
-    </div>
 
-    <!-- Entry Modal -->
-    <div id="entryModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] hidden flex items-center justify-center p-6">
-      <div class="glass max-w-4xl w-full p-10 rounded-[2.5rem] space-y-6 max-h-[95vh] overflow-y-auto">
-        <div class="flex justify-between items-center mb-4">
-            <h2 id="entryModalTitle" class="text-2xl font-black italic text-white tracking-tight">Add <span class="text-brand">Library Entry</span></h2>
-            <div class="flex items-center gap-4">
-                <label class="text-[10px] font-black uppercase tracking-widest text-muted">Type</label>
-                <select id="entryType" onchange="updateEntryFields()" class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-xs outline-none focus:ring-2 focus:ring-brand text-white appearance-none">
-                    <option value="note">Basic Note</option>
-                    <option value="quran">Quran Verse</option>
-                    <option value="hadith">Hadith Narration</option>
-                    <option value="book">Book Excerpt</option>
-                </select>
-            </div>
-        </div>
-        
-        <input type="hidden" id="entryId">
-        
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <!-- Main Content Pane (Chat Style) -->
-          <div class="lg:col-span-2 space-y-6">
-            <div class="space-y-1">
-              <label id="mainTextLabel" class="text-[10px] font-black uppercase tracking-widest text-muted">Primary Knowledge (English)</label>
-              <div class="relative">
-                <textarea id="entryText" rows="12" class="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-6 text-sm outline-none focus:ring-2 focus:ring-brand leading-relaxed placeholder:text-white/10" placeholder="Type or paste the primary knowledge resource here..."></textarea>
-                <div class="absolute bottom-4 right-6 text-[8px] font-bold text-white/20 uppercase tracking-widest pointer-events-none">Spectral Node</div>
+        <!-- Main Content: Entries Grid -->
+        <div class="flex-1 glass rounded-[2.5rem] flex flex-col overflow-hidden border border-white/5 bg-white/2">
+          <div class="p-6 border-b border-white/10 flex justify-between items-center">
+            <div class="flex items-center gap-6 flex-1">
+              <h3 class="text-xs font-black uppercase tracking-widest text-white/50">Knowledge Nodes</h3>
+              <div class="relative flex-1 max-w-md">
+                <input type="text" id="entrySearch" oninput="debounceEntryQuery()" placeholder="Search through your library..." class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-3 text-[11px] font-bold text-white outline-none focus:border-brand/40 transition-all placeholder:text-white/10">
+                <svg class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
               </div>
             </div>
-            
-            <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Original Scripture (Arabic / Optional)</label>
-              <textarea id="entryArabic" rows="5" class="w-full bg-white/5 border border-white/10 rounded-3xl px-8 py-6 text-lg min-h-[120px] outline-none focus:ring-2 focus:ring-brand text-right dir-rtl font-serif leading-loose" placeholder="أدخل النص الأصلي هنا..."></textarea>
+            <div class="flex items-center gap-4 ml-4">
+                <select id="filterCategory" onchange="loadEntries()" class="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white outline-none cursor-pointer hover:bg-white/10">
+                    <option value="">All Categories</option>
+                    <option value="quran">Quran</option>
+                    <option value="hadith">Hadith</option>
+                    <option value="book">Book</option>
+                    <option value="quote">Quote</option>
+                </select>
             </div>
           </div>
+          <div id="entryList" class="flex-1 overflow-y-auto p-8 grid grid-cols-1 xl:grid-cols-2 gap-6 items-start content-start hide-scrollbar">
+            <!-- Loaded via JS -->
+            <div class="col-span-full h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50 py-20">
+                <div class="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center border border-white/10">
+                    <svg class="w-8 h-8 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                </div>
+                <p class="text-[11px] font-black uppercase tracking-[0.3em] text-white">Select a collection to browse</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-          <!-- Metadata Pane -->
-          <div class="space-y-6 flex flex-col">
-            <div id="metaFields" class="flex-1 bg-white/5 p-8 rounded-[2.5rem] border border-white/5 space-y-6">
-                <!-- Dynamic fields -->
+    <!-- Unified Entry Modal -->
+    <div id="entryModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[500] hidden flex items-center justify-center p-6 animate-in fade-in duration-300">
+      <div class="glass max-w-5xl w-full p-10 rounded-[3rem] border border-white/10 shadow-2xl space-y-8 max-h-[90vh] overflow-y-auto hide-scrollbar">
+        <div class="flex justify-between items-center">
+            <div>
+                <h2 id="entryModalTitle" class="text-3xl font-black italic text-white tracking-tight">Add <span class="text-brand">Library Entry</span></h2>
+                <p class="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mt-1">Populate your intelligence database</p>
             </div>
-            
-            <div class="bg-brand/10 p-4 rounded-2xl border border-brand/20">
-                <p class="text-[9px] font-bold text-brand uppercase tracking-widest leading-relaxed">
-                    <span class="text-white">Note:</span> Knowledge nodes added here will be used for grounded AI generation and social content.
-                </p>
+            <button onclick="hideEntryModal()" class="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center text-white/40 hover:bg-white/10 hover:text-white transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+            </button>
+        </div>
+
+        <input type="hidden" id="entryId">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+            <!-- Left Side: Source & Settings -->
+            <div class="lg:col-span-4 space-y-6 bg-white/5 p-8 rounded-[2.5rem] border border-white/5">
+                <div class="space-y-4">
+                    <label class="text-[10px] font-black uppercase tracking-[0.3em] text-brand">Collection Name</label>
+                    <select id="sourceSelect" onchange="checkNewSource()" class="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-sm text-white outline-none focus:ring-2 focus:ring-brand font-bold appearance-none">
+                        <option value="">Select or Create New...</option>
+                        <!-- Populated via JS -->
+                    </select>
+                </div>
+
+                <div id="newSourceFields" class="space-y-6 hidden animate-in slide-in-from-top-2">
+                    <div class="space-y-2">
+                        <label class="text-[9px] font-black uppercase tracking-[0.2em] text-white/30">New Collection Title</label>
+                        <input type="text" id="newSourceName" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm text-white outline-none focus:ring-2 focus:ring-amber-500/50" placeholder="e.g. My Personal Journal">
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <label class="text-[10px] font-black uppercase tracking-[0.3em] text-brand">Knowledge Type</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="setEntryType('quran', this)" class="type-btn p-4 rounded-2xl border border-white/5 bg-white/2 hover:bg-white/5 text-[10px] font-black uppercase tracking-wider text-white/40 transition-all flex flex-col items-center gap-2">
+                            <span class="text-xs">📖</span> Quran
+                        </button>
+                        <button onclick="setEntryType('hadith', this)" class="type-btn p-4 rounded-2xl border border-white/5 bg-white/2 hover:bg-white/5 text-[10px] font-black uppercase tracking-wider text-white/40 transition-all flex flex-col items-center gap-2">
+                            <span class="text-xs">📜</span> Hadith
+                        </button>
+                        <button onclick="setEntryType('quote', this)" class="type-btn p-4 rounded-2xl border border-white/5 bg-white/2 hover:bg-white/5 text-[10px] font-black uppercase tracking-wider text-white/40 transition-all flex flex-col items-center gap-2">
+                            <span class="text-xs">💬</span> Quote
+                        </button>
+                        <button onclick="setEntryType('book', this)" class="type-btn p-4 rounded-2xl border border-white/5 bg-white/2 hover:bg-white/5 text-[10px] font-black uppercase tracking-wider text-white/40 transition-all flex flex-col items-center gap-2">
+                            <span class="text-xs">📚</span> Book
+                        </button>
+                    </div>
+                    <input type="hidden" id="entryType" value="note">
+                </div>
             </div>
-            
-            <div class="flex flex-col gap-3 pt-4">
-                <button onclick="saveEntry()" class="w-full py-5 bg-brand rounded-2xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/30 hover:bg-brand-hover transition-all">Save Entry</button>
-                <button onclick="hideEntryModal()" class="w-full py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all">Cancel</button>
+
+            <!-- Right Side: Content & Metadata -->
+            <div class="lg:col-span-8 space-y-8">
+                <div class="space-y-4">
+                    <div class="flex justify-between items-end">
+                        <label class="text-[10px] font-black uppercase tracking-[0.3em] text-brand">Knowledge Content</label>
+                        <span id="charCount" class="text-[9px] font-bold text-muted tracking-widest">0 / 3000</span>
+                    </div>
+                    <textarea id="entryText" oninput="updateCharCount()" rows="8" class="w-full bg-white/5 border border-white/10 rounded-[2rem] px-8 py-8 text-sm text-white outline-none focus:ring-2 focus:ring-brand leading-relaxed placeholder:text-white/5" placeholder="Paste the verse, hadith, or quote text here..."></textarea>
+                </div>
+
+                <div id="dynamicMetadata" class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
+                    <!-- Dynamic fields based on type -->
+                </div>
+
+                <div class="flex gap-4 pt-10">
+                    <button onclick="hideEntryModal()" class="flex-1 py-5 bg-white/5 border border-white/10 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-white/10 transition-all">Cancel</button>
+                    <button onclick="saveEntry()" class="flex-[2] py-5 bg-brand rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] text-white shadow-2xl shadow-brand/40 hover:scale-[1.02] active:scale-[0.98] transition-all">Commit Knowledge</button>
+                </div>
             </div>
-          </div>
+        </div>
+      </div>
+    </div>
         </div>
       </div>
     </div>
 
     <script>
       let currentSourceId = null;
-      let manageMode = false;
+      let categories = [];
       let entrySearchTimeout;
 
-      function toggleManageMode() {{
-          manageMode = !manageMode;
-          if (manageMode) {{
-              document.getElementById('standardView').classList.add('hidden');
-              document.getElementById('manageView').classList.remove('hidden');
-              loadSources();
-          }} else {{
-              document.getElementById('standardView').classList.remove('hidden');
-              document.getElementById('manageView').classList.add('hidden');
-          }}
-      }}
+      // --- INITIALIZATION ---
+      window.addEventListener('DOMContentLoaded', () => {
+          loadSources();
+      });
 
-      async function loadSources() {{
+      async function loadSources() {
           const list = document.getElementById('sourceList');
-          list.innerHTML = '<div class="text-center py-10 text-[10px] text-muted font-bold uppercase animate-pulse">Loading sources...</div>';
+          list.innerHTML = '<div class="text-center py-20 text-[10px] text-muted font-black uppercase animate-pulse">Scanning Collections...</div>';
           
-          try {{
-              const res = await fetch('/api/admin/library/sources?scope=all');
+          try {
+              const res = await fetch('/library/sources');
               const sources = await res.json();
+              document.getElementById('sourceCount').textContent = sources.length;
+              
+              const select = document.getElementById('sourceSelect');
+              select.innerHTML = '<option value="">Select or Create New...</option>';
               
               list.innerHTML = '';
-              sources.forEach(s => {{
+              sources.forEach(s => {
+                  // Update sidebar list
                   const el = document.createElement('div');
-                  el.className = `p-5 rounded-3xl cursor-pointer transition-all border ${{currentSourceId == s.id ? 'bg-brand border-brand ring-4 ring-brand/20' : 'bg-white/5 border-white/5 hover:bg-white/10'}}`;
+                  el.className = `p-5 rounded-3xl cursor-pointer transition-all border ${currentSourceId == s.id ? 'bg-brand border-brand ring-4 ring-brand/10' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'}`;
                   el.onclick = () => selectSource(s);
                   el.innerHTML = `
                       <div class="flex justify-between items-start mb-1">
-                          <span class="text-[10px] font-black ${{currentSourceId == s.id ? 'text-white' : 'text-white'}} uppercase tracking-wider">${{s.name}}</span>
-                          <span class="text-[8px] font-black ${{s.org_id ? 'text-amber-400 bg-amber-400/10' : 'text-brand bg-brand/10'}} px-2 py-0.5 rounded-full uppercase">${{s.org_id ? 'Org' : 'Global'}}</span>
+                          <span class="text-[10px] font-black ${currentSourceId == s.id ? 'text-white' : 'text-white'} uppercase tracking-wider">${s.name}</span>
+                          ${s.org_id ? '' : '<span class="text-[7px] font-black text-brand bg-brand/10 px-2 py-0.5 rounded-full uppercase">Global</span>'}
                       </div>
-                      <div class="text-[8px] font-bold text-muted uppercase tracking-widest mb-3">${{s.category || 'Uncategorized'}}</div>
-                      <div class="flex gap-4 pt-2 border-t border-white/10">
-                           <button onclick="event.stopPropagation(); openSourceModal(${{JSON.stringify(s).replace(/"/g, '&quot;')}})" class="text-[8px] font-black text-muted hover:text-white uppercase transition-colors">Edit</button>
-                           <button onclick="event.stopPropagation(); deleteSource(${{s.id}})" class="text-[8px] font-black text-rose-400 hover:text-rose-200 uppercase transition-colors">Delete</button>
-                      </div>
+                      <div class="text-[8px] font-bold text-muted uppercase tracking-widest">${s.category || 'Uncategorized'}</div>
                   `;
                   list.appendChild(el);
-              }});
-          }} catch(e) {{
-              list.innerHTML = '<div class="text-rose-400 text-[10px] font-bold p-4">Failed to load sources</div>';
-          }}
-      }}
 
-      function selectSource(source) {{
+                  // Update select dropdown in modal
+                  const opt = document.createElement('option');
+                  opt.value = s.id;
+                  opt.textContent = s.name;
+                  select.appendChild(opt);
+              });
+
+              if (sources.length === 0) {
+                  list.innerHTML = '<div class="p-10 text-center text-muted font-black text-[9px] uppercase tracking-widest">No collections found</div>';
+              }
+          } catch(e) {
+              list.innerHTML = '<div class="text-rose-400 text-[10px] font-bold p-10">Neural transmission error</div>';
+          }
+      }
+
+      function selectSource(source) {
           currentSourceId = source.id;
-          document.getElementById('addEntryBtn').disabled = false;
           loadSources();
           loadEntries();
-      }}
+      }
 
-      async function loadEntries() {{
+      async function loadEntries() {
           const list = document.getElementById('entryList');
           const query = document.getElementById('entrySearch').value;
-          list.innerHTML = '<div class="text-center py-20 text-[10px] text-muted font-bold uppercase animate-pulse">Scanning knowledge nodes...</div>';
+          const category = document.getElementById('filterCategory').value;
+          
+          list.innerHTML = '<div class="col-span-full text-center py-20 text-[10px] text-muted font-bold uppercase animate-pulse">Retrieving Knowledge Nodes...</div>';
 
-          try {{
-              const res = await fetch(`/api/admin/library/entries?source_id=${{currentSourceId}}&query=${{encodeURIComponent(query)}}`);
-              const entries = await res.json();
+          try {
+              let url = `/library/entries?query=${encodeURIComponent(query)}`;
+              if (currentSourceId) url += `&source_id=${currentSourceId}`;
               
-              if (entries.length === 0) {{
-                  list.innerHTML = '<div class="h-full flex items-center justify-center text-muted font-black text-[10px] uppercase tracking-widest">No spectral matches in this source</div>';
+              const res = await fetch(url);
+              let entries = await res.json();
+              
+              if (category) {
+                  entries = entries.filter(e => e.item_type === category);
+              }
+
+              if (entries.length === 0) {
+                  list.innerHTML = `
+                    <div class="col-span-full h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50 py-20">
+                        <p class="text-[10px] font-black uppercase tracking-[0.3em] text-white">No knowledge matches found</p>
+                    </div>`;
                   return;
-              }}
+              }
 
               list.innerHTML = '';
-              entries.forEach(e => {{
+              entries.forEach(e => {
                   const el = document.createElement('div');
-                  el.className = 'glass p-6 rounded-[2rem] border border-white/5 hover:border-brand/30 transition-all group relative';
+                  el.className = 'glass p-8 rounded-[2.5rem] border border-white/5 hover:border-brand/40 transition-all group relative animate-in zoom-in-95 duration-300';
                   
-                  let metaTitle = 'Reference';
-                  if (e.item_type === 'quran') metaTitle = `Surah ${{e.meta.surah_number}}:${{e.meta.verse_start}}${{e.meta.verse_end ? '-' + e.meta.verse_end : ''}}`;
-                  else if (e.item_type === 'hadith') metaTitle = `${{e.meta.collection}} #${{e.meta.hadith_number}}`;
-                  else if (e.item_type === 'book') metaTitle = e.title || 'Excerpt';
+                  let metaHtml = '';
+                  if (e.item_type === 'quran') metaHtml = `Surah ${e.meta.surah_number}:${e.meta.verse_start}${e.meta.verse_end ? '-' + e.meta.verse_end : ''}`;
+                  else if (e.item_type === 'hadith') metaHtml = `${e.meta.collection} #${e.meta.hadith_number}`;
+                  else if (e.item_type === 'book') metaHtml = e.title || 'Excerpt';
+                  else metaHtml = e.title || 'Note';
 
                   el.innerHTML = `
-                      <div class="flex justify-between items-start mb-4">
-                          <span class="text-[9px] font-black text-brand uppercase tracking-[0.25em]">${{e.item_type}} • ${{metaTitle}}</span>
-                          <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                              <button onclick="openEntryModal(${{JSON.stringify(e).replace(/"/g, '&quot;')}})" class="p-2 bg-white/5 rounded-lg text-white hover:bg-brand hover:text-white transition-all"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
-                              <button onclick="deleteEntry(${{e.id}})" class="p-2 bg-white/5 rounded-lg text-rose-400 hover:bg-rose-500 hover:text-white transition-all"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
-                          </div>
+                      <div class="flex justify-between items-start mb-6">
+                            <div class="flex flex-col gap-1">
+                                <span class="text-[9px] font-black text-brand uppercase tracking-[0.3em]">${e.item_type}</span>
+                                <span class="text-[10px] font-bold text-white/40 uppercase tracking-widest">${metaHtml}</span>
+                            </div>
+                            <div class="flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                                <button onclick="openEntryModal(${JSON.stringify(e).replace(/"/g, '&quot;')})" class="w-10 h-10 bg-white/5 rounded-2xl text-white hover:bg-brand hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                                <button onclick="deleteEntry(${e.id})" class="w-10 h-10 bg-white/5 rounded-2xl text-rose-400 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                            </div>
                       </div>
-                      <p class="text-[11px] font-medium text-white/90 leading-relaxed">${{e.text}}</p>
-                      ${{e.arabic_text ? `<div class="mt-4 p-4 bg-white/2 rounded-2xl border-r-4 border-brand/40"><p class="text-sm text-right font-serif text-white/70 dir-rtl leading-loose">${{e.arabic_text}}</p></div>` : ''}}
+                      <p class="text-[12px] font-medium text-white/80 leading-relaxed italic mb-4">"${e.text}"</p>
+                      ${e.arabic_text ? `<div class="mt-4 p-6 bg-brand/5 rounded-3xl border-l-4 border-brand/40"><p class="text-lg text-right font-serif text-white/90 dir-rtl leading-loose">${e.arabic_text}</p></div>` : ''}
+                      ${e.meta.translator ? `<div class="mt-4 text-[9px] font-black text-muted uppercase tracking-widest">Translation: ${e.meta.translator}</div>` : ''}
                   `;
                   list.appendChild(el);
-              }});
-          }} catch(e) {{
-              list.innerHTML = '<div class="text-rose-400 text-[10px] font-bold p-10">Neural transmission error</div>';
-          }}
-      }}
+              });
+          } catch(e) {
+              list.innerHTML = '<div class="text-rose-400 text-[10px] font-bold p-10 col-span-full">Neural transmission error</div>';
+          }
+      }
 
-      function debounceEntryQuery() {{
+      function debounceEntryQuery() {
           clearTimeout(entrySearchTimeout);
-          entrySearchTimeout = setTimeout(() => {{ if (currentSourceId) loadEntries(); }}, 500);
-      }}
+          entrySearchTimeout = setTimeout(() => loadEntries(), 500);
+      }
 
-      // --- SOURCE HELPERS ---
-      function openSourceModal(source = null) {{
-          document.getElementById('sourceModal').classList.remove('hidden');
-          if (source) {{
-              document.getElementById('sourceModalTitle').innerHTML = 'Edit <span class="text-brand">Source</span>';
-              document.getElementById('sourceId').value = source.id;
-              document.getElementById('sourceName').value = source.name;
-              document.getElementById('sourceCategory').value = source.category || '';
-              document.getElementById('sourceType').value = source.source_type;
-              document.getElementById('sourceIsGlobal').checked = source.org_id === null;
-          }} else {{
-              document.getElementById('sourceModalTitle').innerHTML = 'Add <span class="text-brand">Source</span>';
-              document.getElementById('sourceId').value = '';
-              document.getElementById('sourceName').value = '';
-              document.getElementById('sourceCategory').value = '';
-              document.getElementById('sourceIsGlobal').checked = false;
-          }}
-      }}
-
-      function hideSourceModal() {{ document.getElementById('sourceModal').classList.add('hidden'); }}
-
-      async function saveSource() {{
-          const id = document.getElementById('sourceId').value;
-          const payload = {{
-              name: document.getElementById('sourceName').value,
-              category: document.getElementById('sourceCategory').value,
-              source_type: document.getElementById('sourceType').value,
-              enabled: true
-          }};
-          const isGlobal = document.getElementById('sourceIsGlobal').checked;
-          
-          const method = id ? 'PATCH' : 'POST';
-          const url = id ? `/api/admin/library/sources/${{id}}` : `/api/admin/library/sources?is_global=${{isGlobal ? 'true' : 'false'}}`;
-
-          try {{
-              const res = await fetch(url, {{
-                  method: method,
-                  headers: {{ 'Content-Type': 'application/json' }},
-                  body: JSON.stringify(payload)
-              }});
-              if (res.ok) {{
-                  hideSourceModal();
-                  loadSources();
-              }} else {{
-                  const err = await res.json();
-                  alert(`Operation failed (${{res.status}}): ${{err.detail || 'Unknown error'}}`);
-              }}
-          }} catch(e) {{ alert('Network error: ' + e.message); }}
-      }}
-
-      async function deleteSource(id) {{
-          if (!confirm('Destroy this source and all its knowledge children?')) return;
-          try {{
-              const res = await fetch(`/api/admin/library/sources/${{id}}`, {{ method: 'DELETE' }});
-              if (res.ok) loadSources();
-          }} catch(e) {{ alert('Network error'); }}
-      }}
-
-      // --- ENTRY HELPERS ---
-      function openEntryModal(entry = null) {{
+      // --- MODAL HELPERS ---
+      function openEntryModal(entry = null) {
           document.getElementById('entryModal').classList.remove('hidden');
-          if (entry) {{
-              document.getElementById('entryModalTitle').innerHTML = 'Edit <span class="text-brand">Entry</span>';
-              document.getElementById('entryId').value = entry.id;
-              document.getElementById('entryType').value = entry.item_type;
-              document.getElementById('entryText').value = entry.text;
-              document.getElementById('entryArabic').value = entry.arabic_text || '';
-              updateEntryFields(entry.meta);
-          }} else {{
-              document.getElementById('entryModalTitle').innerHTML = 'Add <span class="text-brand">Entry</span>';
-              document.getElementById('entryId').value = '';
-              document.getElementById('entryType').value = 'note';
-              document.getElementById('entryText').value = '';
-              document.getElementById('entryArabic').value = '';
-              updateEntryFields();
-          }}
-      }}
-
-      function hideEntryModal() {{ document.getElementById('entryModal').classList.add('hidden'); }}
-
-      function updateEntryFields(meta = {{}}) {{
-          const type = document.getElementById('entryType').value;
-          const container = document.getElementById('metaFields');
-          container.innerHTML = `<h4 class="text-[10px] font-black uppercase tracking-widest text-brand mb-4">Node Metadata</h4>`;
+          const titleEl = document.getElementById('entryModalTitle');
+          const idInput = document.getElementById('entryId');
+          const textInput = document.getElementById('entryText');
+          const sourceSelect = document.getElementById('sourceSelect');
           
-          if (type === 'quran') {{
-              container.innerHTML += `
-                  <div class="space-y-1">
-                      <label class="text-[8px] font-black uppercase text-muted">Surah / Book Name</label>
-                      <input type="text" id="meta_surah_name" value="${{meta.surah_name || 'Quran'}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand">
-                  </div>
-                  <div class="grid grid-cols-2 gap-4">
-                    <div class="space-y-1">
-                        <label class="text-[8px] font-black uppercase text-muted">Surah #</label>
-                        <input type="number" id="meta_surah_number" value="${{meta.surah_number || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand">
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[8px] font-black uppercase text-muted">Verse #</label>
-                        <input type="number" id="meta_verse_start" value="${{meta.verse_start || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand">
-                    </div>
-                  </div>
-                  <div class="space-y-1">
-                      <label class="text-[8px] font-black uppercase text-muted">Translator</label>
-                      <input type="text" id="meta_translator" value="${{meta.translator || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand" placeholder="e.g. Sahih International">
-                  </div>
-              `;
-          }} else if (type === 'hadith') {{
-              container.innerHTML += `
-                  <div class="space-y-1">
-                      <label class="text-[8px] font-black uppercase text-muted">Collection / Source Name</label>
-                      <input type="text" id="meta_collection" value="${{meta.collection || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand" placeholder="e.g. Sahih Al-Bukhari">
-                  </div>
-                  <div class="space-y-1">
-                      <label class="text-[8px] font-black uppercase text-muted">Hadith #</label>
-                      <input type="text" id="meta_hadith_number" value="${{meta.hadith_number || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand">
-                  </div>
-                  <div class="space-y-1">
-                      <label class="text-[8px] font-black uppercase text-muted">Narrator</label>
-                      <input type="text" id="meta_narrator" value="${{meta.narrator || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand" placeholder="e.g. Abu Huraira">
-                  </div>
-              `;
-          }} else if (type === 'book' || type === 'article') {{
-               container.innerHTML += `
-                  <div class="space-y-1">
-                      <label class="text-[8px] font-black uppercase text-muted">Title / Source Name</label>
-                      <input type="text" id="meta_title" value="${{meta.title || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand">
-                  </div>
-                  <div class="space-y-1">
-                      <label class="text-[8px] font-black uppercase text-muted">Author</label>
-                      <input type="text" id="meta_author" value="${{meta.author || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand">
-                  </div>
-                  <div class="space-y-1">
-                      <label class="text-[8px] font-black uppercase text-muted">Page #</label>
-                      <input type="text" id="meta_page_start" value="${{meta.page_start || ''}}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-xs outline-none focus:ring-1 focus:ring-brand">
-                  </div>
-              `;
-          }} else {{
-              container.innerHTML += `
-                  <p class="text-[8px] font-bold text-muted uppercase leading-relaxed">Basic notes do not require structured metadata fields.</p>
-              `;
-          }}
-      }}
+          if (entry) {
+              titleEl.innerHTML = 'Edit <span class="text-brand">Knowledge Node</span>';
+              idInput.value = entry.id;
+              textInput.value = entry.text;
+              sourceSelect.value = entry.source_id;
+              setEntryType(entry.item_type || 'note');
+              // Populate meta based on type
+              setTimeout(() => populateMetaFields(entry.meta, entry.arabic_text, entry.topics), 50);
+          } else {
+              titleEl.innerHTML = 'Add <span class="text-brand">Knowledge Node</span>';
+              idInput.value = '';
+              textInput.value = '';
+              sourceSelect.value = currentSourceId || '';
+              setEntryType('note');
+          }
+          checkNewSource();
+          updateCharCount();
+      }
 
-      async function saveEntry() {{
+      function hideEntryModal() { document.getElementById('entryModal').classList.add('hidden'); }
+
+      function checkNewSource() {
+          const select = document.getElementById('sourceSelect');
+          const fields = document.getElementById('newSourceFields');
+          if (select.value === "") {
+              fields.classList.remove('hidden');
+          } else {
+              fields.classList.add('hidden');
+          }
+      }
+
+      function setEntryType(type, btn = null) {
+          document.getElementById('entryType').value = type;
+          
+          // Style buttons
+          document.querySelectorAll('.type-btn').forEach(b => {
+              b.classList.remove('bg-brand', 'text-white', 'border-brand');
+              b.classList.add('bg-white/2', 'text-white/40', 'border-white/5');
+          });
+          
+          if (btn) {
+              btn.classList.add('bg-brand', 'text-white', 'border-brand');
+              btn.classList.remove('text-white/40', 'border-white/5');
+          } else {
+              // Find button by type
+              const btns = document.querySelectorAll('.type-btn');
+              btns.forEach(b => {
+                  if (b.textContent.toLowerCase().includes(type)) {
+                      b.classList.add('bg-brand', 'text-white', 'border-brand');
+                      b.classList.remove('text-white/40', 'border-white/5');
+                  }
+              });
+          }
+
+          renderMetaInputs(type);
+      }
+
+      function renderMetaInputs(type) {
+          const container = document.getElementById('dynamicMetadata');
+          container.innerHTML = '';
+          
+          const inputClass = "w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-xs font-bold text-white outline-none focus:ring-1 focus:ring-brand placeholder:text-white/10";
+          const labelClass = "text-[9px] font-black uppercase tracking-[0.2em] text-white/30 mb-2 block";
+          const fullColClass = "lg:col-span-2 space-y-2";
+
+          if (type === 'quran') {
+              container.innerHTML = `
+                  <div class="space-y-2">
+                      <label class="${labelClass}">Surah Number</label>
+                      <input type="number" id="meta_surah" class="${inputClass}" placeholder="e.g. 1">
+                  </div>
+                  <div class="space-y-2">
+                      <label class="${labelClass}">Verse Number</label>
+                      <input type="number" id="meta_verse" class="${inputClass}" placeholder="e.g. 1">
+                  </div>
+                  <div class="space-y-2">
+                      <label class="${labelClass}">Arabic Text (Optional)</label>
+                      <textarea id="meta_arabic" rows="4" class="${inputClass} text-right dir-rtl font-serif text-lg" placeholder="بسم الله..."></textarea>
+                  </div>
+                  <div class="space-y-2">
+                      <label class="${labelClass}">Translator / Edition</label>
+                      <input type="text" id="meta_translator" class="${inputClass}" placeholder="e.g. Sahih International">
+                  </div>
+              `;
+          } else if (type === 'hadith') {
+              container.innerHTML = `
+                  <div class="space-y-2">
+                      <label class="${labelClass}">Collection Name</label>
+                      <input type="text" id="meta_collection" class="${inputClass}" placeholder="e.g. Bukhari">
+                  </div>
+                  <div class="space-y-2">
+                      <label class="${labelClass}">Hadith Number</label>
+                      <input type="text" id="meta_number" class="${inputClass}" placeholder="e.g. 1234">
+                  </div>
+                  <div class="space-y-2">
+                      <label class="${labelClass}">Narrator</label>
+                      <input type="text" id="meta_narrator" class="${inputClass}" placeholder="e.g. Abu Huraira">
+                  </div>
+                  <div class="space-y-2">
+                      <label class="${labelClass}">Arabic Text (Optional)</label>
+                      <textarea id="meta_arabic" rows="4" class="${inputClass} text-right dir-rtl font-serif text-lg" placeholder="قال رسول الله..."></textarea>
+                  </div>
+              `;
+          } else if (type === 'book' || type === 'quote') {
+              container.innerHTML = `
+                  <div class="space-y-2">
+                      <label class="${labelClass}">Source Title</label>
+                      <input type="text" id="meta_title" class="${inputClass}" placeholder="e.g. Beyond Good and Evil">
+                  </div>
+                  <div class="space-y-2">
+                      <label class="${labelClass}">Author / Speaker</label>
+                      <input type="text" id="meta_author" class="${inputClass}" placeholder="e.g. Nietzsche">
+                  </div>
+                  <div class="space-y-2">
+                      <label class="${labelClass}">Reference (Page/URL)</label>
+                      <input type="text" id="meta_ref" class="${inputClass}" placeholder="e.g. Page 42">
+                  </div>
+              `;
+          }
+          
+          // Shared Topics/Keywords field for all types
+          const topicsDiv = document.createElement('div');
+          topicsDiv.className = fullColClass + " pt-4 border-t border-white/5";
+          topicsDiv.innerHTML = `
+              <label class="${labelClass}">Semantic Topics / Keywords (for AI retrieval)</label>
+              <input type="text" id="entryTopics" class="${inputClass}" placeholder="e.g. patience, gratitude, afterlife (comma separated)">
+              <p class="text-[8px] font-bold text-muted uppercase mt-2 italic">Separated by commas. These help the AI find this entry for specific post themes.</p>
+          `;
+          container.appendChild(topicsDiv);
+      }
+
+      function populateMetaFields(meta, arabic, topics) {
+          const type = document.getElementById('entryType').value;
+          if (type === 'quran') {
+              document.getElementById('meta_surah').value = meta.surah_number || '';
+              document.getElementById('meta_verse').value = meta.verse_start || '';
+              document.getElementById('meta_arabic').value = arabic || '';
+              document.getElementById('meta_translator').value = meta.translator || '';
+          } else if (type === 'hadith') {
+              document.getElementById('meta_collection').value = meta.collection || '';
+              document.getElementById('meta_number').value = meta.hadith_number || '';
+              document.getElementById('meta_narrator').value = meta.narrator || '';
+              document.getElementById('meta_arabic').value = arabic || '';
+          } else if (type === 'book' || type === 'quote') {
+              document.getElementById('meta_title').value = meta.title || '';
+              document.getElementById('meta_author').value = meta.author || '';
+              document.getElementById('meta_ref').value = meta.page_start || meta.url || '';
+          }
+      }
+
+      function updateCharCount() {
+          const text = document.getElementById('entryText').value;
+          document.getElementById('charCount').textContent = `${text.length} / 3000`;
+          if (text.length > 3000) {
+              document.getElementById('charCount').classList.add('text-rose-400');
+          } else {
+              document.getElementById('charCount').classList.remove('text-rose-400');
+          }
+      }
+
+      async function saveEntry() {
           const id = document.getElementById('entryId').value;
           const type = document.getElementById('entryType').value;
+          const sourceId = document.getElementById('sourceSelect').value;
+          const newSourceName = document.getElementById('newSourceName').value;
           
-          const meta = {{}};
-          if (type === 'quran') {{
-              meta.surah_name = document.getElementById('meta_surah_name').value;
-              meta.surah_number = parseInt(document.getElementById('meta_surah_number').value);
-              meta.verse_start = parseInt(document.getElementById('meta_verse_start').value);
+          const meta = {};
+          let arabic = "";
+          
+          if (type === 'quran') {
+              meta.surah_number = parseInt(document.getElementById('meta_surah').value);
+              meta.verse_with_number = document.getElementById('meta_verse').value; // Keep as string for flexibility
+              meta.verse_start = parseInt(document.getElementById('meta_verse').value);
               meta.translator = document.getElementById('meta_translator').value;
-          }} else if (type === 'hadith') {{
+              arabic = document.getElementById('meta_arabic').value;
+          } else if (type === 'hadith') {
               meta.collection = document.getElementById('meta_collection').value;
-              meta.hadith_number = document.getElementById('meta_hadith_number').value;
+              meta.hadith_number = document.getElementById('meta_number').value;
               meta.narrator = document.getElementById('meta_narrator').value;
-          }} else if (type === 'book' || type === 'article') {{
+              arabic = document.getElementById('meta_arabic').value;
+          } else if (type === 'book' || type === 'quote') {
               meta.title = document.getElementById('meta_title').value;
               meta.author = document.getElementById('meta_author').value;
-              meta.page_start = document.getElementById('meta_page_start').value;
-          }}
+              meta.page_start = document.getElementById('meta_ref').value;
+          }
 
-          const payload = {{
-              source_id: currentSourceId,
+          const payload = {
+              source_id: sourceId ? parseInt(sourceId) : null,
+              source_name: sourceId ? null : newSourceName,
               item_type: type,
               text: document.getElementById('entryText').value,
-              arabic_text: document.getElementById('entryArabic').value,
-              meta: meta
-          }};
+              arabic_text: arabic,
+              meta: meta,
+              topics: document.getElementById('entryTopics').value.split(',').map(t => t.trim()).filter(t => t !== "")
+          };
+
+          if (!payload.source_id && !payload.source_name) return alert("Please select or name a collection");
+          if (!payload.text) return alert("Content text is required");
 
           const method = id ? 'PATCH' : 'POST';
-          const url = id ? `/api/admin/library/entries/${{id}}` : `/api/admin/library/entries`;
+          const url = id ? `/library/entries/${id}` : `/library/entries`;
 
-          try {{
-              const res = await fetch(url, {{
+          try {
+              const res = await fetch(url, {
                   method: method,
-                  headers: {{ 'Content-Type': 'application/json' }},
+                  headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(payload)
-              }});
-              if (res.ok) {{
+              });
+              if (res.ok) {
+                  const saved = await res.json();
+                  currentSourceId = saved.source_id;
                   hideEntryModal();
+                  loadSources();
                   loadEntries();
-              }} else {{
+              } else {
                   const err = await res.json();
-                  alert(`Operation failed (${{res.status}}): ${{err.detail || 'Unknown error'}}`);
-              }}
-          }} catch(e) {{ alert('Network error: ' + e.message); }}
-      }}
+                  alert(`Neural sync failed: ${err.detail || 'Unknown error'}`);
+              }
+          } catch(e) { alert('Transmission error: ' + e.message); }
+      }
 
-      async function deleteEntry(id) {{
-          if (!confirm('Erase this knowledge node?')) return;
-          try {{
-              const res = await fetch(`/api/admin/library/entries/${{id}}`, {{ method: 'DELETE' }});
+      async function deleteEntry(id) {
+          if (!confirm('Permanently purge this knowledge node?')) return;
+          try {
+              const res = await fetch(`/library/entries/${id}`, { method: 'DELETE' });
               if (res.ok) loadEntries();
-          }} catch(e) {{ alert('Network error'); }}
-      }}
-
-      function showUrlModal() {{ document.getElementById('urlModal').classList.remove('hidden'); }}
-      function hideUrlModal() {{ document.getElementById('urlModal').classList.add('hidden'); }}
-
-      function switchTab(tab) {{
-        const userTab = document.getElementById('tabUser');
-        const defaultTab = document.getElementById('tabDefault');
-        const userPane = document.getElementById('paneUser');
-        const defaultPane = document.getElementById('paneDefault');
-        const actionBtn = document.getElementById('actionButtons');
-
-        if (tab === 'user') {{
-          userTab.classList.add('text-white', 'border-brand');
-          userTab.classList.remove('text-muted', 'border-transparent');
-          defaultTab.classList.add('text-muted', 'border-transparent');
-          defaultTab.classList.remove('text-white', 'border-brand');
-          userPane.classList.remove('hidden');
-          defaultPane.classList.add('hidden');
-          actionBtn.classList.remove('opacity-0', 'pointer-events-none');
-        }} else {{
-          defaultTab.classList.add('text-white', 'border-brand');
-          defaultTab.classList.remove('text-muted', 'border-transparent');
-          userTab.classList.add('text-muted', 'border-transparent');
-          userTab.classList.remove('text-white', 'border-brand');
-          defaultPane.classList.remove('hidden');
-          userPane.classList.add('hidden');
-          actionBtn.classList.add('opacity-0', 'pointer-events-none');
-        }}
-      }}
-
-      async function submitUrl() {{
-        const title = document.getElementById('urlTitle').value;
-        const url = document.getElementById('urlAddress').value;
-        if (!url) return alert('URL is required');
-
-        const btn = event.target;
-        btn.disabled = true;
-        btn.textContent = 'INGESTING...';
-
-        try {{
-          const res = await fetch('/library/add_url', {{
-            method: 'POST',
-            headers: {{ 'Content-Type': 'application/json' }},
-            body: JSON.stringify({{ title: title, source_type: 'url', original_url: url }})
-          }});
-          if (res.ok) window.location.reload();
-          else alert('Extraction failed');
-        }} catch(e) {{ alert('Network error'); }}
-        finally {{ btn.disabled = false; btn.textContent = 'Extract & Ingest'; }}
-      }}
-
-      async function handleFileUpload(input) {{
-        if (!input.files.length) return;
-        const file = input.files[0];
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        try {{
-          const res = await fetch('/library/upload', {{
-            method: 'POST',
-            body: formData
-          }});
-          if (res.ok) window.location.reload();
-          else alert('Upload failed');
-        }} catch(e) {{ alert('Network error'); }}
-      }}
-
-      async function deleteDoc(id) {{
-        if (!confirm('Are you sure you want to delete this source and all its knowledge chunks?')) return;
-        try {{
-          const res = await fetch(`/library/${{id}}`, {{ method: 'DELETE' }});
-          if (res.ok) window.location.reload();
-        }} catch(e) {{ alert('Network error'); }}
-      }}
+          } catch(e) { alert('Network error'); }
+      }
     </script>
     """
     

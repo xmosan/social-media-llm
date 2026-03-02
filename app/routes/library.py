@@ -5,13 +5,107 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.db import get_db
-from app.models import SourceDocument
-from app.schemas import SourceDocumentOut, SourceDocumentCreate
+from app.models import SourceDocument, ContentSource, ContentItem
+from app.schemas import (
+    SourceDocumentOut, SourceDocumentCreate,
+    ContentSourceOut, ContentItemOut, ContentItemCreate, ContentItemUpdate
+)
+from sqlalchemy import or_
 from app.security.rbac import get_current_org_id
 from app.services.ingestion import ingest_document
 from app.services.prebuilt_loader import load_prebuilt_packs
+from app.services.library_service import create_library_entry, validate_entry_meta
 
 router = APIRouter(prefix="/library", tags=["library"])
+
+# --- STRUCTURED LIBRARY (Sources & Entries) ---
+
+@router.get("/sources", response_model=List[ContentSourceOut])
+def list_library_sources(
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
+):
+    """Lists all manual library sources for the org (including global)."""
+    sources = db.query(ContentSource).filter(
+        or_(ContentSource.org_id == org_id, ContentSource.org_id == None)
+    ).all()
+    return sources
+
+@router.get("/entries", response_model=List[ContentItemOut])
+def list_library_entries(
+    source_id: Optional[int] = None,
+    query: Optional[str] = None,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
+):
+    """Lists entries in the library with filtering."""
+    q = db.query(ContentItem).filter(
+        or_(ContentItem.org_id == org_id, ContentItem.org_id == None)
+    )
+    if source_id:
+        q = q.filter(ContentItem.source_id == source_id)
+    if query:
+        q = q.filter(or_(
+            ContentItem.text.ilike(f"%{query}%"),
+            ContentItem.title.ilike(f"%{query}%"),
+            ContentItem.arabic_text.ilike(f"%{query}%")
+        ))
+    return q.order_by(ContentItem.created_at.desc()).all()
+
+@router.post("/entries", response_model=ContentItemOut)
+def add_library_entry(
+    data: ContentItemCreate,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
+):
+    """Adds a new library entry, optionally creating a source inline."""
+    return create_library_entry(db, org_id, data)
+
+@router.patch("/entries/{id}", response_model=ContentItemOut)
+def update_library_entry(
+    id: int,
+    data: ContentItemUpdate,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
+):
+    """Updates an existing library entry."""
+    item = db.query(ContentItem).filter(ContentItem.id == id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    if item.org_id is not None and item.org_id != org_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    update_data = data.dict(exclude_unset=True)
+    if any(k in update_data for k in ["item_type", "text", "arabic_text", "meta"]):
+        new_type = update_data.get("item_type", item.item_type)
+        new_text = update_data.get("text", item.text)
+        new_ar = update_data.get("arabic_text", item.arabic_text)
+        new_meta = update_data.get("meta", item.meta)
+        validate_entry_meta(new_type, new_text, new_ar, new_meta)
+        
+    for field, value in update_data.items():
+        setattr(item, field, value)
+    db.commit()
+    db.refresh(item)
+    return item
+
+@router.delete("/entries/{id}")
+def delete_library_entry(
+    id: int,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
+):
+    """Deletes a library entry."""
+    item = db.query(ContentItem).filter(ContentItem.id == id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    if item.org_id is not None and item.org_id != org_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    db.delete(item)
+    db.commit()
+    return {"status": "success"}
+
+# --- PREBUILT LIBRARY ---
 
 @router.get("/all_prebuilt")
 def get_all_prebuilt_items():
@@ -27,6 +121,8 @@ def get_all_prebuilt_items():
                 "source_type": i.get("source") or "prebuilt pack"
             })
     return items
+
+# --- DOCUMENT LIBRARY (Legacy/Unstructured) ---
 
 @router.get("", response_model=List[SourceDocumentOut])
 def list_library_documents(
@@ -102,11 +198,10 @@ def delete_document(
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id)
 ):
-    """Deletes a document and its chunks from the library."""
+    """Deletes a document from the library."""
     doc = db.query(SourceDocument).filter(SourceDocument.id == doc_id, SourceDocument.org_id == org_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
-    
     db.delete(doc)
     db.commit()
     return {"status": "success", "message": f"Document {doc_id} deleted"}

@@ -11,6 +11,7 @@ from app.schemas import (
 )
 from app.security.auth import require_user
 from app.security.rbac import get_current_org_id, require_superadmin
+from app.services.library_service import validate_entry_meta
 
 router = APIRouter(prefix="/api/admin/library", tags=["admin_library"])
 
@@ -270,22 +271,3 @@ def delete_entry(
     db.delete(item)
     db.commit()
     return {"ok": True}
-
-def validate_entry_meta(item_type: str, text: str, arabic_text: Optional[str], meta: dict):
-    if item_type == "quran":
-        if not meta.get("surah_number") or not meta.get("verse_start"):
-            raise HTTPException(status_code=400, detail="surah_number and verse_start are required for Quran entries.")
-        if not text and not arabic_text:
-            raise HTTPException(status_code=400, detail="Arabic text or English translation is required for Quran entries.")
-            
-    elif item_type == "hadith":
-        if not meta.get("collection") or not meta.get("hadith_number"):
-            raise HTTPException(status_code=400, detail="collection and hadith_number are required for Hadith entries.")
-        if not text and not arabic_text:
-            raise HTTPException(status_code=400, detail="Hadith text (Arabic or English) is required.")
-            
-    elif item_type in ["book", "article"]:
-        if not meta.get("title") and not meta.get("url"):
-             raise HTTPException(status_code=400, detail="Title or URL is required for books/articles.")
-        if not text:
-             raise HTTPException(status_code=400, detail="Excerpt text is required for books/articles.")

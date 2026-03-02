@@ -1,51 +1,76 @@
-# Copyright (c) 2026 Mohammed Hassan. All rights reserved.
-# Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
-
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-from app.models import SourceDocument, SourceChunk
+from sqlalchemy import func, or_, cast, String
+from app.models import SourceDocument, SourceChunk, ContentItem, ContentSource
 from typing import List, Dict, Any
 import re
 
 def retrieve_relevant_chunks(db: Session, org_id: int, query: str, k: int = 5) -> List[Dict[str, Any]]:
-    """Retrieves relevant chunks from the organizational library using simple keyword scoring."""
+    """Retrieves relevant knowledge snippets from BOTH documents and structured library entries."""
     if not query:
         return []
     
-    # Tokenize query into keywords (lowercase, alphanumeric)
     keywords = set(re.findall(r'\w+', query.lower()))
     if not keywords:
         return []
     
-    # Fetch all chunks for the organization
-    # In a real vector DB this would be a similarity search.
-    # For now, we fetch all and score in memory if the library is small,
-    # or use LIKE clauses if we want database-level filtering.
+    scored_results = []
     
-    # Let's use a slightly more efficient approach: find chunks that contain at least one keyword
-    # This is still O(N) but restricted to the organization.
+    # --- 1. SEARCH UNSTRUCTURED CHUNKS (SourceDocs) ---
     chunks = db.query(SourceChunk, SourceDocument.title, SourceDocument.original_url)\
         .join(SourceDocument, SourceChunk.document_id == SourceDocument.id)\
         .filter(SourceChunk.org_id == org_id)\
         .all()
-    
-    scored_chunks = []
+        
     for chunk, doc_title, doc_url in chunks:
-        chunk_text_lower = chunk.chunk_text.lower()
-        score = 0
-        for kw in keywords:
-            if kw in chunk_text_lower:
-                score += 1
+        text_lower = chunk.chunk_text.lower()
+        score = sum(1 for kw in keywords if kw in text_lower)
+        if score > 0:
+            scored_results.append({
+                "score": score,
+                "type": "unstructured",
+                "source": doc_title,
+                "url": doc_url,
+                "text": chunk.chunk_text,
+                "metadata": chunk.chunk_metadata
+            })
+
+    # --- 2. SEARCH STRUCTURED ENTRIES (ContentItems) ---
+    entries = db.query(ContentItem, ContentSource.name)\
+        .join(ContentSource, ContentItem.source_id == ContentSource.id)\
+        .filter(ContentItem.org_id == org_id)\
+        .all()
+        
+    for entry, src_name in entries:
+        # Check text, arabic_text, translation, and tags/topics
+        search_field = (entry.text or "") + " " + (entry.translation or "") + " " + (entry.title or "")
+        text_lower = search_field.lower()
+        
+        # Base score from keyword matches in text
+        score = sum(1 for kw in keywords if kw in text_lower)
+        
+        # Heavy weighting for topic/tag matches
+        entry_topics = [t.lower() for t in (entry.topics or [])]
+        entry_tags = [t.lower() for t in (entry.tags or [])]
+        score += sum(5 for kw in keywords if kw in entry_topics or kw in entry_tags)
         
         if score > 0:
-            scored_chunks.append({
+            # Format as a snippet compatible with automation runner expectations
+            item_ref = src_name
+            if entry.item_type == 'quran':
+                item_ref = f"Quran {entry.meta.get('surah_number')}:{entry.meta.get('verse_start')}"
+            elif entry.item_type == 'hadith':
+                item_ref = f"{entry.meta.get('collection')} #{entry.meta.get('hadith_number')}"
+
+            scored_results.append({
                 "score": score,
-                "doc_title": doc_title,
-                "url": doc_url,
-                "chunk_text": chunk.chunk_text,
-                "chunk_metadata": chunk.chunk_metadata
+                "type": "structured",
+                "item_type": entry.item_type,
+                "source": item_ref,
+                "text": entry.text,
+                "arabic": entry.arabic_text,
+                "metadata": entry.meta
             })
     
-    # Sort by score descending and return top k
-    scored_chunks.sort(key=lambda x: x["score"], reverse=True)
-    return scored_chunks[:k]
+    # Sort and return top k
+    scored_results.sort(key=lambda x: x["score"], reverse=True)
+    return scored_results[:k]

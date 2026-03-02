@@ -263,6 +263,7 @@ class ContentItem(Base):
     url = Column(Text, nullable=True)
     meta = Column(JSON, nullable=False, default=dict) # New: structured metadata
     tags = Column(JSON, nullable=False, default=list)
+    topics = Column(JSON, nullable=False, default=list) # Added: semantic topics
     
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     use_count = Column(Integer, nullable=False, default=0)
