@@ -2248,6 +2248,8 @@ async def app_library_page(
       let libraryEntries = {}; // Global entry map for safer access
       let currentSourceId = null;
       let showGlobalOnly = false;
+      let entrySearchTimeout;
+      let selectedTopic = null;
       const isSuperAdmin = {is_superadmin_js};
 
       // --- INITIALIZATION ---
@@ -2634,90 +2636,6 @@ async def app_library_page(
           loadEntries();
       }
 
-      // Picker Helpers
-      let pickerTargetId = null;
-      function openLibraryPicker(targetId) {
-          pickerTargetId = targetId;
-          document.getElementById('libraryPickerModal').classList.remove('hidden');
-          loadPickerTopics();
-          loadPickerEntries();
-      }
-      function closeLibraryPicker() {
-          document.getElementById('libraryPickerModal').classList.add('hidden');
-          pickerTargetId = null;
-      }
-      async function loadPickerTopics() {
-          try {
-              const res = await fetch('/library/topics');
-              const topics = await res.json();
-              const select = document.getElementById('pickerTopic');
-              select.innerHTML = '<option value="">All Topics</option>';
-              topics.forEach(t => {
-                  const opt = document.createElement('option');
-                  opt.value = t.slug;
-                  opt.textContent = t.slug.replace(/_/g, ' ').toUpperCase();
-                  select.appendChild(opt);
-              });
-          } catch(e) {}
-      }
-      async function loadPickerEntries() {
-          const query = document.getElementById('pickerSearch').value;
-          const topic = document.getElementById('pickerTopic').value;
-          const type = document.getElementById('pickerType').value;
-          const list = document.getElementById('pickerResults');
-          list.innerHTML = '<div class="text-center py-10 text-[9px] font-black uppercase text-muted animate-pulse">Scanning Library...</div>';
-          try {
-              let url = `/library/entries?query=${encodeURIComponent(query)}`;
-              if (topic) url += `&topic=${encodeURIComponent(topic)}`;
-              if (type) url += `&item_type=${encodeURIComponent(type)}`;
-              const res = await fetch(url);
-              const entries = await res.json();
-              if (entries.length === 0) {
-                  list.innerHTML = '<div class="text-center py-10 text-[9px] font-black uppercase text-muted opacity-40">No entries found</div>';
-                  return;
-              }
-              list.innerHTML = '';
-              entries.forEach(e => {
-                  const div = document.createElement('div');
-                  div.className = "p-4 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-brand/30 transition-all cursor-pointer space-y-2";
-                  div.onclick = () => selectPickerEntry(e);
-                  div.innerHTML = `
-                      <div class="flex justify-between items-center">
-                        <span class="text-[7px] font-black text-brand uppercase tracking-widest">${e.item_type}</span>
-                        <span class="text-[8px] font-black text-muted">${e.topic || ''}</span>
-                      </div>
-                      <p class="text-[10px] text-white/70 line-clamp-2">${e.text.substring(0, 150)}...</p>
-                  `;
-                  list.appendChild(div);
-              });
-          } catch(e) {}
-      }
-      async function suggestPickerTopic() {
-          const query = document.getElementById('pickerSearch').value;
-          if (!query) return;
-          try {
-              const res = await fetch('/library/topic-suggest', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ text: query, max: 1 })
-              });
-              const data = await res.json();
-              if (data.suggestions && data.suggestions.length > 0) {
-                  document.getElementById('pickerTopic').value = data.suggestions[0].slug;
-                  loadPickerEntries();
-              }
-          } catch(e) {}
-      }
-      function selectPickerEntry(entry) {
-          const target = document.getElementById(pickerTargetId);
-          if (target) {
-              let credit = "";
-              if (entry.item_type === 'hadith') credit = `\n\n[Ref: ${entry.meta.collection} #${entry.meta.hadith_number}]`;
-              else if (entry.item_type === 'quran') credit = `\n\n[Quran ${entry.meta.surah_number}:${entry.meta.verse_start}]`;
-              target.value = entry.text + credit;
-          }
-          closeLibraryPicker();
-      }
 
       // Synonym Management
       function openSynonymModal() {
