@@ -272,6 +272,7 @@ class ContentItem(Base):
     use_count = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
+    org = relationship("Org", back_populates="content_items")
     usages = relationship("ContentUsage", back_populates="content_item")
     posts = relationship("Post", back_populates="content_item", foreign_keys="[Post.content_item_id]")
     library_posts = relationship("Post", back_populates="library_item", foreign_keys="[Post.library_item_id]")
