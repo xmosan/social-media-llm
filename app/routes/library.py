@@ -27,18 +27,21 @@ router = APIRouter(prefix="/library", tags=["library"])
 
 @router.get("/sources", response_model=List[ContentSourceOut])
 def list_library_sources(
+    scope: Optional[str] = None,
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id),
     user: User = Depends(require_user)
 ):
-    """Lists all manual library sources accessible (Org + Global + Personal)."""
-    sources = db.query(ContentSource).filter(
-        or_(
-            ContentSource.org_id == org_id, 
-            ContentSource.org_id == None
-        )
-    ).all()
-    return sources
+    """Lists accessible manual library sources with optional scope filter."""
+    q = db.query(ContentSource)
+    if scope == "global":
+        q = q.filter(ContentSource.org_id == None)
+    elif scope == "org":
+        q = q.filter(ContentSource.org_id == org_id)
+    else:
+        q = q.filter(or_(ContentSource.org_id == org_id, ContentSource.org_id == None))
+    
+    return q.all()
 
 @router.get("/topics")
 def list_library_topics(
@@ -70,18 +73,24 @@ def list_library_entries(
     topic: Optional[str] = None,
     query: Optional[str] = None,
     item_type: Optional[str] = None,
+    scope: Optional[str] = None,
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id),
     user: User = Depends(require_user)
 ):
     """Lists entries with unified scope filtering."""
-    q = db.query(ContentItem).filter(
-        or_(
-            ContentItem.org_id == org_id,
-            ContentItem.org_id == None,
-            ContentItem.owner_user_id == user.id
+    if scope == "global":
+        q = db.query(ContentItem).filter(ContentItem.org_id == None)
+    elif scope == "org":
+        q = db.query(ContentItem).filter(ContentItem.org_id == org_id)
+    else:
+        q = db.query(ContentItem).filter(
+            or_(
+                ContentItem.org_id == org_id,
+                ContentItem.org_id == None,
+                ContentItem.owner_user_id == user.id
+            )
         )
-    )
     if source_id:
         q = q.filter(ContentItem.source_id == source_id)
     if topic:

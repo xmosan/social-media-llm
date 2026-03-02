@@ -2004,13 +2004,7 @@ async def app_library_page(
         """
 
     manage_btn = ""
-    if is_admin:
-        manage_btn = f"""
-        <button onclick="toggleManageMode()" id="manageToggleBtn" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-brand hover:bg-brand/10 transition-all flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-            Manager Mode
-        </button>
-        """
+    # Removed unused manage_btn logic as it's handled by superadmin_controls
 
     content = """
     <style>
@@ -2298,7 +2292,7 @@ async def app_library_page(
               document.getElementById('sourceCount').textContent = sources.length;
               
               const select = document.getElementById('sourceSelect');
-              select.innerHTML = '<option value="">Select or Create New...</option>';
+              if (select) select.innerHTML = '<option value="">Select or Create New...</option>';
               
               list.innerHTML = '';
               sources.forEach(s => {
@@ -2315,12 +2309,14 @@ async def app_library_page(
                   `;
                   list.appendChild(el);
 
-                  // Update select dropdown in modal
-                  const opt = document.createElement('option');
-                  opt.value = s.id;
-                  opt.textContent = s.name;
-                  select.appendChild(opt);
-              });
+                   // Update select dropdown in modal
+                   if (select) {
+                       const opt = document.createElement('option');
+                       opt.value = s.id;
+                       opt.textContent = s.name;
+                       select.appendChild(opt);
+                   }
+               });
 
               if (sources.length === 0) {
                   list.innerHTML = '<div class="p-10 text-center text-muted font-black text-[9px] uppercase tracking-widest">No collections found</div>';
@@ -2349,13 +2345,11 @@ async def app_library_page(
               if (currentSourceId) url += `&source_id=${currentSourceId}`;
               if (topic) url += `&topic=${encodeURIComponent(topic)}`;
               if (category) url += `&item_type=${encodeURIComponent(category)}`;
+              if (showGlobalOnly) url += `&scope=global`;
+              else url += `&scope=org`;
               
               const res = await fetch(url);
               let entries = await res.json();
-              
-              if (showGlobalOnly) {
-                  entries = entries.filter(e => e.org_id === null);
-              }
               
               if (entries.length === 0) {
                   list.innerHTML = `
@@ -2877,12 +2871,12 @@ async def app_library_page(
           list.innerHTML = '<div class="text-center py-10 text-[9px] font-black uppercase text-muted animate-pulse">Scanning Neural Library...</div>';
           
           try {
-              let url = `/library/entries?query=${encodeURIComponent(query)}`;
+              let url = `/library/entries?query=${encodeURIComponent(query)}&scope=all`;
               if (topic) url += `&topic=${encodeURIComponent(topic)}`;
               if (type) url += `&item_type=${encodeURIComponent(type)}`;
               
               const res = await fetch(url);
-              const entries = await res.json();
+              let entries = await res.json();
               
               if (entries.length === 0) {
                   list.innerHTML = '<div class="text-center py-10 text-[9px] font-black uppercase text-muted opacity-40">No knowledge found for this topic</div>';
@@ -2932,22 +2926,26 @@ async def app_library_page(
           closeLibraryPicker();
       }
 
-      function toggleGlobalView(global) {
+       function toggleGlobalView(global) {
           showGlobalOnly = global;
           const orgBtn = document.getElementById('orgViewBtn');
           const globalBtn = document.getElementById('globalViewBtn');
           
           if (global) {
-              globalBtn.className = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-lg";
-              orgBtn.className = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-white/40 hover:text-white";
+              if (globalBtn) globalBtn.className = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-lg";
+              if (orgBtn) orgBtn.className = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-white/40 hover:text-white";
           } else {
-              orgBtn.className = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-lg";
-              globalBtn.className = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-white/40 hover:text-white";
+              if (orgBtn) orgBtn.className = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-lg";
+              if (globalBtn) globalBtn.className = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-white/40 hover:text-white";
           }
           
           currentSourceId = null;
           loadSources();
           loadEntries();
+      }
+
+      function toggleManageMode() {
+          console.log("Manager mode restricted to superadmin neural interface");
       }
 
       async function deleteEntry(id) {
