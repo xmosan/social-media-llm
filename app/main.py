@@ -103,7 +103,9 @@ def run_admin_library_migration():
             "content_sources": [
                 ("org_id", "INTEGER"),
                 ("category", "VARCHAR"),
-                ("description", "TEXT")
+                ("description", "TEXT"),
+                ("config", "JSONB" if is_postgres else "TEXT"),
+                ("enabled", "BOOLEAN DEFAULT TRUE")
             ],
             "content_items": [
                 ("org_id", "INTEGER"),
@@ -111,7 +113,13 @@ def run_admin_library_migration():
                 ("arabic_text", "TEXT"),
                 ("translation", "TEXT"),
                 ("meta", "JSONB" if is_postgres else "JSON"),
-                ("tags", "JSONB" if is_postgres else "JSON")
+                ("tags", "JSONB" if is_postgres else "JSON"),
+                ("topic", "VARCHAR"),
+                ("topics", "JSONB" if is_postgres else "JSON"),
+                ("topics_slugs", "JSONB" if is_postgres else "JSON"),
+                ("owner_user_id", "INTEGER"),
+                ("use_count", "INTEGER DEFAULT 0"),
+                ("last_used_at", "TIMESTAMP WITH TIME ZONE")
             ]
         }
         

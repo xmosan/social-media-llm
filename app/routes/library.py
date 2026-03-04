@@ -29,10 +29,10 @@ router = APIRouter(prefix="/library", tags=["library"])
 def list_library_sources(
     scope: Optional[str] = None,
     db: Session = Depends(get_db),
-    org_id: int = Depends(get_current_org_id),
     user: User = Depends(require_user)
 ):
     """Lists accessible manual library sources with optional scope filter."""
+    org_id = user.active_org_id
     q = db.query(ContentSource)
     if scope == "global":
         q = q.filter(ContentSource.org_id == None)
@@ -46,13 +46,13 @@ def list_library_sources(
 @router.get("/topics")
 def list_library_topics(
     db: Session = Depends(get_db),
-    org_id: int = Depends(get_current_org_id),
     user: User = Depends(require_user)
 ):
     """Returns top topics across merged dataset."""
+    org_id = user.active_org_id
     items = db.query(ContentItem).filter(
         or_(
-            ContentItem.org_id == org_id,
+            ContentItem.org_id == org_id if org_id else False,
             ContentItem.org_id == None,
             ContentItem.owner_user_id == user.id
         )
@@ -75,10 +75,10 @@ def list_library_entries(
     item_type: Optional[str] = None,
     scope: Optional[str] = None,
     db: Session = Depends(get_db),
-    org_id: int = Depends(get_current_org_id),
     user: User = Depends(require_user)
 ):
     """Lists entries with unified scope filtering."""
+    org_id = user.active_org_id
     if scope == "global":
         q = db.query(ContentItem).filter(ContentItem.org_id == None)
     elif scope == "org":

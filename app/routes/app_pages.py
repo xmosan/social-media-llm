@@ -2409,7 +2409,8 @@ async def app_library_page(
                     list.appendChild(el);
               });
           } catch(e) {
-              list.innerHTML = '<div class="text-rose-400 text-[10px] font-bold p-10 col-span-full">Neural transmission error</div>';
+              console.error("Library Neural Transmission Error (Entries):", e);
+              list.innerHTML = '<div class="col-span-full py-20 text-center"><div class="text-[10px] font-black text-rose-500/50 uppercase tracking-widest">Neural transmission error</div><p class="text-[8px] text-white/20 mt-2 uppercase font-bold">' + e.message + '</p></div>';
           }
       }
 
@@ -2649,7 +2650,8 @@ async def app_library_page(
           const table = document.getElementById('synonymTable');
           table.innerHTML = '<div class="text-center py-4 text-muted animate-pulse font-black text-[9px] uppercase">Retrieving Map...</div>';
           try {
-              const res = await fetch('/api/library/synonyms');
+              const res = await fetch('/library/synonyms');
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
               const data = await res.json();
               table.innerHTML = data.map(s => `
                   <div class="flex justify-between items-center p-4 bg-white/5 rounded-xl border border-white/5 group">
@@ -2662,14 +2664,14 @@ async def app_library_page(
                       </button>
                   </div>
               `).join('');
-          } catch(e) {}
+          } catch(e) { console.error("Synonym load failed", e); }
       }
       async function saveSynonym() {
           const slug = document.getElementById('syn_slug').value.trim();
           const list = document.getElementById('syn_list').value.split(',').map(s => s.trim()).filter(s => s);
           if (!slug || !list.length) return alert("Slug and synonyms required");
           try {
-              const res = await fetch('/api/library/synonyms', {
+              const res = await fetch('/library/synonyms', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ slug, synonyms: list })
@@ -2678,15 +2680,22 @@ async def app_library_page(
                   document.getElementById('syn_slug').value = '';
                   document.getElementById('syn_list').value = '';
                   loadSynonyms();
+              } else {
+                  const err = await res.json();
+                  alert(`Failed to save synonym: ${err.detail || 'Unknown error'}`);
               }
-          } catch(e) {}
+          } catch(e) { console.error("Synonym save failed", e); }
       }
       async function deleteSynonym(slug) {
           if (!confirm(`Delete synonyms for ${slug}?`)) return;
           try {
-              const res = await fetch(`/api/library/synonyms/${slug}`, { method: 'DELETE' });
+              const res = await fetch(`/library/synonyms/${slug}`, { method: 'DELETE' });
               if (res.ok) loadSynonyms();
-          } catch(e) {}
+              else {
+                  const err = await res.json();
+                  alert(`Failed to delete synonym: ${err.detail || 'Unknown error'}`);
+              }
+          } catch(e) { console.error("Synonym delete failed", e); }
       }
 
       async function saveEntry() {
