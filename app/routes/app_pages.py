@@ -2350,8 +2350,17 @@ async def app_library_page(
               else url += `&scope=org`;
               
               const res = await fetch(url);
-              let entries = await res.json();
+              if (!res.ok) {
+                  const errData = await res.json().catch(() => ({}));
+                  throw new Error(errData.detail || `HTTP ${res.status}`);
+              }
+              const entries = await res.json();
               
+              if (!Array.isArray(entries)) {
+                  console.error("API returned non-array:", entries);
+                  throw new Error("Invalid response format from server");
+              }
+
               if (entries.length === 0) {
                   list.innerHTML = `
                     <div class="col-span-full h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50 py-20">

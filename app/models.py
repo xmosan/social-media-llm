@@ -271,6 +271,7 @@ class ContentItem(Base):
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     use_count = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     org = relationship("Org", back_populates="content_items")
     usages = relationship("ContentUsage", back_populates="content_item")

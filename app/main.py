@@ -119,7 +119,8 @@ def run_admin_library_migration():
                 ("topics_slugs", "JSONB" if is_postgres else "JSON"),
                 ("owner_user_id", "INTEGER"),
                 ("use_count", "INTEGER DEFAULT 0"),
-                ("last_used_at", "TIMESTAMP WITH TIME ZONE")
+                ("last_used_at", "TIMESTAMP WITH TIME ZONE"),
+                ("updated_at", "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP")
             ]
         }
         
