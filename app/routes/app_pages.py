@@ -24,7 +24,7 @@ APP_LAYOUT_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{title} | Social Media LLM</title>
+  <title>{title} | Sabeel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {{
@@ -77,13 +77,13 @@ APP_LAYOUT_HTML = """<!doctype html>
   <nav class="border-b border-white/5 bg-black/20 backdrop-blur-md sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
       <div class="flex items-center gap-8">
-        <div class="text-lg font-black italic tracking-tighter text-gradient">SOCIAL MEDIA LLM</div>
+        <div class="flex flex-col"><div class="text-lg font-black italic tracking-tighter text-gradient">SABEEL</div><div class="text-[8px] font-black text-white uppercase tracking-widest pl-1 leading-none mt-1">Studio</div></div>
         <div class="hidden md:flex gap-6">
           <a href="/app" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_dashboard}">Dashboard</a>
           <a href="/app/calendar" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_calendar} text-muted hover:text-white transition-colors">Calendar</a>
           <a href="/app/automations" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_automations} text-muted hover:text-white transition-colors">Automations</a>
           <a href="/app/library" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_library} text-muted hover:text-white transition-colors">Library</a>
-          <a href="/app/media" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_media} text-muted hover:text-white transition-colors">Media Library</a>
+          <a href="/app/media" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_media} text-muted hover:text-white transition-colors">Media</a>
           {admin_link}
         </div>
       </div>
@@ -104,7 +104,7 @@ APP_LAYOUT_HTML = """<!doctype html>
   </main>
 
   <footer class="max-w-7xl mx-auto px-6 py-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 mt-12 mb-12">
-    <div class="text-[10px] font-black text-muted uppercase tracking-widest italic">&copy; 2026 Mohammed Hassan. All rights reserved. <span class="text-white/40 lowercase">Proprietary software.</span></div>
+    <div class="text-[10px] font-black text-muted uppercase tracking-widest italic">&copy; 2026 Mohammed Hassan. All rights reserved. <span class="text-white/40 lowercase">Sabeel is proprietary software.</span></div>
     <div class="flex gap-6 text-[9px] font-black uppercase tracking-widest text-muted/60">
         <a href="/" class="hover:text-brand transition-colors">Portal</a>
         <a href="/app" class="hover:text-brand transition-colors">Interface</a>
@@ -361,7 +361,7 @@ APP_LAYOUT_HTML = """<!doctype html>
                 content.innerHTML = `<div class="text-center py-20 opacity-40"><p class="text-[10px] font-black uppercase tracking-widest">Knowledge Base Empty</p></div>`;
             }
         } catch(e) {
-            content.innerHTML = '<div class="text-center py-10 text-rose-400 text-[10px] font-black uppercase">Neural link failure.</div>';
+            content.innerHTML = '<div class="text-center py-10 text-rose-400 text-[10px] font-black uppercase">Unable to load your library.</div>';
         }
     }
 
@@ -475,7 +475,7 @@ APP_LAYOUT_HTML = """<!doctype html>
       <div class="px-10 py-6 border-b border-white/5 flex justify-between items-center bg-white/2">
         <div>
           <h3 class="text-2xl font-black italic text-white tracking-tight">Content <span class="text-brand">Studio</span></h3>
-          <p class="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Neural Creator Engine v2.0</p>
+          <p class="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Structured Content Generation</p>
         </div>
         <div class="flex items-center gap-6">
           <div class="flex gap-2 p-1 bg-white/5 rounded-xl border border-white/10">
@@ -689,7 +689,7 @@ APP_LAYOUT_HTML = """<!doctype html>
     <div class="p-8 pb-4 border-b border-white/5 flex justify-between items-center">
       <div>
         <h3 class="text-xl font-black italic text-white">Neural <span class="text-brand">Library</span></h3>
-        <p class="text-[8px] font-black text-muted uppercase tracking-widest">Extract source materials</p>
+        <p class="text-[8px] font-black text-muted uppercase tracking-widest">Build from verified sources</p>
       </div>
       <button onclick="closeLibraryDrawer()" class="p-2 text-muted hover:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
     </div>
@@ -718,7 +718,7 @@ APP_LAYOUT_HTML = """<!doctype html>
       
       <div id="previewLoader" class="flex flex-col items-center gap-4">
           <div class="animate-spin w-12 h-12 border-4 border-brand border-t-transparent rounded-full"></div>
-          <p class="text-[10px] font-black text-brand uppercase tracking-[0.3em]">Rendering Intelligence...</p>
+          <p class="text-[10px] font-black text-brand uppercase tracking-[0.3em]">Generating content...</p>
       </div>
       
       <img id="previewImage" class="hidden max-w-full max-h-full rounded-3xl shadow-2xl border border-white/10 animate-in fade-in zoom-in duration-700">
@@ -737,7 +737,7 @@ APP_DASHBOARD_CONTENT = """
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
         <h1 class="text-3xl font-black italic tracking-tight text-white">System <span class="text-brand">Overview</span></h1>
-        <p class="text-xs font-bold text-muted uppercase tracking-widest">Real-time intelligence feed</p>
+        <p class="text-xs font-bold text-muted uppercase tracking-widest">Structured content feed</p>
       </div>
       <div class="flex gap-2">
         {admin_cta}
@@ -875,7 +875,7 @@ ONBOARDING_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Onboarding | Social Media LLM</title>
+  <title>Onboarding | Sabeel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
@@ -1224,7 +1224,7 @@ async def app_dashboard_page(
             <h3 class="text-xl font-black italic text-white">Neural Engine Offline</h3>
             <p class="text-muted text-sm max-w-md mx-auto">Your account is active, but no publishing destinations are linked. Connect your first Instagram account to activate the automation loop.</p>
           </div>
-          <button onclick="alert('Instagram connection flow coming in next update. For now, use Admin Console or re-run onboarding.')" class="px-10 py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/40">Initialize IG Connection</button>
+          <button onclick="alert('Instagram connection flow coming in next update. For now, use Admin or re-run onboarding.')" class="px-10 py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/40">Initialize IG Connection</button>
         </div>
         """
     
@@ -1232,7 +1232,7 @@ async def app_dashboard_page(
     admin_link = ""
     admin_cta = ""
     if user.is_superadmin:
-        admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>'
+        admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>'
         admin_cta = '<a href="/admin" class="px-6 py-3 bg-rose-500/10 border border-rose-500/20 rounded-xl font-black text-[10px] uppercase tracking-widest text-rose-400 hover:bg-rose-500/20 transition-all flex items-center gap-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>Owner Ops</a>'
 
     content = APP_DASHBOARD_CONTENT.replace("{admin_cta}", admin_cta)\
@@ -1273,7 +1273,7 @@ async def app_calendar_page(
 ):
     if not user.onboarding_complete: return RedirectResponse(url="/onboarding")
     org = db.query(Org).filter(Org.id == user.active_org_id).first()
-    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>' if user.is_superadmin else ""
+    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""
     
     today = datetime.now(timezone.utc)
     year = today.year
@@ -1380,7 +1380,7 @@ async def app_automations_page(
 ):
     if not user.onboarding_complete: return RedirectResponse(url="/onboarding")
     org = db.query(Org).filter(Org.id == user.active_org_id).first()
-    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>' if user.is_superadmin else ""
+    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""
     
     autos = db.query(TopicAutomation).filter(TopicAutomation.org_id == user.active_org_id).all()
     
@@ -1903,7 +1903,7 @@ async def app_media_page(
 ):
     if not user.onboarding_complete: return RedirectResponse(url="/onboarding")
     org = db.query(Org).filter(Org.id == user.active_org_id).first()
-    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>' if user.is_superadmin else ""
+    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""
     
     content = """
     <div class="space-y-6">
@@ -1945,7 +1945,7 @@ async def app_library_page(
         if membership and membership.role in ["admin", "owner"]:
             is_admin = True
 
-    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin Console</a>' if user.is_superadmin else ""
+    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""
     
     from app.models import SourceDocument
     docs = db.query(SourceDocument).filter(SourceDocument.org_id == org_id).order_by(SourceDocument.created_at.desc()).all()
@@ -2018,7 +2018,7 @@ async def app_library_page(
       <div class="flex justify-between items-end flex-shrink-0">
         <div>
           <h1 class="text-3xl font-black italic tracking-tight text-white">Source <span class="text-brand">Library</span></h1>
-          <p class="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Knowledge Base Management</p>
+          <p class="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Structured knowledge for content creation</p>
         </div>
         <div class="flex gap-4">
           <button onclick="openEntryModal()" class="px-8 py-4 bg-brand rounded-2xl font-black text-[11px] uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3">
@@ -2323,7 +2323,7 @@ async def app_library_page(
                   list.innerHTML = '<div class="p-10 text-center text-muted font-black text-[9px] uppercase tracking-widest">No collections found</div>';
               }
           } catch(e) {
-              list.innerHTML = '<div class="text-rose-400 text-[10px] font-bold p-10">Neural transmission error</div>';
+              list.innerHTML = '<div class="text-rose-400 text-[10px] font-bold p-10">Something went wrong.</div>';
           }
       }
 
@@ -2419,7 +2419,7 @@ async def app_library_page(
               });
           } catch(e) {
               console.error("Library Neural Transmission Error (Entries):", e);
-              list.innerHTML = '<div class="col-span-full py-20 text-center"><div class="text-[10px] font-black text-rose-500/50 uppercase tracking-widest">Neural transmission error</div><p class="text-[8px] text-white/20 mt-2 uppercase font-bold">' + e.message + '</p></div>';
+              list.innerHTML = '<div class="col-span-full py-20 text-center"><div class="text-[10px] font-black text-rose-500/50 uppercase tracking-widest">Something went wrong.</div><p class="text-[8px] text-white/20 mt-2 uppercase font-bold">' + e.message + '</p></div>';
           }
       }
 
@@ -2808,7 +2808,7 @@ async def app_library_page(
           const type = document.getElementById('pickerType').value;
           const list = document.getElementById('pickerResults');
           
-          list.innerHTML = '<div class="text-center py-10 text-[9px] font-black uppercase text-muted animate-pulse">Scanning Neural Library...</div>';
+          list.innerHTML = '<div class="text-center py-10 text-[9px] font-black uppercase text-muted animate-pulse">Scanning Sabeel Library...</div>';
           
           try {
               let url = `/library/entries?query=${encodeURIComponent(query)}&scope=all`;
@@ -2828,7 +2828,7 @@ async def app_library_page(
                   const div = document.createElement('div');
                   div.className = "p-4 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-brand/30 transition-all cursor-pointer space-y-2";
                   
-                  let scope = "SYSTEM";
+                  let scope = "Sabeel Default";
                   let scopeClass = "bg-brand/10 text-brand";
                   if (e.org_id) { scope = "WORKSPACE"; scopeClass = "bg-white/10 text-white/40"; }
                   if (e.owner_user_id) { scope = "PERSONAL"; scopeClass = "bg-amber-500/10 text-amber-500"; }

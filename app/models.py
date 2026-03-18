@@ -218,7 +218,7 @@ class TopicAutomation(Base):
     selection_mode = Column(String, nullable=False, default="random") # random, round_robin
     last_item_cursor = Column(String, nullable=True)
 
-    # NEW: Media Library Fields
+    # NEW: Media Fields
     media_asset_id = Column(Integer, ForeignKey("media_assets.id"), nullable=True)
     media_tag_query = Column(JSON, nullable=True) # e.g. ["ramadan","masjid"]
     media_rotation_mode = Column(String, default="random") # "random" | "round_robin"

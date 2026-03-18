@@ -108,7 +108,7 @@ def intake_post(
             print(f"FAILED FILE SAVE: {e}")
             raise HTTPException(status_code=500, detail="Critical error: Could not save uploaded file. Check disk space/permissions.")
     
-    # 3. Handle Media Library
+    # 3. Handle Media
     elif visual_mode == "media_library" and lib_id:
         asset = db.query(MediaAsset).filter(MediaAsset.id == lib_id).first()
         if asset:

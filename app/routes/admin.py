@@ -16,7 +16,7 @@ LOGIN_HTML = r"""<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Login | Social Media LLM</title>
+  <title>Login | Sabeel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style> body { font-family: 'Inter', sans-serif; } </style>
@@ -93,7 +93,7 @@ REGISTER_HTML = r"""<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Register | Social Media LLM</title>
+  <title>Register | Sabeel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style> body { font-family: 'Inter', sans-serif; } </style>
@@ -160,7 +160,7 @@ REGISTER_HTML = r"""<!doctype html>
 </html>
   <div class="max-w-md w-full bg-surface rounded-[2.5rem] shadow-2xl p-10 border border-border">
     <div class="text-center mb-10">
-      <h1 class="text-3xl font-black italic tracking-tighter text-gradient">Social Media LLM</h1>
+      <h1 class="text-3xl font-black italic tracking-tighter text-gradient">Sabeel</h1>
       <p class="text-[11px] font-black text-muted uppercase tracking-widest mt-2 italic">Neural Authentication</p>
     </div>
     <form id="registerForm" class="space-y-8">
@@ -232,7 +232,7 @@ HTML = r"""<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Admin Overview | Social Media LLM</title>
+  <title>Admin Overview | Sabeel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
@@ -284,7 +284,7 @@ HTML = r"""<!doctype html>
   <nav class="border-b border-white/5 bg-black/20 backdrop-blur-md sticky top-0 z-50 h-16">
     <div class="max-w-7xl mx-auto px-6 h-full flex justify-between items-center">
       <div class="flex items-center gap-8">
-        <div class="text-lg font-black italic tracking-tighter text-gradient">SOCIAL MEDIA LLM <span class="text-[9px] text-muted not-italic font-bold tracking-widest ml-2">ADMIN</span></div>
+        <div class="text-lg font-black italic tracking-tighter text-gradient">SABEEL <span class="text-[9px] text-muted not-italic font-bold tracking-widest ml-2">ADMIN</span></div>
         <div class="h-6 w-px bg-white/10"></div>
         <div class="flex items-center gap-3">
             <label class="text-[9px] font-black text-muted uppercase tracking-[0.2em]">Node</label>
@@ -977,7 +977,7 @@ HTML = r"""<!doctype html>
   </main>
 
   <footer class="max-w-7xl mx-auto px-6 py-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 mt-12 mb-12">
-    <div class="text-[10px] font-black text-muted uppercase tracking-widest italic">&copy; 2026 Mohammed Hassan. All rights reserved. <span class="text-white/40 lowercase">Proprietary software.</span></div>
+    <div class="text-[10px] font-black text-muted uppercase tracking-widest italic">&copy; 2026 Mohammed Hassan. All rights reserved. <span class="text-white/40 lowercase">Sabeel is proprietary software.</span></div>
     <div class="flex gap-6 text-[9px] font-black uppercase tracking-widest text-muted/60">
         <a href="/" class="hover:text-brand transition-colors">Portal</a>
         <a href="/app" class="hover:text-brand transition-colors">Interface</a>
@@ -2206,7 +2206,7 @@ ONBOARDING_HTML = r"""<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Strategic Initialization | Social Media LLM</title>
+  <title>Strategic Initialization | Sabeel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
@@ -2311,7 +2311,7 @@ ONBOARDING_HTML = r"""<!doctype html>
   <div class="max-w-3xl w-full tool-card p-10 lg:p-14 animate-in">
     <div class="mb-12 flex items-center gap-4">
         <div class="w-12 h-12 bg-brand rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-2xl shadow-brand/40">S</div>
-        <h1 class="text-3xl font-black italic tracking-tighter text-gradient leading-none">Social Media LLM</h1>
+        <h1 class="text-3xl font-black italic tracking-tighter text-gradient leading-none">Sabeel</h1>
     </div>
 
     <div class="mb-12">
@@ -2554,5 +2554,5 @@ def debug_version():
     return {
         "version": "1.2.0-redesign",
         "env": "production",
-        "engine": "Social Media LLM v2"
+        "engine": "Sabeel v2"
     }

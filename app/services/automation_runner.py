@@ -159,7 +159,7 @@ def resolve_media_url(
                         f.write(res.content)
                     final_url = f"{settings.public_base_url.rstrip('/')}/uploads/{filename}"
                     
-                    # Also register it in Media Library for future reuse/filter
+                    # Also register it in Media for future reuse/filter
                     new_asset = MediaAsset(
                         org_id=org_id,
                         ig_account_id=ig_account_id,

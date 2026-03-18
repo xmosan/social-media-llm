@@ -18,7 +18,7 @@ LANDING_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Social Media LLM | AI Social Posting, Human Control</title>
+  <title>Sabeel | Structured Content, Human Control</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
@@ -45,7 +45,7 @@ LANDING_HTML = """<!doctype html>
 <body class="ai-bg min-h-screen">
   <!-- Navbar -->
   <nav class="max-w-7xl mx-auto px-6 py-8 flex justify-between items-center">
-    <div class="text-xl font-black italic tracking-tighter text-gradient">SOCIAL MEDIA LLM</div>
+    <div class="flex flex-col"><div class="text-xl font-black italic tracking-tighter text-gradient inline-block">SABEEL</div><div class="text-[8px] font-black text-white uppercase tracking-widest pl-1 leading-none mt-1">Studio</div></div>
     <div class="flex items-center gap-6">
       <a href="/demo" class="text-xs font-black uppercase tracking-widest text-muted hover:text-white transition-colors">See Demo</a>
       {% if authenticated %}
@@ -60,7 +60,7 @@ LANDING_HTML = """<!doctype html>
   <!-- Hero Section -->
   <section class="max-w-7xl mx-auto px-6 pt-20 pb-32 text-center space-y-8">
     <h1 class="text-6xl md:text-8xl font-black tracking-tighter italic text-white leading-[0.9]">
-      AI SOCAL <span class="text-gradient">POSTING.</span><br/>
+      STRUCTURED <span class="text-gradient">POSTING.</span><br/>
       HUMAN <span class="text-gradient">CONTROL.</span>
     </h1>
     <p class="max-w-2xl mx-auto text-muted text-lg md:text-xl font-medium">
@@ -117,7 +117,7 @@ LANDING_HTML = """<!doctype html>
         <p class="text-xs text-muted">Pluggable sources ensure your AI never hallucinates and stays on message.</p>
       </div>
       <div class="glass p-8 rounded-3xl feature-card border border-white/5 transition-all">
-        <h4 class="font-black italic text-white mb-2">Neural Guardrails</h4>
+        <h4 class="font-black italic text-white mb-2">System Guardrails</h4>
         <p class="text-xs text-muted">Islamic policy alignment ensures your content is always compliant and respectful.</p>
       </div>
     </div>
@@ -125,7 +125,7 @@ LANDING_HTML = """<!doctype html>
 
   <!-- Footer -->
   <footer class="max-w-7xl mx-auto px-6 py-20 border-t border-white/5 mt-20 flex flex-col md:flex-row justify-between items-center gap-8">
-    <div class="text-muted font-bold text-xs uppercase tracking-widest italic">&copy; 2026 Mohammed Hassan. All rights reserved. <span class="text-white/50 lowercase">Proprietary software.</span></div>
+    <div class="text-muted font-bold text-xs uppercase tracking-widest italic">&copy; 2026 Mohammed Hassan. All rights reserved. <span class="text-white/50 lowercase">Sabeel is proprietary software.</span></div>
     <div class="flex gap-8 text-[10px] font-black uppercase tracking-widest text-muted">
       <a href="/contact" class="hover:text-brand transition-colors">Support</a>
       <a href="/demo" class="hover:text-brand transition-colors">Demo</a>
@@ -141,7 +141,7 @@ DEMO_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Interactive Demo | Social Media LLM</title>
+  <title>Interactive Demo | Sabeel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
@@ -190,7 +190,7 @@ DEMO_HTML = """<!doctype html>
       <!-- Preview Area -->
       <div class="lg:col-span-2 space-y-6">
         <div id="preview-stage" class="glass rounded-[3rem] p-10 min-h-[500px] flex items-center justify-center relative overflow-hidden">
-          <div id="loading-spinner" class="hidden animate-pulse text-brand font-black text-xs uppercase tracking-widest">Synthesizing Neural Visuals...</div>
+          <div id="loading-spinner" class="hidden animate-pulse text-brand font-black text-xs uppercase tracking-widest">Synthesizing Visuals...</div>
           
           <div id="demo-post" class="w-full max-w-md space-y-6">
             <div class="aspect-square rounded-3xl overflow-hidden bg-white/5 border border-white/10 relative">
@@ -242,7 +242,7 @@ LOGIN_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sign In | Social Media LLM</title>
+  <title>Sign In | Sabeel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
@@ -283,7 +283,7 @@ LOGIN_HTML = """<!doctype html>
 <body class="ai-bg text-main min-h-screen flex items-center justify-center p-6">
   <div class="max-w-md w-full glass rounded-[2.5rem] p-10 space-y-8">
     <div class="text-center space-y-2">
-      <h1 class="text-2xl font-black italic tracking-tighter text-gradient">Social Media LLM</h1>
+      <h1 class="text-2xl font-black italic tracking-tighter text-gradient">Sabeel</h1>
       <h2 class="text-xl font-bold">Welcome back</h2>
       <div class="text-[8px] font-black text-white/20 uppercase tracking-[0.4em]">v4.0.0-DIAG</div>
     </div>
@@ -363,7 +363,7 @@ REGISTER_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Create Account | Social Media LLM</title>
+  <title>Create Account | Sabeel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
@@ -404,7 +404,7 @@ REGISTER_HTML = """<!doctype html>
 <body class="ai-bg text-main min-h-screen flex items-center justify-center p-6">
   <div class="max-w-md w-full glass rounded-[2.5rem] p-10 space-y-8">
     <div class="text-center space-y-2">
-      <h1 class="text-2xl font-black italic tracking-tighter text-gradient">Social Media LLM</h1>
+      <h1 class="text-2xl font-black italic tracking-tighter text-gradient">Sabeel</h1>
       <h2 class="text-xl font-bold">Start Automating</h2>
     </div>
 
@@ -487,7 +487,7 @@ CONTACT_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Contact Us | Social Media LLM</title>
+  <title>Contact Us | Sabeel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
   <style>

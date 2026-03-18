@@ -7,7 +7,7 @@ from app.db import SessionLocal
 from app.services.sources.sunnah import pick_hadith_for_topic
 
 def test_sync(topic="patience"):
-    print(f"--- Testing Sunnah.com Sync for topic: {topic} ---")
+    print(f"--- Testing External Source Sync for topic: {topic} ---")
     db = SessionLocal()
     try:
         item = pick_hadith_for_topic(db, topic)

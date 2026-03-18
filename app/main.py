@@ -160,7 +160,7 @@ if "JWT_SECRET" not in missing_vars and settings.secret_key == "change-me-in-pro
 if missing_vars:
     logger.warning(f"CRITICAL STARTUP WARNING: Missing or unsafe required variables: {', '.join(missing_vars)}")
 
-app = FastAPI(title="Social Media LLM - Multi-tenant SaaS")
+app = FastAPI(title="Sabeel - Multi-tenant SaaS")
 
 @app.get("/api-test")
 def api_test():
