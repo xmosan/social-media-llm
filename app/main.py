@@ -410,7 +410,8 @@ def on_startup():
                 ("items_per_post", "INTEGER DEFAULT 1"),
                 ("selection_mode", "VARCHAR DEFAULT 'random'"),
                 ("last_item_cursor", "VARCHAR"),
-                ("library_scope", "JSONB" if is_postgres else "TEXT")
+                ("library_scope", "JSONB" if is_postgres else "TEXT"),
+                ("content_provider_scope", "VARCHAR DEFAULT 'all_sources'")
             ]
             for col, col_def in auto_cols:
                 try:
