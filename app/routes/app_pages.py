@@ -1641,9 +1641,7 @@ async def app_automations_page(
       }}
 
       async function saveNewAutomation() {{
-        const scope = [];
-        if (document.getElementById('newScopePrebuilt').checked) scope.push('prebuilt');
-        if (document.getElementById('newScopeOrg').checked) scope.push('org_library');
+        const providerScope = document.getElementById('newProviderScope').value;
 
         const payload = {{
           name: document.getElementById('newName').value,
@@ -1652,7 +1650,7 @@ async def app_automations_page(
           content_seed_mode: document.getElementById('newSeedMode').value,
           content_seed_text: document.getElementById('newSeedText').value,
           post_time_local: document.getElementById('newTime').value,
-          library_scope: scope,
+          content_provider_scope: providerScope,
           enabled: true
         }};
 
@@ -1685,10 +1683,7 @@ async def app_automations_page(
         document.getElementById('editSeedMode').value = data.seed_mode || 'none';
         document.getElementById('editSeedText').value = data.seed_text;
         document.getElementById('editTime').value = data.time;
-        
-        const scope = data.library_scope || [];
-        document.getElementById('editScopePrebuilt').checked = scope.includes('prebuilt');
-        document.getElementById('editScopeOrg').checked = scope.includes('org_library');
+        document.getElementById('editProviderScope').value = data.content_provider_scope || 'all_sources';
 
         toggleSeedText();
         document.getElementById('editModal').classList.remove('hidden');
@@ -1703,9 +1698,7 @@ async def app_automations_page(
 
       async function saveAutomation() {{
         const id = document.getElementById('editId').value;
-        const scope = [];
-        if (document.getElementById('editScopePrebuilt').checked) scope.push('prebuilt');
-        if (document.getElementById('editScopeOrg').checked) scope.push('org_library');
+        const providerScope = document.getElementById('editProviderScope').value;
 
         const payload = {{
           name: document.getElementById('editName').value,
@@ -1714,7 +1707,7 @@ async def app_automations_page(
           content_seed_mode: document.getElementById('editSeedMode').value,
           content_seed_text: document.getElementById('editSeedText').value,
           post_time_local: document.getElementById('editTime').value,
-          library_scope: scope
+          content_provider_scope: providerScope
         }};
         
         const btn = event.target;
