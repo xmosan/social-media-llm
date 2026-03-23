@@ -1862,7 +1862,7 @@ async def app_automations_page(
           const res = await fetch(`/automations/${{id}}/run`, {{ method: 'POST' }});
           if (res.ok) alert('Neural loop triggered. Check dashboard for the new post.');
           else alert('Run failed');
-        finally {{ btn.disabled = false; btn.textContent = 'Run Now'; }}
+        }} finally {{ btn.disabled = false; btn.textContent = 'Run Now'; }}
       }}
     </script>
     """
