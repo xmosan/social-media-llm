@@ -104,7 +104,7 @@ APP_LAYOUT_HTML = """<!doctype html>
   </main>
 
   <footer class="max-w-7xl mx-auto px-6 py-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 mt-12 mb-12">
-    <div class="text-[10px] font-black text-muted uppercase tracking-widest italic">&copy; 2026 Mohammed Hassan. All rights reserved. <span class="text-white/40 lowercase">Sabeel is proprietary software.</span></div>
+    <div class="text-[10px] font-black text-muted uppercase tracking-widest italic">&copy; 2026 Mohammed Hassan. All rights reserved. <span class="text-brand lowercase">Sabeel&trade;</span> <span class="text-white/40 lowercase">is proprietary software.</span></div>
     <div class="flex gap-6 text-[9px] font-black uppercase tracking-widest text-muted/60">
         <a href="/" class="hover:text-brand transition-colors">Portal</a>
         <a href="/app" class="hover:text-brand transition-colors">Interface</a>
