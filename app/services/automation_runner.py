@@ -177,18 +177,17 @@ def resolve_media_url(
 
 def run_automation_once(db: Session, automation_id: int) -> Post | None:
     """
-    Core engine to run one automation cycle.
+    Core engine to run one automation cycle using the decoupled Content Provider architecture.
     """
     automation = db.query(TopicAutomation).filter(TopicAutomation.id == automation_id).first()
     if not automation or not automation.enabled:
         return None
     
-    content_item = None
     try:
         topic_base = automation.topic_prompt
         log_event("automation_run_start", automation_id=automation.id, topic=topic_base, style=automation.style_preset)
         
-        # 1. Topic Variations (Sub-angles)
+        # 1. Topic Variations
         try:
             variations = generate_topic_variations(topic_base, count=5)
             import random
@@ -198,123 +197,54 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             print(f"[AUTO] Topic variation failed: {e}")
             topic = topic_base
 
-        # 2. Content Seed & Library Retrieval
-        selected_items = []
-        library_context = None
-        seed_mode = getattr(automation, "content_seed_mode", "none") or "none"
+        # 2. NEW: Modular Content Provider Polling
+        from app.services.content_providers import UserLibraryProvider, SystemLibraryProvider
         
-        if seed_mode == "auto_library":
-            chunks = retrieve_relevant_chunks(
-                db, 
-                automation.org_id, 
-                topic, 
-                k=5, 
-                topic_slug=getattr(automation, "library_topic_slug", None)
-            )
-            if chunks:
-                library_context = {
-                    "mode": "auto_library",
-                    "sources": chunks,
-                    "manual_seed": None
-                }
-            else:
-                log_event("automation_no_library_sources", automation_id=automation.id, topic=topic)
-                # Fallback: still generate but flag it
-                library_context = {
-                    "mode": "none",
-                    "sources": [],
-                    "manual_seed": None
-                }
-        elif seed_mode == "manual":
-            seed_text = getattr(automation, "content_seed_text", None)
-            library_context = {
-                "mode": "manual_seed",
-                "sources": [],
-                "manual_seed": seed_text
-            }
+        provider_scope = getattr(automation, "content_provider_scope", "all_sources")
+        active_providers = []
         
-        # NEW: Prebuilt Packs Retrieval
-        lib_scope = getattr(automation, "library_scope", []) or []
-        if "prebuilt" in lib_scope:
-            packs = load_prebuilt_packs()
-            match = None
-            norm_topic = topic.lower().strip()
+        if provider_scope in ["all_sources", "user_library"]:
+            active_providers.append(UserLibraryProvider())
             
-            # Simple keyword/tag matcher with synonyms
-            synonyms = {
-                "patience": ["trust", "reliance", "anger", "self-control", "patience", "sabr"],
-                "faith": ["iman", "faith", "belief"],
-                "charity": ["zakat", "sadakah", "charity"]
-            }
-            search_terms = [norm_topic]
-            if norm_topic in synonyms:
-                search_terms.extend(synonyms[norm_topic])
-
-            for pack in packs:
-                for item in pack.get("items", []):
-                    item_tags = [t.lower() for t in item.get("tags", [])]
-                    item_text = item["text"].lower()
-                    
-                    if any(term in item_tags for term in search_terms) or \
-                       any(term in item_text for term in search_terms):
-                        match = item
-                        break
-                if match: break
+        if provider_scope in ["all_sources", "system_library"]:
+            active_providers.append(SystemLibraryProvider())
             
-            if match:
-                # If we already have library_context from auto_library, we might want to prioritize prebuilt
-                # or merge. The requirement says: "Select MAX 1 snippet. Pass into generate_topic_caption as structured extra_context"
-                # So we override or set it.
-                library_context = {
-                    "mode": "grounded_library",
-                    "topic": topic,
-                    "snippet": {
-                        "text": match["text"],
-                        "reference": match.get("reference"),
-                        "source": match.get("source")
-                    }
-                }
-            elif not library_context:
-                # If no prebuilt match and no auto_library context, set a default
-                library_context = {"mode": "none"}
+        pooled_items = []
+        target_limit = getattr(automation, "items_per_post", 1) or 1
         
-        # 3. Content Selection (Legacy/Other Sources)
-        new_cursor = automation.last_item_cursor
-
-        # NEW: Pluggable Content Sources
-        try:
-            if getattr(automation, "source_id", None) and getattr(automation, "source_mode", "none") != "none":
-                selected_items, new_cursor = select_items_for_automation(
-                    db,
-                    org_id=automation.org_id,
-                    source_id=automation.source_id,
-                    items_per_post=getattr(automation, "items_per_post", 1) or 1,
-                    selection_mode=getattr(automation, "selection_mode", "random") or "random",
-                    last_item_cursor=automation.last_item_cursor,
-                )
-        except Exception as e:
-            print(f"[AUTO] Source selection failed: {e}")
-            log_event("automation_source_error", automation_id=automation.id, error=str(e))
-        
-        # LEGACY: Content Library (if no items from sources and enabled)
-        if not selected_items and automation.use_content_library:
+        for provider in active_providers:
+            needed = target_limit - len(pooled_items)
+            if needed <= 0: break
+            
             try:
-                content_item = pick_content_item(
-                    db=db,
-                    org_id=automation.org_id,
-                    topic=topic,
-                    content_type=automation.content_type,
-                    avoid_repeat_days=automation.avoid_repeat_days,
-                    automation_id=automation.id,
-                    ig_account_id=automation.ig_account_id
-                )
-                if content_item:
-                    selected_items = [content_item]
+                items = provider.get_content(db, automation.org_id, topic, limit=needed)
+                pooled_items.extend(items)
+                if items:
+                    log_event("provider_content_sourced", 
+                              automation_id=automation.id, 
+                              provider=provider.provider_name, 
+                              count=len(items))
             except Exception as e:
-                print(f"[AUTO] Library selection failed: {e}")
-
-        # If we have NEITHER selected items NOR library chunks, and we are in auto_library mode, we flag it.
-        # But per requirements if library empty -> still generate generic.
+                print(f"[PROVIDER] Error in {provider.provider_name}: {e}")
+                
+        # [SAFETY] Guardrail: Abort if exactly 0 items found
+        if not pooled_items:
+            log_event("automation_no_content_found", automation_id=automation.id, topic=topic, scope=provider_scope)
+            automation.last_error = "No verified content found across chosen providers."
+            new_post = Post(
+                org_id=automation.org_id,
+                ig_account_id=automation.ig_account_id,
+                is_auto_generated=True,
+                automation_id=automation.id,
+                status="failed",
+                source_type="automation",
+                source_text=f"AUTO: {automation.name} | topic={topic}",
+                caption="",
+                flags={"automation_error": "No verified content found across chosen providers.", "reason": "no_content_found"}
+            )
+            db.add(new_post)
+            db.commit()
+            return new_post
 
         # 1.5 Content Profile Injection
         content_profile_prompt = None
@@ -323,20 +253,13 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             profile = db.query(ContentProfile).filter(ContentProfile.id == automation.content_profile_id).first()
             if profile:
                 prompt_parts = []
-                if profile.niche_category:
-                    prompt_parts.append(f"You are generating content for a {profile.niche_category} brand.")
-                if profile.focus_description:
-                    prompt_parts.append(f"Focus: {profile.focus_description}")
-                if profile.content_goals:
-                    prompt_parts.append(f"Goal: {profile.content_goals}")
-                if profile.tone_style:
-                    prompt_parts.append(f"Tone: {profile.tone_style}")
-                if profile.allowed_topics:
-                    prompt_parts.append(f"Core Topics to Discuss: {', '.join(profile.allowed_topics)}")
-                if profile.banned_topics:
-                    prompt_parts.append(f"AVOID Discussing: {', '.join(profile.banned_topics)}")
-                
-                content_profile_prompt = "\n".join(prompt_parts)
+                if profile.niche_category: prompt_parts.append(f"You are generating content for a {profile.niche_category} brand.")
+                if profile.focus_description: prompt_parts.append(f"Focus: {profile.focus_description}")
+                if profile.content_goals: prompt_parts.append(f"Goal: {profile.content_goals}")
+                if profile.tone_style: prompt_parts.append(f"Tone: {profile.tone_style}")
+                if profile.allowed_topics: prompt_parts.append(f"Core Topics to Discuss: {', '.join(profile.allowed_topics)}")
+                if profile.banned_topics: prompt_parts.append(f"AVOID Discussing: {', '.join(profile.banned_topics)}")
+                content_profile_prompt = "\\n".join(prompt_parts)
 
         # 2. Build Context payload & Generate
         context_payload = {
@@ -346,25 +269,26 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             "language": automation.language or "english",
             "banned_phrases": automation.banned_phrases if isinstance(automation.banned_phrases, list) else None,
             "source_items": [
-                {"title": getattr(it, "title", None), "text": getattr(it, "text", it.text_en if hasattr(it, "text_en") else ""), "url": getattr(it, "url", None), "id": it.id}
-                for it in selected_items
+                {
+                    "title": item.source, 
+                    "text": item.text, 
+                    "reference": item.reference, 
+                    "arabic_text": item.arabic_text,
+                    "id": item.original_id,
+                    "provider": item.provider
+                }
+                for item in pooled_items
             ],
-            "content_seed": getattr(automation, "content_seed", None),
             "content_profile_prompt": content_profile_prompt,
             "creativity_level": getattr(automation, "creativity_level", 3),
             "instructions": [
                 "Do NOT output the topic label literally.",
                 "Do NOT output 'AUTO: <name>' literally as the caption.",
-                "If source_items are provided, incorporate at least 1 item meaningfully.",
-                "Avoid music references and other disallowed content per policy.",
+                "You MUST build the post primarily around the structured `source_items` provided below.",
+                "DO NOT hallucinate or generate quotes/hadith/verses that are not explicitly provided in the `source_items`.",
+                "Always cite the exact reference provided."
             ],
         }
-        
-        # Merge Library Context
-        if library_context:
-            context_payload.update(library_context)
-            if library_context.get("mode") == "auto_library" and not library_context.get("sources"):
-                context_payload["instructions"].append("No library sources found for this topic. Generate a generic educational caption WITHOUT and quotes or citations.")
 
         print(f"[AUTO] Generating for automation_id={automation.id} topic='{topic}'")
         
@@ -386,7 +310,7 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             print(f"[AUTO] LLM Generation failed: {e}")
             automation.last_error = f"LLM Generation failed: {str(e)}"
             db.commit()
-            return None # Re-raise or handle as hard failure
+            return None
             
         if automation.hashtag_set:
             hashtags = automation.hashtag_set
@@ -394,27 +318,15 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         log_event("automation_caption_generated", automation_id=automation.id, caption_len=len(caption), hashtags_count=len(hashtags))
         
         # 3. Media Selection / Generation
-        primary_item = selected_items[0] if selected_items else None
-        concepts = primary_item.topics[0] if primary_item and hasattr(primary_item, "topics") and primary_item.topics else None
+        primary_item = pooled_items[0] if pooled_items else None
+        concepts = primary_item.topic_tags[0] if primary_item and primary_item.topic_tags else None
+        media_url = None
         
         # SPECIAL: Quote Card Mode
         if automation.image_mode == "quote_card":
-            # a) Get snippet text + reference
-            quote_text = ""
-            reference = ""
+            quote_text = primary_item.text if primary_item else topic
+            reference = primary_item.reference if primary_item else ""
             
-            if library_context and library_context.get("snippet"):
-                s = library_context["snippet"]
-                quote_text = s.get("text", "")
-                reference = s.get("reference", "")
-            elif primary_item:
-                quote_text = getattr(primary_item, "text", getattr(primary_item, "text_en", ""))
-                reference = getattr(primary_item, "source_name", "") or getattr(primary_item, "reference", "")
-            
-            if not quote_text:
-                quote_text = topic # Fallback to topic if no snippet
-                
-            # b) Choose background
             # Prefer library image
             bg_url = resolve_media_url(
                 db=db, org_id=automation.org_id, ig_account_id=automation.ig_account_id,
@@ -429,24 +341,18 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 )
             
             if bg_url:
-                # c) Download to local temp for Pillow
                 try:
                     import requests
+                    import time
                     bg_res = requests.get(bg_url, timeout=30)
                     if bg_res.status_code == 200:
                         tmp_bg_path = os.path.join(settings.uploads_dir, f"tmp_bg_{int(time.time())}.jpg")
                         with open(tmp_bg_path, "wb") as f:
                             f.write(bg_res.content)
                         
-                        # d) Render
                         media_url = render_quote_card(tmp_bg_path, quote_text, reference, settings.uploads_dir)
-                        
-                        # Cleanup tmp
-                        if os.path.exists(tmp_bg_path):
-                            os.remove(tmp_bg_path)
+                        if os.path.exists(tmp_bg_path): os.remove(tmp_bg_path)
                             
-                        # e) Shorten caption
-                        # Requirement: keep caption SHORT (1 sentence max) or reference + hashtags
                         if "." in caption:
                             caption = caption.split(".")[0] + "."
                         else:
@@ -456,11 +362,7 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 except Exception as e:
                     print(f"[AUTO] Quote card rendering failed: {e}")
                     log_event("automation_media_error", automation_id=automation.id, error=str(e))
-                    media_url = None # Will be caught by media validation guardrail
-            else:
-                media_url = None
         else:
-            # Standard Media Resolution
             try:
                 media_url = resolve_media_url(
                     db=db,
@@ -475,47 +377,31 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 )
             except Exception as e:
                 print(f"[AUTO] Media resolution error: {e}")
-                media_url = None
 
-        # FALLBACK: If AI generation failed, try to reuse last upload (but not for quote_card which has its own path)
+        # FALLBACK: If AI generation failed, try to reuse last upload
         if not media_url and automation.image_mode != "quote_card" and "ai" in (automation.image_mode or ""):
-            print("[AUTO] AI Media failed. Falling back to reuse_last_upload...")
             media_url = resolve_media_url(
-                db=db,
-                org_id=automation.org_id,
-                ig_account_id=automation.ig_account_id,
-                image_mode="reuse_last_upload",
-                topic=topic
+                db=db, org_id=automation.org_id, ig_account_id=automation.ig_account_id,
+                image_mode="reuse_last_upload", topic=topic
             )
-        
-        # LEGACY/HARD-CODED Quote Card Fallback (if specifically image_mode == "quote_card" or no media)
-        if (automation.image_mode == "quote_card" or (media_url is None and automation.image_mode != "none_placeholder" and primary_item)) and not media_url:
-            # ... (Existing legacy quote card code or handle failure)
-            pass
 
         # 4. Create Post
         status = "scheduled"
-        flags = {}
-        
-        if seed_mode == "auto_library" and library_context and not library_context.get("sources"):
-            status = "needs_review"
-            flags["reason"] = "no_library_sources_found"
-            
-        if automation.approval_mode == "needs_manual_approve" and status != "needs_review":
+        if automation.approval_mode == "needs_manual_approve":
             status = "drafted"
             
         source_text = f"AUTO: {automation.name} | topic={topic}"
         if primary_item:
-            source_text += f" | content_id={primary_item.id}"
+            source_text += f" | provider={primary_item.provider} | ref={primary_item.original_id}"
 
         new_post = Post(
             org_id=automation.org_id,
             ig_account_id=automation.ig_account_id,
             is_auto_generated=True,
             automation_id=automation.id,
-            content_item_id=primary_item.id if primary_item else None,
-            used_source_id=automation.source_id if selected_items else None,
-            used_content_item_ids=[it.id for it in selected_items],
+            content_item_id=int(primary_item.original_id) if primary_item and primary_item.original_id and primary_item.original_id.isdigit() else None,
+            used_source_id=None,
+            used_content_item_ids=[it.original_id for it in pooled_items if it.original_id],
             status=status,
             source_type="automation",
             source_text=source_text,
@@ -545,23 +431,16 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             if is_too_short: detail_reason = "too_short"
             if is_default: detail_reason = "default_text_echo"
             
-            print(f"[AUTO] FAILED GUARDRAIL: {detail_reason}. Output: {caption[:50]}...")
+            print(f"[AUTO] FAILED GUARDRAIL: {detail_reason}")
             log_event("automation_guardrail_failed", automation_id=automation.id, reason=detail_reason)
             new_post.status = "failed"
-            new_post.flags = {
-                "automation_error": f"LLM returned invalid/filler caption: {caption}", 
-                "reason": reason,
-                "detail_reason": detail_reason,
-                "raw_result": result
-            }
+            new_post.flags = {"automation_error": f"LLM returned invalid/filler caption: {caption}", "reason": reason, "detail_reason": detail_reason}
             automation.last_error = f"Guardrail check failed: {detail_reason}"
             db.add(new_post)
             db.commit()
             return new_post
 
-        # 5.5 Media Validation Guardrail
         if not media_url:
-            print(f"[AUTO] FAILURE: media_url is missing. Mode: {automation.image_mode}")
             new_post.status = "failed"
             new_post.flags = {"automation_error": "media_url is missing/generation failed"}
             automation.last_error = "Media generation failed or asset missing"
@@ -570,37 +449,39 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             return new_post
 
         db.add(new_post)
-        db.flush() # Get new_post.id
+        db.flush() 
         
-        # 6. Track Usage
-        if selected_items:
-            mark_items_used(db, selected_items)
-            automation.last_item_cursor = str(new_cursor) if new_cursor else None
-            
-            for it in selected_items:
+        # 6. Track Usage (Updated for decoupled items)
+        for it in pooled_items:
+            if it.original_id and it.original_id.isdigit():
                 usage = ContentUsage(
                     org_id=automation.org_id,
                     ig_account_id=automation.ig_account_id,
                     automation_id=automation.id,
                     post_id=new_post.id,
-                    content_item_id=it.id,
+                    content_item_id=int(it.original_id),
                     used_at=datetime.now(dt_timezone.utc),
                     status="selected"
                 )
                 db.add(usage)
+            
+            if it.original_id and it.original_id.isdigit():
+                db_item = db.get(ContentItem, int(it.original_id))
+                if db_item:
+                    db_item.use_count += 1
+                    db_item.last_used_at = datetime.now(dt_timezone.utc)
 
         # 7. Immediate Publishing if configured
         if automation.posting_mode == "publish_now" and automation.approval_mode == "auto_approve":
             log_event("automation_publish_attempt", automation_id=automation.id, post_id=new_post.id)
             acc = db.get(IGAccount, automation.ig_account_id)
             pub_res = publish_to_instagram(
-                caption=f"{new_post.caption}\n\n" + " ".join(new_post.hashtags or []),
+                caption=f"{new_post.caption}\\n\\n" + " ".join(new_post.hashtags or []),
                 media_url=new_post.media_url,
                 ig_user_id=acc.ig_user_id,
                 access_token=acc.access_token
             )
             if pub_res.get("ok"):
-                log_event("automation_publish_success", automation_id=automation.id, post_id=new_post.id)
                 new_post.status = "published"
                 new_post.published_time = datetime.now(dt_timezone.utc)
             else:

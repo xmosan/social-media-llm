@@ -136,6 +136,7 @@ class TopicAutomationOut(BaseModel):
     topic_prompt: str
     library_topic_slug: str | None
     content_seed_mode: str
+    content_provider_scope: str = "all_sources"
     tone: str = "medium"
     language: str = "english"
     banned_phrases: list[str] = Field(default_factory=list)
@@ -166,6 +167,7 @@ class TopicAutomationCreate(BaseModel):
     library_topic_slug: str | None = None
     content_seed_mode: str = "none"
     content_seed_text: str | None = None
+    content_provider_scope: str = "all_sources"
     
     # New Library fields
     use_content_library: bool = True
@@ -208,6 +210,7 @@ class TopicAutomationUpdate(BaseModel):
     library_topic_slug: str | None = None
     content_seed_mode: str | None = None
     content_seed_text: str | None = None
+    content_provider_scope: str | None = None
     
     use_content_library: bool | None = None
     avoid_repeat_days: int | None = None

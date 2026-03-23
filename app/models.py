@@ -214,6 +214,7 @@ class TopicAutomation(Base):
     # NEW: Pluggable Content Sourcing
     source_id = Column(Integer, ForeignKey("content_sources.id"), nullable=True)
     source_mode = Column(String, nullable=False, default="none") # none, manual_library, rss, url_list
+    content_provider_scope = Column(String, default="all_sources") # "all_sources", "system_library", "user_library"
     items_per_post = Column(Integer, nullable=False, default=1)
     selection_mode = Column(String, nullable=False, default="random") # random, round_robin
     last_item_cursor = Column(String, nullable=True)

@@ -1487,18 +1487,13 @@ async def app_automations_page(
               <textarea id="editSeedText" rows="5" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-[10px] outline-none focus:ring-2 focus:ring-brand placeholder-white/20" placeholder="Paste the content you want the AI to ground its generation on..."></textarea>
             </div>
             
-            <div class="space-y-2 pt-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Library Sourcing Scope</label>
-              <div class="flex gap-4">
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" id="editScopePrebuilt" class="w-4 h-4 rounded border-white/10 bg-white/5 text-brand focus:ring-brand">
-                  <span class="text-[10px] font-bold text-white uppercase">Prebuilt Packs</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" id="editScopeOrg" class="w-4 h-4 rounded border-white/10 bg-white/5 text-brand focus:ring-brand">
-                  <span class="text-[10px] font-bold text-white uppercase">Org Library</span>
-                </label>
-              </div>
+            <div class="space-y-1 pt-2">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Content Provider Source</label>
+              <select id="editProviderScope" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand appearance-none text-white">
+                <option value="all_sources">All Sources</option>
+                <option value="system_library">System Library (Sabeel Default)</option>
+                <option value="user_library">My Library (Custom Organization)</option>
+              </select>
             </div>
             <div class="p-4 bg-brand/10 border border-brand/20 rounded-xl">
               <p class="text-[9px] font-bold text-brand uppercase tracking-widest leading-relaxed">
@@ -1567,18 +1562,13 @@ async def app_automations_page(
               <textarea id="newSeedText" rows="5" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-[10px] outline-none focus:ring-2 focus:ring-brand placeholder-white/20" placeholder="Paste the content you want the AI to ground its generation on..."></textarea>
             </div>
             
-            <div class="space-y-2 pt-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Library Sourcing Scope</label>
-              <div class="flex gap-4">
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" id="newScopePrebuilt" checked class="w-4 h-4 rounded border-white/10 bg-white/5 text-brand focus:ring-brand">
-                  <span class="text-[10px] font-bold text-white uppercase">Prebuilt Packs</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" id="newScopeOrg" checked class="w-4 h-4 rounded border-white/10 bg-white/5 text-brand focus:ring-brand">
-                  <span class="text-[10px] font-bold text-white uppercase">Org Library</span>
-                </label>
-              </div>
+            <div class="space-y-1 pt-2">
+              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Content Provider Source</label>
+              <select id="newProviderScope" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand appearance-none text-white">
+                <option value="all_sources">All Sources</option>
+                <option value="system_library">System Library (Sabeel Default)</option>
+                <option value="user_library">My Library (Custom Organization)</option>
+              </select>
             </div>
           </div>
         </div>
