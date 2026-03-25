@@ -3071,7 +3071,7 @@ async def app_library_page(
                           .replace("{active_automations}", "")\
                           .replace("{active_library}", "active")\
                           .replace("{active_media}", "")\
-                          .replace("{content}", content.replace("{superadmin_controls}", f"""
+                          .replace("{content}", content.replace("{library_controls}", f"""
             <div class="flex p-1 bg-white/5 rounded-xl border border-white/10 gap-2">
                 <button onclick="toggleGlobalView(false)" id="orgViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-lg">Org</button>
                 <button onclick="toggleGlobalView(true)" id="globalViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-white/40 hover:text-white">System</button>
