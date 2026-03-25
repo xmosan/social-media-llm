@@ -103,6 +103,11 @@ class Post(Base):
     content_item_id = Column(Integer, ForeignKey("content_items.id"), nullable=True)
     media_asset_id = Column(Integer, ForeignKey("media_assets.id"), nullable=True)
 
+    # NEW: Content Studio Content Intent/Tracking
+    topic = Column(String, nullable=True)
+    post_type = Column(String, nullable=True)
+    source_reference = Column(String, nullable=True)
+
     # MUST be a public https URL for Instagram publishing
     media_url = Column(Text, nullable=True)
 

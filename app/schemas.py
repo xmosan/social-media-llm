@@ -41,6 +41,10 @@ class PostOut(BaseModel):
     content_item_id: int | None = None
     library_item_id: int | None = None
     
+    topic: str | None = None
+    post_type: str | None = None
+    source_reference: str | None = None
+    
     visual_mode: str = "upload"
     visual_prompt: str | None = None
 
@@ -389,6 +393,9 @@ class PostUpdate(BaseModel):
     visual_mode: str | None = None
     visual_prompt: str | None = None
     library_item_id: int | None = None
+    topic: str | None = None
+    post_type: str | None = None
+    source_reference: str | None = None
     flags: dict[str, Any] | None = None
 
 class LibraryTopicSynonymBase(BaseModel):

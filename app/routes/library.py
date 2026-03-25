@@ -218,6 +218,35 @@ def get_topic_suggestions(
     suggestions = suggest_library_topics(db, data.text, data.max)
     return {"suggestions": suggestions}
 
+@router.post("/suggest-entries", response_model=List[ContentItemOut])
+def suggest_library_entries_endpoint(
+    data: TopicSuggestRequest,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
+):
+    """Returns actual library items (ContentItems) suggested for a given text prompt."""
+    from sqlalchemy import cast, String, or_
+    from sqlalchemy.sql.expression import false
+    
+    suggestions = suggest_library_topics(db, data.text, data.max)
+    slugs = [s.slug for s in suggestions]
+    
+    if not slugs:
+        return []
+        
+    stmt = db.query(ContentItem).filter(
+        or_(ContentItem.org_id == org_id, ContentItem.org_id == None)
+    )
+    
+    or_cond = false()
+    for slug in slugs:
+        or_cond = or_(or_cond, cast(ContentItem.topics_slugs, String).ilike(f'%"{slug}"%'))
+        
+    stmt = stmt.filter(or_cond)
+    stmt = stmt.order_by(ContentItem.use_count.desc()).limit(10)
+    
+    return stmt.all()
+
 @router.get("/synonyms", response_model=List[LibraryTopicSynonymOut])
 def list_synonyms(
     db: Session = Depends(get_db),

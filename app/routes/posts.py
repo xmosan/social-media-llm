@@ -48,6 +48,9 @@ def intake_post(
     visual_mode: str = Form("upload"),
     visual_prompt: str | None = Form(None),
     library_item_id: str | None = Form(None), # Changed to str to handle empty string
+    topic: str | None = Form(None),
+    post_type: str | None = Form(None),
+    source_reference: str | None = Form(None),
     org_id: int = Depends(get_current_org_id),
 ):
     # Parse library_item_id
@@ -124,6 +127,9 @@ def intake_post(
         status="drafted",
         source_type=source_type,
         source_text=source_text,
+        topic=topic,
+        post_type=post_type,
+        source_reference=source_reference,
         media_url=public_url,
         visual_mode=visual_mode,
         visual_prompt=visual_prompt,
