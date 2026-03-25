@@ -665,12 +665,20 @@ def landing_page(user: Optional[User] = Depends(get_current_user), db: Session =
     return html
 
 @router.get("/login", response_class=HTMLResponse)
-def login_page():
-    return LOGIN_HTML
+def login_page(error: Optional[str] = None):
+    html = LOGIN_HTML
+    if error == "google_config_missing":
+        error_banner = '<div class="text-xs font-bold text-rose-500 bg-rose-500/10 p-4 rounded-xl border border-rose-500/20 text-center mb-6">Google Sign-In is not configured on this server. Please check your Railway environment variables.</div>'
+        html = html.replace('<h2 class="text-xl font-bold">Welcome back</h2>', error_banner + '<h2 class="text-xl font-bold">Welcome back</h2>')
+    return html
 
 @router.get("/register", response_class=HTMLResponse)
-def register_page():
-    return REGISTER_HTML
+def register_page(error: Optional[str] = None):
+    html = REGISTER_HTML
+    if error == "google_config_missing":
+        error_banner = '<div class="text-xs font-bold text-rose-500 bg-rose-500/10 p-4 rounded-xl border border-rose-500/20 text-center mb-6">Google Sign-In is not configured on this server. Please check your Railway environment variables.</div>'
+        html = html.replace('<h2 class="text-xl font-bold">Start Automating</h2>', error_banner + '<h2 class="text-xl font-bold">Start Automating</h2>')
+    return html
 
 @router.get("/demo", response_class=HTMLResponse)
 def demo_page():
@@ -729,11 +737,13 @@ def api_auth_debug(db: Session = Depends(get_db)):
             "SUPERADMIN_PASSWORD": bool(os.environ.get("SUPERADMIN_PASSWORD")),
             "GOOGLE_CLIENT_ID": bool(os.environ.get("GOOGLE_CLIENT_ID")),
             "GOOGLE_CLIENT_SECRET": bool(os.environ.get("GOOGLE_CLIENT_SECRET")),
+            "GOOGLE_REDIRECT_URI": bool(os.environ.get("GOOGLE_REDIRECT_URI")),
             "DATABASE_URL": bool(os.environ.get("DATABASE_URL")),
         },
         "settings": {
             "superadmin_email": settings.superadmin_email,
             "google_client_id_present": bool(settings.google_client_id),
+            "google_redirect_uri": settings.google_redirect_uri,
             "database_url_type": "sqlite" if "sqlite" in str(settings.database_url) else "postgres"
         }
     }

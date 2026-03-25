@@ -31,7 +31,7 @@ async def google_login(request: Request):
         print("AUTH DIAGNOSTIC: Initiating Google OAuth redirect...")
         if not oauth.google.client_id or not oauth.google.client_secret:
             print("AUTH DIAGNOSTIC: Google Client ID/Secret missing or empty")
-            raise HTTPException(status_code=500, detail="Google Client ID or Secret not configured on server.")
+            return RedirectResponse(url="/login?error=google_config_missing")
         
         # Use configured redirect URI if present, otherwise generate dynamically
         if settings.google_redirect_uri:
