@@ -356,3 +356,131 @@ def delete_document(
     db.delete(doc)
     db.commit()
     return {"status": "success", "message": f"Document {doc_id} deleted"}
+
+# --- SMART RECOMMENDATIONS ENGINE ---
+
+from pydantic import BaseModel
+
+class InteractionTrackRequest(BaseModel):
+    action_type: str
+    entity_id: str
+    context: str
+
+@router.post("/library/track-use")
+async def track_user_interaction(
+    payload: InteractionTrackRequest,
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        from app.models import UserInteraction
+        interaction = UserInteraction(
+            user_id=user.id,
+            action_type=payload.action_type,
+            entity_id=payload.entity_id,
+            context=payload.context
+        )
+        db.add(interaction)
+        db.commit()
+        return {"status": "tracked"}
+    except Exception as e:
+        # Failsafe: tracking should never break the critical path
+        print(f"Failed to track interaction: {e}")
+        return {"status": "failed", "error": str(e)}
+
+@router.get("/recommendations")
+async def get_library_recommendations(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_user)
+):
+    from app.models import UserInteraction
+    # 1. Get user's recent interacted topics
+    recent_interactions = db.query(UserInteraction).filter(
+        UserInteraction.user_id == user.id,
+        UserInteraction.action_type == "selected_topic"
+    ).order_by(UserInteraction.created_at.desc()).limit(10).all()
+    
+    recent_topics = list(set([i.entity_id for i in recent_interactions if i.entity_id]))
+    
+    org_id = user.active_org_id
+    base_q = db.query(ContentItem).filter(
+        or_(
+            ContentItem.org_id == org_id if org_id else False,
+            ContentItem.org_id == None
+        )
+    )
+    
+    recommendations = []
+    
+    # 2. Add entries matching recent topics
+    if recent_topics:
+        for t in recent_topics:
+            # We match by looking inside the JSON tags or performing an ILIKE
+            matches = base_q.filter(
+                or_(
+                    ContentItem.text.ilike(f"%{t}%"),
+                    ContentItem.title.ilike(f"%{t}%")
+                )
+            ).order_by(ContentItem.use_count.desc()).limit(3).all()
+            for m in matches:
+                if m not in recommendations:
+                    recommendations.append(m)
+                    
+    # 3. Fill the rest with System Defaults
+    if len(recommendations) < 6:
+        defaults = db.query(ContentItem).filter(
+            ContentItem.org_id == None
+        ).order_by(ContentItem.use_count.desc()).limit(10).all()
+        for d in defaults:
+            if d not in recommendations and len(recommendations) < 6:
+                recommendations.append(d)
+                
+    # We must format to match ContentItemOut but with simple dictionary
+    res_dicts = []
+    for r in recommendations[:6]:
+        r_dict = {
+            "id": r.id, "org_id": r.org_id, "source_id": r.source_id,
+            "item_type": r.item_type, "title": r.title, "text": r.text,
+            "arabic_text": r.arabic_text, "translation": r.translation,
+            "url": r.url, "meta": r.meta, "tags": r.tags,
+            "created_at": r.created_at.isoformat() if r.created_at else None
+        }
+        res_dicts.append(r_dict)
+    return res_dicts
+
+@router.get("/suggest")
+async def suggest_library_entries(
+    query: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_user)
+):
+    if not query or len(query.strip()) < 2:
+        return []
+    
+    org_id = user.active_org_id
+    base_q = db.query(ContentItem).filter(
+        or_(
+            ContentItem.org_id == org_id if org_id else False,
+            ContentItem.org_id == None
+        )
+    )
+    
+    # Simple heuristic
+    matches = base_q.filter(
+        or_(
+            ContentItem.text.ilike(f"%{query}%"),
+            ContentItem.title.ilike(f"%{query}%")
+        )
+    ).order_by(ContentItem.use_count.desc()).limit(5).all()
+    
+    res_dicts = []
+    for r in matches:
+        r_dict = {
+            "id": r.id, "org_id": r.org_id, "source_id": r.source_id,
+            "item_type": r.item_type, "title": r.title, "text": r.text,
+            "arabic_text": r.arabic_text, "translation": r.translation,
+            "url": r.url, "meta": r.meta, "tags": r.tags,
+            "created_at": r.created_at.isoformat() if r.created_at else None
+        }
+        res_dicts.append(r_dict)
+    return res_dicts

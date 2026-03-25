@@ -554,7 +554,8 @@ APP_LAYOUT_HTML = """<!doctype html>
               
               <!-- Manual Tab Area -->
               <div id="srcPaneManual" class="space-y-4">
-                <textarea id="studioSourceText" name="source_text" required placeholder="Type your custom caption or directives here..." class="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-sm font-medium text-white outline-none focus:border-brand/40 transition-all h-48 resize-none"></textarea>
+                <textarea id="studioSourceText" oninput="debounceComposerSuggest('studioSourceText', 'composerSuggestionsManual')" name="source_text" required placeholder="Type your custom caption or directives here... The library will automatically suggest matching scholarly content." class="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-sm font-medium text-white outline-none focus:border-brand/40 transition-all h-48 resize-none"></textarea>
+                <div id="composerSuggestionsManual" class="hidden flex-col gap-2 pt-2"></div>
                 <div class="flex gap-4">
                     <input type="text" id="studioReference" name="reference" placeholder="Reference (Optional, e.g. Bukhari 123)" class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-brand/40">
                     <button type="button" onclick="openLibraryDrawer()" class="px-4 bg-brand/10 text-brand border border-brand/20 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-brand/20 transition-all">
@@ -569,7 +570,8 @@ APP_LAYOUT_HTML = """<!doctype html>
                 <div class="p-6 rounded-2xl bg-brand/5 border border-brand/20 space-y-4">
                   <div class="space-y-1">
                     <label class="text-[8px] font-black text-brand uppercase tracking-widest">Post Topic</label>
-                    <input type="text" id="aiTopic" placeholder="e.g. The importance of gratitude in Islam" class="w-full bg-transparent border-b border-white/10 py-2 text-sm text-white font-medium outline-none focus:border-brand">
+                    <input type="text" id="aiTopic" oninput="debounceComposerSuggest('aiTopic', 'composerSuggestionsAI')" placeholder="e.g. The importance of gratitude in Islam" class="w-full bg-transparent border-b border-white/10 py-2 text-sm text-white font-medium outline-none focus:border-brand">
+                    <div id="composerSuggestionsAI" class="hidden flex-col gap-2 pt-4"></div>
                   </div>
                   <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-1">
@@ -1581,8 +1583,9 @@ async def app_automations_page(
                 <label class="text-[10px] font-black uppercase tracking-widest text-muted">Core Topic Prompt</label>
                 <button onclick="suggestAutomationTopic('newTopic', 'newLibraryTopic')" class="text-[8px] font-bold text-brand uppercase hover:text-white transition-all">Suggest Library Topic</button>
               </div>
-              <textarea id="newTopic" rows="3" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="Describe the focus of this automation..."></textarea>
+              <textarea id="newTopic" oninput="debounceComposerSuggest('newTopic', 'autoSuggestions')" rows="3" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="Describe the focus of this automation..."></textarea>
               <input type="hidden" id="newLibraryTopic">
+              <div id="autoSuggestions" class="hidden flex-col gap-2 pt-2"></div>
             </div>
           </div>
 
@@ -1804,6 +1807,84 @@ async def app_automations_page(
           }} catch(e) {{ btn.textContent = originalText; }}
           finally {{ btn.disabled = false; }}
       }}
+
+      // ---- COMPOSER SMART ASSIST ----
+      let composerSuggestTimer;
+      function debounceComposerSuggest(inputId, containerId) {
+          clearTimeout(composerSuggestTimer);
+          composerSuggestTimer = setTimeout(() => {
+              runComposerSuggest(inputId, containerId);
+          }, 800);
+      }
+
+      async function runComposerSuggest(inputId, containerId) {
+          const text = document.getElementById(inputId).value;
+          const container = document.getElementById(containerId);
+          
+          if (!text || text.length < 3) {
+              container.classList.add('hidden');
+              container.innerHTML = '';
+              return;
+          }
+          
+          try {
+              container.innerHTML = '<span class="text-[8px] font-black uppercase tracking-widest text-muted animate-pulse">Scanning library...</span>';
+              container.classList.remove('hidden');
+              container.classList.add('flex');
+              
+              const res = await fetch(`/library/suggest?query=${encodeURIComponent(text)}`);
+              const items = await res.json();
+              
+              if (items.length === 0) {
+                  container.innerHTML = '<span class="text-[8px] font-black uppercase tracking-widest text-muted">No direct matches found. Try browsing Sabeel Defaults.</span>';
+                  return;
+              }
+              
+              let html = '<span class="text-[8px] font-black uppercase tracking-widest text-brand mb-1">Suggested Sources based on your topic</span>';
+              items.forEach((item, idx) => {
+                  if(idx > 2) return; // Show max 3
+                  
+                  // Clean text for literal insertion
+                  const safeText = item.text.replace(/"/g, '&quot;').replace(/\n/g, '\\n');
+                  const preview = item.text.length > 70 ? item.text.substring(0, 70) + "..." : item.text;
+                  
+                  html += `
+                  <div class="p-3 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between gap-4">
+                      <div class="flex-1 overflow-hidden">
+                          <h5 class="text-[9px] font-black text-white uppercase tracking-tight truncate">${item.title}</h5>
+                          <p class="text-[9px] text-white/50 truncate italic">${preview}</p>
+                      </div>
+                      <button type="button" onclick="insertComposerSuggest('${inputId}', '${safeText}', ${item.id})" class="px-3 py-1.5 bg-brand/20 text-brand rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-brand hover:text-white transition-all shrink-0">Use This</button>
+                  </div>`;
+              });
+              container.innerHTML = html;
+          } catch(e) { container.classList.add('hidden'); }
+      }
+
+      function insertComposerSuggest(inputId, textToInsert, entryId) {
+          const input = document.getElementById(inputId);
+          // If it's a textarea, append it. If it's a short input, replace or append
+          if (input.tagName === 'TEXTAREA') {
+              if (input.value.trim() !== '') input.value += '\n\n';
+              input.value += textToInsert;
+          } else {
+              // Usually for AI topic or Automation Topic
+              if(inputId === 'aiTopic') {
+                  document.getElementById('studioSourceText').value = textToInsert;
+                  switchSourceTab('manual'); // Force switch to manual to see it
+              } else if (inputId === 'newTopic') {
+                  document.getElementById('newSeedMode').value = 'manual';
+                  toggleNewSeedText();
+                  document.getElementById('newSeedText').value = textToInsert;
+              }
+          }
+          
+          trackInteraction("used_entry", entryId.toString(), "composer");
+          
+          // Optionally flash the input
+          input.classList.add('ring-2', 'ring-brand');
+          setTimeout(() => input.classList.remove('ring-2', 'ring-brand'), 1000);
+      }
 
       // REUSED from library to support picker across pages
       let pickerTargetId = null;
@@ -2113,8 +2194,21 @@ async def app_library_page(
             </div>
           </div>
           
+          <!-- RECOMMENDED TRACK -->
+          <div id="recommendedTrackWrapper" class="hidden flex-col border-b border-white/5 bg-gradient-to-b from-brand/5 to-transparent shrink-0">
+            <div class="px-6 md:px-8 py-3 flex items-center justify-between">
+              <h3 class="text-[9px] font-black uppercase tracking-widest text-brand flex items-center gap-2">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143z"/></svg>
+                Recommended For You
+              </h3>
+            </div>
+            <div id="recommendedCards" class="flex gap-4 px-6 md:px-8 pb-4 overflow-x-auto hide-scrollbar">
+              <!-- Loaded via JS -->
+            </div>
+          </div>
+
           <!-- Topic Chips -->
-          <div id="topicChips" class="px-8 py-3 border-b border-white/5 flex gap-3 overflow-x-auto hide-scrollbar bg-white/[0.01]">
+          <div id="topicChips" class="px-6 md:px-8 py-3 border-b border-white/5 flex gap-3 overflow-x-auto hide-scrollbar bg-white/[0.01]">
                 <!-- Populated via JS -->
           </div>
           <div id="entryList" class="flex-1 overflow-y-auto p-8 grid grid-cols-1 xl:grid-cols-2 gap-6 items-start content-start hide-scrollbar">
