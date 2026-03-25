@@ -94,8 +94,9 @@ def list_library_entries(
     if source_id:
         q = q.filter(ContentItem.source_id == source_id)
     if topic:
-        # Match by slug in the topics_slugs list
-        q = q.filter(ContentItem.topics_slugs.contains([topic]))
+        # Match by slug in the topics_slugs list uniformly across DB engines
+        from sqlalchemy import cast, String
+        q = q.filter(cast(ContentItem.topics_slugs, String).ilike(f'%"{topic}"%'))
     if item_type:
         q = q.filter(ContentItem.item_type == item_type)
     if query:
