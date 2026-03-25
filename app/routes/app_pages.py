@@ -23,7 +23,9 @@ APP_LAYOUT_HTML = """<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#020617" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>{title} | Sabeel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -70,11 +72,14 @@ APP_LAYOUT_HTML = """<!doctype html>
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
     ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+    .mobile-tab.active { color: white; }
+    .mobile-tab.active svg { color: var(--brand); stroke-width: 2.5; }
   </style>
 </head>
 <body class="ai-bg min-h-screen">
-  <!-- Top Nav -->
-  <nav class="border-b border-white/5 bg-black/20 backdrop-blur-md sticky top-0 z-50">
+  <!-- Top Nav (Desktop) -->
+  <nav class="border-b border-white/5 bg-black/20 backdrop-blur-md sticky top-0 z-50 hidden md:block">
     <div class="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
       <div class="flex items-center gap-8">
         <div class="flex flex-col"><div class="text-lg font-black italic tracking-tighter text-gradient">SABEEL</div><div class="text-[8px] font-black text-white uppercase tracking-widest pl-1 leading-none mt-1">Studio</div></div>
@@ -99,17 +104,56 @@ APP_LAYOUT_HTML = """<!doctype html>
     </div>
   </nav>
 
-  <main class="max-w-7xl mx-auto px-6 py-10 space-y-10">
+  <!-- Mobile Top Header -->
+  <nav class="md:hidden border-b border-white/5 bg-black/60 backdrop-blur-xl sticky top-0 z-[60] flex justify-between items-center px-4 h-14">
+    <div class="flex items-center gap-2">
+      <div class="text-base font-black italic tracking-tighter text-gradient">SABEEL</div>
+      <div class="px-2 border border-brand/30 bg-brand/10 text-brand rounded-full text-[8px] font-black uppercase tracking-widest leading-relaxed">Workspace</div>
+    </div>
+    <div class="flex items-center gap-3">
+        <button onclick="logout()" class="p-2 text-muted hover:text-white transition-colors bg-white/5 rounded-full border border-white/10">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+        </button>
+    </div>
+  </nav>
+
+  <main class="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-10 space-y-6 md:space-y-10 pb-24 md:pb-10">
     {content}
   </main>
 
-  <footer class="max-w-7xl mx-auto px-6 py-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 mt-12 mb-12">
+  <footer class="hidden md:flex max-w-7xl mx-auto px-6 py-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 mt-12 mb-12">
     <div class="text-[10px] font-black text-muted uppercase tracking-widest italic">&copy; 2026 Mohammed Hassan. All rights reserved. <span class="text-brand">Sabeel&trade;</span> <span class="text-white/40 lowercase">is proprietary software.</span></div>
     <div class="flex gap-6 text-[9px] font-black uppercase tracking-widest text-muted/60">
         <a href="/" class="hover:text-brand transition-colors">Portal</a>
         <a href="/app" class="hover:text-brand transition-colors">Interface</a>
     </div>
   </footer>
+
+  <!-- Mobile Bottom Tab Bar -->
+  <div class="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-black/80 backdrop-blur-xl border-t border-white/10 pb-safe">
+    <div class="flex justify-around items-center h-16 px-2">
+      <a href="/app" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-muted hover:text-white {active_dashboard}">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+        <span class="text-[9px] font-black uppercase tracking-tighter">Dash</span>
+      </a>
+      <a href="/app/automations" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-muted hover:text-white {active_automations}">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+        <span class="text-[9px] font-black uppercase tracking-tighter">Autos</span>
+      </a>
+      <a href="/app/library" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-muted hover:text-white {active_library}">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+        <span class="text-[9px] font-black uppercase tracking-tighter">Library</span>
+      </a>
+      <a href="/app/media" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-muted hover:text-white {active_media}">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        <span class="text-[9px] font-black uppercase tracking-tighter">Media</span>
+      </a>
+      <a href="/admin" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-muted hover:text-white {admin_mobile}">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+        <span class="text-[9px] font-black uppercase tracking-tighter">Settings</span>
+      </a>
+    </div>
+  </div>
 
   <script>
     async function logout() {
@@ -469,8 +513,8 @@ APP_LAYOUT_HTML = """<!doctype html>
   </script>
 
   <!-- Content Studio Modal (Overhauled New Post) -->
-  <div id="newPostModal" class="fixed inset-0 bg-black/90 backdrop-blur-xl z-[100] flex items-center justify-center p-4 md:p-10 hidden">
-    <div class="glass w-full h-full max-w-7xl rounded-[3rem] overflow-hidden flex flex-col animate-in fade-in zoom-in duration-500 border-white/5 shadow-2xl">
+  <div id="newPostModal" class="fixed inset-0 bg-black/90 backdrop-blur-xl z-[100] flex items-end md:items-center justify-center p-0 md:p-10 hidden">
+    <div class="glass w-full h-[100vh] md:h-full md:max-w-7xl rounded-none md:rounded-[3rem] overflow-hidden flex flex-col animate-in slide-in-from-bottom md:zoom-in duration-500 border-0 border-t md:border border-white/5 shadow-2xl">
       <!-- Studio Header -->
       <div class="px-10 py-6 border-b border-white/5 flex justify-between items-center bg-white/2">
         <div>
@@ -657,7 +701,7 @@ APP_LAYOUT_HTML = """<!doctype html>
         <input type="hidden" name="visual_mode" id="studioVisualMode" value="upload">
         <input type="hidden" name="library_item_id" id="studioLibraryItemId">
 
-        <div class="w-full md:w-80 bg-black/40 border-l border-white/5 p-8 flex flex-col justify-between">
+        <div class="w-full md:w-80 bg-black/80 backdrop-blur-2xl border-t md:border-t-0 md:border-l border-white/5 p-6 md:p-8 flex flex-col justify-between shrink-0 mb-safe z-50">
            <div class="space-y-8">
               <div class="space-y-1">
                 <div class="text-[8px] font-black text-muted uppercase tracking-[0.2em]">Current Step</div>
@@ -739,15 +783,15 @@ APP_DASHBOARD_CONTENT = """
         <h1 class="text-3xl font-black italic tracking-tight text-white">System <span class="text-brand">Overview</span></h1>
         <p class="text-xs font-bold text-muted uppercase tracking-widest">Structured content feed</p>
       </div>
-      <div class="flex gap-2">
+      <div class="flex flex-col md:flex-row w-full md:w-auto gap-3 md:gap-2 mt-4 md:mt-0">
         {admin_cta}
-        <button onclick="openNewPostModal()" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">New Post</button>
-        <button onclick="syncAccounts()" class="px-6 py-3 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20">Sync Accounts</button>
+        <button onclick="openNewPostModal()" class="w-full md:w-auto px-6 py-4 md:py-3 bg-white/5 border border-white/10 rounded-2xl md:rounded-xl font-black text-xs md:text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">New Post</button>
+        <button onclick="syncAccounts()" class="w-full md:w-auto px-6 py-4 md:py-3 bg-brand rounded-2xl md:rounded-xl font-black text-xs md:text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20">Sync Accounts</button>
       </div>
     </div>
 
     <!-- Quick Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="glass p-6 rounded-2xl">
         <div class="text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-1">Weekly Output</div>
         <div class="text-2xl font-black text-white">{weekly_post_count} Posts</div>
@@ -799,7 +843,7 @@ APP_DASHBOARD_CONTENT = """
           <a href="/app/calendar" class="text-[8px] font-black uppercase tracking-widest text-brand hover:underline">View Full Calendar &rarr;</a>
         </div>
         
-        <div class="glass rounded-[2.5rem] overflow-hidden border border-white/10">
+        <div class="hidden md:block glass rounded-[2.5rem] overflow-hidden border border-white/10">
           <div class="grid grid-cols-7 border-b border-white/5 bg-white/5">
             {calendar_headers}
           </div>
@@ -820,8 +864,8 @@ APP_DASHBOARD_CONTENT = """
     </div>
 
     <!-- Edit Post Modal -->
-    <div id="editPostModal" class="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] hidden flex items-center justify-center p-6">
-      <div class="glass w-full max-w-xl rounded-[3rem] p-10 space-y-8 animate-in zoom-in-95 duration-300 border-brand/20">
+    <div id="editPostModal" class="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] hidden flex items-end md:items-center justify-center p-0 md:p-6">
+      <div class="glass w-full h-[90vh] md:h-auto md:max-w-xl pb-safe rounded-t-[2.5rem] md:rounded-[3rem] p-6 md:p-10 space-y-8 animate-in slide-in-from-bottom md:zoom-in-95 duration-300 border-t md:border border-brand/20 overflow-y-auto">
         <div class="flex justify-between items-center">
           <div>
             <h2 class="text-2xl font-black italic text-white tracking-tight">Edit <span class="text-brand">Post</span></h2>
@@ -874,7 +918,9 @@ ONBOARDING_HTML = """<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#020617" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>Onboarding | Sabeel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
@@ -886,10 +932,10 @@ ONBOARDING_HTML = """<!doctype html>
     .step-dot.complete { background: #10b981; }
   </style>
 </head>
-<body class="ai-bg min-h-screen p-6 flex items-center justify-center">
-  <div class="max-w-2xl w-full">
+<body class="ai-bg min-h-screen p-4 md:p-6 flex flex-col md:items-center justify-center">
+  <div class="max-w-2xl w-full flex-1 md:flex-none flex flex-col justify-center py-6 md:py-0">
     <!-- Progress -->
-    <div class="flex justify-center gap-4 mb-12" id="progress-dots">
+    <div class="flex justify-center gap-4 mb-8 md:mb-12" id="progress-dots">
       <div class="step-dot active w-3 h-3 rounded-full bg-white/20 transition-all"></div>
       <div class="step-dot w-3 h-3 rounded-full bg-white/20 transition-all"></div>
       <div class="step-dot w-3 h-3 rounded-full bg-white/20 transition-all"></div>
@@ -897,7 +943,7 @@ ONBOARDING_HTML = """<!doctype html>
       <div class="step-dot w-3 h-3 rounded-full bg-white/20 transition-all"></div>
     </div>
 
-    <div class="glass rounded-[3rem] p-12 space-y-10 min-h-[500px] flex flex-col justify-between" id="onboarding-card">
+    <div class="glass rounded-[2rem] md:rounded-[3rem] p-6 md:p-12 space-y-8 md:space-y-10 min-h-[80vh] md:min-h-[500px] flex flex-col justify-between" id="onboarding-card">
       <!-- Content injected by JS -->
     </div>
   </div>
@@ -1258,6 +1304,7 @@ async def app_dashboard_page(
                           .replace("{user_name}", user.name or user.email)\
                           .replace("{org_name}", org.name if org else "Personal Workspace")\
                           .replace("{admin_link}", admin_link)\
+                          .replace("{admin_mobile}", "hidden" if not user.is_superadmin else "")\
                           .replace("{active_dashboard}", "active")\
                           .replace("{active_calendar}", "")\
                           .replace("{active_automations}", "")\
@@ -1365,6 +1412,7 @@ async def app_calendar_page(
                           .replace("{user_name}", user.name or user.email)\
                           .replace("{org_name}", org.name if org else "Personal Workspace")\
                           .replace("{admin_link}", admin_link)\
+                          .replace("{admin_mobile}", "hidden" if not user.is_superadmin else "")\
                           .replace("{active_dashboard}", "")\
                           .replace("{active_calendar}", "active")\
                           .replace("{active_automations}", "")\
@@ -1418,9 +1466,9 @@ async def app_automations_page(
               <div class="text-[8px] font-black uppercase tracking-widest text-muted">Schedule: <span class="text-white">Daily @ {a.post_time_local or '09:00'}</span></div>
             </div>
           </div>
-          <div class="flex gap-3">
-            <button onclick="showEditModal({edit_data_json})" class="px-6 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">Configure</button>
-            <button onclick="runNow({a.id})" class="px-6 py-3 bg-brand/20 text-brand rounded-xl font-black text-[10px] uppercase tracking-widest border border-brand/20 hover:bg-brand/30 transition-all">Run Now</button>
+          <div class="flex flex-col md:flex-row w-full md:w-auto gap-3 mt-4 md:mt-0">
+            <button onclick="showEditModal({edit_data_json})" class="w-full md:w-auto px-6 py-4 md:py-3 bg-white/5 border border-white/10 rounded-2xl md:rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">Configure</button>
+            <button onclick="runNow({a.id})" class="w-full md:w-auto px-6 py-4 md:py-3 bg-brand/20 text-brand rounded-2xl md:rounded-xl font-black text-[10px] uppercase tracking-widest border border-brand/20 hover:bg-brand/30 transition-all">Run Now</button>
           </div>
         </div>
         """
@@ -1581,8 +1629,8 @@ async def app_automations_page(
     </div>
 
     <!-- Library Picker Modal -->
-    <div id="libraryPickerModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[150] hidden flex items-center justify-center p-6">
-      <div class="glass max-w-2xl w-full p-8 rounded-[2.5rem] space-y-6 border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div id="libraryPickerModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[150] hidden flex items-end md:items-center justify-center p-0 md:p-6">
+      <div class="glass w-full md:max-w-2xl pb-safe rounded-t-[2.5rem] md:rounded-[2.5rem] p-6 md:p-8 space-y-6 border-t md:border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         <div class="flex justify-between items-center">
             <h2 class="text-xl font-black italic text-white tracking-tight">Insert <span class="text-brand">Knowledge</span></h2>
             <button onclick="closeLibraryPicker()" class="p-2 hover:bg-white/10 rounded-full transition-all text-white/40">
@@ -1871,6 +1919,7 @@ async def app_automations_page(
                           .replace("{user_name}", user.name or user.email)\
                           .replace("{org_name}", org.name if org else "Personal Workspace")\
                           .replace("{admin_link}", admin_link)\
+                          .replace("{admin_mobile}", "hidden" if not user.is_superadmin else "")\
                           .replace("{active_dashboard}", "")\
                           .replace("{active_calendar}", "")\
                           .replace("{active_automations}", "active")\
@@ -1902,6 +1951,7 @@ async def app_media_page(
                           .replace("{user_name}", user.name or user.email)\
                           .replace("{org_name}", org.name if org else "Personal Workspace")\
                           .replace("{admin_link}", admin_link)\
+                          .replace("{admin_mobile}", "hidden" if not user.is_superadmin else "")\
                           .replace("{active_dashboard}", "")\
                           .replace("{active_calendar}", "")\
                           .replace("{active_automations}", "")\
@@ -2012,28 +2062,28 @@ async def app_library_page(
       </div>
 
       <!-- Main Layout: Sidebar + List -->
-      <div class="flex gap-8 flex-1 overflow-hidden min-h-0">
+      <div class="flex flex-col md:flex-row gap-4 md:gap-8 flex-1 overflow-hidden min-h-0">
         <!-- Sidebar: Sources -->
-        <div class="w-80 glass rounded-[2.5rem] flex flex-col overflow-hidden border border-white/5">
-          <div class="p-6 border-b border-white/10 flex flex-col gap-4 bg-white/2">
-            <div class="flex justify-between items-center">
+        <div class="w-full md:w-80 glass rounded-[1.5rem] md:rounded-[2.5rem] flex flex-col overflow-hidden border border-white/5 shrink-0">
+          <div class="p-4 md:p-6 border-b border-white/10 flex flex-row md:flex-col gap-4 bg-white/2 items-center md:items-stretch justify-between">
+            <div class="flex items-center gap-3">
                 <h3 class="text-xs font-black uppercase tracking-widest text-white/50">Collections</h3>
                 <span id="sourceCount" class="text-[9px] font-black text-brand bg-brand/10 px-2 py-0.5 rounded-full">0</span>
             </div>
             
             {superadmin_controls}
           </div>
-          <div id="sourceList" class="flex-1 overflow-y-auto p-4 space-y-2 hide-scrollbar">
+          <div id="sourceList" class="flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto p-4 gap-2 md:space-y-2 hide-scrollbar">
             <!-- Loaded via JS -->
           </div>
         </div>
 
         <!-- Main Content: Entries Grid -->
         <div class="flex-1 glass rounded-[2.5rem] flex flex-col overflow-hidden border border-white/5 bg-white/2">
-          <div class="p-6 border-b border-white/10 flex justify-between items-center">
-            <div class="flex items-center gap-6 flex-1">
-              <h3 class="text-xs font-black uppercase tracking-widest text-white/50">Knowledge Nodes</h3>
-              <div class="relative flex-1 max-w-md">
+          <div class="p-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0">
+            <div class="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 w-full md:flex-1">
+              <h3 class="hidden md:block text-xs font-black uppercase tracking-widest text-white/50 shrink-0">Knowledge Nodes</h3>
+              <div class="relative w-full md:max-w-md">
                 <input type="text" id="entrySearch" oninput="debounceEntryQuery()" placeholder="Search through your library..." class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-3 text-[11px] font-bold text-white outline-none focus:border-brand/40 transition-all placeholder:text-white/10">
                 <svg class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
               </div>
@@ -2163,8 +2213,8 @@ async def app_library_page(
     </div>
 
     <!-- Library Picker Modal (Reused) -->
-    <div id="libraryPickerModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[150] hidden flex items-center justify-center p-6">
-      <div class="glass max-w-2xl w-full p-8 rounded-[2.5rem] space-y-6 border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div id="libraryPickerModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[150] hidden flex items-end md:items-center justify-center p-0 md:p-6">
+      <div class="glass w-full md:max-w-2xl pb-safe rounded-t-[2.5rem] md:rounded-[2.5rem] p-6 md:p-8 space-y-6 border-t md:border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         <div class="flex justify-between items-center">
             <h2 class="text-xl font-black italic text-white tracking-tight">Insert <span class="text-brand">Knowledge</span></h2>
             <button onclick="closeLibraryPicker()" class="p-2 hover:bg-white/10 rounded-full transition-all text-white/40">
@@ -2899,6 +2949,7 @@ async def app_library_page(
                           .replace("{user_name}", user.name or user.email)\
                           .replace("{org_name}", org.name if org else "Personal Workspace")\
                           .replace("{admin_link}", admin_link)\
+                          .replace("{admin_mobile}", "hidden" if not user.is_superadmin else "")\
                           .replace("{active_dashboard}", "")\
                           .replace("{active_calendar}", "")\
                           .replace("{active_automations}", "")\
