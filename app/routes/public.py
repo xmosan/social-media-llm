@@ -44,9 +44,14 @@ LANDING_HTML = """<!doctype html>
 </head>
 <body class="ai-bg min-h-screen">
   <!-- Navbar -->
-  <nav class="max-w-7xl mx-auto px-6 py-8 flex justify-between items-center">
-    <div class="flex flex-col"><div class="text-xl font-black italic tracking-tighter text-gradient inline-block">SABEEL</div><div class="text-[8px] font-black text-white uppercase tracking-widest pl-1 leading-none mt-1">Studio</div></div>
-    <div class="flex items-center gap-6">
+  <nav class="max-w-7xl mx-auto px-6 py-6 md:py-8 flex justify-between items-center relative z-50">
+    <a href="/" class="flex flex-col">
+      <div class="text-xl font-black italic tracking-tighter text-gradient inline-block">SABEEL</div>
+      <div class="text-[8px] font-black text-white uppercase tracking-widest pl-1 leading-none mt-1">Studio</div>
+    </a>
+    
+    <!-- Desktop Links -->
+    <div class="hidden md:flex items-center gap-6">
       <a href="/demo" class="text-xs font-black uppercase tracking-widest text-muted hover:text-white transition-colors">See Demo</a>
       {% if authenticated %}
         <a href="/app" class="px-6 py-3 bg-brand rounded-xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20">Go to App</a>
@@ -55,20 +60,38 @@ LANDING_HTML = """<!doctype html>
         <a href="/register" class="px-6 py-3 bg-brand rounded-xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20">Get Started</a>
       {% endif %}
     </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button id="mobileMenuBtn" class="md:hidden p-2 text-white/70 hover:text-white transition-colors" onclick="document.getElementById('mobileMenu').classList.toggle('translate-y-[-100%]'); document.getElementById('mobileMenu').classList.toggle('opacity-0'); document.body.classList.toggle('overflow-hidden')">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+    </button>
   </nav>
 
+  <!-- Mobile Menu Drawer Box -->
+  <div id="mobileMenu" class="fixed inset-0 z-40 bg-[#020617] translate-y-[-100%] opacity-0 transition-all duration-300 ease-in-out md:hidden flex flex-col pt-32 px-6 pb-8 border-b border-white/5 shadow-2xl">
+    <div class="flex flex-col gap-6 flex-1">
+      <a href="/demo" class="text-2xl font-black italic text-white tracking-tight border-b border-white/5 pb-6">See Demo</a>
+      {% if authenticated %}
+        <a href="/app" class="w-full text-center px-6 py-5 bg-brand rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-xl shadow-brand/20 mt-4">Go to App</a>
+      {% else %}
+        <a href="/login" class="text-2xl font-black italic text-white tracking-tight border-b border-white/5 pb-6">Sign In</a>
+        <a href="/register" class="w-full text-center px-6 py-5 bg-brand rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-xl shadow-brand/20 mt-4 outline-none">Get Started</a>
+      {% endif %}
+    </div>
+  </div>
+
   <!-- Hero Section -->
-  <section class="max-w-7xl mx-auto px-6 pt-20 pb-32 text-center space-y-8">
-    <h1 class="text-6xl md:text-8xl font-black tracking-tighter italic text-white leading-[0.9]">
+  <section class="max-w-7xl mx-auto px-6 pt-12 md:pt-20 pb-20 md:pb-32 text-center space-y-6 md:space-y-8">
+    <h1 class="text-[3.25rem] md:text-8xl font-black tracking-tighter italic text-white leading-[1.0] md:leading-[0.9]">
       STRUCTURED <span class="text-gradient">POSTING.</span><br/>
       HUMAN <span class="text-gradient">CONTROL.</span>
     </h1>
-    <p class="max-w-2xl mx-auto text-muted text-lg md:text-xl font-medium">
+    <p class="max-w-sm md:max-w-2xl mx-auto text-muted text-base md:text-xl font-medium leading-relaxed">
       The ultimate engine for high-output social media strategy. Generate, review, and schedule verified content with pluggable knowledge sources.
     </p>
-    <div class="pt-4 flex flex-wrap justify-center gap-4">
-      <a href="/register" class="px-10 py-5 bg-brand rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-2xl shadow-brand/40">Launch Your Presence Now</a>
-      <a href="/demo" class="px-10 py-5 bg-white/5 border border-white/10 rounded-2xl font-black text-sm uppercase tracking-widest text-white hover:bg-white/10 transition-all">Interactive Preview</a>
+    <div class="pt-6 md:pt-4 flex flex-col md:flex-row justify-center gap-4 w-full md:w-auto px-0 md:px-0">
+      <a href="/register" class="w-full md:w-auto px-10 py-5 bg-brand rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-2xl shadow-brand/40 block">Get Started</a>
+      <a href="/demo" class="w-full md:w-auto px-10 py-5 bg-white/5 border border-white/10 rounded-2xl font-black text-sm uppercase tracking-widest text-white hover:bg-white/10 transition-all block">See Demo</a>
     </div>
   </section>
 
@@ -151,17 +174,17 @@ DEMO_HTML = """<!doctype html>
     .text-gradient { background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
   </style>
 </head>
-<body class="ai-bg min-h-screen p-6">
-  <div class="max-w-6xl mx-auto space-y-8">
+<body class="ai-bg min-h-screen p-4 md:p-6 pb-20 md:pb-6">
+  <div class="max-w-6xl mx-auto space-y-6 md:space-y-8">
     <div class="flex justify-between items-center">
       <div class="text-xl font-black italic tracking-tighter text-gradient">DEMO MODE</div>
       <a href="/" class="text-[10px] font-black uppercase tracking-widest text-muted hover:text-white transition-colors">&larr; Exit Demo</a>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
       <!-- Sidebar/Controls -->
-      <div class="space-y-6">
-        <div class="glass p-8 rounded-[2.5rem] space-y-6">
+      <div class="space-y-4 md:space-y-6">
+        <div class="glass p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] space-y-6">
           <h2 class="text-sm font-black uppercase tracking-widest text-brand">Simulation Controls</h2>
           <div class="space-y-4">
             <div class="space-y-2">
@@ -180,7 +203,7 @@ DEMO_HTML = """<!doctype html>
           </div>
         </div>
 
-        <div class="glass p-8 rounded-[2.5rem] border-brand/20">
+        <div class="glass p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border-brand/20">
           <p class="text-[10px] font-bold text-muted uppercase tracking-widest leading-relaxed">
             Note: This is a real-time simulation using mock neural weights. No actual Instagram API calls are made in demo mode.
           </p>
@@ -189,10 +212,10 @@ DEMO_HTML = """<!doctype html>
 
       <!-- Preview Area -->
       <div class="lg:col-span-2 space-y-6">
-        <div id="preview-stage" class="glass rounded-[3rem] p-10 min-h-[500px] flex items-center justify-center relative overflow-hidden">
+        <div id="preview-stage" class="glass rounded-[2.5rem] md:rounded-[3rem] p-6 md:p-10 min-h-[400px] md:min-h-[500px] flex items-center justify-center relative overflow-hidden">
           <div id="loading-spinner" class="hidden animate-pulse text-brand font-black text-xs uppercase tracking-widest">Synthesizing Visuals...</div>
           
-          <div id="demo-post" class="w-full max-w-md space-y-6">
+          <div id="demo-post" class="w-full max-w-md space-y-6 mt-4 md:mt-0">
             <div class="aspect-square rounded-3xl overflow-hidden bg-white/5 border border-white/10 relative">
               <img id="demo-image" src="https://images.unsplash.com/photo-1519817650390-64a93447v?auto=format&fit=crop&q=80&w=800" class="w-full h-auto opacity-40 grayscale">
               <div class="absolute inset-0 flex items-center justify-center p-8 text-center bg-black/40">
@@ -281,7 +304,7 @@ LOGIN_HTML = """<!doctype html>
   </script>
 </head>
 <body class="ai-bg text-main min-h-screen flex items-center justify-center p-6">
-  <div class="max-w-md w-full glass rounded-[2.5rem] p-10 space-y-8">
+  <div class="max-w-md w-full glass rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-10 space-y-6 md:space-y-8">
     <div class="text-center space-y-2">
       <h1 class="text-2xl font-black italic tracking-tighter text-gradient">Sabeel</h1>
       <h2 class="text-xl font-bold">Welcome back</h2>
@@ -402,7 +425,7 @@ REGISTER_HTML = """<!doctype html>
   </script>
 </head>
 <body class="ai-bg text-main min-h-screen flex items-center justify-center p-6">
-  <div class="max-w-md w-full glass rounded-[2.5rem] p-10 space-y-8">
+  <div class="max-w-md w-full glass rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-10 space-y-6 md:space-y-8">
     <div class="text-center space-y-2">
       <h1 class="text-2xl font-black italic tracking-tighter text-gradient">Sabeel</h1>
       <h2 class="text-xl font-bold">Start Automating</h2>
@@ -526,7 +549,7 @@ CONTACT_HTML = """<!doctype html>
   </script>
 </head>
 <body class="ai-bg text-main min-h-screen flex items-center justify-center p-6">
-  <div class="max-w-2xl w-full glass rounded-[2.5rem] p-10 space-y-12">
+  <div class="max-w-2xl w-full glass rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-10 space-y-8 md:space-y-12">
     <div class="text-center space-y-4">
       <h1 class="text-4xl font-black italic tracking-tighter text-white">Get in <span class="text-brand">touch</span>.</h1>
       <p class="text-white/70 font-bold uppercase tracking-widest text-[10px]">Strategic support & platform inquiries</p>
