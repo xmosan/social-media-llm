@@ -392,6 +392,21 @@ def on_startup():
             
             # Update topic_automations
             auto_cols = [
+                ("library_topic_slug", "VARCHAR"),
+                ("tone", "VARCHAR DEFAULT 'medium'"),
+                ("language", "VARCHAR DEFAULT 'english'"),
+                ("banned_phrases", "JSONB" if is_postgres else "TEXT"),
+                ("include_hashtags", "BOOLEAN DEFAULT TRUE"),
+                ("hashtag_set", "JSONB" if is_postgres else "TEXT"),
+                ("include_arabic_phrase", "BOOLEAN DEFAULT TRUE"),
+                ("posting_mode", "VARCHAR DEFAULT 'schedule'"),
+                ("approval_mode", "VARCHAR DEFAULT 'auto_approve'"),
+                ("image_mode", "VARCHAR DEFAULT 'reuse_last_upload'"),
+                ("avoid_repeat_days", "INTEGER DEFAULT 30"),
+                ("content_type", "VARCHAR"),
+                ("include_arabic", "BOOLEAN DEFAULT FALSE"),
+                ("post_time_local", "VARCHAR"),
+                ("timezone", "VARCHAR"),
                 ("enrich_with_hadith", "BOOLEAN DEFAULT FALSE"),
                 ("hadith_topic", "VARCHAR"),
                 ("hadith_source_id", "INTEGER"),
@@ -422,10 +437,31 @@ def on_startup():
             
             # Update posts
             post_cols = [
+                ("is_auto_generated", "BOOLEAN DEFAULT FALSE"),
+                ("automation_id", "INTEGER"),
+                ("status", "VARCHAR DEFAULT 'submitted'"),
+                ("source_type", "VARCHAR DEFAULT 'form'"),
+                ("source_text", "TEXT"),
+                ("content_item_id", "INTEGER"),
                 ("media_asset_id", "INTEGER"),
+                ("topic", "VARCHAR"),
+                ("post_type", "VARCHAR"),
+                ("source_reference", "VARCHAR"),
+                ("media_url", "TEXT"),
+                ("caption", "TEXT"),
+                ("hashtags", "JSONB" if is_postgres else "TEXT"),
+                ("alt_text", "TEXT"),
+                ("flags", "JSONB DEFAULT '{}'" if is_postgres else "TEXT DEFAULT '{}'"),
+                ("last_error", "TEXT"),
+                ("scheduled_time", "TIMESTAMP WITH TIME ZONE"),
+                ("published_time", "TIMESTAMP WITH TIME ZONE"),
+                ("visual_mode", "VARCHAR DEFAULT 'upload'"),
+                ("visual_prompt", "TEXT"),
+                ("library_item_id", "INTEGER"),
                 ("used_source_id", "INTEGER"),
                 ("used_content_item_ids", "JSONB" if is_postgres else "TEXT"),
-                ("last_error", "TEXT")
+                ("created_at", "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"),
+                ("updated_at", "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP")
             ]
             for col, col_def in post_cols:
                 try:
@@ -442,7 +478,8 @@ def on_startup():
                 ("onboarding_complete", "BOOLEAN DEFAULT FALSE"),
                 ("active_org_id", "INTEGER"),
                 ("google_id", "VARCHAR"),
-                ("updated_at", "TIMESTAMP WITH TIME ZONE")
+                ("created_at", "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"),
+                ("updated_at", "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP")
             ]
             for col, col_def in user_cols:
                 try:
@@ -453,6 +490,14 @@ def on_startup():
 
             # Update content_items
             item_cols = [
+                ("owner_user_id", "INTEGER"),
+                ("item_type", "VARCHAR DEFAULT 'note'"),
+                ("arabic_text", "TEXT"),
+                ("translation", "TEXT"),
+                ("meta", "JSONB DEFAULT '{}'" if is_postgres else "TEXT DEFAULT '{}'"),
+                ("topic", "VARCHAR"),
+                ("topics", "JSONB DEFAULT '[]'" if is_postgres else "TEXT DEFAULT '[]'"),
+                ("topics_slugs", "JSONB DEFAULT '[]'" if is_postgres else "TEXT DEFAULT '[]'"),
                 ("source_id", "INTEGER"),
                 ("text", "TEXT"),
                 ("tags", "JSONB" if is_postgres else "TEXT"),
