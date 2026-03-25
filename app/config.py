@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     # Google OAuth
     google_client_id: str | None = Field(default=None, alias="GOOGLE_CLIENT_ID")
     google_client_secret: str | None = Field(default=None, alias="GOOGLE_CLIENT_SECRET")
+    google_redirect_uri: str | None = Field(default=None, alias="GOOGLE_REDIRECT_URI")
 
     # Backups & Reliability
     backup_storage_type: str = Field(default="local", alias="BACKUP_STORAGE_TYPE")

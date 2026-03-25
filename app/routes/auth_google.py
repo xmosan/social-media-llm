@@ -24,7 +24,7 @@ oauth.register(
     }
 )
 
-@router.get("/start")
+@router.get("/login")
 async def google_login(request: Request):
     """Redirects the user to the Google OAuth consent screen."""
     try:
@@ -33,10 +33,14 @@ async def google_login(request: Request):
             print("AUTH DIAGNOSTIC: Google Client ID/Secret missing or empty")
             raise HTTPException(status_code=500, detail="Google Client ID or Secret not configured on server.")
         
-        redirect_uri = request.url_for('google_auth')
-        # Force HTTPS for production redirects
-        if "railway.app" in str(request.url) or request.headers.get("x-forwarded-proto") == "https":
-            redirect_uri = str(redirect_uri).replace("http://", "https://")
+        # Use configured redirect URI if present, otherwise generate dynamically
+        if settings.google_redirect_uri:
+            redirect_uri = settings.google_redirect_uri
+        else:
+            redirect_uri = request.url_for('google_auth')
+            # Force HTTPS for production redirects
+            if "railway.app" in str(request.url) or request.headers.get("x-forwarded-proto") == "https":
+                redirect_uri = str(redirect_uri).replace("http://", "https://")
         
         print(f"AUTH DIAGNOSTIC: Google redirect_uri: {redirect_uri}")
         return await oauth.google.authorize_redirect(request, str(redirect_uri))
@@ -109,7 +113,7 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
     )
     
     print(f"AUTH DIAGNOSTIC: Google login successful for {user.email}. Setting cookie...")
-    response = RedirectResponse(url="/admin")
+    response = RedirectResponse(url="/app")
     response.set_cookie(
         key="access_token",
         value=access_token,
