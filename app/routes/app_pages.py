@@ -2065,13 +2065,16 @@ async def app_library_page(
       <div class="flex flex-col md:flex-row gap-4 md:gap-8 flex-1 overflow-hidden min-h-0">
         <!-- Sidebar: Sources -->
         <div class="w-full md:w-80 glass rounded-[1.5rem] md:rounded-[2.5rem] flex flex-col overflow-hidden border border-white/5 shrink-0">
-          <div class="p-4 md:p-6 border-b border-white/10 flex flex-row md:flex-col gap-4 bg-white/2 items-center md:items-stretch justify-between">
-            <div class="flex items-center gap-3">
-                <h3 class="text-xs font-black uppercase tracking-widest text-white/50">Collections</h3>
-                <span id="sourceCount" class="text-[9px] font-black text-brand bg-brand/10 px-2 py-0.5 rounded-full">0</span>
+          <div class="p-4 md:p-6 border-b border-white/10 flex flex-col md:flex-col gap-4 bg-white/2 items-start md:items-stretch justify-between">
+            <div class="flex flex-col">
+                <div class="flex items-center gap-3">
+                    <h3 class="text-xs font-black uppercase tracking-widest text-white/50">Collections</h3>
+                    <span id="sourceCount" class="text-[9px] font-black text-brand bg-brand/10 px-2 py-0.5 rounded-full">0</span>
+                </div>
+                <span id="sabeelDefaultsLabel" class="hidden text-[8px] font-bold text-brand uppercase tracking-widest mt-1">Showing Sabeel Defaults</span>
             </div>
             
-            {superadmin_controls}
+            {library_controls}
           </div>
           <div id="sourceList" class="flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto p-4 gap-2 md:space-y-2 hide-scrollbar">
             <!-- Loaded via JS -->
@@ -2323,12 +2326,31 @@ async def app_library_page(
           try {
               const res = await fetch(`/library/sources?scope=${showGlobalOnly ? 'global' : 'org'}`);
               const sources = await res.json();
+              
+              const defaultsLabel = document.getElementById('sabeelDefaultsLabel');
+              if (showGlobalOnly) {
+                  if (defaultsLabel) defaultsLabel.classList.remove('hidden');
+              } else {
+                  if (defaultsLabel) defaultsLabel.classList.add('hidden');
+              }
+
+              if (sources.length === 0 && !showGlobalOnly) {
+                  // Wait! If org is empty, automatically swap to SYSTEM
+                  toggleGlobalView(true);
+                  return;
+              }
+
               document.getElementById('sourceCount').textContent = sources.length;
               
               const select = document.getElementById('sourceSelect');
               if (select) select.innerHTML = '<option value="">Select or Create New...</option>';
               
               list.innerHTML = '';
+              
+              if (sources.length === 0) {
+                  list.innerHTML = '<div class="p-10 text-center text-muted font-black text-[9px] uppercase tracking-widest">No collections found</div>';
+              }
+              
               sources.forEach(s => {
                   // Update sidebar list
                   const el = document.createElement('div');
