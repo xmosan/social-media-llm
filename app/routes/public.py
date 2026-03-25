@@ -331,7 +331,7 @@ LOGIN_HTML = """<!doctype html>
       <span class="absolute bg-surface px-4 text-[10px] font-black uppercase tracking-widest text-muted">OR</span>
     </div>
 
-    <a href="/auth/google/start" class="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border border-border text-main">
+    <a href="/auth/google/login" class="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border border-border text-main">
       <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-5 h-5" alt="Google">
       Continue with Google
     </a>
@@ -455,7 +455,7 @@ REGISTER_HTML = """<!doctype html>
       <span class="absolute bg-surface px-4 text-[10px] font-black uppercase tracking-widest text-muted">OR</span>
     </div>
 
-    <a href="/auth/google/start" class="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border border-border text-main">
+    <a href="/auth/google/login" class="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border border-border text-main">
       <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-5 h-5" alt="Google">
       Continue with Google
     </a>
