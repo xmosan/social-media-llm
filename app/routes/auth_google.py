@@ -66,8 +66,10 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
         cid = (settings.google_client_id or "")[:10] + "..."
         sec = (settings.google_client_secret or "")[:5] + "..."
         uri = settings.google_redirect_uri or "AUTO"
+        sess_keys = list(request.session.keys())
         print(f"AUTH DIAGNOSTIC: Google OAuth callback ERROR: {e}")
         print(f"AUTH DIAGNOSTIC: Using CID: {cid}, SEC: {sec}, URI: {uri}")
+        print(f"AUTH DIAGNOSTIC: Session keys present: {sess_keys}")
         raise HTTPException(status_code=400, detail=f"OAuth verification failed: {e}")
 
     google_id = user_info.get("sub")
