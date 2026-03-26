@@ -478,6 +478,10 @@ def on_startup():
                 ("onboarding_complete", "BOOLEAN DEFAULT FALSE"),
                 ("active_org_id", "INTEGER"),
                 ("google_id", "VARCHAR"),
+                ("has_created_first_post", "BOOLEAN DEFAULT FALSE"),
+                ("has_created_first_automation", "BOOLEAN DEFAULT FALSE"),
+                ("has_connected_instagram", "BOOLEAN DEFAULT FALSE"),
+                ("dismissed_getting_started", "BOOLEAN DEFAULT FALSE"),
                 ("created_at", "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"),
                 ("updated_at", "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP")
             ]

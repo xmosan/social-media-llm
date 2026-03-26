@@ -33,6 +33,13 @@ class User(Base):
     onboarding_complete = Column(Boolean, default=False)
     active_org_id = Column(Integer, nullable=True)
     google_id = Column(String, unique=True, index=True, nullable=True)
+    
+    # Progress Tracking (Lightweight Onboarding)
+    has_created_first_post = Column(Boolean, default=False)
+    has_created_first_automation = Column(Boolean, default=False)
+    has_connected_instagram = Column(Boolean, default=False)
+    dismissed_getting_started = Column(Boolean, default=False)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

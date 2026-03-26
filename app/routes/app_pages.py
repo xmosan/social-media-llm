@@ -161,6 +161,27 @@ APP_LAYOUT_HTML = """<!doctype html>
       window.location.href = '/';
     }
 
+    async function dismissGettingStarted() {
+        try {
+            const res = await fetch('/auth/dismiss-getting-started', { method: 'PATCH' });
+            if (res.ok) {
+                const card = document.getElementById('gettingStartedCard');
+                if (card) {
+                    card.classList.add('opacity-0', 'scale-95');
+                    setTimeout(() => card.remove(), 500);
+                }
+            }
+        } catch(e) { console.error('Failed to dismiss', e); }
+    }
+
+    function openConnectInstagramModal() {
+        document.getElementById('connectInstagramModal').classList.remove('hidden');
+    }
+
+    function closeConnectInstagramModal() {
+        document.getElementById('connectInstagramModal').classList.add('hidden');
+    }
+
     function syncAccounts() {
         const btn = event.currentTarget;
         const originalText = btn.innerText;
@@ -1037,6 +1058,15 @@ APP_LAYOUT_HTML = """<!doctype html>
 
         const formData = new FormData(event.target);
         
+        // CHECK FOR CONNECTED ACCOUNT
+        const accountId = formData.get('account_id');
+        if (!accountId || accountId === "") {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            openConnectInstagramModal();
+            return;
+        }
+        
         try {
             const res = await fetch('/posts/intake', {
                 method: 'POST',
@@ -1107,8 +1137,92 @@ APP_LAYOUT_HTML = """<!doctype html>
           <button type="button" onclick="closePreviewModal()" class="px-10 py-4 bg-emerald-500 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-emerald-500/20 hover:scale-105 transition-all">Looks Good</button>
       </div>
   </div>
+  {connect_instagram_modal}
 </body>
 </html>
+"""
+
+GET_STARTED_CARD_HTML = """
+<div id="gettingStartedCard" class="glass p-6 md:p-8 rounded-[2.5rem] border-brand/20 bg-brand/5 space-y-6 md:space-y-8 animate-in fade-in slide-in-from-top-4 duration-700 transition-all">
+  <div class="flex justify-between items-start">
+    <div>
+      <h3 class="text-xl md:text-2xl font-black italic text-white tracking-tight">Welcome to <span class="text-brand">Sabeel</span></h3>
+      <p class="text-[10px] md:text-xs text-muted mt-1 font-bold">Start creating right away. You can finish setup as you go.</p>
+    </div>
+    <button onclick="dismissGettingStarted()" class="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-muted hover:text-white transition-colors px-3 py-1.5 bg-white/5 rounded-full border border-white/10 italic">Hide this</button>
+  </div>
+  
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+    <!-- Item: Create First Post -->
+    <div class="flex items-center gap-4 p-4 rounded-2xl {item1_bg} border border-white/5 transition-colors">
+      <div class="w-8 h-8 rounded-full flex items-center justify-center {item1_icon_class} shrink-0">
+        {item1_icon}
+      </div>
+      <div class="min-w-0">
+        <div class="text-[9px] md:text-[10px] font-black uppercase tracking-widest truncate {item1_text_class}">Create First Post</div>
+        <div class="text-[8px] font-bold text-muted uppercase tracking-tighter truncate">{item1_status}</div>
+      </div>
+    </div>
+    
+    <!-- Item: Browse Library -->
+    <a href="/app/library" class="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group">
+      <div class="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 text-muted shrink-0 group-hover:text-white">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+      </div>
+      <div class="min-w-0">
+        <div class="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white/50 group-hover:text-white truncate">Browse Library</div>
+        <div class="text-[8px] font-bold text-muted uppercase tracking-tighter truncate">Find Inspiration</div>
+      </div>
+    </a>
+
+    <!-- Item: Create Automation -->
+    <div class="flex items-center gap-4 p-4 rounded-2xl {item3_bg} border border-white/5 transition-colors">
+      <div class="w-8 h-8 rounded-full flex items-center justify-center {item3_icon_class} shrink-0">
+        {item3_icon}
+      </div>
+      <div class="min-w-0">
+        <div class="text-[9px] md:text-[10px] font-black uppercase tracking-widest truncate {item3_text_class}">First Automation</div>
+        <div class="text-[8px] font-bold text-muted uppercase tracking-tighter truncate">{item3_status}</div>
+      </div>
+    </div>
+
+    <!-- Item: Connect Instagram -->
+    <div class="flex items-center gap-4 p-4 rounded-2xl {item4_bg} border border-white/5 transition-colors">
+      <div class="w-8 h-8 rounded-full flex items-center justify-center {item4_icon_class} shrink-0">
+        {item4_icon}
+      </div>
+      <div class="min-w-0">
+        <div class="text-[9px] md:text-[10px] font-black uppercase tracking-widest truncate {item4_text_class}">Connect Instagram</div>
+        <div class="text-[8px] font-bold text-muted uppercase tracking-tighter truncate">{item4_status}</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="flex flex-col sm:flex-row gap-3 md:gap-4 pt-2">
+    <button onclick="openNewPostModal()" class="w-full sm:w-auto px-8 py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/40 hover:scale-[1.02] transition-transform">Create First Post</button>
+    <a href="/onboarding" class="w-full sm:w-auto px-8 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest text-muted hover:text-white text-center transition-all">Guided Setup (Optional)</a>
+  </div>
+</div>
+"""
+
+CONNECT_INSTAGRAM_MODAL_HTML = """
+<div id="connectInstagramModal" class="fixed inset-0 bg-black/90 backdrop-blur-xl z-[200] flex items-center justify-center p-6 hidden">
+  <div class="glass max-w-md w-full rounded-[2.5rem] p-8 md:p-10 border-brand/20 bg-brand/5 shadow-2xl animate-in zoom-in duration-300">
+    <div class="text-center space-y-6">
+      <div class="w-20 h-20 bg-brand/20 rounded-3xl flex items-center justify-center text-brand mx-auto shadow-inner">
+        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+      </div>
+      <div>
+        <h3 class="text-2xl font-black italic text-white tracking-tight">Connect Instagram</h3>
+        <p class="text-xs text-muted mt-2 font-medium leading-relaxed">You need to connect an Instagram account to publish or schedule your content. It only takes a minute.</p>
+      </div>
+      <div class="flex flex-col gap-3 pt-2">
+        <button onclick="window.location.href='/onboarding'" class="w-full py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/40 hover:scale-[1.02] transition-transform">Connect Now</button>
+        <button onclick="closeConnectInstagramModal()" class="w-full py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest text-muted hover:text-white transition-all">Maybe Later</button>
+      </div>
+    </div>
+  </div>
+</div>
 """
 
 APP_DASHBOARD_CONTENT = """
@@ -1144,6 +1258,8 @@ APP_DASHBOARD_CONTENT = """
         <div class="text-2xl font-black text-brand">{next_post_countdown}</div>
       </div>
     </div>
+
+    {get_started_card}
 
     {connection_cta}
 
@@ -1474,18 +1590,26 @@ async def app_dashboard_page(
     db: Session = Depends(get_db)
 ):
     # REDIRECT LOGIC
-    if not user.onboarding_complete:
-        return RedirectResponse(url="/onboarding")
+    # REMOVED FORCED ONBOARDING REDIRECT
 
     # Fetch User's Active Org
     org_id = user.active_org_id
     if not org_id:
         membership = db.query(OrgMember).filter(OrgMember.user_id == user.id).first()
         if not membership:
-            return RedirectResponse(url="/onboarding")
-        org_id = membership.org_id
-        user.active_org_id = org_id
-        db.commit()
+            # Create a default org if missing to prevent total breakage
+            new_org = Org(name=f"{user.name or 'User'}'s Workspace")
+            db.add(new_org)
+            db.flush()
+            membership = OrgMember(org_id=new_org.id, user_id=user.id, role="owner")
+            db.add(membership)
+            org_id = new_org.id
+            user.active_org_id = org_id
+            db.commit()
+        else:
+            org_id = membership.org_id
+            user.active_org_id = org_id
+            db.commit()
 
     org = db.query(Org).filter(Org.id == org_id).first()
     
@@ -1612,12 +1736,67 @@ async def app_dashboard_page(
     # Check if superadmin for admin link and prominent CTA
     admin_link = ""
     admin_cta = ""
+    # --- GET STARTED CHECKLIST LOGIC ---
+    automation_count = db.query(func.count(TopicAutomation.id)).filter(TopicAutomation.org_id == org_id).scalar() or 0
+    
+    # Update user flags if they have activity
+    if weekly_post_count > 0 and not user.has_created_first_post:
+        user.has_created_first_post = True
+    if automation_count > 0 and not user.has_created_first_automation:
+        user.has_created_first_automation = True
+    if account_count > 0 and not user.has_connected_instagram:
+        user.has_connected_instagram = True
+    
+    # Hide checklist if all items are complete
+    all_done = user.has_created_first_post and user.has_created_first_automation and user.has_connected_instagram
+    show_checklist = not user.dismissed_getting_started and not all_done
+    
+    get_started_card = ""
+    if show_checklist:
+        # Item 1: Post
+        item1_bg = "bg-emerald-500/10 border-emerald-500/20" if user.has_created_first_post else "bg-white/5"
+        item1_icon_class = "bg-emerald-500/20 text-emerald-400" if user.has_created_first_post else "bg-white/5 text-muted"
+        item1_text_class = "text-emerald-400" if user.has_created_first_post else "text-white/50"
+        item1_status = "Completed" if user.has_created_first_post else "Not Started"
+        item1_icon = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>' if user.has_created_first_post else '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>'
+
+        # Item 3: Automation
+        item3_bg = "bg-emerald-500/10 border-emerald-500/20" if user.has_created_first_automation else "bg-white/5"
+        item3_icon_class = "bg-emerald-500/20 text-emerald-400" if user.has_created_first_automation else "bg-white/5 text-muted"
+        item3_text_class = "text-emerald-400" if user.has_created_first_automation else "text-white/50"
+        item3_status = "Completed" if user.has_created_first_automation else "Not Started"
+        item3_icon = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>' if user.has_created_first_automation else '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>'
+
+        # Item 4: Instagram
+        item4_bg = "bg-emerald-500/10 border-emerald-500/20" if user.has_connected_instagram else "bg-white/5"
+        item4_icon_class = "bg-emerald-500/20 text-emerald-400" if user.has_connected_instagram else "bg-white/5 text-muted"
+        item4_text_class = "text-emerald-400" if user.has_connected_instagram else "text-white/50"
+        item4_status = "Connected" if user.has_connected_instagram else "Not Connected"
+        item4_icon = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg>' if user.has_connected_instagram else '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>'
+
+        get_started_card = GET_STARTED_CARD_HTML.replace("{item1_bg}", item1_bg)\
+                                               .replace("{item1_icon_class}", item1_icon_class)\
+                                               .replace("{item1_icon}", item1_icon)\
+                                               .replace("{item1_text_class}", item1_text_class)\
+                                               .replace("{item1_status}", item1_status)\
+                                               .replace("{item3_bg}", item3_bg)\
+                                               .replace("{item3_icon_class}", item3_icon_class)\
+                                               .replace("{item3_icon}", item3_icon)\
+                                               .replace("{item3_text_class}", item3_text_class)\
+                                               .replace("{item3_status}", item3_status)\
+                                               .replace("{item4_bg}", item4_bg)\
+                                               .replace("{item4_icon_class}", item4_icon_class)\
+                                               .replace("{item4_icon}", item4_icon)\
+                                               .replace("{item4_text_class}", item4_text_class)\
+                                               .replace("{item4_status}", item4_status)
+
     if user.is_superadmin:
         admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>'
         admin_cta = '<a href="/admin" class="px-6 py-3 bg-rose-500/10 border border-rose-500/20 rounded-xl font-black text-[10px] uppercase tracking-widest text-rose-400 hover:bg-rose-500/20 transition-all flex items-center gap-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>Owner Ops</a>'
 
     content = APP_DASHBOARD_CONTENT.replace("{admin_cta}", admin_cta)\
                                    .replace("{connection_cta}", connection_cta)\
+                                   .replace("{get_started_card}", get_started_card)\
                                    .replace("{weekly_post_count}", str(weekly_post_count))\
                                    .replace("{account_count}", str(account_count))\
                                    .replace("{next_post_countdown}", next_post_countdown)\
@@ -1646,14 +1825,14 @@ async def app_dashboard_page(
                           .replace("{active_library}", "")\
                           .replace("{active_media}", "")\
                           .replace("{content}", content)\
-                          .replace("{account_options}", account_options)
+                          .replace("{account_options}", account_options).replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)
 
 @router.get("/app/calendar", response_class=HTMLResponse)
 async def app_calendar_page(
     user: User = Depends(require_user),
     db: Session = Depends(get_db)
 ):
-    if not user.onboarding_complete: return RedirectResponse(url="/onboarding")
+    # REMOVED FORCED ONBOARDING REDIRECT
     org = db.query(Org).filter(Org.id == user.active_org_id).first()
     admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""
     
@@ -1754,14 +1933,14 @@ async def app_calendar_page(
                           .replace("{active_library}", "")\
                           .replace("{active_media}", "")\
                           .replace("{content}", content)\
-                          .replace("{account_options}", "")
+                          .replace("{account_options}", "").replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)
 
 @router.get("/app/automations", response_class=HTMLResponse)
 async def app_automations_page(
     user: User = Depends(require_user),
     db: Session = Depends(get_db)
 ):
-    if not user.onboarding_complete: return RedirectResponse(url="/onboarding")
+    # REMOVED FORCED ONBOARDING REDIRECT
     org = db.query(Org).filter(Org.id == user.active_org_id).first()
     admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""
     
@@ -2340,14 +2519,14 @@ async def app_automations_page(
                           .replace("{active_library}", "")\
                           .replace("{active_media}", "")\
                           .replace("{content}", content)\
-                          .replace("{account_options}", account_options)
+                          .replace("{account_options}", account_options).replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)
 
 @router.get("/app/media", response_class=HTMLResponse)
 async def app_media_page(
     user: User = Depends(require_user),
     db: Session = Depends(get_db)
 ):
-    if not user.onboarding_complete: return RedirectResponse(url="/onboarding")
+    # REMOVED FORCED ONBOARDING REDIRECT
     org = db.query(Org).filter(Org.id == user.active_org_id).first()
     admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""
     
@@ -2372,7 +2551,7 @@ async def app_media_page(
                           .replace("{active_library}", "")\
                           .replace("{active_media}", "active")\
                           .replace("{content}", content)\
-                          .replace("{account_options}", "")
+                          .replace("{account_options}", "").replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)
 
 @router.get("/app/library", response_class=HTMLResponse)
 async def app_library_page(
@@ -2381,7 +2560,7 @@ async def app_library_page(
 ):
     if not user:
         return RedirectResponse(url="/login")
-    if not user.onboarding_complete: return RedirectResponse(url="/onboarding")
+    # REMOVED FORCED ONBOARDING REDIRECT
     org_id = user.active_org_id
     org = db.query(Org).filter(Org.id == org_id).first()
     
@@ -3414,13 +3593,20 @@ async def app_library_page(
             </div>
             """ if user.is_superadmin else ""))\
                           .replace("{is_superadmin_js}", "true" if user.is_superadmin else "false")\
-                          .replace("{account_options}", "")
+                          .replace("{account_options}", "").replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)
 
 @router.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_page(user: User = Depends(require_user)):
-    if user.onboarding_complete:
-        return RedirectResponse(url="/app")
+    # REMOVED FORCED ONBOARDING REDIRECT
     return ONBOARDING_HTML
+@router.patch("/auth/dismiss-getting-started")
+async def dismiss_getting_started(
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db)
+):
+    user.dismissed_getting_started = True
+    db.commit()
+    return {"status": "success"}
 
 from pydantic import BaseModel
 class OnboardingFinalize(BaseModel):
