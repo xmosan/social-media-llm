@@ -62,7 +62,12 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
             raise Exception("Failed to fetch user info from Google")
         print(f"AUTH DIAGNOSTIC: Google user info: {user_info.get('email')}")
     except Exception as e:
+        # LOGGING SENSITIVE DATA SAFELY FOR DIAGNOSTICS
+        cid = (settings.google_client_id or "")[:10] + "..."
+        sec = (settings.google_client_secret or "")[:5] + "..."
+        uri = settings.google_redirect_uri or "AUTO"
         print(f"AUTH DIAGNOSTIC: Google OAuth callback ERROR: {e}")
+        print(f"AUTH DIAGNOSTIC: Using CID: {cid}, SEC: {sec}, URI: {uri}")
         raise HTTPException(status_code=400, detail=f"OAuth verification failed: {e}")
 
     google_id = user_info.get("sub")
