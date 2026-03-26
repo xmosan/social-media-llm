@@ -199,10 +199,12 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             
         return response
 
+# Use secure cookies in production (anything not localhost or on Railway)
+is_prod = os.getenv("RAILWAY_STATIC_URL") is not None or "localhost" not in str(settings.public_base_url)
 app.add_middleware(
     SessionMiddleware, 
     secret_key=settings.secret_key,
-    https_only=True if "railway.app" in str(settings.public_base_url) else False,
+    https_only=is_prod,
     same_site="lax"
 )
 app.add_middleware(LoggingMiddleware)
