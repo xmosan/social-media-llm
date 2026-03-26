@@ -199,7 +199,12 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             
         return response
 
-app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key=settings.secret_key,
+    https_only=True if "railway.app" in str(settings.public_base_url) else False,
+    same_site="lax"
+)
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
