@@ -13,11 +13,15 @@ from datetime import timedelta
 
 router = APIRouter(prefix="/auth/google", tags=["auth"])
 
+# PROACTIVE: Ensure no whitespace in credentials
+google_id = (settings.google_client_id or "").strip()
+google_secret = (settings.google_client_secret or "").strip()
+
 oauth = OAuth()
 oauth.register(
     name='google',
-    client_id=settings.google_client_id if hasattr(settings, 'google_client_id') else "",
-    client_secret=settings.google_client_secret if hasattr(settings, 'google_client_secret') else "",
+    client_id=google_id,
+    client_secret=google_secret,
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
     client_kwargs={
         'scope': 'openid email profile'
@@ -63,14 +67,19 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
         print(f"AUTH DIAGNOSTIC: Google user info: {user_info.get('email')}")
     except Exception as e:
         # LOGGING SENSITIVE DATA SAFELY FOR DIAGNOSTICS
-        cid = (settings.google_client_id or "")[:10] + "..."
-        sec = (settings.google_client_secret or "")[:5] + "..."
+        cid_len = len(google_id)
+        sec_len = len(google_secret)
+        cid_trunc = google_id[:10] + "..." if cid_len > 10 else google_id
+        sec_trunc = google_secret[:5] + "..." if sec_len > 5 else "???"
+        
         uri = settings.google_redirect_uri or "AUTO"
         sess_keys = list(request.session.keys())
-        print(f"AUTH DIAGNOSTIC: Google OAuth callback ERROR: {e}")
-        print(f"AUTH DIAGNOSTIC: Using CID: {cid}, SEC: {sec}, URI: {uri}")
+        
+        diag_msg = f"OAuth verification failed: {e}. [Diag: ID_LEN={cid_len}, SEC_LEN={sec_len}, URI={uri}]"
+        print(f"AUTH DIAGNOSTIC: {diag_msg}")
+        print(f"AUTH DIAGNOSTIC: Using CID: {cid_trunc}, SEC: {sec_trunc}")
         print(f"AUTH DIAGNOSTIC: Session keys present: {sess_keys}")
-        raise HTTPException(status_code=400, detail=f"OAuth verification failed: {e}")
+        raise HTTPException(status_code=400, detail=diag_msg)
 
     google_id = user_info.get("sub")
     email = user_info.get("email")

@@ -743,6 +743,7 @@ def api_auth_debug(db: Session = Depends(get_db)):
         "settings": {
             "superadmin_email": settings.superadmin_email,
             "google_client_id_present": bool(settings.google_client_id),
+            "google_client_secret_present": bool(settings.google_client_secret),
             "google_redirect_uri": settings.google_redirect_uri,
             "database_url_type": "sqlite" if "sqlite" in str(settings.database_url) else "postgres"
         }
