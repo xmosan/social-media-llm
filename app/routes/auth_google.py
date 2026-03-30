@@ -14,14 +14,14 @@ from datetime import timedelta
 router = APIRouter(prefix="/auth/google", tags=["auth"])
 
 # PROACTIVE: Ensure no whitespace in credentials
-google_id = (settings.google_client_id or "").strip()
-google_secret = (settings.google_client_secret or "").strip()
+GLOBAL_GOOGLE_ID = (settings.google_client_id or "").strip()
+GLOBAL_GOOGLE_SECRET = (settings.google_client_secret or "").strip()
 
 oauth = OAuth()
 oauth.register(
     name='google',
-    client_id=google_id,
-    client_secret=google_secret,
+    client_id=GLOBAL_GOOGLE_ID,
+    client_secret=GLOBAL_GOOGLE_SECRET,
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
     client_kwargs={
         'scope': 'openid email profile'
@@ -67,10 +67,10 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
         print(f"AUTH DIAGNOSTIC: Google user info: {user_info.get('email')}")
     except Exception as e:
         # LOGGING SENSITIVE DATA SAFELY FOR DIAGNOSTICS
-        cid_len = len(google_id)
-        sec_len = len(google_secret)
-        cid_trunc = google_id[:10] + "..." if cid_len > 10 else google_id
-        sec_trunc = google_secret[:5] + "..." if sec_len > 5 else "???"
+        cid_len = len(GLOBAL_GOOGLE_ID)
+        sec_len = len(GLOBAL_GOOGLE_SECRET)
+        cid_trunc = GLOBAL_GOOGLE_ID[:10] + "..." if cid_len > 10 else GLOBAL_GOOGLE_ID
+        sec_trunc = GLOBAL_GOOGLE_SECRET[:5] + "..." if sec_len > 5 else "???"
         
         uri = settings.google_redirect_uri or "AUTO"
         sess_keys = list(request.session.keys())
