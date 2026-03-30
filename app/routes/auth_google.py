@@ -63,9 +63,18 @@ async def google_login(request: Request):
 @router.get("/callback")
 async def google_auth(request: Request, db: Session = Depends(get_db)):
     """Handles the OAuth callback, provisions users/orgs, and sets the JWT cookie."""
+    # Use configured redirect URI if present, otherwise generate dynamically
+    if settings.google_redirect_uri:
+        redirect_uri = settings.google_redirect_uri
+    else:
+        redirect_uri = request.url_for('google_auth')
+        # Force HTTPS for production redirects
+        if "railway.app" in str(request.url) or request.headers.get("x-forwarded-proto") == "https":
+            redirect_uri = str(redirect_uri).replace("http://", "https://")
+
     try:
-        print("AUTH DIAGNOSTIC: Google OAuth callback received")
-        token = await oauth.google.authorize_access_token(request)
+        print(f"AUTH DIAGNOSTIC: Google OAuth callback received. Using URI: {redirect_uri}")
+        token = await oauth.google.authorize_access_token(request, redirect_uri=str(redirect_uri))
         user_info = token.get('userinfo')
         if not user_info:
             print("AUTH DIAGNOSTIC: Google user_info is missing")
