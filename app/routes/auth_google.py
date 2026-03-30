@@ -47,7 +47,13 @@ async def google_login(request: Request):
                 redirect_uri = str(redirect_uri).replace("http://", "https://")
         
         print(f"AUTH DIAGNOSTIC: Google redirect_uri: {redirect_uri}")
-        return await oauth.google.authorize_redirect(request, str(redirect_uri))
+        response = await oauth.google.authorize_redirect(request, str(redirect_uri))
+        
+        # DEBUG: Check if session was actually set
+        sess_state = request.session.get('_google_state')
+        print(f"AUTH DIAGNOSTIC: Session state set: {bool(sess_state)}")
+        
+        return response
     except Exception as e:
         print(f"AUTH DIAGNOSTIC: Google Login start ERROR: {e}")
         import traceback

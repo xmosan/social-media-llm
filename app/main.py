@@ -199,13 +199,19 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             
         return response
 
-# Use secure cookies in production (anything not localhost or on Railway)
-is_prod = os.getenv("RAILWAY_STATIC_URL") is not None or "localhost" not in str(settings.public_base_url)
+# Robust Environment Detection
+is_railway = os.getenv("RAILWAY_ENVIRONMENT") is not None or "up.railway.app" in str(settings.public_base_url)
+is_prod = is_railway or "localhost" not in str(settings.public_base_url)
+
+# Stabilize Secret Key (Prefer SECRET_KEY -> JWT_SECRET -> Fallback)
+eff_secret_key = os.environ.get("SECRET_KEY") or os.environ.get("JWT_SECRET") or settings.secret_key
+
 app.add_middleware(
     SessionMiddleware, 
-    secret_key=settings.secret_key,
+    secret_key=eff_secret_key,
     https_only=is_prod,
-    same_site="lax"
+    same_site="lax",
+    max_age=3600 * 24 * 7 # 1 week
 )
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
