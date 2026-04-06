@@ -30,10 +30,10 @@ class Settings(BaseSettings):
     superadmin_email: str | None = Field(default=None, alias="SUPERADMIN_EMAIL")
     superadmin_password: str | None = Field(default=None, alias="SUPERADMIN_PASSWORD")
 
-    # Google OAuth
-    google_client_id: str | None = Field(default=None, alias="GOOGLE_CLIENT_ID")
-    google_client_secret: str | None = Field(default=None, alias="GOOGLE_CLIENT_SECRET")
-    google_redirect_uri: str | None = Field(default=None, alias="GOOGLE_REDIRECT_URI")
+    # Meta (Facebook) OAuth
+    fb_app_id: str | None = Field(default=None, alias="FB_APP_ID")
+    fb_app_secret: str | None = Field(default=None, alias="FB_APP_SECRET")
+    fb_redirect_uri: str | None = Field(default=None, alias="FB_REDIRECT_URI")
 
     # Backups & Reliability
     backup_storage_type: str = Field(default="local", alias="BACKUP_STORAGE_TYPE")

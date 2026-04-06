@@ -326,45 +326,22 @@ HTML = r"""<!doctype html>
                 
                 <div class="h-px bg-brand/5"></div>
                 
-                <!-- STEP 2: ADD IG -->
+                <!-- STEP 2: CONNECT IG -->
                 <section>
                     <div class="flex items-center gap-3 mb-6">
                         <span class="w-8 h-8 rounded-2xl bg-brand/5 text-brand flex items-center justify-center text-xs font-bold">02</span>
-                        <h3 class="text-[10px] font-bold text-brand uppercase tracking-[0.2em]">Add Account</h3>
+                        <h3 class="text-[10px] font-bold text-brand uppercase tracking-[0.2em]">Connect Account</h3>
                     </div>
                     <div class="space-y-6">
-                        <div>
-                            <label class="block text-[9px] font-bold text-text-muted uppercase tracking-[0.2em] mb-2 font-medium">Display Name</label>
-                            <input id="new_acc_name" class="w-full bg-cream border border-brand/5 px-5 py-4 rounded-2xl text-xs font-bold text-brand outline-none focus:ring-1 focus:ring-brand transition-all" placeholder="e.g. Sabeel Studio Main"/>
-                        </div>
-                        <div class="grid grid-cols-1 gap-6">
-                            <div>
-                                <label class="flex items-center gap-2 text-[9px] font-bold text-text-muted uppercase tracking-[0.2em] mb-2 font-medium">
-                                    Instagram Business ID
-                                    <button onclick="toggleGuideModal()" class="text-brand hover:text-accent transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    </button>
-                                </label>
-                                <input id="new_acc_ig_id" class="w-full bg-cream border border-brand/5 px-5 py-4 rounded-2xl text-xs font-bold text-brand outline-none focus:ring-1 focus:ring-brand font-mono transition-all" placeholder="Numerical ID"/>
-                            </div>
-                            <div>
-                                <label class="flex items-center gap-2 text-[9px] font-bold text-text-muted uppercase tracking-[0.2em] mb-2 font-medium">
-                                    Long-Lived Access Token
-                                    <button onclick="toggleGuideModal()" class="text-brand hover:text-accent transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    </button>
-                                </label>
-                                <textarea id="new_acc_token" class="w-full bg-cream border border-brand/5 px-5 py-4 rounded-2xl text-[10px] font-bold text-brand outline-none focus:ring-1 focus:ring-brand font-mono min-h-[120px] transition-all" placeholder="Paste token here..."></textarea>
-                            </div>
-                        </div>
-                        <button id="add_acc_btn" onclick="addAccount()" class="w-full bg-brand text-white rounded-2xl py-5 text-[10px] font-bold uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Add Account</button>
+                        <p class="text-[10px] text-text-muted font-medium leading-relaxed italic">Link your Instagram Business account via the secure Meta OAuth flow. This replaces manual ID and Token entry.</p>
+                        <button onclick="window.location.href='/auth/instagram/login'" class="w-full py-5 bg-brand text-white rounded-2xl font-bold text-[10px] uppercase tracking-widest shadow-2xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center justify-center gap-3">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                            Connect via Meta
+                        </button>
                     </div>
-                    <div id="add_acc_msg" class="mt-4 text-[10px] font-bold text-center h-4 text-brand uppercase tracking-widest italic"></div>
                 </section>
+                
+                <div id="add_acc_msg" class="hidden"></div>
                 
                 <div id="auth_error_box" class="hidden p-5 bg-rose-500/10 text-rose-400 rounded-2xl text-[10px] font-black border border-rose-500/20 uppercase tracking-widest"></div>
             </div>
@@ -1844,45 +1821,7 @@ function showEmptyState(type) {
     }
     list.innerHTML = html;
 }
-async function addAccount() {
-    const btn = document.getElementById("add_acc_btn");
-    const msg = document.getElementById("add_acc_msg");
-    const payload = {
-        name: document.getElementById("new_acc_name").value.trim(),
-        ig_user_id: document.getElementById("new_acc_ig_id").value.trim(),
-        access_token: document.getElementById("new_acc_token").value.trim()
-    };
-    if(!payload.name || !payload.ig_user_id || !payload.access_token) return showToast("Fill all fields!", "error");
-    
-    try {
-        btn.disabled = true;
-        msg.textContent = "⚙️ REGISTERING EXTENSION...";
-        msg.className = "mt-4 text-[10px] font-black tracking-widest text-indigo-500 animate-pulse";
-        
-        const newAcc = await request("/ig-accounts", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-        
-        msg.textContent = "✅ EXTENSION ACTIVE!";
-        msg.className = "mt-4 text-[10px] font-black tracking-widest text-green-600";
-        
-        document.getElementById("new_acc_name").value = "";
-        document.getElementById("new_acc_ig_id").value = "";
-        document.getElementById("new_acc_token").value = "";
-        
-        ACTIVE_ACCOUNT_ID = newAcc.id;
-        localStorage.setItem("active_ig_id", ACTIVE_ACCOUNT_ID);
-        await loadAccounts();
-        await refreshAll();
-        setTimeout(() => { toggleSettings(); msg.textContent = ""; }, 1500);
-    } catch(e) { 
-        msg.textContent = "❌ ERROR"; 
-        msg.className = "mt-4 text-[10px] font-black tracking-widest text-red-600";
-        showToast("Registration Failed: " + e.message, "error"); 
-    } finally { btn.disabled = false; }
-}
+// addAccount removed in favor of OAuth flow
 async function deleteAccount(id) {
     if(!await customConfirm("Are you SURE you want to delete this Instagram account? This will also un-link it from any scheduled posts or automations!")) return;
     try {

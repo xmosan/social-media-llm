@@ -78,6 +78,11 @@ class IGAccount(Base):
     
     ig_user_id = Column(String, nullable=False)
     access_token = Column(Text, nullable=False)
+    
+    # NEW: OAuth Metadata
+    fb_page_id = Column(String, nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+
     active = Column(Boolean, default=True)
     
     timezone = Column(String, default="America/Detroit")

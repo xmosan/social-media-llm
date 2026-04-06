@@ -1245,11 +1245,14 @@ CONNECT_INSTAGRAM_MODAL_HTML = """
         <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
       </div>
       <div>
-        <h3 class="text-2xl font-bold text-brand tracking-tight">Link Your Account</h3>
-        <p class="text-xs text-text-muted mt-2 font-medium leading-relaxed">Connect your Instagram account to start sharing your content with the world. It only takes a minute.</p>
+        <h3 class="text-2xl font-bold text-brand tracking-tight">Connect with Meta</h3>
+        <p class="text-xs text-text-muted mt-2 font-medium leading-relaxed">Securely link your Instagram Business account. No passwords or technical IDs required.</p>
       </div>
       <div class="flex flex-col gap-3 pt-2">
-        <button onclick="window.location.href='/onboarding'" class="w-full py-4 bg-brand rounded-2xl font-bold text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Link Now</button>
+        <button onclick="window.location.href='/auth/instagram/login'" class="w-full py-4 bg-brand rounded-2xl font-bold text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+          Connect Now
+        </button>
         <button onclick="closeConnectInstagramModal()" class="w-full py-4 bg-white border border-brand/10 rounded-2xl font-bold text-xs uppercase tracking-widest text-text-muted hover:text-brand transition-all">Maybe Later</button>
       </div>
     </div>
@@ -1262,9 +1265,12 @@ APP_DASHBOARD_CONTENT = """
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
       <div>
         <h1 class="text-4xl font-bold text-brand tracking-tighter">Studio <span class="text-accent underline decoration-accent/20 decoration-4 underline-offset-8">Intelligence</span></h1>
-        <div class="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em] mt-3 flex items-center gap-2">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            Interface Active
+        <div class="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em] mt-3 flex items-center gap-4">
+            <div class="flex items-center gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              Interface Active
+            </div>
+            {connected_account_info}
         </div>
       </div>
       <div class="flex items-center gap-4">
@@ -1480,7 +1486,6 @@ ONBOARDING_HTML = """<!doctype html>
       <div class="step-dot w-3 h-3 rounded-full bg-brand/20 transition-all"></div>
       <div class="step-dot w-3 h-3 rounded-full bg-brand/20 transition-all"></div>
       <div class="step-dot w-3 h-3 rounded-full bg-brand/20 transition-all"></div>
-      <div class="step-dot w-3 h-3 rounded-full bg-brand/20 transition-all"></div>
     </div>
 
     <div class="glass rounded-[2rem] md:rounded-[3rem] p-6 md:p-12 space-y-8 md:space-y-10 min-h-[80vh] md:min-h-[500px] flex flex-col justify-between" id="onboarding-card">
@@ -1492,8 +1497,6 @@ ONBOARDING_HTML = """<!doctype html>
     let currentStep = 1;
     let onboardingData = {
       orgName: '',
-      igUserId: '',
-      igAccessToken: '',
       contentMode: 'manual',
       autoTopic: '',
       autoTime: '09:00'
@@ -1529,26 +1532,6 @@ ONBOARDING_HTML = """<!doctype html>
         card.innerHTML = `
           <div class="space-y-6">
             <h2 class="text-sm font-black text-indigo-400 uppercase tracking-widest">Step 02</h2>
-            <h3 class="text-4xl font-black italic text-white tracking-tight">Connect Instagram.</h3>
-            <p class="text-muted text-sm font-medium">Enter your professional account details to enable publishing.</p>
-            <div class="space-y-4 pt-4">
-              <input type="text" id="igUserId" value="${onboardingData.igUserId}" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Instagram User ID">
-              <input type="password" id="igAccessToken" value="${onboardingData.igAccessToken}" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Access Token">
-            </div>
-            <p class="text-[9px] text-muted font-bold uppercase tracking-widest text-center mt-4 italic">Required for automated posting. Skipping will enter browse-only mode.</p>
-          </div>
-          <div class="flex flex-col gap-3">
-            <div class="flex gap-4">
-              <button onclick="prevStep()" class="flex-1 bg-white/5 py-5 rounded-2xl font-black text-sm uppercase tracking-widest border border-white/10">Back</button>
-              <button onclick="nextStep()" class="flex-[2] bg-indigo-500 py-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-500/20">Verify & Continue</button>
-            </div>
-            <button onclick="nextStep()" class="w-full py-4 text-[10px] font-black uppercase tracking-widest text-muted hover:text-white transition-colors">Skip for now &rarr;</button>
-          </div>
-        `;
-      } else if (currentStep === 3) {
-        card.innerHTML = `
-          <div class="space-y-6">
-            <h2 class="text-sm font-black text-indigo-400 uppercase tracking-widest">Step 03</h2>
             <h3 class="text-4xl font-black italic text-white tracking-tight">Intelligence Mode.</h3>
             <p class="text-muted text-sm font-medium">How should we source your daily inspiration?</p>
             <div class="grid grid-cols-1 gap-4 pt-4">
@@ -1574,10 +1557,10 @@ ONBOARDING_HTML = """<!doctype html>
             </div>
           </div>
         `;
-      } else if (currentStep === 4) {
+      } else if (currentStep === 3) {
         card.innerHTML = `
           <div class="space-y-6">
-            <h2 class="text-sm font-black text-indigo-400 uppercase tracking-widest">Step 04</h2>
+            <h2 class="text-sm font-black text-indigo-400 uppercase tracking-widest">Step 03</h2>
             <h3 class="text-4xl font-black italic text-white tracking-tight">First Automation.</h3>
             <p class="text-muted text-sm font-medium">Let's configure your first daily posting cycle.</p>
             <div class="space-y-4 pt-4">
@@ -1596,14 +1579,13 @@ ONBOARDING_HTML = """<!doctype html>
             <button onclick="nextStep()" class="flex-[2] bg-indigo-500 py-5 rounded-2xl font-black text-sm uppercase tracking-widest">Initialize Protocol</button>
           </div>
         `;
-      } else if (currentStep === 5) {
+      } else if (currentStep === 4) {
         card.innerHTML = `
           <div class="space-y-6">
-            <h2 class="text-sm font-black text-indigo-400 uppercase tracking-widest">Step 05</h2>
+            <h2 class="text-sm font-black text-indigo-400 uppercase tracking-widest">Step 04</h2>
             <h3 class="text-4xl font-black italic text-white tracking-tight">System Ready.</h3>
             <div class="bg-indigo-500/10 border border-indigo-500/20 p-8 rounded-[2rem] space-y-4">
                <div class="flex justify-between text-[10px] font-black uppercase tracking-widest"><span>Workspace</span> <span class="text-white">${onboardingData.orgName}</span></div>
-               <div class="flex justify-between text-[10px] font-black uppercase tracking-widest"><span>Account</span> <span class="text-white">${onboardingData.igUserId}</span></div>
                <div class="flex justify-between text-[10px] font-black uppercase tracking-widest"><span>Intelligence</span> <span class="text-white">${onboardingData.contentMode}</span></div>
                <div class="flex justify-between text-[10px] font-black uppercase tracking-widest"><span>Schedule</span> <span class="text-white">Daily @ ${onboardingData.autoTime}</span></div>
             </div>
@@ -1619,15 +1601,13 @@ ONBOARDING_HTML = """<!doctype html>
 
     function syncData() {
       if (document.getElementById('orgName')) onboardingData.orgName = document.getElementById('orgName').value;
-      if (document.getElementById('igUserId')) onboardingData.igUserId = document.getElementById('igUserId').value;
-      if (document.getElementById('igAccessToken')) onboardingData.igAccessToken = document.getElementById('igAccessToken').value;
       if (document.getElementById('autoTopic')) onboardingData.autoTopic = document.getElementById('autoTopic').value;
       if (document.getElementById('autoTime')) onboardingData.autoTime = document.getElementById('autoTime').value;
     }
 
     function nextStep() {
       syncData();
-      if (currentStep < 5) {
+      if (currentStep < 4) {
         currentStep++;
         renderStep();
       }
@@ -1851,15 +1831,43 @@ async def app_dashboard_page(
     admin_link = ""
     # --- GET STARTED CHECKLIST LOGIC ---
     automation_count = db.query(func.count(TopicAutomation.id)).filter(TopicAutomation.org_id == org_id).scalar() or 0
+    primary_acc = db.query(IGAccount).filter(IGAccount.org_id == org_id).first()
+    is_connected = primary_acc is not None
     
     # Update user flags if they have activity
     if weekly_post_count > 0 and not user.has_created_first_post:
         user.has_created_first_post = True
     if automation_count > 0 and not user.has_created_first_automation:
         user.has_created_first_automation = True
-    if account_count > 0 and not user.has_connected_instagram:
+    if is_connected and not user.has_connected_instagram:
         user.has_connected_instagram = True
     
+    # Connected account info for header
+    if is_connected:
+        connected_account_info = f"""
+            <div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2">
+                <span class="text-brand font-bold">@{primary_acc.name}</span>
+                <button onclick="disconnectMetaAccount()" class="hover:text-rose-500 transition-colors opacity-60 hover:opacity-100">
+                    <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <script>
+                async function disconnectMetaAccount() {{
+                    if (!confirm("Are you sure you want to disconnect this Instagram account?")) return;
+                    const res = await fetch('/auth/instagram/disconnect', {{ method: 'POST' }});
+                    const data = await res.json();
+                    if (data.ok) window.location.reload();
+                    else alert(data.error || "Failed to disconnect");
+                }}
+            </script>
+        """
+    else:
+        connected_account_info = f"""
+            <div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2 opacity-60 italic">
+                <span>No account linked</span>
+            </div>
+        """
+
     # Hide checklist if all items are complete
     all_done = user.has_created_first_post and user.has_created_first_automation and user.has_connected_instagram
     show_checklist = not user.dismissed_getting_started and not all_done
@@ -1873,6 +1881,7 @@ async def app_dashboard_page(
 
     content = APP_DASHBOARD_CONTENT.replace("{connection_cta}", connection_cta)\
                                    .replace("{get_started_card}", get_started_card)\
+                                   .replace("{connected_account_info}", connected_account_info)\
                                    .replace("{weekly_post_count}", str(weekly_post_count))\
                                    .replace("{account_count}", str(account_count))\
                                    .replace("{next_post_countdown}", next_post_countdown)\
@@ -2099,7 +2108,7 @@ async def app_automations_page(
               <div class="flex flex-wrap gap-5 pt-1">
                 <div class="flex items-center gap-2">
                     <span class="text-[8px] font-bold text-accent uppercase tracking-widest">Strategy:</span>
-                    <span class="text-[9px] font-black text-brand uppercase tracking-wider">{a.content_seed_mode or 'Default'}</span>
+                    <span class="text-[9px] font-black text-brand uppercase tracking-wider">{ 'Verified Context' if a.content_seed_mode == 'auto_library' else 'Guided Script' }</span>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="text-[8px] font-bold text-accent uppercase tracking-widest">Schedule:</span>
@@ -2111,7 +2120,7 @@ async def app_automations_page(
 
           <div class="flex items-center gap-3 w-full md:w-auto relative border-t md:border-t-0 border-brand/5 pt-6 md:pt-0">
             <button onclick="showEditModal({edit_data_json})" class="flex-1 md:flex-none px-6 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand hover:border-brand/30 hover:bg-brand/[0.02] transition-all shadow-sm">Configure</button>
-            <button onclick="runNow(event, {a.id})" class="flex-1 md:flex-none px-6 py-4 bg-brand rounded-2xl text-white font-bold text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.02] transition-all">Generate Now</button>
+            <button onclick="runNow(event, {a.id})" class="flex-1 md:flex-none px-6 py-4 bg-brand rounded-2xl text-white font-bold text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.02] transition-all">Manifest Now</button>
           </div>
         </div>
         """
@@ -2122,10 +2131,10 @@ async def app_automations_page(
               <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
             </div>
             <div class="space-y-3">
-              <h3 class="text-2xl font-bold text-brand tracking-tight">Create your first content plan</h3>
-<p class="text-text-muted text-sm max-w-sm font-medium">Set up how and when your content is created.</p>
+              <h3 class="text-2xl font-bold text-brand tracking-tight italic">Establish your first Growth Plan</h3>
+              <p class="text-text-muted text-sm max-w-sm font-medium">Set up how and when your creative vision comes to life.</p>
             </div>
-            <button onclick="showNewAutoModal()" class="px-10 py-4 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Create Plan</button>
+            <button onclick="showNewAutoModal()" class="px-10 py-4 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Establish Plan</button>
         </div>
     """
     
@@ -2133,13 +2142,13 @@ async def app_automations_page(
     <div class="space-y-10">
       <div class="flex justify-between items-end">
         <div>
-          <h1 class="text-3xl font-bold text-brand tracking-tight italic">Studio</h1>
-          <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em]">Content Growth Plans</p>
-        </div>
-        <button onclick="showNewAutoModal()" class="hidden md:flex px-8 py-4 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] text-white shadow-2xl shadow-brand/30 hover:translate-y-[-2px] transition-all items-center gap-3">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-            New Growth Plan
-        </button>
+        <h1 class="text-3xl font-bold text-brand tracking-tight italic">Studio</h1>
+        <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em]">Content Growth Plans</p>
+      </div>
+      <button onclick="showNewAutoModal()" class="hidden md:flex px-8 py-4 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] text-white shadow-2xl shadow-brand/30 hover:translate-y-[-2px] transition-all items-center gap-3">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+          Establish New Plan
+      </button>
       </div>
 
       <div class="space-y-6">
@@ -2152,8 +2161,8 @@ async def app_automations_page(
       <div class="glass w-full h-[90vh] md:h-auto md:max-w-xl pb-safe rounded-t-[2.5rem] md:rounded-[3rem] p-6 md:p-10 space-y-10 animate-in slide-in-from-bottom md:zoom-in-95 duration-300 border-t md:border border-brand/10 bg-white overflow-y-auto">
         <div class="flex justify-between items-center">
           <div>
-            <h2 class="text-2xl font-bold text-brand tracking-tight italic">Build Your <span class="text-accent font-normal">Content Plan</span></h2>
-            <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest">Adjust this growth strategy</p>
+            <h2 class="text-2xl font-bold text-brand tracking-tight italic">Refine Your <span class="text-accent font-normal">Creative Strategy</span></h2>
+            <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest">Adjust this growth plan</p>
           </div>
           <button onclick="hideEditModal()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-brand/5 text-text-muted hover:text-brand transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg></button>
         </div>
@@ -2164,7 +2173,7 @@ async def app_automations_page(
           <!-- SECTION 1 -->
           <div class="space-y-4">
             <div>
-              <h3 class="text-sm font-bold text-brand">Name Your Plan</h3>
+              <h3 class="text-sm font-bold text-brand italic">Identity & Naming</h3>
               <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Give your plan a simple name</p>
             </div>
             <input type="text" id="editName" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm focus:border-brand/20 focus:bg-white transition-all font-bold outline-none shadow-sm" placeholder="e.g. Ramadan Reminders">
@@ -2188,8 +2197,8 @@ async def app_automations_page(
           <!-- SECTION 3 -->
           <div class="space-y-4">
             <div>
-              <h3 class="text-sm font-bold text-brand">Content Source</h3>
-              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Choose your generation approach</p>
+              <h3 class="text-sm font-bold text-brand italic">Generation Strategy</h3>
+              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Choose your preferred drafting approach</p>
             </div>
             <select id="editSeedMode" onchange="toggleSeedText()" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-bold outline-none appearance-none shadow-sm">
                 <option value="auto_library">Verified Content (Research Synthesis)</option>
@@ -2208,7 +2217,7 @@ async def app_automations_page(
           <!-- SECTION 4 -->
           <div class="space-y-4">
             <div>
-              <h3 class="text-sm font-bold text-brand">Content Library</h3>
+              <h3 class="text-sm font-bold text-brand italic">Knowledge Pool</h3>
               <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Which repository should we pull from?</p>
             </div>
             <select id="editProviderScope" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-bold outline-none appearance-none shadow-sm">
@@ -2221,8 +2230,8 @@ async def app_automations_page(
           <!-- SECTION 5 -->
           <div class="space-y-4">
             <div>
-              <h3 class="text-sm font-bold text-brand">Timing</h3>
-              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">When should content be created?</p>
+              <h3 class="text-sm font-bold text-brand italic">Manifestation Schedule</h3>
+              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">When should new drafts be crafted?</p>
             </div>
             <input type="time" id="editTime" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-bold outline-none shadow-sm">
           </div>
@@ -2240,18 +2249,18 @@ async def app_automations_page(
       <div class="glass w-full h-[90vh] md:h-auto md:max-w-xl pb-safe rounded-t-[2.5rem] md:rounded-[3rem] p-6 md:p-10 space-y-10 animate-in slide-in-from-bottom md:zoom-in-95 duration-300 border-t md:border border-brand/10 bg-white overflow-y-auto">
         <div class="flex justify-between items-center">
           <div>
-            <h2 class="text-2xl font-bold text-brand tracking-tight italic">Create Your <span class="text-accent font-normal">Content Plan</span></h2>
-            <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest">Architect a new growth stream</p>
+            <h2 class="text-2xl font-bold text-brand tracking-tight italic">Establish Your <span class="text-accent font-normal">Growth Plan</span></h2>
+            <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest">Architect a new creative stream</p>
           </div>
           <button onclick="hideNewAutoModal()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-brand/5 text-text-muted hover:text-brand transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg></button>
         </div>
         
         <div class="space-y-10 max-w-lg mx-auto">
-          <!-- SECTION 1 -->
+          <!-- Step 1: Blueprint -->
           <div class="space-y-4">
             <div>
-              <h3 class="text-sm font-bold text-brand">Name Your Plan</h3>
-              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Give your plan a simple name</p>
+              <h3 class="text-sm font-bold text-brand italic">Identity & Naming</h3>
+              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Give this growth plan a clear, inspiring name</p>
             </div>
             <input type="text" id="newName" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm focus:border-brand/20 focus:bg-white transition-all font-bold outline-none shadow-sm" placeholder="e.g. Daily Wisdom Pool">
           </div>
@@ -2286,8 +2295,8 @@ async def app_automations_page(
           <!-- SECTION 4 -->
           <div class="space-y-4">
             <div>
-              <h3 class="text-sm font-bold text-brand">Content Source</h3>
-              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Choose your generation style</p>
+              <h3 class="text-sm font-bold text-brand italic">Generation Strategy</h3>
+              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Choose your preferred drafting approach</p>
             </div>
             <select id="newSeedMode" onchange="toggleNewSeedText()" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-bold outline-none appearance-none shadow-sm">
                 <option value="auto_library">Verified Content (Knowledge Pool)</option>
@@ -2316,11 +2325,11 @@ async def app_automations_page(
             </select>
           </div>
 
-          <!-- SECTION 6 -->
+          <!-- Step 6: Manifestation Cycle -->
           <div class="space-y-4">
             <div>
-              <h3 class="text-sm font-bold text-brand">Timing</h3>
-              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">When should posts be created?</p>
+              <h3 class="text-sm font-bold text-brand italic">Manifestation Schedule</h3>
+              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">When should new drafts be crafted?</p>
             </div>
             <input type="time" id="newTime" value="09:00" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-bold outline-none shadow-sm">
           </div>
@@ -2416,7 +2425,7 @@ async def app_automations_page(
         
         btn.disabled = true;
         const originalText = btn.textContent;
-        btn.textContent = 'CREATING...';
+        btn.innerHTML = '<span class="flex items-center gap-2"><svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> ESTABLISHING...</span>';
 
         try {
           const res = await fetch('/automations', {
@@ -2425,15 +2434,17 @@ async def app_automations_page(
             body: JSON.stringify(payload)
           });
           if (res.ok) {
-            alert('Success: Growth Plan created.');
-            window.location.reload();
+            btn.innerHTML = 'SUCCESS!';
+            btn.className = btn.className.replace('bg-brand', 'bg-emerald-500');
+            setTimeout(() => window.location.reload(), 1000);
           } else {
             const err = await res.text();
-            alert('Failed to create plan: ' + err);
+            alert('Failed to establish plan: ' + err);
+            btn.disabled = false; 
+            btn.textContent = originalText; 
           }
         } catch(e) { 
           alert('Network disruption occurred. Please check your connection.'); 
-        } finally { 
           btn.disabled = false; 
           btn.textContent = originalText; 
         }
@@ -2482,7 +2493,7 @@ async def app_automations_page(
         
         btn.disabled = true;
         const originalText = btn.textContent;
-        btn.textContent = 'SAVING...';
+        btn.innerHTML = '<span class="flex items-center gap-2"><svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> SAVING...</span>';
 
         try {
           const res = await fetch(`/automations/${id}`, {
@@ -2491,15 +2502,17 @@ async def app_automations_page(
             body: JSON.stringify(payload)
           });
           if (res.ok) {
-            alert('Success: Plan details updated.');
-            window.location.reload();
+            btn.innerHTML = 'SYNCED!';
+            btn.className = btn.className.replace('bg-brand', 'bg-emerald-500');
+            setTimeout(() => window.location.reload(), 1000);
           } else {
             const err = await res.text();
             alert('Save failed: ' + err);
+            btn.disabled = false; 
+            btn.textContent = originalText; 
           }
         } catch(e) { 
           alert('Failed to transmit update. Verify your connection.'); 
-        } finally { 
           btn.disabled = false; 
           btn.textContent = originalText; 
         }
@@ -2696,20 +2709,33 @@ async def app_automations_page(
 
       async function runNow(event, id) {
         if (!confirm('Start growth stream now? A new draft will be crafted immediately based on your verified strategy.')) return;
-        const btn = event.currentTarget;
-        const originalText = btn.innerText;
         btn.disabled = true;
-        btn.innerText = 'GENERATING...';
+        const originalText = btn.textContent;
+        btn.innerHTML = '<span class="flex items-center gap-2"><svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> DRAFTING...</span>';
         
         try {
-          const res = await fetch(`/automations/${id}/run`, { method: 'POST' });
+          const res = await fetch(`/automations/${id}/run-once`, { method: 'POST' });
           if (res.ok) {
-            alert('Generation started. Visit your Home dashboard in a few moments to review the draft.');
+            btn.innerHTML = 'MANIFESTED!';
+            btn.className = btn.className.replace('bg-brand', 'bg-emerald-500');
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                btn.className = btn.className.replace('bg-emerald-500', 'bg-brand');
+                // Redirect user to home or notify them
+                if(confirm('Draft generated! Open dashboard to review?')) window.location.href = '/app';
+            }, 2000);
           } else {
-            alert('Draft generation failed or limit reached.');
+            const err = await res.json();
+            alert('Manifestation failed: ' + (err.detail || 'Limit reached or technical void.'));
+            btn.disabled = false; 
+            btn.innerHTML = originalText; 
           }
-        } catch(e) { alert('Network interruption during drafting.'); }
-        finally { btn.disabled = false; btn.innerText = originalText; }
+        } catch(e) { 
+            alert('Network interruption during drafting.'); 
+            btn.disabled = false; 
+            btn.innerHTML = originalText; 
+        }
       }
     </script>
     """
@@ -3870,8 +3896,8 @@ async def dismiss_getting_started(
 from pydantic import BaseModel
 class OnboardingFinalize(BaseModel):
     orgName: str
-    igUserId: str
-    igAccessToken: str
+    igUserId: str | None = None
+    igAccessToken: str | None = None
     contentMode: str
     autoTopic: str
     autoTime: str
@@ -3883,47 +3909,45 @@ async def finalize_onboarding(
     db: Session = Depends(get_db)
 ):
     # 1. Ensure Org exists or create it
-    org = db.query(Org).filter(OrgMember.user_id == user.id).first()
+    org = db.query(Org).filter(Org.id == user.active_org_id).first()
     if not org:
         org = Org(name=payload.orgName or f"{user.name}'s Workspace")
         db.add(org)
         db.flush()
         membership = OrgMember(org_id=org.id, user_id=user.id, role="owner")
         db.add(membership)
+        user.active_org_id = org.id
     else:
-        # Update existing org name if provided
-        org = db.query(Org).filter(Org.id == OrgMember.org_id).filter(OrgMember.user_id == user.id).first()
         if payload.orgName: org.name = payload.orgName
 
-    # 2. Connect IG Account (Optional)
-    if payload.igUserId or payload.igAccessToken:
-        ig_acc = db.query(IGAccount).filter(IGAccount.org_id == org.id).first()
-        if not ig_acc:
-            ig_acc = IGAccount(
-                org_id=org.id,
-                name=f"IG: {payload.igUserId}" if payload.igUserId else "IG Account",
-                ig_user_id=payload.igUserId,
-                access_token=payload.igAccessToken,
-                daily_post_time=payload.autoTime or "09:00"
-            )
-            db.add(ig_acc)
-            db.flush()
-        
-        # 3. Create Automation
-        auto = db.query(TopicAutomation).filter(TopicAutomation.org_id == org.id).first()
-        if not auto:
-            auto = TopicAutomation(
-                org_id=org.id,
-                ig_account_id=ig_acc.id,
-                name="Daily Intelligence Feed",
-                topic_prompt=payload.autoTopic or "Daily wisdom and news relevant to our niche.",
-                source_mode=payload.contentMode if payload.contentMode != "auto_library" else "none",
-                content_seed_mode="auto_library" if payload.contentMode == "auto_library" else "none",
-                post_time_local=payload.autoTime or "09:00",
-                enabled=True,
-                approval_mode="needs_manual_approve"
-            )
-            db.add(auto)
+    # 2. Connect IG Account (Optional - though UI usually skips this now)
+    ig_acc = db.query(IGAccount).filter(IGAccount.org_id == org.id).first()
+    if not ig_acc and (payload.igUserId or payload.igAccessToken):
+        ig_acc = IGAccount(
+            org_id=org.id,
+            name=f"IG: {payload.igUserId}" if payload.igUserId else "IG Account",
+            ig_user_id=payload.igUserId,
+            access_token=payload.igAccessToken,
+            daily_post_time=payload.autoTime or "09:00"
+        )
+        db.add(ig_acc)
+        db.flush()
+    
+    # 3. Create Automation (Use existing or create new)
+    auto = db.query(TopicAutomation).filter(TopicAutomation.org_id == org.id).first()
+    if not auto:
+        auto = TopicAutomation(
+            org_id=org.id,
+            ig_account_id=ig_acc.id if ig_acc else 0, # 0 if not yet connected
+            name="Daily Intelligence Feed",
+            topic_prompt=payload.autoTopic or "Daily wisdom and news relevant to our niche.",
+            source_mode=payload.contentMode if payload.contentMode != "auto_library" else "none",
+            content_seed_mode="auto_library" if payload.contentMode == "auto_library" else "none",
+            post_time_local=payload.autoTime or "09:00",
+            enabled=True if ig_acc else False, # Only enable if connected
+            approval_mode="needs_manual_approve"
+        )
+        db.add(auto)
 
     # 4. Create Content Profile
     profile = db.query(ContentProfile).filter(ContentProfile.org_id == org.id).first()
@@ -3938,7 +3962,8 @@ async def finalize_onboarding(
 
     # 5. Mark Onboarding Complete
     user.onboarding_complete = True
-    user.active_org_id = org.id
     db.commit()
+
+    return {"status": "success"}
 
     return {"status": "success"}

@@ -16,7 +16,7 @@ import uuid
 from .db import engine, SessionLocal, get_db
 from .models import Base, Org, ApiKey, IGAccount, User, OrgMember, ContentSource, ContentItem, ContentUsage
 from .security.auth import get_password_hash
-from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles, auth_google, public, sources, app_pages, admin_library, admin_global_library
+from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles, auth_google, auth_ig, public, sources, app_pages, admin_library, admin_global_library
 from .services.scheduler import start_scheduler
 from .config import settings
 from .logging_setup import setup_logging, request_id_var, log_event
@@ -304,6 +304,7 @@ app.include_router(library.router)
 app.include_router(media.router)
 app.include_router(auth.router)
 app.include_router(auth_google.router)
+app.include_router(auth_ig.router)
 app.include_router(profiles.router)
 app.include_router(sources.router)
 app.include_router(admin_library.router)
@@ -386,21 +387,7 @@ def bootstrap_saas():
         db.commit()
         log_startup("BOOTSTRAP: Core data committed successfully.")
         
-        # 5. INITIAL IG ACCOUNT
-        if settings.ig_user_id and settings.ig_access_token:
-            acc_exists = db.query(IGAccount).filter(IGAccount.ig_user_id == settings.ig_user_id).first()
-            if not acc_exists:
-                log_startup("BOOTSTRAP: Seeding default Instagram account from ENV...")
-                acc = IGAccount(
-                    org_id=org.id,
-                    name="Default Instagram",
-                    ig_user_id=settings.ig_user_id,
-                    access_token=settings.ig_access_token,
-                    active=True
-                )
-                db.add(acc)
-                db.commit()
-
+        # 5. INITIAL IG ACCOUNT (REMOVED - Use OAuth flow instead)
         log_startup("BOOTSTRAP: Finished.")
     except Exception as e:
         log_startup(f"BOOTSTRAP ERROR: {e}")
@@ -429,7 +416,17 @@ def on_startup():
             is_postgres = "postgresql" in str(engine.url)
             log_startup(f"STARTUP: Database engine detected: {'Postgres' if is_postgres else 'SQLite'}")
             
-            # Update topic_automations
+            # Update ig_accounts
+            ig_cols = [
+                ("fb_page_id", "VARCHAR"),
+                ("expires_at", "TIMESTAMP WITH TIME ZONE")
+            ]
+            for col, col_def in ig_cols:
+                try:
+                    stmt = f"ALTER TABLE ig_accounts ADD COLUMN {'IF NOT EXISTS' if is_postgres else ''} {col} {col_def}"
+                    conn.execute(text(stmt))
+                    log_startup(f"Migration: Checked column {col} in ig_accounts")
+                except Exception: pass
             auto_cols = [
                 ("library_topic_slug", "VARCHAR"),
                 ("tone", "VARCHAR DEFAULT 'medium'"),

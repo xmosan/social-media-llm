@@ -32,20 +32,12 @@ def create_account(
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id)
 ):
-    """Add a new IG account to the organization."""
-    acc = IGAccount(
-        org_id=org_id,
-        name=payload.name,
-        ig_user_id=payload.ig_user_id,
-        access_token=payload.access_token,
-        timezone=payload.timezone,
-        daily_post_time=payload.daily_post_time,
-        active=True
+    """Add a new IG account to the organization (Legacy Manual - Restricted)."""
+    # Prohibit manual creation now that OAuth is implemented
+    raise HTTPException(
+        status_code=400, 
+        detail="Manual account creation is disabled. Please use the 'Connect Instagram' button on the dashboard to link via Meta OAuth."
     )
-    db.add(acc)
-    db.commit()
-    db.refresh(acc)
-    return acc
 
 @router.patch("/{account_id}", response_model=IGAccountOut)
 def update_account(
@@ -63,9 +55,12 @@ def update_account(
     if not acc:
         raise HTTPException(status_code=404, detail="Account not found")
     
+    # We only allow updating basic settings, NOT tokens/IDs manually
     data = payload.dict(exclude_unset=True)
+    restricted_fields = ["ig_user_id", "access_token"]
     for k, v in data.items():
-        setattr(acc, k, v)
+        if k not in restricted_fields:
+            setattr(acc, k, v)
     
     db.commit()
     db.refresh(acc)
