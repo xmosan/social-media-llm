@@ -45,6 +45,7 @@ async def google_login(request: Request):
             # Force HTTPS for production redirects
             if "railway.app" in str(request.url) or request.headers.get("x-forwarded-proto") == "https":
                 redirect_uri = str(redirect_uri).replace("http://", "https://")
+                request.scope['scheme'] = 'https'
         
         print(f"AUTH DIAGNOSTIC: Google redirect_uri: {redirect_uri}")
         response = await oauth.google.authorize_redirect(request, str(redirect_uri))
@@ -73,8 +74,12 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
             redirect_uri = str(redirect_uri).replace("http://", "https://")
 
     try:
+        # Force internal scheme to https for Authlib consistency on Railway
+        if "railway.app" in str(request.url) or request.headers.get("x-forwarded-proto") == "https":
+            request.scope['scheme'] = 'https'
+
         print(f"AUTH DIAGNOSTIC: Google OAuth callback received. Using URI: {redirect_uri}")
-        token = await oauth.google.authorize_access_token(request, redirect_uri=str(redirect_uri))
+        token = await oauth.google.authorize_access_token(request)
         user_info = token.get('userinfo')
         if not user_info:
             print("AUTH DIAGNOSTIC: Google user_info is missing")

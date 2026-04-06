@@ -18,141 +18,239 @@ LANDING_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sabeel | Structured Content, Human Control</title>
+  <title>Sabeel Studio | Authentic Islamic Content Creation</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --brand: #6366f1;
-      --brand-hover: #4f46e5;
-      --main-bg: #020617;
-      --surface: rgba(255, 255, 255, 0.03);
-      --text-main: #ffffff;
-      --text-muted: #94a3b8;
-      --border: rgba(255, 255, 255, 0.1);
+      --primary: #0F3D2E;
+      --primary-hover: #0a2d22;
+      --bg-cream: #F8F6F2;
+      --accent: #C9A96E;
+      --text-main: #1A1A1A;
+      --text-muted: #4A4A4A;
+      --border: rgba(15, 61, 46, 0.1);
     }
-    body { font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: var(--text-main); }
-    .ai-bg { background: radial-gradient(circle at top right, #312e81, #020617, #020617); }
-    .glass { background: var(--surface); backdrop-filter: blur(12px); border: 1px solid var(--border); }
-    .text-gradient {
-      background: linear-gradient(to right, #818cf8, #c084fc);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background-color: var(--bg-cream); 
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
     }
-    .feature-card:hover { transform: translateY(-5px); border-color: var(--brand); }
+    .text-primary { color: var(--primary); }
+    .bg-primary { background-color: var(--primary); }
+    .border-primary { border-color: var(--border); }
+    .text-accent { color: var(--accent); }
+    .bg-cream { background-color: var(--bg-cream); }
+    
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+      transition: all 0.3s ease;
+    }
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+      transform: translateY(-2px);
+    }
+    .btn-secondary {
+      background-color: transparent;
+      color: var(--primary);
+      border: 1px solid var(--border);
+      transition: all 0.3s ease;
+    }
+    .btn-secondary:hover {
+      background-color: rgba(15, 61, 46, 0.03);
+      transform: translateY(-2px);
+    }
+    
+    .card {
+      background: white;
+      border: 1px solid var(--border);
+      transition: all 0.3s ease;
+    }
+    .card:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+    }
+    
+    .mockup-shadow {
+      box-shadow: 0 20px 50px rgba(0,0,0,0.05);
+    }
   </style>
 </head>
-<body class="ai-bg min-h-screen">
+<body class="min-h-screen">
   <!-- Navbar -->
-  <nav class="max-w-7xl mx-auto px-6 py-6 md:py-8 flex justify-between items-center relative z-50">
+  <nav class="max-w-7xl mx-auto px-6 py-8 flex justify-between items-center relative z-50">
     <a href="/" class="flex flex-col">
-      <div class="text-xl font-black italic tracking-tighter text-gradient inline-block">SABEEL</div>
-      <div class="text-[8px] font-black text-white uppercase tracking-widest pl-1 leading-none mt-1">Studio</div>
+      <div class="text-xl font-extrabold tracking-tighter text-primary inline-block">SABEEL</div>
+      <div class="text-[9px] font-bold text-primary uppercase tracking-[0.3em] pl-1 leading-none -mt-0.5">Studio</div>
     </a>
     
-    <!-- Desktop Links -->
-    <div class="hidden md:flex items-center gap-6">
-      <a href="/demo" class="text-xs font-black uppercase tracking-widest text-muted hover:text-white transition-colors">See Demo</a>
+    <div class="flex items-center gap-8">
+      <a href="/demo" class="text-xs font-bold uppercase tracking-widest text-muted hover:text-primary transition-colors">Demo</a>
+      <a href="/contact" class="text-xs font-bold uppercase tracking-widest text-muted hover:text-primary transition-colors">Contact</a>
       {% if authenticated %}
-        <a href="/app" class="px-6 py-3 bg-brand rounded-xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20">Go to App</a>
+        <a href="/app" class="px-6 py-3 btn-primary rounded-xl font-bold text-xs uppercase tracking-widest">Go to App</a>
       {% else %}
-        <a href="/login" class="text-xs font-black uppercase tracking-widest text-muted hover:text-white transition-colors">Sign In</a>
-        <a href="/register" class="px-6 py-3 bg-brand rounded-xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20">Get Started</a>
+        <a href="/register" class="px-6 py-3 btn-primary rounded-xl font-bold text-xs uppercase tracking-widest">Get Started</a>
       {% endif %}
     </div>
-
-    <!-- Mobile Menu Toggle -->
-    <button id="mobileMenuBtn" class="md:hidden p-2 text-white/70 hover:text-white transition-colors" onclick="document.getElementById('mobileMenu').classList.toggle('translate-y-[-100%]'); document.getElementById('mobileMenu').classList.toggle('opacity-0'); document.body.classList.toggle('overflow-hidden')">
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
-    </button>
   </nav>
 
-  <!-- Mobile Menu Drawer Box -->
-  <div id="mobileMenu" class="fixed inset-0 z-40 bg-[#020617] translate-y-[-100%] opacity-0 transition-all duration-300 ease-in-out md:hidden flex flex-col pt-32 px-6 pb-8 border-b border-white/5 shadow-2xl">
-    <div class="flex flex-col gap-6 flex-1">
-      <a href="/demo" class="text-2xl font-black italic text-white tracking-tight border-b border-white/5 pb-6">See Demo</a>
-      {% if authenticated %}
-        <a href="/app" class="w-full text-center px-6 py-5 bg-brand rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-xl shadow-brand/20 mt-4">Go to App</a>
-      {% else %}
-        <a href="/login" class="text-2xl font-black italic text-white tracking-tight border-b border-white/5 pb-6">Sign In</a>
-        <a href="/register" class="w-full text-center px-6 py-5 bg-brand rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-xl shadow-brand/20 mt-4 outline-none">Get Started</a>
-      {% endif %}
-    </div>
-  </div>
-
   <!-- Hero Section -->
-  <section class="max-w-7xl mx-auto px-6 pt-12 md:pt-20 pb-20 md:pb-32 text-center space-y-6 md:space-y-8">
-    <h1 class="text-[3.25rem] md:text-8xl font-black tracking-tighter italic text-white leading-[1.0] md:leading-[0.9]">
-      STRUCTURED <span class="text-gradient">POSTING.</span><br/>
-      HUMAN <span class="text-gradient">CONTROL.</span>
+  <section class="max-w-7xl mx-auto px-6 pt-16 md:pt-24 pb-24 text-center space-y-8">
+    <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight text-primary leading-[1.05]">
+      Create authentic Islamic content <br class="hidden md:block"/> 
+      <span class="text-accent">—</span> without compromising accuracy
     </h1>
-    <p class="max-w-sm md:max-w-2xl mx-auto text-muted text-base md:text-xl font-medium leading-relaxed">
-      The ultimate engine for high-output social media strategy. Generate, review, and schedule verified content with pluggable knowledge sources.
+    <p class="max-w-2xl mx-auto text-text-muted text-lg md:text-xl font-medium leading-relaxed italic opacity-80">
+      Generate captions, reminders, and posts grounded in real Quran and Hadith — built for creators who value trust.
     </p>
-    <div class="pt-6 md:pt-4 flex flex-col md:flex-row justify-center gap-4 w-full md:w-auto px-0 md:px-0">
-      <a href="/register" class="w-full md:w-auto px-10 py-5 bg-brand rounded-2xl font-black text-sm uppercase tracking-widest text-white shadow-2xl shadow-brand/40 block">Get Started</a>
-      <a href="/demo" class="w-full md:w-auto px-10 py-5 bg-white/5 border border-white/10 rounded-2xl font-black text-sm uppercase tracking-widest text-white hover:bg-white/10 transition-all block">See Demo</a>
+    <div class="pt-4 flex flex-col md:flex-row justify-center gap-4">
+      <a href="/register" class="px-10 py-5 btn-primary rounded-2xl font-bold text-sm uppercase tracking-widest shadow-xl shadow-primary/10">Get Started</a>
+      <a href="/demo" class="px-10 py-5 btn-secondary rounded-2xl font-bold text-sm uppercase tracking-widest">View Demo</a>
+    </div>
+
+    <!-- UI Mockup / Visual -->
+    <div class="pt-20 max-w-4xl mx-auto px-4">
+      <div class="card p-8 md:p-12 rounded-[2.5rem] mockup-shadow text-left space-y-8">
+        <div class="flex items-center gap-4 border-b border-gray-100 pb-6">
+          <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">S</div>
+          <div>
+            <div class="text-sm font-bold">Islamic Reminders</div>
+            <div class="text-[10px] text-muted font-bold uppercase tracking-widest">Content Strategy</div>
+          </div>
+        </div>
+        <div class="space-y-6">
+          <div class="aspect-[4/5] bg-cream rounded-3xl overflow-hidden flex items-center justify-center p-12 border border-gray-50">
+            <div class="text-center space-y-6">
+              <div class="text-accent text-3xl opacity-50 italic">"</div>
+              <p class="text-2xl font-black text-primary leading-tight italic">Verily, with hardship comes ease.</p>
+              <div class="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">— Quran 94:6</div>
+            </div>
+          </div>
+          <div class="space-y-2">
+            <div class="h-1.5 w-12 bg-accent rounded-full"></div>
+            <p class="text-sm text-text-muted font-medium leading-relaxed">
+              A reminder for when times feel heavy. Allah promises that ease is always close by. Stay patient, stay steadfast. #Faith #Quran #Sabr
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust Section -->
+  <section class="bg-primary py-24 text-white">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="text-center space-y-4 mb-16">
+        <h2 class="text-accent text-xs font-bold uppercase tracking-[0.4em]">Trust First</h2>
+        <p class="text-3xl md:text-4xl font-extrabold tracking-tight italic">Built on trusted sources</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+        <div class="space-y-4 text-center md:text-left">
+          <div class="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-accent">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+          </div>
+          <h3 class="text-xl font-bold italic">Verified Collections</h3>
+          <p class="text-white/60 text-sm leading-relaxed">Content sourced from verified Quran and Hadith collections, ensuring every post is grounded in truth.</p>
+        </div>
+        <div class="space-y-4 text-center md:text-left">
+          <div class="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-accent">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.040L3 9v6c0 5.523 4.477 10 10 10s10-4.477 10-10V9l-1.382-1.016z"></path></svg>
+          </div>
+          <h3 class="text-xl font-bold italic">No Hallucinations</h3>
+          <p class="text-white/60 text-sm leading-relaxed">Our system is designed to prevent "religious hallucinations." What you see is what is written in the sources.</p>
+        </div>
+        <div class="space-y-4 text-center md:text-left">
+          <div class="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center text-accent">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+          </div>
+          <h3 class="text-xl font-bold italic">Structured Content</h3>
+          <p class="text-white/60 text-sm leading-relaxed">A strategic content system, not random generation. Maintain control over your message and impact.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="max-w-7xl mx-auto px-6 py-32 space-y-16">
+    <div class="text-center space-y-4">
+      <h2 class="text-accent text-xs font-bold uppercase tracking-[0.4em]">Capabilities</h2>
+      <p class="text-4xl font-extrabold tracking-tight text-primary italic">Meaningful tools for creators.</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div class="card p-10 rounded-[2.5rem] flex gap-6 items-start">
+        <div class="w-10 h-10 shrink-0 bg-primary/5 rounded-xl flex items-center justify-center text-primary">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+        </div>
+        <div>
+          <h3 class="text-xl font-bold italic text-primary mb-2">Meaningful Captions</h3>
+          <p class="text-text-muted text-sm leading-relaxed">Draft reflections and captions that resonate with your audience while staying true to the message.</p>
+        </div>
+      </div>
+      <div class="card p-10 rounded-[2.5rem] flex gap-6 items-start">
+        <div class="w-10 h-10 shrink-0 bg-primary/5 rounded-xl flex items-center justify-center text-primary">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+        </div>
+        <div>
+          <h3 class="text-xl font-bold italic text-primary mb-2">Quote-Based Posts</h3>
+          <p class="text-text-muted text-sm leading-relaxed">Quickly generate beautiful image-based posts from Quran and Hadith citations.</p>
+        </div>
+      </div>
+      <div class="card p-10 rounded-[2.5rem] flex gap-6 items-start">
+        <div class="w-10 h-10 shrink-0 bg-primary/5 rounded-xl flex items-center justify-center text-primary">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+        </div>
+        <div>
+          <h3 class="text-xl font-bold italic text-primary mb-2">Content Library</h3>
+          <p class="text-text-muted text-sm leading-relaxed">Organize your inspirations, drafts, and archives in a simple, unified library system.</p>
+        </div>
+      </div>
+      <div class="card p-10 rounded-[2.5rem] flex gap-6 items-start">
+        <div class="w-10 h-10 shrink-0 bg-primary/5 rounded-xl flex items-center justify-center text-primary">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+        </div>
+        <div>
+          <h3 class="text-xl font-bold italic text-primary mb-2">Ease of Publishing</h3>
+          <p class="text-text-muted text-sm leading-relaxed">Schedule and publish your content to Instagram directly, allowing for consistent growth.</p>
+        </div>
+      </div>
     </div>
   </section>
 
   <!-- How It Works -->
-  <section class="max-w-7xl mx-auto px-6 py-32 space-y-16">
+  <section class="max-w-7xl mx-auto px-6 py-32 space-y-16 border-t border-primary/5">
     <div class="text-center space-y-4">
-      <h2 class="text-sm font-black text-brand uppercase tracking-[0.3em]">The Protocol</h2>
-      <p class="text-4xl font-black italic text-white tracking-tight">Three steps to dominance.</p>
+      <h2 class="text-accent text-xs font-bold uppercase tracking-[0.4em]">The Process</h2>
+      <p class="text-4xl font-extrabold tracking-tight text-primary italic">Simple, calm workflow.</p>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-      <div class="glass p-10 rounded-[3rem] space-y-6">
-        <div class="w-12 h-12 bg-brand/20 rounded-2xl flex items-center justify-center text-brand font-black text-xl italic">01</div>
-        <h3 class="text-xl font-black italic text-white">Import Knowledge</h3>
-        <p class="text-muted text-sm leading-relaxed">Connect RSS feeds, URL lists, or upload manual libraries to ground your AI in real data.</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
+      <div class="space-y-6">
+        <div class="w-16 h-16 bg-accent/10 text-accent rounded-full flex items-center justify-center mx-auto text-xl font-black italic">1</div>
+        <h3 class="text-xl font-bold text-primary italic">Select Source</h3>
+        <p class="text-text-muted text-sm leading-relaxed">Choose from verified collections or your own curated library.</p>
       </div>
-      <div class="glass p-10 rounded-[3rem] space-y-6">
-        <div class="w-12 h-12 bg-brand/20 rounded-2xl flex items-center justify-center text-brand font-black text-xl italic">02</div>
-        <h3 class="text-xl font-black italic text-white">Refine Genius</h3>
-        <p class="text-muted text-sm leading-relaxed">Review AI-generated captions and DALL-E 3 visuals. Tweak, edit, and approve in one click.</p>
+      <div class="space-y-6">
+        <div class="w-16 h-16 bg-accent/10 text-accent rounded-full flex items-center justify-center mx-auto text-xl font-black italic">2</div>
+        <h3 class="text-xl font-bold text-primary italic">Generate Post</h3>
+        <p class="text-text-muted text-sm leading-relaxed">Review and refine the generated caption and visual design.</p>
       </div>
-      <div class="glass p-10 rounded-[3rem] space-y-6">
-        <div class="w-12 h-12 bg-brand/20 rounded-2xl flex items-center justify-center text-brand font-black text-xl italic">03</div>
-        <h3 class="text-xl font-black italic text-white">Auto-Post</h3>
-        <p class="text-muted text-sm leading-relaxed">The scheduler takes over, dispatching your content to Instagram exactly when your audience is active.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- Feature Grid -->
-  <section class="max-w-7xl mx-auto px-6 py-32 space-y-16 bg-white/[0.02] rounded-[4rem] border border-white/[0.05]">
-    <div class="text-center space-y-4">
-      <h2 class="text-sm font-black text-brand uppercase tracking-[0.3em]">Features</h2>
-      <p class="text-4xl font-black italic text-white tracking-tight">Built for modern scale.</p>
-    </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <div class="glass p-8 rounded-3xl feature-card border border-white/5 transition-all">
-        <h4 class="font-black italic text-white mb-2">Calendar View</h4>
-        <p class="text-xs text-muted">Visualize your entire month's content strategy in a sleek global calendar.</p>
-      </div>
-      <div class="glass p-8 rounded-3xl feature-card border border-white/5 transition-all">
-        <h4 class="font-black italic text-white mb-2">Multi-Account</h4>
-        <p class="text-xs text-muted">Manage dozens of Instagram profiles from a single unified workspace.</p>
-      </div>
-      <div class="glass p-8 rounded-3xl feature-card border border-white/5 transition-all">
-        <h4 class="font-black italic text-white mb-2">Knowledge Sourcing</h4>
-        <p class="text-xs text-muted">Pluggable sources ensure your AI never hallucinates and stays on message.</p>
-      </div>
-      <div class="glass p-8 rounded-3xl feature-card border border-white/5 transition-all">
-        <h4 class="font-black italic text-white mb-2">System Guardrails</h4>
-        <p class="text-xs text-muted">Islamic policy alignment ensures your content is always compliant and respectful.</p>
+      <div class="space-y-6">
+        <div class="w-16 h-16 bg-accent/10 text-accent rounded-full flex items-center justify-center mx-auto text-xl font-black italic">3</div>
+        <h3 class="text-xl font-bold text-primary italic">Publish</h3>
+        <p class="text-text-muted text-sm leading-relaxed">Schedule your content to be dispatched exactly when you want.</p>
       </div>
     </div>
   </section>
 
   <!-- Footer -->
-  <footer class="max-w-7xl mx-auto px-6 py-20 border-t border-white/5 mt-20 flex flex-col md:flex-row justify-between items-center gap-8">
-    <div class="text-muted font-bold text-xs uppercase tracking-widest italic">&copy; 2026 Mohammed Hassan. All rights reserved. <span class="text-brand">Sabeel&trade;</span> <span class="text-white/50 lowercase">is proprietary software.</span></div>
-    <div class="flex gap-8 text-[10px] font-black uppercase tracking-widest text-muted">
-      <a href="/contact" class="hover:text-brand transition-colors">Support</a>
-      <a href="/demo" class="hover:text-brand transition-colors">Demo</a>
-      <a href="/login" class="hover:text-brand transition-colors">Sign In</a>
+  <footer class="max-w-7xl mx-auto px-6 py-20 border-t border-primary/5 flex flex-col md:flex-row justify-between items-center gap-8">
+    <div class="text-text-muted font-bold text-[10px] uppercase tracking-[0.2em] italic">&copy; 2026 Mohammed Hassan. Sabeel Studio&trade;</div>
+    <div class="flex gap-8 text-[10px] font-bold uppercase tracking-widest text-text-muted">
+      <a href="/demo" class="hover:text-primary transition-colors">Demo</a>
+      <a href="/contact" class="hover:text-primary transition-colors">Contact</a>
+      <a href="/login" class="hover:text-primary transition-colors">Sign In</a>
     </div>
   </footer>
 </body>
@@ -166,69 +264,80 @@ DEMO_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Interactive Demo | Sabeel</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', sans-serif; background: #020617; color: #ffffff; }
-    .ai-bg { background: radial-gradient(circle at top right, #312e81, #0f172a, #020617); }
-    .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
-    .text-gradient { background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    :root {
+      --primary: #0F3D2E;
+      --bg-cream: #F8F6F2;
+      --accent: #C9A96E;
+      --text-main: #1A1A1A;
+      --text-muted: #4A4A4A;
+      --border: rgba(15, 61, 46, 0.1);
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg-cream); color: var(--text-main); }
+    .card { background: white; border: 1px solid var(--border); }
+    .btn-primary { background-color: var(--primary); color: white; transition: all 0.3s ease; }
+    .btn-primary:hover { background-color: #0a2d22; transform: translateY(-2px); }
   </style>
 </head>
-<body class="ai-bg min-h-screen p-4 md:p-6 pb-20 md:pb-6">
+<body class="min-h-screen p-4 md:p-6 pb-20 md:pb-6">
   <div class="max-w-6xl mx-auto space-y-6 md:space-y-8">
     <div class="flex justify-between items-center">
-      <div class="text-xl font-black italic tracking-tighter text-gradient">DEMO MODE</div>
-      <a href="/" class="text-[10px] font-black uppercase tracking-widest text-muted hover:text-white transition-colors">&larr; Exit Demo</a>
+      <div class="text-xl font-extrabold tracking-tighter text-primary">DEMO MODE</div>
+      <a href="/" class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A] hover:text-[#0F3D2E] transition-colors">&larr; Exit Demo</a>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
       <!-- Sidebar/Controls -->
       <div class="space-y-4 md:space-y-6">
-        <div class="glass p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] space-y-6">
-          <h2 class="text-sm font-black uppercase tracking-widest text-brand">Simulation Controls</h2>
+        <div class="card p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] space-y-6">
+          <h2 class="text-xs font-bold uppercase tracking-widest text-[#C9A96E]">Simulation Controls</h2>
           <div class="space-y-4">
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Topic Prompt</label>
-              <input type="text" value="The importance of patience (Sabr) in difficult times" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand">
+              <label class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A]">Topic Prompt</label>
+              <input type="text" value="The importance of patience (Sabr) in difficult times" class="w-full bg-[#F8F6F2] border border-gray-200 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-[#0F3D2E]">
             </div>
             <div class="space-y-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Aesthetic Mode</label>
-              <select class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-brand">
+              <label class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A]">Aesthetic Mode</label>
+              <select class="w-full bg-[#F8F6F2] border border-gray-200 rounded-xl px-4 py-3 text-xs outline-none focus:ring-1 focus:ring-[#0F3D2E]">
                 <option>Islamic Minimalist</option>
-                <option>Modern Corporate</option>
-                <option>Abstract Neural</option>
+                <option>Elegant Script</option>
+                <option>Modern Clean</option>
               </select>
             </div>
-            <button onclick="simulateGeneration()" class="w-full bg-brand py-4 rounded-xl font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20">Generate Preview</button>
+            <button onclick="simulateGeneration()" class="w-full btn-primary py-4 rounded-xl font-bold text-xs uppercase tracking-widest shadow-xl shadow-[#0F3D2E]/10">Generate Preview</button>
           </div>
         </div>
 
-        <div class="glass p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem] border-brand/20">
-          <p class="text-[10px] font-bold text-muted uppercase tracking-widest leading-relaxed">
-            Note: This is a real-time simulation using mock neural weights. No actual Instagram API calls are made in demo mode.
+        <div class="card p-6 md:p-8 rounded-[2rem] md:rounded-[2.5rem]">
+          <p class="text-[10px] font-bold text-[#4A4A4A] uppercase tracking-widest leading-relaxed opacity-60">
+            Note: This is a real-time simulation using verified Islamic content sources. No actual Instagram API calls are made in demo mode.
           </p>
         </div>
       </div>
 
       <!-- Preview Area -->
       <div class="lg:col-span-2 space-y-6">
-        <div id="preview-stage" class="glass rounded-[2.5rem] md:rounded-[3rem] p-6 md:p-10 min-h-[400px] md:min-h-[500px] flex items-center justify-center relative overflow-hidden">
-          <div id="loading-spinner" class="hidden animate-pulse text-brand font-black text-xs uppercase tracking-widest">Synthesizing Visuals...</div>
+        <div id="preview-stage" class="card rounded-[2.5rem] md:rounded-[3rem] p-6 md:p-10 min-h-[400px] md:min-h-[500px] flex items-center justify-center relative overflow-hidden bg-white">
+          <div id="loading-spinner" class="hidden animate-pulse text-[#0F3D2E] font-bold text-xs uppercase tracking-widest">Sourcing verified content...</div>
           
           <div id="demo-post" class="w-full max-w-md space-y-6 mt-4 md:mt-0">
-            <div class="aspect-square rounded-3xl overflow-hidden bg-white/5 border border-white/10 relative">
-              <img id="demo-image" src="https://images.unsplash.com/photo-1519817650390-64a93447v?auto=format&fit=crop&q=80&w=800" class="w-full h-auto opacity-40 grayscale">
-              <div class="absolute inset-0 flex items-center justify-center p-8 text-center bg-black/40">
-                <p id="overlay-text" class="text-2xl font-black italic text-white tracking-tight drop-shadow-2xl">Patience is the key to every relief.</p>
+            <div class="aspect-[4/5] rounded-[2rem] overflow-hidden bg-[#F8F6F2] border border-gray-100 relative">
+              <div class="absolute inset-0 flex items-center justify-center p-12 text-center">
+                <div class="space-y-6">
+                  <div class="text-[#C9A96E] text-3xl opacity-50 italic">"</div>
+                  <p id="overlay-text" class="text-2xl font-black italic text-[#0F3D2E] tracking-tight">Verily, Allah is with the patient.</p>
+                  <div id="overlay-source" class="text-[10px] font-bold text-[#4A4A4A] uppercase tracking-[0.2em]">— Quran 2:153</div>
+                </div>
               </div>
             </div>
             <div class="space-y-2">
               <div class="flex gap-2">
-                <div class="h-1.5 w-12 bg-brand rounded-full"></div>
-                <div class="h-1.5 w-4 bg-white/20 rounded-full"></div>
+                <div class="h-1.5 w-12 bg-[#0F3D2E] rounded-full"></div>
+                <div class="h-1.5 w-4 bg-gray-200 rounded-full"></div>
               </div>
-              <p id="demo-caption" class="text-sm text-muted leading-relaxed font-medium">
-                Verily, with hardship comes ease. Remember that your current struggle is shaping you for a beautiful destination. Stay steadfast. #Sabr #Patience #Faith
+              <p id="demo-caption" class="text-sm text-[#4A4A4A] leading-relaxed font-medium">
+                Patience is not just waiting; it is how we act while we wait. Ground yourself in faith and know that Allah's timing is perfect. #Sabr #Faith #Reminders
               </p>
             </div>
           </div>
@@ -251,8 +360,14 @@ DEMO_HTML = """<!doctype html>
         post.classList.remove('opacity-0', 'scale-95');
         post.classList.add('transition-all', 'duration-700', 'opacity-100', 'scale-100');
         
-        const quotes = ["Verily, Allah is with the patient.", "Turn your wounds into wisdom.", "The best way to find yourself is to lose yourself in the service of others."];
-        document.getElementById('overlay-text').textContent = quotes[Math.floor(Math.random() * quotes.length)];
+        const content = [
+          { q: " Allah does not burden a soul beyond that it can bear.", s: "Quran 2:286" },
+          { q: "The best among you are those who have the best manners.", s: "Bukhari" },
+          { q: "And He found you lost and guided you.", s: "Quran 93:7" }
+        ];
+        const selected = content[Math.floor(Math.random() * content.length)];
+        document.getElementById('overlay-text').textContent = selected.q;
+        document.getElementById('overlay-source').textContent = "— " + selected.s;
       }, 1500);
     }
   </script>
@@ -265,83 +380,62 @@ LOGIN_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sign In | Sabeel</title>
+  <title>Sign In | Sabeel Studio</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', sans-serif; background: var(--bg-main, #020617); color: var(--text-main, #ffffff); transition: all 0.3s ease; }
-    .ai-bg {
-      background: radial-gradient(circle at top right, #312e81, #0f172a, #020617);
+    :root {
+      --primary: #0F3D2E;
+      --bg-cream: #F8F6F2;
+      --accent: #C9A96E;
+      --text-main: #1A1A1A;
+      --text-muted: #4A4A4A;
+      --border: rgba(15, 61, 46, 0.1);
     }
-    .glass { 
-      background: rgba(255, 255, 255, 0.05); 
-      backdrop-filter: blur(20px); 
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.15); 
-    }
-    .text-gradient {
-      display: inline-block;
-      padding-right: 0.15em;
-      padding-bottom: 0.1em;
-      background: linear-gradient(to right, #818cf8, #c084fc);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      color: transparent;
-    }
-    [data-theme='enterprise'] {
-      --bg-main: #f8fafc;
-      --text-main: #0f172a;
-      --border: #e2e8f0;
-      --surface: #ffffff;
-    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg-cream); color: var(--text-main); }
+    .card { background: white; border: 1px solid var(--border); }
+    .btn-primary { background-color: var(--primary); color: white; transition: all 0.3s ease; }
+    .btn-primary:hover { background-color: #0a2d22; transform: translateY(-2px); }
   </style>
-  <script>
-    (function() {
-      const saved = localStorage.getItem('admin_theme') || 'startup';
-      document.documentElement.setAttribute('data-theme', saved);
-    })();
-  </script>
 </head>
-<body class="ai-bg text-main min-h-screen flex items-center justify-center p-6">
-  <div class="max-w-md w-full glass rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-10 space-y-6 md:space-y-8">
+<body class="min-h-screen flex items-center justify-center p-6 text-main">
+  <div class="max-w-md w-full card rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-10 space-y-6 md:space-y-8 shadow-xl shadow-black/5">
     <div class="text-center space-y-2">
-      <h1 class="text-2xl font-black italic tracking-tighter text-gradient">Sabeel</h1>
-      <h2 class="text-xl font-bold">Welcome back</h2>
-      <div class="text-[8px] font-black text-white/20 uppercase tracking-[0.4em]">v4.0.0-DIAG</div>
+      <h1 class="text-2xl font-extrabold tracking-tighter text-primary">Sabeel Studio</h1>
+      <h2 class="text-xl font-bold italic opacity-80">Welcome back</h2>
     </div>
 
     <form id="loginForm" class="space-y-4">
       <div class="space-y-1">
-        <label class="text-[10px] font-black uppercase tracking-widest text-muted ml-3">Email Address</label>
-        <input type="email" id="email" required class="w-full bg-white/5 border border-border rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="name@company.com">
+        <label class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A] ml-3">Email Address</label>
+        <input type="email" id="email" required class="w-full bg-[#F8F6F2] border border-gray-200 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-[#0F3D2E] outline-none transition-all text-[#1A1A1A]" placeholder="name@company.com">
       </div>
       <div class="space-y-1">
-        <label class="text-[10px] font-black uppercase tracking-widest text-muted ml-3">Password</label>
-        <input type="password" id="password" required class="w-full bg-white/5 border border-border rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="••••••••">
+        <label class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A] ml-3">Password</label>
+        <input type="password" id="password" required class="w-full bg-[#F8F6F2] border border-gray-200 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-[#0F3D2E] outline-none transition-all text-[#1A1A1A]" placeholder="••••••••">
       </div>
       
       <div id="errorMsg" class="hidden text-xs font-bold text-rose-500 bg-rose-500/10 p-4 rounded-xl border border-rose-500/20 text-center"></div>
 
-      <button type="submit" class="w-full bg-brand hover:bg-brand/90 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-brand/20 text-white">Sign In</button>
+      <button type="submit" class="w-full btn-primary py-4 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all shadow-xl shadow-[#0F3D2E]/10 text-white">Sign In</button>
     </form>
 
     <div class="relative flex items-center justify-center py-2">
-      <div class="w-full border-t border-border"></div>
-      <span class="absolute bg-surface px-4 text-[10px] font-black uppercase tracking-widest text-muted">OR</span>
+      <div class="w-full border-t border-gray-100"></div>
+      <span class="absolute bg-white px-4 text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A] opacity-40">OR</span>
     </div>
 
-    <a href="/auth/google/login" class="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border border-border text-main">
+    <a href="/auth/google/login" class="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 py-4 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all border border-gray-200 text-[#1A1A1A]">
       <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-5 h-5" alt="Google">
       Continue with Google
     </a>
 
-    <p class="text-center text-xs font-medium text-muted mt-6">
-      Don't have an account? <a href="/register" class="text-brand font-bold hover:underline">Create one</a>
+    <p class="text-center text-xs font-medium text-[#4A4A4A] mt-6">
+      Don't have an account? <a href="/register" class="text-[#0F3D2E] font-bold hover:underline">Create one</a>
     </p>
 
     <div class="text-center">
-      <a href="/" class="text-[10px] font-black uppercase tracking-widest text-muted hover:text-main transition-colors">&larr; Back to Home</a>
+      <a href="/" class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A] hover:text-[#0F3D2E] transition-colors">&larr; Back to Home</a>
     </div>
   </div>
 
@@ -386,86 +480,66 @@ REGISTER_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Create Account | Sabeel</title>
+  <title>Create Account | Sabeel Studio</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', sans-serif; background: #020617; color: #ffffff; }
-    .ai-bg {
-      background: radial-gradient(circle at top right, #312e81, #0f172a, #020617);
+    :root {
+      --primary: #0F3D2E;
+      --bg-cream: #F8F6F2;
+      --accent: #C9A96E;
+      --text-main: #1A1A1A;
+      --text-muted: #4A4A4A;
+      --border: rgba(15, 61, 46, 0.1);
     }
-    .glass { 
-      background: rgba(255, 255, 255, 0.05); 
-      backdrop-filter: blur(20px); 
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.15); 
-    }
-    .text-gradient {
-      display: inline-block;
-      padding-right: 0.15em;
-      padding-bottom: 0.1em;
-      background: linear-gradient(to right, #818cf8, #c084fc);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      color: transparent;
-    }
-    [data-theme='enterprise'] {
-      --bg-main: #f8fafc;
-      --text-main: #0f172a;
-      --border: #e2e8f0;
-      --surface: #ffffff;
-    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg-cream); color: var(--text-main); }
+    .card { background: white; border: 1px solid var(--border); }
+    .btn-primary { background-color: var(--primary); color: white; transition: all 0.3s ease; }
+    .btn-primary:hover { background-color: #0a2d22; transform: translateY(-2px); }
   </style>
-  <script>
-    (function() {
-      const saved = localStorage.getItem('admin_theme') || 'startup';
-      document.documentElement.setAttribute('data-theme', saved);
-    })();
-  </script>
 </head>
-<body class="ai-bg text-main min-h-screen flex items-center justify-center p-6">
-  <div class="max-w-md w-full glass rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-10 space-y-6 md:space-y-8">
+<body class="min-h-screen flex items-center justify-center p-6 text-main">
+  <div class="max-w-md w-full card rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-10 space-y-6 md:space-y-8 shadow-xl shadow-black/5">
     <div class="text-center space-y-2">
-      <h1 class="text-2xl font-black italic tracking-tighter text-gradient">Sabeel</h1>
-      <h2 class="text-xl font-bold">Start Automating</h2>
+      <h1 class="text-2xl font-extrabold tracking-tighter text-primary">Sabeel Studio</h1>
+      <h2 class="text-xl font-bold italic opacity-80">Join the movement</h2>
     </div>
 
     <form id="registerForm" class="space-y-4">
       <div class="space-y-1">
-        <label class="text-[10px] font-black uppercase tracking-widest text-muted ml-3">Full Name</label>
-        <input type="text" id="name" required class="w-full bg-white/5 border border-border rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="John Doe">
+        <label class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A] ml-3">Full Name</label>
+        <input type="text" id="name" required class="w-full bg-[#F8F6F2] border border-gray-200 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-[#0F3D2E] outline-none transition-all text-[#1A1A1A]" placeholder="John Doe">
       </div>
       <div class="space-y-1">
-        <label class="text-[10px] font-black uppercase tracking-widest text-muted ml-3">Email Address</label>
-        <input type="email" id="email" required class="w-full bg-white/5 border border-border rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="name@company.com">
+        <label class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A] ml-3">Email Address</label>
+        <input type="email" id="email" required class="w-full bg-[#F8F6F2] border border-gray-200 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-[#0F3D2E] outline-none transition-all text-[#1A1A1A]" placeholder="name@company.com">
       </div>
       <div class="space-y-1">
-        <label class="text-[10px] font-black uppercase tracking-widest text-muted ml-3">Password</label>
-        <input type="password" id="password" required class="w-full bg-white/5 border border-border rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-main" placeholder="At least 8 characters">
+        <label class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A] ml-3">Password</label>
+        <input type="password" id="password" required class="w-full bg-[#F8F6F2] border border-gray-200 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-[#0F3D2E] outline-none transition-all text-[#1A1A1A]" placeholder="At least 8 characters">
       </div>
       
       <div id="errorMsg" class="hidden text-xs font-bold text-rose-500 bg-rose-500/10 p-4 rounded-xl border border-rose-500/20 text-center"></div>
 
-      <button type="submit" class="w-full bg-brand hover:bg-brand/90 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-brand/20 text-white">Create Account</button>
+      <button type="submit" class="w-full btn-primary py-4 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all shadow-xl shadow-[#0F3D2E]/10 text-white">Create Account</button>
     </form>
 
     <div class="relative flex items-center justify-center py-2">
-      <div class="w-full border-t border-border"></div>
-      <span class="absolute bg-surface px-4 text-[10px] font-black uppercase tracking-widest text-muted">OR</span>
+      <div class="w-full border-t border-gray-100"></div>
+      <span class="absolute bg-white px-4 text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A] opacity-40">OR</span>
     </div>
 
-    <a href="/auth/google/login" class="w-full flex items-center justify-center gap-3 bg-white/5 hover:bg-white/10 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all border border-border text-main">
+    <a href="/auth/google/login" class="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 py-4 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all border border-gray-200 text-[#1A1A1A]">
       <img src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" class="w-5 h-5" alt="Google">
       Continue with Google
     </a>
 
-    <p class="text-center text-xs font-medium text-muted mt-6">
-      Already have an account? <a href="/login" class="text-brand font-bold hover:underline">Sign in</a>
+    <p class="text-center text-xs font-medium text-[#4A4A4A] mt-6">
+      Already have an account? <a href="/login" class="text-[#0F3D2E] font-bold hover:underline">Sign in</a>
     </p>
 
     <div class="text-center">
-      <a href="/" class="text-[10px] font-black uppercase tracking-widest text-muted hover:text-main transition-colors">&larr; Back to Home</a>
+      <a href="/" class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A] hover:text-[#0F3D2E] transition-colors">&larr; Back to Home</a>
     </div>
   </div>
 
@@ -510,98 +584,78 @@ CONTACT_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Contact Us | Sabeel</title>
+  <title>Contact Us | Sabeel Studio</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', sans-serif; background: #020617; color: #ffffff; }
-    .ai-bg {
-      background: radial-gradient(circle at top right, #312e81, #0f172a, #020617);
+    :root {
+      --primary: #0F3D2E;
+      --bg-cream: #F8F6F2;
+      --accent: #C9A96E;
+      --text-main: #1A1A1A;
+      --text-muted: #4A4A4A;
+      --border: rgba(15, 61, 46, 0.1);
     }
-    .glass { 
-      background: rgba(255, 255, 255, 0.05); 
-      backdrop-filter: blur(20px); 
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.15); 
-    }
-    .text-gradient {
-      display: inline-block;
-      padding-right: 0.15em;
-      padding-bottom: 0.1em;
-      background: linear-gradient(to right, #818cf8, #c084fc);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      color: transparent;
-    }
-    [data-theme='enterprise'] {
-      --bg-main: #f8fafc;
-      --text-main: #0f172a;
-      --border: #e2e8f0;
-      --surface: #ffffff;
-    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg-cream); color: var(--text-main); }
+    .card { background: white; border: 1px solid var(--border); }
+    .btn-primary { background-color: var(--primary); color: white; transition: all 0.3s ease; }
+    .btn-primary:hover { background-color: #0a2d22; transform: translateY(-2px); }
   </style>
-  <script>
-    (function() {
-      const saved = localStorage.getItem('admin_theme') || 'startup';
-      document.documentElement.setAttribute('data-theme', saved);
-    })();
-  </script>
 </head>
-<body class="ai-bg text-main min-h-screen flex items-center justify-center p-6">
-  <div class="max-w-2xl w-full glass rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-10 space-y-8 md:space-y-12">
+<body class="min-h-screen flex items-center justify-center p-6 text-main">
+  <div class="max-w-4xl w-full card rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-10 space-y-8 md:space-y-12 shadow-xl shadow-black/5">
     <div class="text-center space-y-4">
-      <h1 class="text-4xl font-black italic tracking-tighter text-white">Get in <span class="text-brand">touch</span>.</h1>
-      <p class="text-white/70 font-bold uppercase tracking-widest text-[10px]">Strategic support & platform inquiries</p>
+      <h1 class="text-4xl font-extrabold tracking-tighter text-primary italic">Get in <span class="text-accent">touch</span>.</h1>
+      <p class="text-[#4A4A4A] font-bold uppercase tracking-widest text-[10px] opacity-60">Strategic support & platform inquiries</p>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
       <div class="space-y-8">
-        <div class="space-y-2">
-          <h3 class="text-[10px] font-black uppercase tracking-widest text-muted">Contact Info</h3>
+        <div class="space-y-2 text-center md:text-left">
+          <h3 class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A]">Contact Info</h3>
           <div class="space-y-4">
-            <div class="flex items-center gap-4 group">
-              <div class="w-10 h-10 rounded-xl bg-brand/20 text-brand flex items-center justify-center group-hover:bg-brand transition-all group-hover:text-white shadow-lg shadow-brand/10">
+            <div class="flex items-center gap-4 group justify-center md:justify-start">
+              <div class="w-10 h-10 rounded-xl bg-[#0F3D2E]/5 text-primary flex items-center justify-center group-hover:bg-primary transition-all group-hover:text-white shadow-lg shadow-[#0F3D2E]/5">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
               </div>
-              <span class="text-sm font-black text-white group-hover:text-brand transition-colors">hello@social-llm.ai</span>
+              <span class="text-sm font-bold text-primary">hello@sabeel.studio</span>
             </div>
-            <div class="flex items-center gap-4 group">
-              <div class="w-10 h-10 rounded-xl bg-brand/20 text-brand flex items-center justify-center group-hover:bg-brand transition-all group-hover:text-white shadow-lg shadow-brand/10">
+            <div class="flex items-center gap-4 group justify-center md:justify-start">
+              <div class="w-10 h-10 rounded-xl bg-[#0F3D2E]/5 text-primary flex items-center justify-center group-hover:bg-primary transition-all group-hover:text-white shadow-lg shadow-[#0F3D2E]/5">
                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
               </div>
-              <span class="text-sm font-black text-white group-hover:text-brand transition-colors">Remote • Detroit, MI</span>
+              <span class="text-sm font-bold text-primary text-center md:text-left">Remote • Detroit, MI</span>
             </div>
           </div>
         </div>
 
-        <div class="p-6 rounded-2xl bg-white/5 border border-border">
-          <p class="text-[10px] text-muted font-medium leading-relaxed uppercase tracking-widest">Typical response time is under 12 hours. We're here to help you scale.</p>
+        <div class="p-6 rounded-2xl bg-[#F8F6F2] border border-gray-100 italic">
+          <p class="text-[10px] text-[#4A4A4A] font-bold leading-relaxed uppercase tracking-widest opacity-60">Typical response time is under 12 hours. We're here to help you scale your impact.</p>
         </div>
       </div>
 
       <form id="contactForm" class="space-y-4">
         <div class="space-y-1">
-          <label class="text-[10px] font-black uppercase tracking-widest text-white/50 ml-3">Identity</label>
-          <input type="text" id="name" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-white placeholder:text-white/20" placeholder="Your Name">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A] ml-3">Identity</label>
+          <input type="text" id="name" required class="w-full bg-[#F8F6F2] border border-gray-200 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-[#0F3D2E] outline-none transition-all text-[#1A1A1A] placeholder:text-gray-300" placeholder="Your Name">
         </div>
         <div class="space-y-1">
-          <label class="text-[10px] font-black uppercase tracking-widest text-white/50 ml-3">Coordinates</label>
-          <input type="email" id="email" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-white placeholder:text-white/20" placeholder="Email Address">
+          <label class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A] ml-3">Coordinates</label>
+          <input type="email" id="email" required class="w-full bg-[#F8F6F2] border border-gray-200 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-[#0F3D2E] outline-none transition-all text-[#1A1A1A] placeholder:text-gray-300" placeholder="Email Address">
         </div>
         <div class="space-y-1">
-          <label class="text-[10px] font-black uppercase tracking-widest text-white/50 ml-3">Message Buffer</label>
-          <textarea id="message" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-brand outline-none transition-all text-white min-h-[150px] placeholder:text-white/20" placeholder="How can we help?"></textarea>
+          <label class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A] ml-3">Message Buffer</label>
+          <textarea id="message" required class="w-full bg-[#F8F6F2] border border-gray-200 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-[#0F3D2E] outline-none transition-all text-[#1A1A1A] min-h-[150px] placeholder:text-gray-300" placeholder="How can we help?"></textarea>
         </div>
         
         <div id="statusMsg" class="hidden text-xs font-bold p-4 rounded-xl text-center"></div>
 
-        <button type="submit" class="w-full bg-brand hover:bg-brand/90 py-4 rounded-2xl font-black text-sm uppercase tracking-widest transition-all shadow-xl shadow-brand/20 text-white">Send Message</button>
+        <button type="submit" class="w-full btn-primary py-4 rounded-2xl font-bold text-sm uppercase tracking-widest transition-all shadow-xl shadow-[#0F3D2E]/10 text-white">Send Message</button>
       </form>
     </div>
 
-    <div class="text-center pt-8 border-t border-border">
-      <a href="/" class="text-[10px] font-black uppercase tracking-widest text-muted hover:text-main transition-colors">&larr; Back to Home</a>
+    <div class="text-center pt-8 border-t border-gray-100">
+      <a href="/" class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A] hover:text-[#0F3D2E] transition-colors">&larr; Back to Home</a>
     </div>
   </div>
 
@@ -628,7 +682,7 @@ CONTACT_HTML = """<!doctype html>
 
         if (res.ok) {
           statusMsg.textContent = "Message sent successfully!";
-          statusMsg.className = "text-xs font-bold text-emerald-400 bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20 text-center";
+          statusMsg.className = "text-xs font-bold text-emerald-600 bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20 text-center";
           statusMsg.classList.remove('hidden');
           e.target.reset();
         } else {
@@ -639,6 +693,8 @@ CONTACT_HTML = """<!doctype html>
         statusMsg.className = "text-xs font-bold text-red-500 bg-red-500/10 p-4 rounded-xl border border-red-500/20 text-center";
         statusMsg.classList.remove('hidden');
       } finally {
+        btn.disabled = false;
+        btn.textContent = "SEND MESSAGE";
       }
     });
   </script>
@@ -653,51 +709,58 @@ COMING_SOON_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Coming Soon | Sabeel Studio</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
   <style>
     :root {
-      --brand: #6366f1;
-      --main-bg: #020617;
+      --primary: #0F3D2E;
+      --bg-cream: #F8F6F2;
+      --accent: #C9A96E;
+      --text-main: #1A1A1A;
+      --text-muted: #4A4A4A;
+      --border: rgba(15, 61, 46, 0.1);
     }
-    body { font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: #ffffff; }
-    .ai-bg { background: radial-gradient(circle at top right, #312e81, #020617, #020617); }
-    .text-gradient {
-      background: linear-gradient(to right, #818cf8, #c084fc);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+    body { font-family: 'Inter', sans-serif; background-color: var(--bg-cream); color: var(--text-main); }
+    .btn-primary { 
+      background-color: var(--primary); 
+      color: white; 
+      transition: all 0.3s ease;
+    }
+    .btn-primary:hover { 
+      background-color: #0a2d22; 
+      transform: translateY(-2px);
     }
   </style>
 </head>
-<body class="ai-bg min-h-screen flex items-center justify-center p-6">
+<body class="min-h-screen flex items-center justify-center p-6">
   <div class="max-w-2xl w-full text-center space-y-12">
     <!-- Logo -->
     <div class="flex flex-col items-center">
-      <div class="text-3xl font-black italic tracking-tighter text-gradient">SABEEL</div>
-      <div class="text-[10px] font-black text-white uppercase tracking-[0.3em] mt-1">Studio</div>
+      <div class="text-3xl font-extrabold tracking-tighter text-[#0F3D2E]">SABEEL</div>
+      <div class="text-[10px] font-bold text-[#0F3D2E] uppercase tracking-[0.3em] mt-1">Studio</div>
     </div>
 
     <!-- Content -->
     <div class="space-y-6">
-      <h1 class="text-5xl md:text-7xl font-black tracking-tighter leading-[1.1]">
-        SOMETHING <span class="text-gradient">POWERFUL</span> IS COMING.
+      <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.1] text-[#0F3D2E]">
+        SOMETHING <span class="text-[#C9A96E]">POWERFUL</span> <br/> IS COMING.
       </h1>
-      <p class="text-slate-400 text-lg md:text-xl font-medium max-w-lg mx-auto leading-relaxed">
-        AI-powered content creation for meaningful social media. We're refining the engine for high-output strategy.
+      <p class="text-[#4A4A4A] text-lg md:text-xl font-medium max-w-lg mx-auto leading-relaxed italic opacity-80">
+        Authentic Islamic content creation, grounded in verified Quran and Hadith collections. We're refining the engine for purposeful strategy.
       </p>
     </div>
 
     <!-- Early Access -->
     <div class="max-w-md mx-auto w-full space-y-4">
       <div class="flex flex-col md:flex-row gap-3">
-        <input type="email" placeholder="Enter your email" class="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:ring-2 focus:ring-brand outline-none transition-all placeholder:text-white/20">
-        <button class="bg-brand hover:bg-brand/90 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-brand/20">Notify Me</button>
+        <input type="email" placeholder="Enter your email" class="flex-1 bg-white border border-gray-200 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-[#0F3D2E] transition-all">
+        <button class="btn-primary px-8 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl shadow-[#0F3D2E]/10">Notify Me</button>
       </div>
-      <p class="text-[10px] font-black uppercase tracking-widest text-white/30">Be the first to experience the future of content</p>
+      <p class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A]/40">Be the first to experience the future of content</p>
     </div>
 
     <!-- Footer -->
-    <div class="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 opacity-40">
-        <span class="text-[10px] font-black uppercase tracking-widest">© 2026 Sabeel Studio</span>
+    <div class="pt-12 border-t border-[#0F3D2E]/5 flex flex-col md:flex-row justify-between items-center gap-6 opacity-40">
+        <span class="text-[10px] font-bold uppercase tracking-widest">© 2026 Sabeel Studio</span>
     </div>
   </div>
 </body>
