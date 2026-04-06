@@ -1962,6 +1962,19 @@ async def app_automations_page(
         </div>
         """
 
+    empty_state_html = """
+        <div class="glass p-20 rounded-[3rem] border border-brand/5 bg-white text-center flex flex-col items-center justify-center space-y-6">
+            <div class="w-20 h-20 rounded-[2rem] bg-brand/5 flex items-center justify-center border border-brand/10">
+              <svg class="w-10 h-10 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
+            </div>
+            <div>
+              <h3 class="text-[11px] font-bold uppercase tracking-[0.3em] text-brand">No plans yet</h3>
+              <p class="text-xs text-text-muted mt-2">Create one to stay consistent</p>
+            </div>
+            <button onclick="showNewAutoModal()" class="px-8 py-3.5 bg-brand text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">New Growth Plan</button>
+        </div>
+    """
+    
     content = f"""
     <div class="space-y-8">
       <div class="flex justify-between items-end">
@@ -1976,18 +1989,7 @@ async def app_automations_page(
       </div>
 
       <div class="space-y-4">
-        {autos_html or """
-        <div class="glass p-20 rounded-[3rem] border border-brand/5 bg-white text-center flex flex-col items-center justify-center space-y-6">
-            <div class="w-20 h-20 rounded-[2rem] bg-brand/5 flex items-center justify-center border border-brand/10">
-              <svg class="w-10 h-10 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
-            </div>
-            <div>
-              <h3 class="text-[11px] font-bold uppercase tracking-[0.3em] text-brand">No plans yet</h3>
-              <p class="text-xs text-text-muted mt-2">Create one to stay consistent</p>
-            </div>
-            <button onclick="showNewAutoModal()" class="px-8 py-3.5 bg-brand text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">New Growth Plan</button>
-        </div>
-        """}
+        {autos_html or empty_state_html}
       </div>
     </div>
 
