@@ -1821,7 +1821,8 @@ async def app_dashboard_page(
     accs = db.query(IGAccount).filter(IGAccount.org_id == user.active_org_id).all()
     account_options = "".join([f'<option value="{a.id}">{a.name} (@{a.ig_user_id})</option>' for a in accs])
 
-    return APP_LAYOUT_HTML.replace("{title}", "Dashboard")\
+    return APP_LAYOUT_HTML.replace("{content}", content)\
+                          .replace("{title}", "Dashboard")\
                           .replace("{user_name}", user.name or user.email)\
                           .replace("{org_name}", org.name if org else "Personal Workspace")\
                           .replace("{admin_link}", admin_link)\
@@ -1831,7 +1832,6 @@ async def app_dashboard_page(
                           .replace("{active_automations}", "")\
                           .replace("{active_library}", "")\
                           .replace("{active_media}", "")\
-                          .replace("{content}", content)\
                           .replace("{account_options}", account_options).replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)
 
 @router.get("/app/calendar", response_class=HTMLResponse)
@@ -1929,7 +1929,8 @@ async def app_calendar_page(
     </div>
     """
     
-    return APP_LAYOUT_HTML.replace("{title}", "Calendar")\
+    return APP_LAYOUT_HTML.replace("{content}", content)\
+                          .replace("{title}", "Calendar")\
                           .replace("{user_name}", user.name or user.email)\
                           .replace("{org_name}", org.name if org else "Personal Workspace")\
                           .replace("{admin_link}", admin_link)\
@@ -1939,7 +1940,6 @@ async def app_calendar_page(
                           .replace("{active_automations}", "")\
                           .replace("{active_library}", "")\
                           .replace("{active_media}", "")\
-                          .replace("{content}", content)\
                           .replace("{account_options}", "").replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)
 
 @router.get("/app/automations", response_class=HTMLResponse)
@@ -2515,7 +2515,8 @@ async def app_automations_page(
     </script>
     """
     
-    return APP_LAYOUT_HTML.replace("{title}", "Automations")\
+    return APP_LAYOUT_HTML.replace("{content}", content)\
+                          .replace("{title}", "Automations")\
                           .replace("{user_name}", user.name or user.email)\
                           .replace("{org_name}", org.name if org else "Personal Workspace")\
                           .replace("{admin_link}", admin_link)\
@@ -2525,7 +2526,6 @@ async def app_automations_page(
                           .replace("{active_automations}", "active")\
                           .replace("{active_library}", "")\
                           .replace("{active_media}", "")\
-                          .replace("{content}", content)\
                           .replace("{account_options}", account_options).replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)
 
 @router.get("/app/media", response_class=HTMLResponse)
@@ -2547,7 +2547,8 @@ async def app_media_page(
     </div>
     """
     
-    return APP_LAYOUT_HTML.replace("{title}", "Media")\
+    return APP_LAYOUT_HTML.replace("{content}", content)\
+                          .replace("{title}", "Media Studio")\
                           .replace("{user_name}", user.name or user.email)\
                           .replace("{org_name}", org.name if org else "Personal Workspace")\
                           .replace("{admin_link}", admin_link)\
@@ -2557,7 +2558,6 @@ async def app_media_page(
                           .replace("{active_automations}", "")\
                           .replace("{active_library}", "")\
                           .replace("{active_media}", "active")\
-                          .replace("{content}", content)\
                           .replace("{account_options}", "").replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)
 
 @router.get("/app/library", response_class=HTMLResponse)
@@ -3580,7 +3580,16 @@ async def app_library_page(
     </script>
     """
     
-    return APP_LAYOUT_HTML.replace("{title}", "Library")\
+    return APP_LAYOUT_HTML.replace("{content}", content.replace("{library_controls}", f"""
+            <div class="flex p-1 bg-white/5 rounded-xl border border-white/10 gap-2">
+                <button onclick="toggleGlobalView(false)" id="orgViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-lg">Org</button>
+                <button onclick="toggleGlobalView(true)" id="globalViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-white/40 hover:text-white">System</button>
+                <button onclick="openSynonymModal()" class="px-3 py-1.5 border border-brand/20 rounded-lg text-brand hover:bg-brand hover:text-white transition-all">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                </button>
+            </div>
+            """ if user.is_superadmin else ""))\
+                          .replace("{title}", "Library")\
                           .replace("{user_name}", user.name or user.email)\
                           .replace("{org_name}", org.name if org else "Personal Workspace")\
                           .replace("{admin_link}", admin_link)\
@@ -3590,15 +3599,6 @@ async def app_library_page(
                           .replace("{active_automations}", "")\
                           .replace("{active_library}", "active")\
                           .replace("{active_media}", "")\
-                          .replace("{content}", content.replace("{library_controls}", f"""
-            <div class="flex p-1 bg-white/5 rounded-xl border border-white/10 gap-2">
-                <button onclick="toggleGlobalView(false)" id="orgViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-lg">Org</button>
-                <button onclick="toggleGlobalView(true)" id="globalViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-white/40 hover:text-white">System</button>
-                <button onclick="openSynonymModal()" class="px-3 py-1.5 border border-brand/20 rounded-lg text-brand hover:bg-brand hover:text-white transition-all">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-                </button>
-            </div>
-            """ if user.is_superadmin else ""))\
                           .replace("{is_superadmin_js}", "true" if user.is_superadmin else "false")\
                           .replace("{account_options}", "").replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)
 
