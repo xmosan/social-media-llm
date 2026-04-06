@@ -2704,10 +2704,10 @@ async def app_library_page(
         <div class="flex-1 glass rounded-[2.5rem] bg-white flex flex-col overflow-hidden border border-brand/5">
           <div class="p-6 border-b border-brand/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0">
             <div class="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 w-full md:flex-1">
-              <h3 class="hidden md:block text-xs font-bold uppercase tracking-widest text-text-muted shrink-0">Knowledge Base</h3>
-              <div class="relative w-full md:max-w-md">
-                <input type="text" id="entrySearch" oninput="debounceEntryQuery()" placeholder="Search your library..." class="w-full bg-cream border border-brand/10 rounded-2xl px-6 py-3 text-[11px] font-bold text-brand outline-none focus:border-brand/30 transition-all placeholder:text-brand/20">
-                <svg class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-brand/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+              <h3 class="hidden md:block text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted shrink-0">Intelligence Engine</h3>
+              <div class="relative w-full md:max-w-md group">
+                <input type="text" id="entrySearch" oninput="debounceEntryQuery()" placeholder="Search your knowledge base..." class="w-full bg-cream/50 border border-brand/10 rounded-2xl px-6 py-3.5 text-[11px] font-bold text-brand outline-none focus:border-brand/30 focus:bg-white focus:shadow-lg focus:shadow-brand/5 transition-all placeholder:text-brand/20">
+                <svg class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-brand/20 group-focus-within:text-brand transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
               </div>
             </div>
             <div class="flex items-center gap-4 ml-4">
@@ -2948,7 +2948,7 @@ async def app_library_page(
                   
                   const chip = document.createElement('button');
                   chip.onclick = () => { select.value = t.slug; loadEntries(); };
-                  chip.className = "flex-shrink-0 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-widest text-white/40 hover:bg-brand/20 hover:text-brand transition-all";
+                  chip.className = "flex-shrink-0 px-4 py-2 rounded-xl bg-white border border-brand/5 text-[9px] font-bold uppercase tracking-widest text-brand/40 hover:border-brand/30 hover:bg-brand/5 hover:text-brand transition-all shadow-sm";
                   chip.textContent = t.slug.replace(/_/g, ' ');
                   chips.appendChild(chip);
               });
@@ -2988,15 +2988,25 @@ async def app_library_page(
               
               sources.forEach(s => {
                   // Update sidebar list
+                  const isActive = currentSourceId == s.id;
                   const el = document.createElement('div');
-                  el.className = `p-5 rounded-3xl cursor-pointer transition-all border ${currentSourceId == s.id ? 'bg-brand border-brand ring-4 ring-brand/10' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'}`;
+                  el.className = `p-4 px-5 rounded-2xl cursor-pointer transition-all border flex items-center gap-4 group ${isActive ? 'bg-brand/5 border-brand/20 shadow-sm' : 'bg-white border-transparent hover:bg-brand/[0.02] hover:border-brand/10'}`;
                   el.onclick = () => selectSource(s);
+                  
+                  const folderIcon = `
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${isActive ? 'bg-brand text-white' : 'bg-brand/5 text-brand group-hover:bg-brand/10'}">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                    </div>`;
+
                   el.innerHTML = `
-                      <div class="flex justify-between items-start mb-1">
-                          <span class="text-[10px] font-black ${currentSourceId == s.id ? 'text-white' : 'text-white'} uppercase tracking-wider">${s.name}</span>
-                          ${s.org_id ? '' : '<span class="text-[7px] font-black text-brand bg-brand/10 px-2 py-0.5 rounded-full uppercase">Global</span>'}
+                      ${folderIcon}
+                      <div class="flex-1 overflow-hidden">
+                          <div class="text-[10px] font-bold truncate ${isActive ? 'text-brand' : 'text-text-main group-hover:text-brand'} uppercase tracking-wider">${s.name}</div>
+                          <div class="text-[8px] font-bold text-muted uppercase tracking-widest mt-0.5 flex items-center gap-2">
+                            ${s.category || 'Collection'}
+                            ${s.org_id ? '' : '<span class="text-[7px] text-accent px-1.5 py-0 bg-accent/10 border border-accent/10 rounded-full">SYSTEM</span>'}
+                          </div>
                       </div>
-                      <div class="text-[8px] font-bold text-muted uppercase tracking-widest">${s.category || 'Uncategorized'}</div>
                   `;
                   list.appendChild(el);
 
@@ -3060,52 +3070,81 @@ async def app_library_page(
               }
 
                list.innerHTML = '';
-               libraryEntries = {}; // Reset map
+               libraryEntries = {};
                entries.forEach(e => {
-                    libraryEntries[e.id] = e;
-                    const isGlobal = e.org_id === null;
-                    const el = document.createElement('div');
-                    el.className = `glass p-8 rounded-[2.5rem] border ${isGlobal ? 'border-brand/20 bg-brand/2' : 'border-white/5'} hover:border-brand/40 transition-all group relative animate-in zoom-in-95 duration-300`;
-                    
-                    let metaHtml = '';
-                    if (e.item_type === 'quran') metaHtml = `Surah ${e.meta.surah_number}:${e.meta.verse_start}${e.meta.verse_end ? '-' + e.meta.verse_end : ''}`;
-                    else if (e.item_type === 'hadith') metaHtml = `${e.meta.collection} #${e.meta.hadith_number}`;
-                    else if (e.item_type === 'book') metaHtml = e.title || 'Excerpt';
-                    else metaHtml = e.title || 'Note';
+                     libraryEntries[e.id] = e;
+                     const isGlobal = e.org_id === null;
+                     const el = document.createElement('div');
+                     el.className = `card p-8 group relative flex flex-col h-full bg-white border border-brand/5 hover:border-brand/30 hover:shadow-xl hover:shadow-brand/5 transition-all animate-in zoom-in-95 duration-300`;
+                     
+                     let typeIcon = '📝';
+                     let typeColor = 'brand';
+                     let typeDetail = '';
 
-                    let actionsHtml = `<div class="absolute top-6 right-6 flex gap-3 opacity-0 group-hover:opacity-100 transition-all">`;
-                    if (isGlobal) {
-                        actionsHtml += `<button onclick="cloneEntry(${e.id})" title="Clone to my Org" class="w-10 h-10 bg-brand/10 rounded-2xl text-brand hover:bg-brand hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>`;
+                     if (e.item_type === 'quran') {
+                        typeIcon = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>';
+                        typeColor = 'emerald-600';
+                        typeDetail = `Surah ${e.meta.surah_number}:${e.meta.verse_start}${e.meta.verse_end ? '-' + e.meta.verse_end : ''}`;
+                     } else if (e.item_type === 'hadith') {
+                        typeIcon = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>';
+                        typeColor = 'amber-600';
+                        typeDetail = `${e.meta.collection} #${e.meta.hadith_number}`;
+                     } else if (e.item_type === 'quote') {
+                        typeIcon = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>';
+                        typeColor = 'indigo-600';
+                        typeDetail = e.meta.author || 'Wise Words';
+                     } else if (e.item_type === 'book') {
+                        typeIcon = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>';
+                        typeColor = 'brand';
+                        typeDetail = e.meta.title || 'Excerpt';
+                     } else {
+                        typeIcon = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>';
+                        typeDetail = e.title || 'Research Node';
+                     }
+
+                     let actionsHtml = `<div class="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all pointer-events-none group-hover:pointer-events-auto">`;
+                     if (isGlobal) {
+                        actionsHtml += `<button onclick="cloneEntry(${e.id})" title="Clone to my Org" class="w-10 h-10 bg-white shadow-xl border border-brand/10 rounded-2xl text-brand hover:scale-110 transition-all flex items-center justify-center"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>`;
                         if (isSuperAdmin) {
                             actionsHtml += `
-                                <button onclick="openEntryModalById(${e.id})" class="w-10 h-10 bg-white/5 rounded-2xl text-white hover:bg-brand hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
-                                <button onclick="deleteEntry(${e.id})" class="w-10 h-10 bg-white/5 rounded-2xl text-rose-400 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                                <button onclick="openEntryModalById(${e.id})" class="w-10 h-10 bg-white shadow-xl border border-brand/10 rounded-2xl text-brand hover:scale-110 transition-all flex items-center justify-center"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                                <button onclick="deleteEntry(${e.id})" class="w-10 h-10 bg-white shadow-xl border border-rose-100 rounded-2xl text-rose-500 hover:scale-110 transition-all flex items-center justify-center"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
                             `;
                         }
-                    } else {
+                     } else {
                         actionsHtml += `
-                            <button onclick="openEntryModalById(${e.id})" class="w-10 h-10 bg-brand/10 rounded-2xl text-brand hover:bg-brand hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
-                            <button onclick="deleteEntry(${e.id})" class="w-10 h-10 bg-white/5 rounded-2xl text-rose-400 hover:bg-rose-500 hover:text-white transition-all flex items-center justify-center shadow-lg"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                            <button onclick="openEntryModalById(${e.id})" class="w-10 h-10 bg-white shadow-xl border border-brand/10 rounded-2xl text-brand hover:scale-110 transition-all flex items-center justify-center"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                            <button onclick="deleteEntry(${e.id})" class="w-10 h-10 bg-white shadow-xl border border-rose-100 rounded-2xl text-rose-500 hover:scale-110 transition-all flex items-center justify-center"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
                         `;
-                    }
-                    actionsHtml += `</div>`;
+                     }
+                     actionsHtml += `</div>`;
 
-                    el.innerHTML = `
+                     el.innerHTML = `
                         ${actionsHtml}
-                        <div class="flex flex-col h-full justify-between space-y-6">
-                            <div class="space-y-4">
-                                <div class="flex items-center gap-3">
-                                    <span class="w-8 h-8 rounded-xl ${isGlobal ? 'bg-brand/10 text-brand' : 'bg-white/5 text-muted'} flex items-center justify-center text-[10px] font-black">${e.item_type[0].toUpperCase()}</span>
-                                    <span class="text-[10px] font-black uppercase tracking-widest ${isGlobal ? 'text-brand' : 'text-muted'}">${metaHtml}</span>
+                        <div class="flex flex-col h-full space-y-8">
+                            <div class="space-y-6">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-10 h-10 rounded-xl bg-brand/5 text-brand flex items-center justify-center border border-brand/10">
+                                        ${typeIcon}
+                                    </div>
+                                    <div>
+                                        <div class="text-[8px] font-bold uppercase tracking-[0.2em] text-text-muted">Knowledge Node</div>
+                                        <div class="text-[10px] font-bold uppercase tracking-widest text-brand truncate max-w-[140px]">${typeDetail}</div>
+                                    </div>
                                 </div>
-                                <p class="text-white/80 text-sm leading-relaxed font-medium line-clamp-6">${e.text}</p>
+                                <div class="relative group/text">
+                                    <p class="text-text-main text-sm leading-relaxed font-medium line-clamp-6 opacity-90 group-hover/text:opacity-100 transition-opacity">
+                                        <span class="text-brand/20 font-serif text-3xl absolute -left-2 -top-4 pointer-events-none select-none">“</span>
+                                        ${e.text}
+                                    </p>
+                                </div>
                             </div>
-                            <div class="flex flex-wrap gap-2">
-                                ${ (e.topics || []).map(t => `<span class="px-3 py-1 bg-white/5 rounded-lg text-[8px] font-black uppercase tracking-tighter text-muted transition-all hover:bg-white/10 hover:text-white cursor-default">${t}</span>`).join('') }
+                            <div class="pt-6 border-t border-brand/5 flex flex-wrap gap-2 items-end mt-auto">
+                                ${ (e.topics || []).map(t => `<span class="px-2.5 py-1 bg-cream border border-brand/5 rounded-lg text-[8px] font-bold uppercase tracking-tighter text-brand/60 transition-all hover:bg-brand/5 hover:text-brand cursor-default">${t}</span>`).join('') }
                             </div>
                         </div>
-                    `;
-                    list.appendChild(el);
+                     `;
+                     list.appendChild(el);
               });
           } catch(e) {
               console.error("Library System Error:", e);
