@@ -698,10 +698,6 @@ COMING_SOON_HTML = """<!doctype html>
     <!-- Footer -->
     <div class="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 opacity-40">
         <span class="text-[10px] font-black uppercase tracking-widest">© 2026 Sabeel Studio</span>
-        <div class="flex gap-6">
-            <a href="#" class="text-[10px] font-black uppercase tracking-widest hover:text-brand transition-colors">Twitter</a>
-            <a href="#" class="text-[10px] font-black uppercase tracking-widest hover:text-brand transition-colors">Instagram</a>
-        </div>
     </div>
   </div>
 </body>
