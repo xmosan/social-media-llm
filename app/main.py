@@ -438,6 +438,7 @@ def on_startup():
                 ("posting_mode", "VARCHAR DEFAULT 'schedule'"),
                 ("approval_mode", "VARCHAR DEFAULT 'auto_approve'"),
                 ("image_mode", "VARCHAR DEFAULT 'reuse_last_upload'"),
+                ("use_content_library", "BOOLEAN DEFAULT TRUE"),
                 ("avoid_repeat_days", "INTEGER DEFAULT 30"),
                 ("content_type", "VARCHAR"),
                 ("include_arabic", "BOOLEAN DEFAULT FALSE"),
