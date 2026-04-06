@@ -2056,10 +2056,16 @@ async def app_automations_page(
     
     autos_html = ""
     for a in autos:
-        # Correctly escape JSON for use in HTML onclick attribute
-        # We replace " with &quot; so it's safe inside onclick="..."
-        # We replace \ with \\ so JS strings are preserved correctly
-        edit_data_json = json.dumps({
+        status_color = "text-emerald-600" if a.enabled else "text-rose-600"
+        status_bg = "bg-emerald-50" if a.enabled else "bg-rose-50"
+        status_label = "Active" if a.enabled else "Paused"
+        
+        mode_icon = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>'
+        if a.content_seed_mode == 'auto_library':
+            mode_icon = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>'
+        
+        # Consistent, safe JSON escaping for HTML attribute
+        edit_data_json = html.escape(json.dumps({
             "id": a.id,
             "name": a.name,
             "topic": a.topic_prompt,
@@ -2068,24 +2074,7 @@ async def app_automations_page(
             "seed_text": a.content_seed_text,
             "time": a.post_time_local,
             "content_provider_scope": a.content_provider_scope
-        }).replace('"', "&quot;")
-        
-        status_label = "Active" if a.enabled else "Paused"
-        
-        mode_icon = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>'
-        if a.content_seed_mode == 'auto_library':
-            mode_icon = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>'
-        
-        edit_data = {
-            "id": a.id, 
-            "name": a.name, 
-            "topic": a.topic_prompt, 
-            "seed_mode": a.content_seed_mode, 
-            "seed_text": a.content_seed_text or "", 
-            "time": a.post_time_local or "09:00",
-            "library_scope": a.library_scope
-        }
-        edit_data_json = html.escape(json.dumps(edit_data), quote=True)
+        }), quote=True)
 
         autos_html += f"""
         <div class="card p-8 bg-white border-brand/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-8 group relative overflow-hidden transition-all hover:translate-y-[-2px]">
