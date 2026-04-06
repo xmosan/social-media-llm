@@ -25,7 +25,7 @@ class InstagramAuthService:
         ]
         scope_str = ",".join(scopes)
         return (
-            f"https://www.facebook.com/v24.0/dialog/oauth?"
+            f"https://www.facebook.com/v18.0/dialog/oauth?"
             f"client_id={self.client_id}"
             f"&redirect_uri={self.redirect_uri}"
             f"&scope={scope_str}"

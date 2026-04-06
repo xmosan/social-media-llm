@@ -20,7 +20,16 @@ async def instagram_login(
     user: User = Depends(require_user)
 ):
     """Redirects the user to the Meta OAuth consent screen."""
+    if not instagram_auth_service.client_id:
+        log_event("ig_auth_config_missing", user_id=user.id)
+        raise HTTPException(status_code=400, detail="Instagram connection is not configured properly (Missing App ID)")
+
     auth_url = instagram_auth_service.get_auth_url()
+    
+    # 3. DEBUG LOGGING: Print full URL (sanitized) to help identify App ID issues
+    print(f"DEBUG: Constructing Meta OAuth URL for User {user.id}")
+    print(f"DEBUG: URL: {auth_url}")
+    
     log_event("ig_auth_redirect", user_id=user.id)
     return RedirectResponse(url=auth_url)
 

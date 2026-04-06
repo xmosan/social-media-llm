@@ -388,6 +388,8 @@ def bootstrap_saas():
         log_startup("BOOTSTRAP: Core data committed successfully.")
         
         # 5. INITIAL IG ACCOUNT (REMOVED - Use OAuth flow instead)
+        log_startup(f"BOOTSTRAP: FB_APP_ID present in settings: {bool(settings.fb_app_id)}")
+        log_startup(f"BOOTSTRAP: FB_APP_SECRET present in settings: {bool(settings.fb_app_secret)}")
         log_startup("BOOTSTRAP: Finished.")
     except Exception as e:
         log_startup(f"BOOTSTRAP ERROR: {e}")
