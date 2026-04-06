@@ -2058,7 +2058,7 @@ async def app_automations_page(
     for a in autos:
         status_color = "text-emerald-600" if a.enabled else "text-rose-600"
         status_bg = "bg-emerald-50" if a.enabled else "bg-rose-50"
-        status_label = "Active Pulse" if a.enabled else "Paused"
+        status_label = "Active" if a.enabled else "Paused"
         
         mode_icon = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>'
         if a.content_seed_mode == 'auto_library':
@@ -2092,11 +2092,11 @@ async def app_automations_page(
               
               <div class="flex flex-wrap gap-5 pt-1">
                 <div class="flex items-center gap-2">
-                    <span class="text-[8px] font-bold text-accent uppercase tracking-widest">Logic:</span>
-                    <span class="text-[9px] font-black text-brand uppercase tracking-wider">{a.content_seed_mode or 'Pure AI'}</span>
+                    <span class="text-[8px] font-bold text-accent uppercase tracking-widest">Strategy:</span>
+                    <span class="text-[9px] font-black text-brand uppercase tracking-wider">{a.content_seed_mode or 'Default'}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="text-[8px] font-bold text-accent uppercase tracking-widest">Frequency:</span>
+                    <span class="text-[8px] font-bold text-accent uppercase tracking-widest">Schedule:</span>
                     <span class="text-[9px] font-black text-brand uppercase tracking-wider">Daily @ {a.post_time_local or '09:00'}</span>
                 </div>
               </div>
@@ -2105,7 +2105,7 @@ async def app_automations_page(
 
           <div class="flex items-center gap-3 w-full md:w-auto relative border-t md:border-t-0 border-brand/5 pt-6 md:pt-0">
             <button onclick="showEditModal({edit_data_json})" class="flex-1 md:flex-none px-6 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand hover:border-brand/30 hover:bg-brand/[0.02] transition-all shadow-sm">Configure</button>
-            <button onclick="runNow(event, {a.id})" class="flex-1 md:flex-none px-6 py-4 bg-brand rounded-2xl text-white font-bold text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.02] transition-all">Pulse Now</button>
+            <button onclick="runNow(event, {a.id})" class="flex-1 md:flex-none px-6 py-4 bg-brand rounded-2xl text-white font-bold text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.02] transition-all">Generate Now</button>
           </div>
         </div>
         """
@@ -2116,35 +2116,27 @@ async def app_automations_page(
               <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
             </div>
             <div class="space-y-3">
-              <h3 class="text-2xl font-bold text-brand tracking-tight">Begin Your Growth Journey</h3>
-              <p class="text-text-muted text-sm max-w-sm font-medium">Content plans allow Sabeel to generate and schedule high-intent content automatically based on your unique knowledge.</p>
+              <h3 class="text-2xl font-bold text-brand tracking-tight">Begin Creating Content</h3>
+              <p class="text-text-muted text-sm max-w-sm font-medium">Create content plans to stay consistent and grow your reach.</p>
             </div>
-            <button onclick="showNewAutoModal()" class="px-10 py-4 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Create First Plan</button>
+            <button onclick="showNewAutoModal()" class="px-10 py-4 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Create Plan</button>
         </div>
     """
     
-    content = f"""
+    content = """
     <div class="space-y-10">
       <div class="flex justify-between items-end">
         <div>
-          <h1 class="text-3xl font-bold text-brand tracking-tight italic">Studio <span class="text-accent font-normal">Engine</span></h1>
-          <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em]">Content Lifecycle Pulse</p>
+          <h1 class="text-3xl font-bold text-brand tracking-tight italic">Studio</h1>
+          <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em]">Content Growth Plans</p>
         </div>
         <button onclick="showNewAutoModal()" class="hidden md:flex px-8 py-4 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] text-white shadow-2xl shadow-brand/30 hover:translate-y-[-2px] transition-all items-center gap-3">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-            Construct New Plan
+            New Growth Plan
         </button>
       </div>
 
       <div class="space-y-6">
-        {autos_html or empty_state_html}
-      </div>
-    </div>
-
-    <!-- Edit Modal -->
-    <div id="editModal" class="fixed inset-0 bg-brand/20 backdrop-blur-xl z-[100] hidden flex flex-col items-center justify-center p-0 md:p-6">
-      <div class="glass w-full h-[90vh] md:h-auto md:max-w-2xl pb-safe rounded-t-[2.5rem] md:rounded-[3rem] p-6 md:p-10 space-y-8 animate-in slide-in-from-bottom md:zoom-in-95 duration-300 border-t md:border border-brand/10 bg-white overflow-y-auto">
-        <div class="flex justify-between items-center">
           <div>
             <h2 class="text-2xl font-bold text-brand tracking-tight">Configure <span class="text-accent">Logic</span></h2>
             <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest">Adjust this content lifecycle pulse</p>
@@ -2373,7 +2365,7 @@ async def app_automations_page(
           if (res.ok) window.location.reload();
           else alert('Creation failed');
         }} catch(e) {{ alert('Network error'); }}
-        finally {{ btn.disabled = false; btn.textContent = 'Create Intelligence'; }}
+        finally {{ btn.disabled = false; btn.textContent = 'Create Plan'; }}
       }}
 
       function showEditModal(data) {{
@@ -2649,7 +2641,7 @@ async def app_automations_page(
         try {{
           const res = await fetch(`/automations/${{ id }}/run`, {{ method: 'POST' }});
           if (res.ok) {{
-            alert('System Pulse Initiated. Check your Home dashboard in a few moments for the new draft.');
+            alert('Generation started. Check your Home dashboard in a few moments for the new draft.');
           }} else {{
             alert('Synthesis failed or rate-limited.');
           }}
