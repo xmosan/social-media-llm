@@ -2585,7 +2585,7 @@ async def app_automations_page(
       function insertComposerSuggest(inputId, textToInsert, entryId) {
           const input = document.getElementById(inputId);
           if (input.tagName === 'TEXTAREA') {
-              if (input.value.trim() !== '') input.value += '\n\n';
+              if (input.value.trim() !== '') input.value += '\\n\\n';
               input.value += textToInsert;
           } else {
               if (inputId === 'newTopic') {
@@ -2661,8 +2661,8 @@ async def app_automations_page(
           const target = document.getElementById(pickerTargetId);
           if (target) {
               let credit = "";
-              if (entry.item_type === 'hadith') credit = `\n\n[Ref: ${entry.meta.collection} #${entry.meta.hadith_number}]`;
-              else if (entry.item_type === 'quran') credit = `\n\n[Quran ${entry.meta.surah_number}:${entry.meta.verse_start}]`;
+              if (entry.item_type === 'hadith') credit = `\\n\\n[Ref: ${entry.meta.collection} #${entry.meta.hadith_number}]`;
+              else if (entry.item_type === 'quran') credit = `\\n\\n[Quran ${entry.meta.surah_number}:${entry.meta.verse_start}]`;
               target.value = entry.text + credit;
           }
           closeLibraryPicker();
