@@ -63,6 +63,7 @@ APP_LAYOUT_HTML = """<!doctype html>
       --text-main: #1A1A1A;
       --text-muted: #6B6B6B;
       --border: rgba(15, 61, 46, 0.08);
+      --card-bg: #FFFFFF;
     }
     body { font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: var(--text-main); -webkit-font-smoothing: antialiased; }
     .card { background: var(--card-bg); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(15, 61, 46, 0.04); border-radius: 12px; transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1); }
@@ -2055,7 +2056,13 @@ async def app_automations_page(
     
     autos_html = ""
     for a in autos:
-        status_btn = f'<button onclick="toggleAuto({a.id}, {str(not a.enabled).lower()})" class="px-3 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest { "bg-emerald-500/20 text-emerald-400" if a.enabled else "bg-rose-500/20 text-rose-400" }">{ "Enabled" if a.enabled else "Disabled" }</button>'
+        status_color = "text-emerald-600" if a.enabled else "text-rose-600"
+        status_bg = "bg-emerald-50" if a.enabled else "bg-rose-50"
+        status_label = "Active Pulse" if a.enabled else "Paused"
+        
+        mode_icon = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>'
+        if a.content_seed_mode == 'auto_library':
+            mode_icon = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>'
         
         edit_data = {
             "id": a.id, 
@@ -2069,193 +2076,207 @@ async def app_automations_page(
         edit_data_json = html.escape(json.dumps(edit_data), quote=True)
 
         autos_html += f"""
-        <div class="glass p-8 rounded-[2.5rem] flex flex-col md:flex-row justify-between items-start md:items-center gap-6 group border border-white/5 hover:border-brand/40 transition-all">
-          <div class="space-y-2 flex-1">
-            <div class="flex items-center gap-3">
-              <h3 class="text-xl font-black italic text-white tracking-tight">{a.name}</h3>
-              {status_btn}
+        <div class="card p-8 bg-white border-brand/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-8 group relative overflow-hidden transition-all hover:translate-y-[-2px]">
+          <div class="absolute top-0 right-0 w-24 h-24 bg-brand/[0.01] rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-700"></div>
+          
+          <div class="flex items-start md:items-center gap-6 flex-1 min-w-0 relative">
+            <div class="w-14 h-14 rounded-2xl bg-brand/5 flex items-center justify-center text-brand shrink-0 border border-brand/10 shadow-inner group-hover:bg-brand/10 transition-colors">
+              {mode_icon}
             </div>
-            <p class="text-xs text-muted font-medium line-clamp-1">{a.topic_prompt}</p>
-            <div class="flex gap-4 pt-2">
-              <div class="text-[8px] font-black uppercase tracking-widest text-muted">Mode: <span class="text-white">{a.content_seed_mode or 'Default'}</span></div>
-              <div class="text-[8px] font-black uppercase tracking-widest text-muted">Schedule: <span class="text-white">Daily @ {a.post_time_local or '09:00'}</span></div>
+            <div class="min-w-0 space-y-2">
+              <div class="flex items-center gap-3">
+                <h3 class="text-xl font-bold text-brand tracking-tight truncate">{a.name}</h3>
+                <button onclick="toggleAuto(event, {a.id}, {str(not a.enabled).lower()})" class="px-3 py-1 {status_bg} {status_color} rounded-lg text-[8px] font-black uppercase tracking-widest border border-brand/5">{status_label}</button>
+              </div>
+              <p class="text-xs text-text-muted font-medium line-clamp-1 italic max-w-xl opacity-70 group-hover:opacity-100 transition-opacity">"{a.topic_prompt}"</p>
+              
+              <div class="flex flex-wrap gap-5 pt-1">
+                <div class="flex items-center gap-2">
+                    <span class="text-[8px] font-bold text-accent uppercase tracking-widest">Logic:</span>
+                    <span class="text-[9px] font-black text-brand uppercase tracking-wider">{a.content_seed_mode or 'Pure AI'}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[8px] font-bold text-accent uppercase tracking-widest">Frequency:</span>
+                    <span class="text-[9px] font-black text-brand uppercase tracking-wider">Daily @ {a.post_time_local or '09:00'}</span>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="flex flex-col md:flex-row w-full md:w-auto gap-3 mt-4 md:mt-0">
-            <button onclick="showEditModal({edit_data_json})" class="w-full md:w-auto px-6 py-4 md:py-3 bg-white/5 border border-white/10 rounded-2xl md:rounded-xl font-black text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">Configure</button>
-            <button onclick="runNow({a.id})" class="w-full md:w-auto px-6 py-4 md:py-3 bg-brand/20 text-brand rounded-2xl md:rounded-xl font-black text-[10px] uppercase tracking-widest border border-brand/20 hover:bg-brand/30 transition-all">Run Now</button>
+
+          <div class="flex items-center gap-3 w-full md:w-auto relative border-t md:border-t-0 border-brand/5 pt-6 md:pt-0">
+            <button onclick="showEditModal({edit_data_json})" class="flex-1 md:flex-none px-6 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand hover:border-brand/30 hover:bg-brand/[0.02] transition-all shadow-sm">Configure</button>
+            <button onclick="runNow(event, {a.id})" class="flex-1 md:flex-none px-6 py-4 bg-brand rounded-2xl text-white font-bold text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.02] transition-all">Pulse Now</button>
           </div>
         </div>
         """
 
     empty_state_html = """
-        <div class="glass p-20 rounded-[3rem] border border-brand/5 bg-white text-center flex flex-col items-center justify-center space-y-6">
-            <div class="w-20 h-20 rounded-[2rem] bg-brand/5 flex items-center justify-center border border-brand/10">
-              <svg class="w-10 h-10 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
+        <div class="card p-24 bg-white border-brand/5 border-dashed border-2 bg-brand/[0.01] text-center flex flex-col items-center justify-center space-y-8">
+            <div class="w-24 h-24 rounded-[2.5rem] bg-brand/5 flex items-center justify-center text-brand border border-brand/10 shadow-inner">
+              <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
             </div>
-            <div>
-              <h3 class="text-[11px] font-bold uppercase tracking-[0.3em] text-brand">No plans yet</h3>
-              <p class="text-xs text-text-muted mt-2">Create one to stay consistent</p>
+            <div class="space-y-3">
+              <h3 class="text-2xl font-bold text-brand tracking-tight">Begin Your Growth Journey</h3>
+              <p class="text-text-muted text-sm max-w-sm font-medium">Content plans allow Sabeel to generate and schedule high-intent content automatically based on your unique knowledge.</p>
             </div>
-            <button onclick="showNewAutoModal()" class="px-8 py-3.5 bg-brand text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">New Growth Plan</button>
+            <button onclick="showNewAutoModal()" class="px-10 py-4 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Create First Plan</button>
         </div>
     """
     
     content = f"""
-    <div class="space-y-8">
+    <div class="space-y-10">
       <div class="flex justify-between items-end">
         <div>
-          <h1 class="text-3xl font-bold text-brand tracking-tight">Growth</h1>
-          <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Automation Streams</p>
+          <h1 class="text-3xl font-bold text-brand tracking-tight italic">Studio <span class="text-accent font-normal">Intelligence</span></h1>
+          <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em]">Content Lifecycle Engines</p>
         </div>
-        <button onclick="showNewAutoModal()" class="px-8 py-4 bg-brand rounded-xl font-bold text-[11px] uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center gap-3">
+        <button onclick="showNewAutoModal()" class="hidden md:flex px-8 py-4 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] text-white shadow-2xl shadow-brand/30 hover:translate-y-[-2px] transition-all items-center gap-3">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-            New Growth Plan
+            Construct New Plan
         </button>
       </div>
 
-      <div class="space-y-4">
+      <div class="space-y-6">
         {autos_html or empty_state_html}
       </div>
     </div>
 
     <!-- Edit Modal -->
-    <div id="editModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-6">
-      <div class="glass max-w-2xl w-full p-10 rounded-[2.5rem] space-y-6 max-h-[90vh] overflow-y-auto">
-        <h2 class="text-2xl font-black italic text-white tracking-tight">Configure <span class="text-brand">Intelligence</span></h2>
+    <div id="editModal" class="fixed inset-0 bg-brand/20 backdrop-blur-xl z-[100] hidden flex flex-col items-center justify-center p-0 md:p-6">
+      <div class="glass w-full h-[90vh] md:h-auto md:max-w-2xl pb-safe rounded-t-[2.5rem] md:rounded-[3rem] p-6 md:p-10 space-y-8 animate-in slide-in-from-bottom md:zoom-in-95 duration-300 border-t md:border border-brand/10 bg-white overflow-y-auto">
+        <div class="flex justify-between items-center">
+          <div>
+            <h2 class="text-2xl font-bold text-brand tracking-tight">Configure <span class="text-accent">Intelligence</span></h2>
+            <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest">Adjust this content lifecycle engine</p>
+          </div>
+          <button onclick="hideEditModal()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-brand/5 text-text-muted hover:text-brand transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+        </div>
         
         <input type="hidden" id="editId">
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="space-y-4">
-            <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Automation Name</label>
-              <input type="text" id="editName" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div class="space-y-6">
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Plan Identity</label>
+              <input type="text" id="editName" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-5 text-brand text-sm focus:border-brand/30 focus:bg-white transition-all font-bold outline-none">
             </div>
-            <div class="space-y-1">
+            <div class="space-y-2">
               <div class="flex justify-between items-center">
-                <label class="text-[10px] font-black uppercase tracking-widest text-muted">Core Topic Prompt</label>
-                <button onclick="suggestAutomationTopic('editTopic', 'editLibraryTopic')" class="text-[8px] font-bold text-brand uppercase hover:text-white transition-all">Suggest Library Topic</button>
+                <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Topic Logic</label>
+                <button onclick="suggestAutomationTopic('editTopic', 'editLibraryTopic')" class="text-[9px] font-bold text-accent uppercase hover:text-brand transition-all">Link Library Topic</button>
               </div>
-              <textarea id="editTopic" rows="3" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand"></textarea>
+              <textarea id="editTopic" rows="3" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-5 text-brand text-sm focus:border-brand/30 focus:bg-white transition-all font-medium italic outline-none"></textarea>
               <input type="hidden" id="editLibraryTopic">
             </div>
-            <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Posting Time (Local)</label>
-              <input type="time" id="editTime" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand">
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Pulse Time (Local)</label>
+              <input type="time" id="editTime" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-5 text-brand text-sm font-bold outline-none">
             </div>
           </div>
 
-          <div class="space-y-4">
-            <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Content Seed Strategy (BYOS)</label>
-              <select id="editSeedMode" onchange="toggleSeedText()" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand appearance-none text-white">
-                <option value="none">None (Pure AI Generation)</option>
-                <option value="manual">Manual Seed (Provide text below)</option>
-                <option value="auto_library">Auto-Library (Retrieve from knowledge base)</option>
+          <div class="space-y-6">
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Knowledge Strategy</label>
+              <select id="editSeedMode" onchange="toggleSeedText()" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-5 text-brand text-sm font-bold outline-none appearance-none">
+                <option value="none">Pure AI Synthesis</option>
+                <option value="manual">Guided Synthesis (Seed Text)</option>
+                <option value="auto_library">Research Synthesis (Library Mapping)</option>
               </select>
             </div>
-            <div id="seedTextGroup" class="space-y-1 hidden">
-              <div class="flex justify-between items-center">
-                <label class="text-[10px] font-black uppercase tracking-widest text-muted">Manual Seed Text</label>
-                <button onclick="openLibraryPicker('editSeedText')" class="text-[9px] font-black uppercase text-brand hover:text-white transition-colors flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-                    Insert from Library
-                </button>
+            <div id="seedTextGroup" class="space-y-2 hidden">
+              <div class="flex justify-between items-center px-1">
+                <label class="text-[10px] font-bold text-brand uppercase tracking-widest">Seed Source</label>
+                <button onclick="openLibraryPicker('editSeedText')" class="text-[9px] font-bold text-accent hover:text-brand transition-all">Browse Library</button>
               </div>
-              <textarea id="editSeedText" rows="5" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-[10px] outline-none focus:ring-2 focus:ring-brand placeholder-white/20" placeholder="Paste the content you want the AI to ground its generation on..."></textarea>
+              <textarea id="editSeedText" rows="4" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-5 text-brand text-[10px] outline-none h-[120px]"></textarea>
             </div>
-            
-            <div class="space-y-1 pt-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Content Provider Source</label>
-              <select id="editProviderScope" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand appearance-none text-white">
-                <option value="all_sources">All Sources</option>
-                <option value="system_library">System Library (Sabeel Default)</option>
-                <option value="user_library">My Library (Custom Organization)</option>
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Knowledge Scope</label>
+              <select id="editProviderScope" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-5 text-brand text-sm font-bold outline-none appearance-none">
+                <option value="all_sources">Global Intelligence</option>
+                <option value="system_library">Platform Core (Defaults)</option>
+                <option value="user_library">My Knowledge Only</option>
               </select>
-            </div>
-            <div class="p-4 bg-brand/10 border border-brand/20 rounded-xl">
-              <p class="text-[9px] font-bold text-brand uppercase tracking-widest leading-relaxed">
-                <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-                Tip: Auto-Library performs semantic keyword retrieval from your uploaded documents to ground the LLM.
-              </p>
             </div>
           </div>
         </div>
 
-        <div class="flex gap-4 pt-4 border-t border-white/5">
-          <button onclick="hideEditModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest">Discard</button>
-          <button onclick="saveAutomation()" class="flex-[2] py-4 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg shadow-brand/20">Apply Changes</button>
+        <div class="flex gap-4 pt-4 border-t border-brand/5">
+          <button onclick="hideEditModal()" class="flex-1 py-5 bg-cream/50 border border-brand/5 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:bg-cream transition-all">Discard</button>
+          <button onclick="saveAutomation()" class="flex-[2] py-5 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all">Apply Parameters</button>
         </div>
       </div>
     </div>
 
     <!-- New Automation Modal -->
-    <div id="newAutoModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-6">
-      <div class="glass max-w-2xl w-full p-10 rounded-[2.5rem] space-y-6 max-h-[90vh] overflow-y-auto">
-        <h2 class="text-2xl font-bold text-brand tracking-tight">New <span class="text-accent">Content Plan</span></h2>
+    <div id="newAutoModal" class="fixed inset-0 bg-brand/20 backdrop-blur-xl z-[100] hidden flex flex-col items-center justify-center p-0 md:p-6">
+      <div class="glass w-full h-[90vh] md:h-auto md:max-w-2xl pb-safe rounded-t-[2.5rem] md:rounded-[3rem] p-6 md:p-10 space-y-8 animate-in slide-in-from-bottom md:zoom-in-95 duration-300 border-t md:border border-brand/10 bg-white overflow-y-auto">
+        <div class="flex justify-between items-center">
+          <div>
+            <h2 class="text-2xl font-bold text-brand tracking-tight">Construct <span class="text-accent">New Plan</span></h2>
+            <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest">Architect a new content lifecycle</p>
+          </div>
+          <button onclick="hideNewAutoModal()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-brand/5 text-text-muted hover:text-brand transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+        </div>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="space-y-4">
-            <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Automation Name</label>
-              <input type="text" id="newName" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="e.g. Daily Motivation">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div class="space-y-6">
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Plan Name</label>
+              <input type="text" id="newName" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-5 text-brand text-sm focus:border-brand/30 focus:bg-white transition-all font-bold outline-none" placeholder="Daily Wisdom Pool">
             </div>
-            <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Target Instagram Account</label>
-              <select id="newAccount" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand appearance-none text-white">
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Transmission Target</label>
+              <select id="newAccount" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-5 text-brand text-sm font-bold outline-none appearance-none">
                 {account_options}
               </select>
             </div>
-            <div class="space-y-1">
+            <div class="space-y-2">
               <div class="flex justify-between items-center">
-                <label class="text-[10px] font-black uppercase tracking-widest text-muted">Core Topic Prompt</label>
-                <button onclick="suggestAutomationTopic('newTopic', 'newLibraryTopic')" class="text-[8px] font-bold text-brand uppercase hover:text-white transition-all">Suggest Library Topic</button>
+                <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Core Theme</label>
+                <button onclick="suggestAutomationTopic('newTopic', 'newLibraryTopic')" class="text-[9px] font-bold text-accent uppercase hover:text-brand transition-all">Link Topic</button>
               </div>
-              <textarea id="newTopic" oninput="debounceComposerSuggest('newTopic', 'autoSuggestions')" rows="3" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand" placeholder="Describe the focus of this automation..."></textarea>
+              <textarea id="newTopic" oninput="debounceComposerSuggest('newTopic', 'autoSuggestions')" rows="3" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-5 text-brand text-sm focus:border-brand/30 focus:bg-white transition-all font-medium outline-none" placeholder="Deep-dive into the Quranic perspective of patience..."></textarea>
               <input type="hidden" id="newLibraryTopic">
               <div id="autoSuggestions" class="hidden flex-col gap-2 pt-2"></div>
             </div>
           </div>
 
-          <div class="space-y-4">
-            <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Posting Time (Local)</label>
-              <input type="time" id="newTime" value="09:00" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand">
+          <div class="space-y-6">
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Posting Frequency (Local)</label>
+              <input type="time" id="newTime" value="09:00" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-5 text-brand text-sm font-bold outline-none">
             </div>
-            <div class="space-y-1">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Content Strategy</label>
-              <select id="newSeedMode" onchange="toggleNewSeedText()" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand appearance-none text-white">
-                <option value="none">None (Pure AI Generation)</option>
-                <option value="manual">Manual Seed (Provide text below)</option>
-                <option value="auto_library">Auto-Library (Knowledge Base)</option>
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Synthesis Mode</label>
+              <select id="newSeedMode" onchange="toggleNewSeedText()" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-5 text-brand text-sm font-bold outline-none appearance-none">
+                <option value="none">Pure AI (Free Form)</option>
+                <option value="manual">Guided (Manual Seed)</option>
+                <option value="auto_library">Mapped (Knowledge Pool)</option>
               </select>
             </div>
-            <div id="newSeedTextGroup" class="space-y-1 hidden">
-              <div class="flex justify-between items-center">
-                <label class="text-[10px] font-black uppercase tracking-widest text-muted">Manual Seed Text</label>
-                <button onclick="openLibraryPicker('newSeedText')" class="text-[9px] font-black uppercase text-brand hover:text-white transition-colors flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-                    Insert from Library
-                </button>
+            <div id="newSeedTextGroup" class="space-y-2 hidden">
+              <div class="flex justify-between items-center px-1">
+                <label class="text-[10px] font-bold text-brand uppercase tracking-widest">Grounding Text</label>
+                <button onclick="openLibraryPicker('newSeedText')" class="text-[9px] font-bold text-accent hover:text-brand transition-all">Recall Library</button>
               </div>
-              <textarea id="newSeedText" rows="5" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-[10px] outline-none focus:ring-2 focus:ring-brand placeholder-white/20" placeholder="Paste the content you want the AI to ground its generation on..."></textarea>
+              <textarea id="newSeedText" rows="4" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-5 text-brand text-[10px] outline-none h-[120px]"></textarea>
             </div>
             
-            <div class="space-y-1 pt-2">
-              <label class="text-[10px] font-black uppercase tracking-widest text-muted">Content Provider Source</label>
-              <select id="newProviderScope" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-brand appearance-none text-white">
-                <option value="all_sources">All Sources</option>
-                <option value="system_library">System Library (Sabeel Default)</option>
-                <option value="user_library">My Library (Custom Organization)</option>
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Source Repository</label>
+              <select id="newProviderScope" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-5 text-brand text-sm font-bold outline-none appearance-none">
+                <option value="all_sources">Unified Knowledge</option>
+                <option value="system_library">Platform Primaries</option>
+                <option value="user_library">Self-Hosted Only</option>
               </select>
             </div>
           </div>
         </div>
 
-        <div class="flex gap-4 pt-4 border-t border-white/5">
-          <button onclick="hideNewAutoModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest">Discard</button>
-          <button onclick="saveNewAutomation()" class="flex-[2] py-4 bg-brand rounded-xl font-black text-[10px] uppercase tracking-widest text-white shadow-lg shadow-brand/20">Create Intelligence</button>
+        <div class="flex gap-4 pt-4 border-t border-brand/5">
+          <button onclick="hideNewAutoModal()" class="flex-1 py-5 bg-cream/50 border border-brand/5 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:bg-cream transition-all">Discard</button>
+          <button onclick="saveNewAutomation()" class="flex-[2] py-5 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all">Initialize Engine</button>
         </div>
       </div>
     </div>
@@ -2600,27 +2621,40 @@ async def app_automations_page(
           closeLibraryPicker();
       }}
 
-      async function toggleAuto(id, enabled) {{
+      async function toggleAuto(event, id, enabled) {{
+        const btn = event.currentTarget;
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = 'WAIT...';
+
         try {{
-          const res = await fetch(`/automations/${{id}}`, {{
+          const res = await fetch(`/automations/${id}`, {{
             method: 'PATCH',
             headers: {{ 'Content-Type': 'application/json' }},
             body: JSON.stringify({{ enabled: enabled }})
           }});
           if (res.ok) window.location.reload();
-        }} catch(e) {{ alert('Error toggling'); }}
+          else alert('Error toggling state');
+        }} catch(e) {{ alert('Connection error'); }}
+        finally {{ btn.disabled = false; btn.innerText = originalText; }}
       }}
 
-      async function runNow(id) {{
-        if (!confirm('Run this automation immediately? This will create a post in your pipeline.')) return;
-        const btn = event.target;
+      async function runNow(event, id) {{
+        if (!confirm('Run this content plan immediately? A new post will be synthesized and added to your pulse pipeline.')) return;
+        const btn = event.currentTarget;
+        const originalText = btn.innerText;
         btn.disabled = true;
-        btn.textContent = 'RUNNING...';
+        btn.innerText = 'SYNTHESIZING...';
+        
         try {{
-          const res = await fetch(`/automations/${{id}}/run`, {{ method: 'POST' }});
-          if (res.ok) alert('Content plan initiated. Your post is being prepared.');
-          else alert('Run failed');
-        }} finally {{ btn.disabled = false; btn.textContent = 'Run Now'; }}
+          const res = await fetch(`/automations/${ id }/run`, {{ method: 'POST' }});
+          if (res.ok) {{
+            alert('Intelligence Pulse Initiated. Check your Home dashboard in a few moments for the new draft.');
+          }} else {{
+            alert('Synthesis failed or rate-limited.');
+          }}
+        }} catch(e) {{ alert('Network disruption'); }}
+        finally {{ btn.disabled = false; btn.innerText = originalText; }}
       }}
     </script>
     """
