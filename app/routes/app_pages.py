@@ -1326,12 +1326,12 @@ APP_DASHBOARD_CONTENT = """
 
     {connection_cta}
 
-    <!-- Intelligent Layout -->
+    <!-- System Operations -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
-      <!-- High-Intensity Preview -->
+      <!-- Growth Feed -->
       <div class="lg:col-span-1 space-y-6">
         <h2 class="text-[10px] font-bold uppercase tracking-[0.4em] text-text-muted flex items-center gap-2">
-            Intelligence Preview
+            Growth Preview
         </h2>
         <div class="card bg-white p-8 space-y-8 border-brand/5 shadow-xl shadow-brand/[0.02] group relative overflow-hidden">
           <div class="absolute top-0 right-0 w-32 h-32 bg-brand/[0.02] rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700"></div>
@@ -2127,8 +2127,8 @@ async def app_automations_page(
     <div class="space-y-10">
       <div class="flex justify-between items-end">
         <div>
-          <h1 class="text-3xl font-bold text-brand tracking-tight italic">Studio <span class="text-accent font-normal">Intelligence</span></h1>
-          <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em]">Content Lifecycle Engines</p>
+          <h1 class="text-3xl font-bold text-brand tracking-tight italic">Studio <span class="text-accent font-normal">Engine</span></h1>
+          <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em]">Content Lifecycle Pulse</p>
         </div>
         <button onclick="showNewAutoModal()" class="hidden md:flex px-8 py-4 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] text-white shadow-2xl shadow-brand/30 hover:translate-y-[-2px] transition-all items-center gap-3">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
@@ -2146,8 +2146,8 @@ async def app_automations_page(
       <div class="glass w-full h-[90vh] md:h-auto md:max-w-2xl pb-safe rounded-t-[2.5rem] md:rounded-[3rem] p-6 md:p-10 space-y-8 animate-in slide-in-from-bottom md:zoom-in-95 duration-300 border-t md:border border-brand/10 bg-white overflow-y-auto">
         <div class="flex justify-between items-center">
           <div>
-            <h2 class="text-2xl font-bold text-brand tracking-tight">Configure <span class="text-accent">Intelligence</span></h2>
-            <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest">Adjust this content lifecycle engine</p>
+            <h2 class="text-2xl font-bold text-brand tracking-tight">Configure <span class="text-accent">Logic</span></h2>
+            <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest">Adjust this content lifecycle pulse</p>
           </div>
           <button onclick="hideEditModal()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-brand/5 text-text-muted hover:text-brand transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg></button>
         </div>
@@ -2193,7 +2193,7 @@ async def app_automations_page(
             <div class="space-y-2">
               <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Knowledge Scope</label>
               <select id="editProviderScope" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-5 text-brand text-sm font-bold outline-none appearance-none">
-                <option value="all_sources">Global Intelligence</option>
+                <option value="all_sources">Unified Knowledge</option>
                 <option value="system_library">Platform Core (Defaults)</option>
                 <option value="user_library">My Knowledge Only</option>
               </select>
@@ -2276,7 +2276,7 @@ async def app_automations_page(
 
         <div class="flex gap-4 pt-4 border-t border-brand/5">
           <button onclick="hideNewAutoModal()" class="flex-1 py-5 bg-cream/50 border border-brand/5 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:bg-cream transition-all">Discard</button>
-          <button onclick="saveNewAutomation()" class="flex-[2] py-5 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all">Initialize Engine</button>
+          <button onclick="saveNewAutomation()" class="flex-[2] py-5 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all">Activate Pulse</button>
         </div>
       </div>
     </div>
@@ -2628,7 +2628,7 @@ async def app_automations_page(
         btn.innerText = 'WAIT...';
 
         try {{
-          const res = await fetch(`/automations/${id}`, {{
+          const res = await fetch(`/automations/${{id}}`, {{
             method: 'PATCH',
             headers: {{ 'Content-Type': 'application/json' }},
             body: JSON.stringify({{ enabled: enabled }})
@@ -2647,9 +2647,9 @@ async def app_automations_page(
         btn.innerText = 'SYNTHESIZING...';
         
         try {{
-          const res = await fetch(`/automations/${ id }/run`, {{ method: 'POST' }});
+          const res = await fetch(`/automations/${{ id }}/run`, {{ method: 'POST' }});
           if (res.ok) {{
-            alert('Intelligence Pulse Initiated. Check your Home dashboard in a few moments for the new draft.');
+            alert('System Pulse Initiated. Check your Home dashboard in a few moments for the new draft.');
           }} else {{
             alert('Synthesis failed or rate-limited.');
           }}
