@@ -502,7 +502,7 @@ REGISTER_HTML = """<!doctype html>
   <div class="max-w-md w-full card rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-10 space-y-6 md:space-y-8 shadow-xl shadow-black/5">
     <div class="text-center space-y-2">
       <h1 class="text-2xl font-extrabold tracking-tighter text-primary">Sabeel Studio</h1>
-      <h2 class="text-xl font-bold italic opacity-80">Join the movement</h2>
+      <h2 class="text-xl font-bold italic opacity-80">Start your journey</h2>
     </div>
 
     <form id="registerForm" class="space-y-4">
@@ -742,7 +742,7 @@ COMING_SOON_HTML = """<!doctype html>
     <!-- Content -->
     <div class="space-y-6">
       <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.1] text-[#0F3D2E]">
-        SOMETHING <span class="text-[#C9A96E]">POWERFUL</span> <br/> IS COMING.
+        SOMETHING <span class="text-[#C9A96E]">MEANINGFUL</span> <br/> IS COMING.
       </h1>
       <p class="text-[#4A4A4A] text-lg md:text-xl font-medium max-w-lg mx-auto leading-relaxed italic opacity-80">
         Authentic Islamic content creation, grounded in verified Quran and Hadith collections. We're refining the engine for purposeful strategy.

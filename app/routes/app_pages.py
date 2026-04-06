@@ -24,80 +24,80 @@ APP_LAYOUT_HTML = """<!doctype html>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <meta name="theme-color" content="#020617" />
+  <meta name="theme-color" content="#0F3D2E" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>{title} | Sabeel</title>
+  <title>{title} | Sabeel Studio</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = {{
-      theme: {{
-        extend: {{
-          colors: {{
-            brand: '#6366f1',
-            'brand-hover': '#4f46e5',
-            surface: 'rgba(255, 255, 255, 0.03)',
-            'text-main': '#ffffff',
-            'text-muted': '#94a3b8',
-          }}
-        }}
-      }}
-    }}
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: '#0F3D2E',
+            'brand-hover': '#0A2D22',
+            surface: '#FFFFFF',
+            accent: '#C9A96E',
+            'text-main': '#1A1A1A',
+            'text-muted': '#4A4A4A',
+            cream: '#F8F6F2'
+          }
+        }
+      }
+    }
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     :root {
-      --brand: #6366f1;
-      --brand-hover: #4f46e5;
-      --main-bg: #020617;
-      --surface: rgba(255, 255, 255, 0.03);
-      --text-main: #ffffff;
-      --text-muted: #94a3b8;
-      --border: rgba(255, 255, 255, 0.1);
-      --card-bg: rgba(255, 255, 255, 0.03);
+      --brand: #0F3D2E;
+      --brand-hover: #0A2D22;
+      --main-bg: #F8F6F2;
+      --surface: #FFFFFF;
+      --accent: #C9A96E;
+      --text-main: #1A1A1A;
+      --text-muted: #4A4A4A;
+      --border: rgba(15, 61, 46, 0.08);
     }
     body { font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: var(--text-main); }
-    .ai-bg { background: radial-gradient(circle at top right, #312e81, #020617, #020617); }
-    .glass { background: var(--surface); backdrop-filter: blur(12px); border: 1px solid var(--border); }
-    .text-gradient { background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .nav-link.active { color: var(--brand); border-bottom: 2px solid var(--brand); }
+    .glass { background: var(--surface); border: 1px solid var(--border); box-shadow: 0 4px 20px -2px rgba(15, 61, 46, 0.05); }
+    .nav-link.active { color: var(--brand); border-bottom: 2px solid var(--brand); font-weight: 700; }
     .studio-tab.active { background: var(--brand); color: white; border-color: var(--brand); }
-    .visual-card.active { border-color: var(--brand); background: rgba(99, 102, 241, 0.1); }
-    .visual-card.active .check-icon { display: block; }
-    .visual-card .check-icon { display: none; }
     .bg-brand { background-color: var(--brand) !important; }
     .bg-brand-hover:hover { background-color: var(--brand-hover) !important; }
     .text-brand { color: var(--brand) !important; }
+    .text-accent { color: var(--accent) !important; }
     .border-brand { border-color: var(--brand) !important; }
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+    ::-webkit-scrollbar-thumb { background: rgba(15, 61, 46, 0.1); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(15, 61, 46, 0.2); }
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-    .mobile-tab.active { color: white; }
+    .mobile-tab.active { color: var(--brand); }
     .mobile-tab.active svg { color: var(--brand); stroke-width: 2.5; }
   </style>
 </head>
-<body class="ai-bg min-h-screen">
+<body class="min-h-screen">
   <!-- Top Nav (Desktop) -->
-  <nav class="border-b border-white/5 bg-black/20 backdrop-blur-md sticky top-0 z-50 hidden md:block">
+  <nav class="border-b border-brand/5 bg-white/80 backdrop-blur-md sticky top-0 z-50 hidden md:block">
     <div class="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
       <div class="flex items-center gap-8">
-        <div class="flex flex-col"><div class="text-lg font-black italic tracking-tighter text-gradient">SABEEL</div><div class="text-[8px] font-black text-white uppercase tracking-widest pl-1 leading-none mt-1">Studio</div></div>
+        <div class="flex items-center gap-2">
+            <div class="text-xl font-bold tracking-tight text-brand">Sabeel <span class="text-accent font-normal">Studio</span></div>
+        </div>
         <div class="hidden md:flex gap-6">
-          <a href="/app" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_dashboard}">Dashboard</a>
-          <a href="/app/calendar" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_calendar} text-muted hover:text-white transition-colors">Calendar</a>
-          <a href="/app/automations" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_automations} text-muted hover:text-white transition-colors">Automations</a>
-          <a href="/app/library" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_library} text-muted hover:text-white transition-colors">Library</a>
-          <a href="/app/media" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 {active_media} text-muted hover:text-white transition-colors">Media</a>
+          <a href="/app" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_dashboard}">Home</a>
+          <a href="/app/calendar" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_calendar} text-text-muted hover:text-brand transition-colors">Schedule</a>
+          <a href="/app/automations" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_automations} text-text-muted hover:text-brand transition-colors">Content Plans</a>
+          <a href="/app/library" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_library} text-text-muted hover:text-brand transition-colors">Content Library</a>
+          <a href="/app/media" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_media} text-text-muted hover:text-brand transition-colors">Media Library</a>
           {admin_link}
         </div>
       </div>
       <div class="flex items-center gap-4">
         <div class="text-right hidden sm:block">
-          <div class="text-[10px] font-black text-white uppercase tracking-wider">{user_name}</div>
-          <div class="text-[8px] font-bold text-muted uppercase tracking-widest">{org_name}</div>
+          <div class="text-[10px] font-bold text-text-main uppercase tracking-wider">{user_name}</div>
+          <div class="text-[8px] font-medium text-text-muted uppercase tracking-widest">{org_name}</div>
         </div>
-        <button onclick="logout()" class="p-2 text-muted hover:text-white transition-colors">
+        <button onclick="logout()" class="p-2 text-text-muted hover:text-brand transition-colors">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
         </button>
       </div>
@@ -105,13 +105,12 @@ APP_LAYOUT_HTML = """<!doctype html>
   </nav>
 
   <!-- Mobile Top Header -->
-  <nav class="md:hidden border-b border-white/5 bg-black/60 backdrop-blur-xl sticky top-0 z-[60] flex justify-between items-center px-4 h-14">
+  <nav class="md:hidden border-b border-brand/5 bg-white/90 backdrop-blur-xl sticky top-0 z-[60] flex justify-between items-center px-4 h-14">
     <div class="flex items-center gap-2">
-      <div class="text-base font-black italic tracking-tighter text-gradient">SABEEL</div>
-      <div class="px-2 border border-brand/30 bg-brand/10 text-brand rounded-full text-[8px] font-black uppercase tracking-widest leading-relaxed">Workspace</div>
+      <div class="text-lg font-bold tracking-tight text-brand">Sabeel <span class="text-accent font-normal">Studio</span></div>
     </div>
     <div class="flex items-center gap-3">
-        <button onclick="logout()" class="p-2 text-muted hover:text-white transition-colors bg-white/5 rounded-full border border-white/10">
+        <button onclick="logout()" class="p-2 text-text-muted hover:text-brand transition-colors bg-brand/5 rounded-full border border-brand/10">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
         </button>
     </div>
@@ -121,36 +120,36 @@ APP_LAYOUT_HTML = """<!doctype html>
     {content}
   </main>
 
-  <footer class="hidden md:flex max-w-7xl mx-auto px-6 py-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 mt-12 mb-12">
-    <div class="text-[10px] font-black text-muted uppercase tracking-widest italic">&copy; 2026 Mohammed Hassan. All rights reserved. <span class="text-brand">Sabeel&trade;</span> <span class="text-white/40 lowercase">is proprietary software.</span></div>
-    <div class="flex gap-6 text-[9px] font-black uppercase tracking-widest text-muted/60">
+  <footer class="hidden md:flex max-w-7xl mx-auto px-6 py-12 border-t border-brand/5 flex flex-col md:flex-row justify-between items-center gap-6 mt-12 mb-12">
+    <div class="text-[10px] font-medium text-text-muted uppercase tracking-widest">&copy; 2026 Mohammed Hassan. <span class="text-brand font-bold">Sabeel Studio</span></div>
+    <div class="flex gap-6 text-[9px] font-bold uppercase tracking-widest text-text-muted/60">
         <a href="/" class="hover:text-brand transition-colors">Portal</a>
         <a href="/app" class="hover:text-brand transition-colors">Interface</a>
     </div>
   </footer>
 
   <!-- Mobile Bottom Tab Bar -->
-  <div class="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-black/80 backdrop-blur-xl border-t border-white/10 pb-safe">
+  <div class="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-xl border-t border-brand/10 pb-safe">
     <div class="flex justify-around items-center h-16 px-2">
-      <a href="/app" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-muted hover:text-white {active_dashboard}">
+      <a href="/app" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-text-muted hover:text-brand {active_dashboard}">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-        <span class="text-[9px] font-black uppercase tracking-tighter">Dash</span>
+        <span class="text-[9px] font-bold uppercase tracking-tighter">Home</span>
       </a>
-      <a href="/app/automations" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-muted hover:text-white {active_automations}">
+      <a href="/app/automations" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-text-muted hover:text-brand {active_automations}">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-        <span class="text-[9px] font-black uppercase tracking-tighter">Autos</span>
+        <span class="text-[9px] font-bold uppercase tracking-tighter">Plans</span>
       </a>
-      <a href="/app/library" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-muted hover:text-white {active_library}">
+      <a href="/app/library" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-text-muted hover:text-brand {active_library}">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-        <span class="text-[9px] font-black uppercase tracking-tighter">Library</span>
+        <span class="text-[9px] font-bold uppercase tracking-tighter">Library</span>
       </a>
-      <a href="/app/media" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-muted hover:text-white {active_media}">
+      <a href="/app/media" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-text-muted hover:text-brand {active_media}">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-        <span class="text-[9px] font-black uppercase tracking-tighter">Media</span>
+        <span class="text-[9px] font-bold uppercase tracking-tighter">Media</span>
       </a>
-      <a href="/admin" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-muted hover:text-white {admin_mobile}">
+      <a href="/admin" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-text-muted hover:text-brand {admin_mobile}">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
-        <span class="text-[9px] font-black uppercase tracking-tighter">Settings</span>
+        <span class="text-[9px] font-bold uppercase tracking-tighter">Settings</span>
       </a>
     </div>
   </div>
@@ -535,37 +534,37 @@ APP_LAYOUT_HTML = """<!doctype html>
 
   <!-- Content Studio Modal (Overhauled New Post) -->
     <div id="newPostModal" class="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[100] flex items-end md:items-center justify-center p-0 md:p-10 hidden">
-    <div class="glass w-full h-[100vh] md:h-full md:max-w-7xl rounded-none md:rounded-[3rem] overflow-hidden flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in duration-500 border-0 border-t md:border border-white/5 shadow-2xl">
+    <div class="glass w-full h-[100vh] md:h-full md:max-w-7xl rounded-none md:rounded-[3rem] overflow-hidden flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in duration-500 border-0 border-t md:border border-brand/5 shadow-2xl">
       
       <!-- Studio Sidebar (Left/Top) -->
-      <div class="w-full md:w-80 bg-black/50 border-b md:border-b-0 md:border-r border-white/5 flex flex-col pt-10 md:pt-12 px-8 z-50 shrink-0">
+      <div class="w-full md:w-80 bg-brand/5 border-b md:border-b-0 md:border-r border-brand/5 flex flex-col pt-10 md:pt-12 px-8 z-50 shrink-0">
         <div>
-          <h3 class="text-3xl font-black italic text-white tracking-tight">Content<br><span class="text-brand">Studio</span></h3>
-          <p class="text-[9px] font-black text-muted uppercase tracking-[0.3em] mt-2">Guided Creation Flow</p>
+          <h3 class="text-3xl font-bold text-brand tracking-tight">Content<br><span class="text-accent">Creator</span></h3>
+          <p class="text-[9px] font-bold text-text-muted uppercase tracking-[0.3em] mt-2">Guided Creation Flow</p>
         </div>
         
         <!-- Step Navigation -->
         <div class="flex-1 mt-12 space-y-6">
           <div id="navStep1" class="studio-nav-step active flex items-center gap-4 cursor-pointer" onclick="switchStudioSection(1)">
-             <div class="w-8 h-8 rounded-full border-2 border-brand flex items-center justify-center text-[10px] font-black text-brand nav-num transition-all">1</div>
-             <div class="text-xs font-black uppercase text-white tracking-widest nav-text transition-all">Intent & Topic</div>
+             <div class="w-8 h-8 rounded-full border-2 border-brand flex items-center justify-center text-[10px] font-bold text-white bg-brand nav-num transition-all">1</div>
+             <div class="text-xs font-bold uppercase text-brand tracking-widest nav-text transition-all">Intent & Topic</div>
           </div>
-          <div id="navStep2" class="studio-nav-step flex items-center gap-4 cursor-pointer text-muted" onclick="switchStudioSection(2)">
-             <div class="w-8 h-8 rounded-full border-2 border-white/10 flex items-center justify-center text-[10px] font-black nav-num transition-all">2</div>
-             <div class="text-xs font-black uppercase tracking-widest nav-text transition-all">Content Seed</div>
+          <div id="navStep2" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted" onclick="switchStudioSection(2)">
+             <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num transition-all">2</div>
+             <div class="text-xs font-bold uppercase tracking-widest nav-text transition-all">Content Seed</div>
           </div>
-          <div id="navStep3" class="studio-nav-step flex items-center gap-4 cursor-pointer text-muted" onclick="switchStudioSection(3)">
-             <div class="w-8 h-8 rounded-full border-2 border-white/10 flex items-center justify-center text-[10px] font-black nav-num transition-all">3</div>
-             <div class="text-xs font-black uppercase tracking-widest nav-text transition-all">Visuals</div>
+          <div id="navStep3" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted" onclick="switchStudioSection(3)">
+             <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num transition-all">3</div>
+             <div class="text-xs font-bold uppercase tracking-widest nav-text transition-all">Visuals</div>
           </div>
-          <div id="navStep4" class="studio-nav-step flex items-center gap-4 cursor-pointer text-muted" onclick="switchStudioSection(4)">
-             <div class="w-8 h-8 rounded-full border-2 border-white/10 flex items-center justify-center text-[10px] font-black nav-num transition-all">4</div>
-             <div class="text-xs font-black uppercase tracking-widest nav-text transition-all">Output</div>
+          <div id="navStep4" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted" onclick="switchStudioSection(4)">
+             <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num transition-all">4</div>
+             <div class="text-xs font-bold uppercase tracking-widest nav-text transition-all">Generate</div>
           </div>
         </div>
         
-        <div class="pb-10 pt-4 border-t border-white/5 mt-auto">
-          <button type="button" onclick="closeNewPostModal()" class="w-full py-4 text-[10px] font-black uppercase tracking-widest text-muted hover:text-white transition-all">Close Studio</button>
+        <div class="pb-10 pt-4 border-t border-brand/5 mt-auto">
+          <button type="button" onclick="closeNewPostModal()" class="w-full py-4 text-[10px] font-bold uppercase tracking-widest text-text-muted hover:text-brand transition-all">Close</button>
         </div>
       </div>
 
@@ -579,21 +578,21 @@ APP_LAYOUT_HTML = """<!doctype html>
           <!-- SECTION 1: TOPIC & INTENT -->
           <div id="studioSection1" class="studio-section space-y-10 animate-in slide-in-from-right-8 duration-500">
             <div>
-              <label class="text-[10px] font-black uppercase tracking-[0.2em] text-brand">Step 01</label>
-              <h4 class="text-2xl font-black text-white italic">What's the topic?</h4>
-              <p class="text-xs text-muted mt-2 font-medium">Sabeel uses this to suggest high-quality sources and generate relevant content.</p>
+              <label class="text-[10px] font-bold uppercase tracking-[0.2em] text-accent">Step 01</label>
+              <h4 class="text-2xl font-bold text-brand">What is your topic?</h4>
+              <p class="text-xs text-text-muted mt-2 font-medium">Sabeel uses this to suggest meaningful sources and draft your content.</p>
             </div>
 
             <div class="space-y-6 max-w-2xl">
                <div class="space-y-2">
-                 <label class="text-[9px] font-black text-white uppercase tracking-widest pl-1">Topic / Message</label>
-                 <input type="text" id="composerTopic" name="topic" oninput="debounceComposerSuggest('composerTopic')" placeholder="e.g. The importance of Sabr (Patience)" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 text-sm text-white font-bold outline-none focus:border-brand/50 focus:bg-white/10 transition-all shadow-inner">
+                 <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Topic or Message</label>
+                 <input type="text" id="composerTopic" name="topic" oninput="debounceComposerSuggest('composerTopic')" placeholder="e.g. The importance of Sabr (Patience)" class="w-full bg-cream border border-brand/10 rounded-2xl px-6 py-5 text-sm text-brand font-bold outline-none focus:border-brand/30 transition-all">
                </div>
 
                <div class="grid grid-cols-2 gap-4">
                  <div class="space-y-2">
-                   <label class="text-[9px] font-black text-white uppercase tracking-widest pl-1">Tone</label>
-                   <select name="tone" class="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-xs font-bold text-white outline-none focus:border-brand/40 appearance-none">
+                   <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Tone</label>
+                   <select name="tone" class="w-full bg-cream border border-brand/10 rounded-2xl px-4 py-4 text-xs font-bold text-brand outline-none focus:border-brand/20 appearance-none">
                      <option value="philosophical">Philosophical</option>
                      <option value="motivational">Motivational</option>
                      <option value="educational">Educational</option>
@@ -601,8 +600,8 @@ APP_LAYOUT_HTML = """<!doctype html>
                    </select>
                  </div>
                  <div class="space-y-2">
-                   <label class="text-[9px] font-black text-white uppercase tracking-widest pl-1">Post Type</label>
-                   <select name="post_type" class="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-xs font-bold text-white outline-none focus:border-brand/40 appearance-none">
+                   <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Post Type</label>
+                   <select name="post_type" class="w-full bg-cream border border-brand/10 rounded-2xl px-4 py-4 text-xs font-bold text-brand outline-none focus:border-brand/20 appearance-none">
                      <option value="reflection">Reflection</option>
                      <option value="quote">Quote Card</option>
                      <option value="announcement">Announcement</option>
@@ -610,16 +609,16 @@ APP_LAYOUT_HTML = """<!doctype html>
                  </div>
                </div>
 
-               <div id="topicSuggestionsArea" class="hidden mt-8 pt-8 border-t border-white/5 space-y-4">
+               <div id="topicSuggestionsArea" class="hidden mt-8 pt-8 border-t border-brand/5 space-y-4">
                  <div class="flex justify-between items-center">
-                    <label class="text-[10px] font-black uppercase tracking-[0.2em] text-brand">Smart Matches Found</label>
+                    <label class="text-[10px] font-bold uppercase tracking-[0.2em] text-brand">Library Inspiration</label>
                  </div>
                  <div id="topicSuggestionsList" class="flex flex-col gap-3"></div>
                </div>
             </div>
             
             <div class="pt-8 flex justify-end">
-               <button type="button" onclick="switchStudioSection(2)" class="px-8 py-4 bg-white text-black rounded-xl font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">Continue to Source &rarr;</button>
+               <button type="button" onclick="switchStudioSection(2)" class="px-8 py-4 bg-brand text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-lg shadow-brand/10">Continue &rarr;</button>
             </div>
           </div>
 
@@ -627,132 +626,133 @@ APP_LAYOUT_HTML = """<!doctype html>
           <div id="studioSection2" class="studio-section hidden space-y-10 animate-in slide-in-from-right-8 duration-500">
             <div class="flex justify-between items-end">
               <div>
-                <label class="text-[10px] font-black uppercase tracking-[0.2em] text-brand">Step 02</label>
-                <h4 class="text-2xl font-black text-white italic">Source Foundation</h4>
-                <p class="text-xs text-muted mt-2 font-medium">Your post caption will be grounded in this text.</p>
+                <label class="text-[10px] font-bold uppercase tracking-[0.2em] text-accent">Step 02</label>
+                <h4 class="text-2xl font-bold text-brand">Content Foundation</h4>
+                <p class="text-xs text-text-muted mt-2 font-medium">Your content will be thoughtfully drafted based on this foundation.</p>
               </div>
-              <button type="button" onclick="openLibraryDrawer()" class="px-4 py-2 bg-brand/10 text-brand border border-brand/20 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-brand/20 transition-all flex items-center gap-2">
+              <button type="button" onclick="openLibraryDrawer()" class="px-4 py-2 bg-brand/5 text-brand border border-brand/10 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-brand/10 transition-all flex items-center gap-2">
                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                 Browse Full Library
+                 Explore Library
               </button>
             </div>
 
             <div class="max-w-3xl space-y-6">
               <!-- Selected Source Display -->
-              <div id="activeSourceCard" class="hidden glass p-6 rounded-2xl border border-brand/30 relative overflow-hidden group">
-                 <div class="absolute top-0 right-0 p-4 opacity-10 blur-sm pointer-events-none">
-                    <svg class="w-24 h-24" fill="currentColor" viewBox="0 0 24 24"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"></path></svg>
+              <div id="activeSourceCard" class="hidden glass p-6 rounded-2xl border border-accent/20 relative overflow-hidden group">
+                 <div class="absolute top-0 right-0 p-4 opacity-5 blur-sm pointer-events-none">
+                    <svg class="w-24 h-24 text-brand" fill="currentColor" viewBox="0 0 24 24"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"></path></svg>
                  </div>
                  <div class="flex justify-between items-start mb-4 relative z-10">
-                    <span id="activeSourceBadge" class="px-2.5 py-1 bg-brand text-white rounded-[4px] text-[8px] font-black uppercase tracking-widest">Selected Source</span>
-                    <button type="button" onclick="clearSelectedSource()" class="text-rose-400 hover:text-rose-300 text-[9px] font-black uppercase tracking-widest transition-all">Remove</button>
+                    <span id="activeSourceBadge" class="px-2.5 py-1 bg-brand text-white rounded-[4px] text-[8px] font-bold uppercase tracking-widest">Source Foundation</span>
+                    <button type="button" onclick="clearSelectedSource()" class="text-rose-600 hover:text-rose-700 text-[9px] font-bold uppercase tracking-widest transition-all">Remove</button>
                  </div>
-                 <div id="activeSourceText" class="text-sm font-medium text-white/90 leading-relaxed relative z-10 italic"></div>
-                 <div id="activeSourceRef" class="mt-4 text-[10px] font-black text-brand uppercase tracking-widest relative z-10"></div>
+                 <div id="activeSourceText" class="text-sm font-medium text-text-main leading-relaxed relative z-10 italic"></div>
+                 <div id="activeSourceRef" class="mt-4 text-[10px] font-bold text-accent uppercase tracking-widest relative z-10"></div>
               </div>
 
               <!-- Manual / Seed Textarea -->
               <div class="space-y-4">
-                 <label id="seedLabel" class="text-[9px] font-black text-white uppercase tracking-widest pl-1">Or write a manual content seed / prompt directives</label>
-                 <textarea id="studioSourceText" name="source_text" required placeholder="Type the text you want to feature or directives for the AI to expand upon..." class="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-sm font-medium text-white outline-none focus:border-brand/40 transition-all h-40 resize-none shadow-inner"></textarea>
+                 <label id="seedLabel" class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Share your core message or directives</label>
+                 <textarea id="studioSourceText" name="source_text" required placeholder="Type the message you want to amplify or specific directives for the generation..." class="w-full bg-cream border border-brand/10 rounded-2xl p-6 text-sm font-medium text-brand outline-none focus:border-brand/30 transition-all h-40 resize-none"></textarea>
                  
                  <div class="flex gap-4">
-                    <input type="text" id="studioReference" name="source_reference" placeholder="Reference (Optional, e.g. Bukhari 123)" class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-brand/40 shadow-inner">
+                    <input type="text" id="studioReference" name="source_reference" placeholder="Reference (Optional, e.g. Bukhari 123)" class="flex-1 bg-cream border border-brand/10 rounded-xl px-4 py-3 text-xs font-bold text-brand outline-none focus:border-brand/30">
                  </div>
               </div>
             </div>
 
             <div class="pt-8 flex justify-between">
-               <button type="button" onclick="switchStudioSection(1)" class="px-6 py-4 text-muted hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">&larr; Back</button>
-               <button type="button" onclick="switchStudioSection(3)" class="px-8 py-4 bg-white text-black rounded-xl font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">Continue to Visuals &rarr;</button>
+               <button type="button" onclick="switchStudioSection(1)" class="px-6 py-4 text-text-muted hover:text-brand rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Back</button>
+               <button type="button" onclick="switchStudioSection(3)" class="px-8 py-4 bg-brand text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-lg shadow-brand/10">Continue &rarr;</button>
             </div>
           </div>
 
           <!-- SECTION 3: VISUALS -->
           <div id="studioSection3" class="studio-section hidden space-y-10 animate-in slide-in-from-right-8 duration-500">
             <div>
-              <label class="text-[10px] font-black uppercase tracking-[0.2em] text-brand">Step 03</label>
-              <h4 class="text-2xl font-black text-white italic">Visual Aethestics</h4>
+              <label class="text-[10px] font-bold uppercase tracking-[0.2em] text-accent">Step 03</label>
+              <h4 class="text-2xl font-bold text-brand">Style & Visuals</h4>
+              <p class="text-xs text-text-muted mt-1 font-medium">Choose how your content should feel visually.</p>
             </div>
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl">
-                <div onclick="setVisualMode('upload')" id="modeUpload" class="visual-card active p-6 rounded-3xl border border-white/10 bg-white/5 cursor-pointer transition-all hover:bg-white/10 relative overflow-hidden group">
-                  <div class="absolute inset-0 bg-gradient-to-tr from-transparent to-brand/20 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
-                  <div class="absolute top-4 right-4 check-icon text-brand opacity-0 group-[.active]:opacity-100 transition-opacity"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
-                  <div class="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-white mb-6 relative z-10"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg></div>
-                  <div class="text-[11px] font-black text-white uppercase tracking-widest relative z-10">Upload</div>
-                  <div class="text-[9px] font-medium text-muted mt-1 relative z-10">From computer</div>
+                <div onclick="setVisualMode('upload')" id="modeUpload" class="visual-card active p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                  <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                  <div class="absolute top-4 right-4 check-icon text-accent opacity-0 group-[.active]:opacity-100 transition-opacity"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
+                  <div class="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center text-brand mb-6 relative z-10 transition-colors group-[.active]:bg-brand group-[.active]:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg></div>
+                  <div class="text-[11px] font-bold text-brand uppercase tracking-widest relative z-10">Upload</div>
+                  <div class="text-[9px] font-medium text-text-muted mt-1 relative z-10">From device</div>
                 </div>
 
-                <div onclick="setVisualMode('media_library')" id="modeMedia" class="visual-card p-6 rounded-3xl border border-white/10 bg-white/5 cursor-pointer transition-all hover:bg-white/10 relative overflow-hidden group">
-                  <div class="absolute inset-0 bg-gradient-to-tr from-transparent to-brand/20 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
-                  <div class="absolute top-4 right-4 check-icon text-brand opacity-0 group-[.active]:opacity-100 transition-opacity"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
-                  <div class="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-white mb-6 relative z-10"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>
-                  <div class="text-[11px] font-black text-white uppercase tracking-widest relative z-10">Vault</div>
-                  <div class="text-[9px] font-medium text-muted mt-1 relative z-10">Org Assets</div>
+                <div onclick="setVisualMode('media_library')" id="modeMedia" class="visual-card p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                  <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                  <div class="absolute top-4 right-4 check-icon text-accent opacity-0 group-[.active]:opacity-100 transition-opacity"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
+                  <div class="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center text-brand mb-6 relative z-10 transition-colors group-[.active]:bg-brand group-[.active]:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>
+                  <div class="text-[11px] font-bold text-brand uppercase tracking-widest relative z-10">Library</div>
+                  <div class="text-[9px] font-medium text-text-muted mt-1 relative z-10">Saved assets</div>
                 </div>
 
-                <div onclick="setVisualMode('ai_background')" id="modeAI" class="visual-card p-6 rounded-3xl border border-white/10 bg-white/5 cursor-pointer transition-all hover:bg-white/10 relative overflow-hidden group">
-                  <div class="absolute inset-0 bg-gradient-to-tr from-transparent to-brand/20 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
-                  <div class="absolute top-4 right-4 check-icon text-brand opacity-0 group-[.active]:opacity-100 transition-opacity"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
-                  <div class="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-white mb-6 relative z-10"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg></div>
-                  <div class="text-[11px] font-black text-white uppercase tracking-widest relative z-10">AI Gen</div>
-                  <div class="text-[9px] font-medium text-muted mt-1 relative z-10">DALLE-3 Scene</div>
+                <div onclick="setVisualMode('ai_background')" id="modeAI" class="visual-card p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                  <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                  <div class="absolute top-4 right-4 check-icon text-accent opacity-0 group-[.active]:opacity-100 transition-opacity"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
+                  <div class="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center text-brand mb-6 relative z-10 transition-colors group-[.active]:bg-brand group-[.active]:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg></div>
+                  <div class="text-[11px] font-bold text-brand uppercase tracking-widest relative z-10">Generate</div>
+                  <div class="text-[9px] font-medium text-text-muted mt-1 relative z-10">Visual AI</div>
                 </div>
 
-                <div onclick="setVisualMode('quote_card')" id="modeQuote" class="visual-card p-6 rounded-3xl border border-white/10 bg-white/5 cursor-pointer transition-all hover:bg-white/10 relative overflow-hidden group">
-                  <div class="absolute inset-0 bg-gradient-to-tr from-transparent to-emerald-500/20 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
-                  <div class="absolute top-4 right-4 check-icon text-emerald-400 opacity-0 group-[.active]:opacity-100 transition-opacity"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
-                  <div class="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-white mb-6 relative z-10"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg></div>
-                  <div class="text-[11px] font-black text-white uppercase tracking-widest relative z-10">Quote Card</div>
-                  <div class="text-[9px] font-medium text-muted mt-1 relative z-10">Typographic</div>
+                <div onclick="setVisualMode('quote_card')" id="modeQuote" class="visual-card p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                  <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                  <div class="absolute top-4 right-4 check-icon text-accent opacity-0 group-[.active]:opacity-100 transition-opacity"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
+                  <div class="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center text-brand mb-6 relative z-10 transition-colors group-[.active]:bg-brand group-[.active]:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg></div>
+                  <div class="text-[11px] font-bold text-brand uppercase tracking-widest relative z-10">Quote Card</div>
+                  <div class="text-[9px] font-medium text-text-muted mt-1 relative z-10">Typographic</div>
                 </div>
             </div>
 
             <!-- Dynamic Config Panes -->
-            <div id="visualControls" class="p-8 rounded-[2rem] bg-white/5 border border-white/5 max-w-4xl space-y-6">
+            <div id="visualControls" class="p-8 rounded-[2rem] bg-brand/5 border border-brand/10 max-w-4xl space-y-6">
                  
                  <!-- Upload UI -->
                  <div id="uiUpload" class="space-y-4 animate-in fade-in">
-                    <label class="text-[9px] font-black text-white uppercase tracking-widest pl-1">Selected Media Form</label>
+                    <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Media Selection</label>
                     <div class="flex items-center gap-6">
-                      <div class="w-32 h-32 rounded-2xl bg-white/5 border border-dashed border-white/20 flex flex-col pt-6 items-center flex-start text-white/40 overflow-hidden relative group cursor-pointer" onclick="document.getElementById('studioImageInput').click()">
+                      <div class="w-32 h-32 rounded-2xl bg-cream border border-dashed border-brand/20 flex flex-col pt-6 items-center flex-start text-brand/40 overflow-hidden relative group cursor-pointer" onclick="document.getElementById('studioImageInput').click()">
                         <svg class="w-6 h-6 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        <span class="text-[8px] font-black uppercase tracking-widest">Select</span>
+                        <span class="text-[8px] font-bold uppercase tracking-widest">Select</span>
                         <img id="uploadPreview" class="hidden absolute inset-0 w-full h-full object-cover">
                       </div>
                       <input type="file" name="image" id="studioImageInput" onchange="previewUpload(this)" class="hidden" accept="image/png, image/jpeg, image/webp">
-                      <div class="text-xs text-muted font-medium max-w-xs leading-relaxed">Click the box to upload an image from your device. Supported formats: .jpg, .png. Optimal ratio 4:5.</div>
+                      <div class="text-xs text-text-muted font-medium max-w-xs leading-relaxed">Supported formats: .jpg, .png. Optimal ratio 4:5.</div>
                     </div>
                  </div>
 
                  <!-- AI Background UI -->
                  <div id="uiAI" class="hidden space-y-6 animate-in fade-in">
                     <div class="space-y-3">
-                       <label class="text-[9px] font-black text-white uppercase tracking-widest pl-1">AI Prompt Description</label>
-                       <textarea name="visual_prompt" id="studioVisualPrompt" placeholder="Describe the scene... e.g. Minimalist mosque silhouette at sunset, warm tones, high quality photography" class="w-full bg-black/20 border border-white/10 rounded-2xl p-5 text-xs text-white outline-none focus:border-brand/50 h-24 shadow-inner"></textarea>
+                       <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Visual Inspiration (Prompt)</label>
+                       <textarea name="visual_prompt" id="studioVisualPrompt" placeholder="Describe the scene... e.g. Minimalist mosque silhouette at sunset, warm tones" class="w-full bg-cream border border-brand/10 rounded-2xl p-5 text-xs text-brand outline-none focus:border-brand/30 h-24"></textarea>
                     </div>
                     <div class="space-y-3">
-                       <label class="text-[9px] font-black text-white uppercase tracking-widest pl-1">Quick Styles</label>
+                       <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Theme Presets</label>
                        <div class="flex flex-wrap gap-2">
-                         <button type="button" onclick="setAIPreset('nature')" class="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase text-white hover:bg-brand/20 hover:border-brand/40 hover:text-brand transition-all">Nature</button>
-                         <button type="button" onclick="setAIPreset('islamic_geo')" class="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase text-white hover:bg-brand/20 hover:border-brand/40 hover:text-brand transition-all">Geometric</button>
-                         <button type="button" onclick="setAIPreset('minimal')" class="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase text-white hover:bg-brand/20 hover:border-brand/40 hover:text-brand transition-all">Minimal</button>
-                         <button type="button" onclick="setAIPreset('mosque_sil')" class="px-5 py-2.5 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black uppercase text-white hover:bg-brand/20 hover:border-brand/40 hover:text-brand transition-all">Mosque Silhouette</button>
+                         <button type="button" onclick="setAIPreset('nature')" class="px-5 py-2.5 bg-white border border-brand/10 rounded-xl text-[9px] font-bold uppercase text-brand hover:bg-brand hover:text-white transition-all">Nature</button>
+                         <button type="button" onclick="setAIPreset('islamic_geo')" class="px-5 py-2.5 bg-white border border-brand/10 rounded-xl text-[9px] font-bold uppercase text-brand hover:bg-brand hover:text-white transition-all">Geometric</button>
+                         <button type="button" onclick="setAIPreset('minimal')" class="px-5 py-2.5 bg-white border border-brand/10 rounded-xl text-[9px] font-bold uppercase text-brand hover:bg-brand hover:text-white transition-all">Minimal</button>
+                         <button type="button" onclick="setAIPreset('mosque_sil')" class="px-5 py-2.5 bg-white border border-brand/10 rounded-xl text-[9px] font-bold uppercase text-brand hover:bg-brand hover:text-white transition-all">Silhouette</button>
                        </div>
                     </div>
                  </div>
 
-                 <!-- Quote Card Sub-options (Only appears when Quote Card is selected) -->
-                 <div id="uiQuoteMod" class="hidden border-t border-white/10 pt-6 mt-6 animate-in fade-in">
-                    <label class="text-[10px] font-black text-white uppercase tracking-[0.2em] mb-4 block">Quote Card Settings</label>
-                    <p class="text-xs text-brand font-medium mb-6">The text from Step 02 will be overlaid perfectly on top of the visual foundation chosen above.</p>
+                 <!-- Quote Card Sub-options -->
+                 <div id="uiQuoteMod" class="hidden border-t border-brand/10 pt-6 mt-6 animate-in fade-in">
+                    <label class="text-[10px] font-bold text-brand uppercase tracking-[0.2em] mb-4 block">Quote Card Styling</label>
+                    <p class="text-xs text-brand font-medium mb-6">Your content will be thoughtfully overlaid on the selected visual background.</p>
                  </div>
             </div>
 
             <div class="pt-8 flex justify-between">
-               <button type="button" onclick="switchStudioSection(2)" class="px-6 py-4 text-muted hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">&larr; Back</button>
-               <button type="button" onclick="switchStudioSection(4)" class="px-8 py-4 bg-white text-black rounded-xl font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all">Preview & Finalize &rarr;</button>
+               <button type="button" onclick="switchStudioSection(2)" class="px-6 py-4 text-text-muted hover:text-brand rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Back</button>
+               <button type="button" onclick="switchStudioSection(4)" class="px-8 py-4 bg-brand text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-lg shadow-brand/10">Continue &rarr;</button>
             </div>
           </div>
 
@@ -760,12 +760,13 @@ APP_LAYOUT_HTML = """<!doctype html>
           <div id="studioSection4" class="studio-section hidden space-y-10 animate-in slide-in-from-right-8 duration-500 min-h-full">
             <div class="flex justify-between items-end">
               <div>
-                <label class="text-[10px] font-black uppercase tracking-[0.2em] text-brand">Step 04</label>
-                <h4 class="text-2xl font-black text-white italic">Output Preview</h4>
+                <label class="text-[10px] font-bold uppercase tracking-[0.2em] text-accent">Step 04</label>
+                <h4 class="text-2xl font-bold text-brand">Final Review</h4>
+                <p class="text-xs text-text-muted mt-2 font-medium">Review your visual foundation before generating your content.</p>
               </div>
-              <button type="button" onclick="launchLivePreview()" class="px-5 py-3 bg-brand/20 text-brand border border-brand/30 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-brand/10 hover:bg-brand/30 transition-all flex items-center gap-2">
+              <button type="button" onclick="launchLivePreview()" class="px-5 py-3 bg-brand/5 text-brand border border-brand/10 rounded-xl text-[9px] font-bold uppercase tracking-widest shadow-sm hover:bg-brand/10 transition-all flex items-center gap-2">
                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                 Load Preview
+                 Preview Visuals
               </button>
             </div>
 
@@ -773,60 +774,60 @@ APP_LAYOUT_HTML = """<!doctype html>
                
                <!-- Preview Phone Mockup -->
                <div class="flex justify-center items-start">
-                 <div class="w-full max-w-[340px] bg-black border-[6px] border-[#1e1e1e] rounded-[3rem] overflow-hidden flex flex-col shadow-2xl relative shadow-brand/5">
+                 <div class="w-full max-w-[340px] bg-white border-[8px] border-brand rounded-[3.5rem] overflow-hidden flex flex-col shadow-2xl relative">
                     <!-- Nav Bar -->
-                    <div class="px-4 py-3 flex items-center justify-between bg-black border-b border-white/10 z-10">
-                       <div class="text-[13px] font-bold text-white">Sabeel Post</div>
-                       <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path></svg>
+                    <div class="px-4 py-4 flex items-center justify-between bg-white border-b border-brand/5 z-10">
+                       <div class="text-[12px] font-bold text-brand">Sabeel Studio</div>
+                       <svg class="w-5 h-5 text-brand/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path></svg>
                     </div>
                     
                     <!-- Image -->
-                    <div class="w-full aspect-[4/5] bg-neutral-900 border-b border-white/5 relative flex items-center justify-center overflow-hidden">
+                    <div class="w-full aspect-[4/5] bg-cream relative flex items-center justify-center overflow-hidden">
                        <img id="previewImage" class="hidden w-full h-full object-cover">
                        <div id="previewLoader" class="flex flex-col items-center gap-3">
-                          <svg class="w-8 h-8 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                          <span class="text-[9px] font-black uppercase tracking-widest text-muted">Click Load Preview</span>
+                          <svg class="w-8 h-8 text-brand/10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                          <span class="text-[9px] font-bold uppercase tracking-widest text-text-muted">Load Preview</span>
                        </div>
                     </div>
 
                     <!-- Post Data Info -->
-                    <div class="p-4 bg-black flex-1 flex flex-col justify-start">
-                        <div class="flex gap-3 mb-3 text-white">
+                    <div class="p-4 bg-white flex-1 flex flex-col justify-start">
+                        <div class="flex gap-3 mb-3 text-brand/20">
                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                         </div>
-                        <div class="text-[10px] text-white/40 font-medium">Caption preview unavailable until generation.</div>
+                        <div class="text-[10px] text-text-muted font-medium italic">Content will be generated here...</div>
                     </div>
                  </div>
                </div>
                
                <!-- Schedule & Settings -->
                <div class="space-y-8">
-                  <div class="space-y-6 bg-white/5 border border-white/5 rounded-3xl p-8">
+                  <div class="space-y-6 bg-cream border border-brand/5 rounded-3xl p-8">
                      <div class="space-y-2">
-                       <label class="text-[9px] font-black uppercase tracking-widest text-white pl-1">Target Account</label>
-                       <select name="ig_account_id" class="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-xs font-bold text-white outline-none focus:border-brand/40 shadow-inner appearance-none">
+                       <label class="text-[9px] font-bold uppercase tracking-widest text-brand pl-1">Share To</label>
+                       <select name="ig_account_id" class="w-full bg-white border border-brand/10 rounded-2xl px-5 py-4 text-xs font-bold text-brand outline-none focus:border-brand/30 appearance-none">
                          {account_options}
                        </select>
                      </div>
                      <div class="space-y-2">
-                       <label class="text-[9px] font-black uppercase tracking-widest text-white pl-1">Schedule Time (UTC)</label>
-                       <input type="datetime-local" name="scheduled_time" class="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-xs font-bold text-brand outline-none focus:border-brand/40 shadow-inner [color-scheme:dark]">
-                       <p class="text-[9px] text-muted font-medium mt-2 px-1">Leave empty to use Account Default posting time.</p>
+                       <label class="text-[9px] font-bold uppercase tracking-widest text-brand pl-1">Preferred Time (UTC)</label>
+                       <input type="datetime-local" name="scheduled_time" class="w-full bg-white border border-brand/10 rounded-2xl px-5 py-4 text-xs font-bold text-brand outline-none focus:border-brand/30">
+                       <p class="text-[9px] text-text-muted font-medium mt-2 px-1">Defaults to your account's next optimal slot if empty.</p>
                      </div>
                   </div>
 
-                  <button type="submit" id="studioSubmitBtn" class="w-full py-5 bg-brand text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-3">
+                  <button type="submit" id="studioSubmitBtn" class="w-full py-5 bg-brand text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center justify-center gap-3">
                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                     Generate Caption & Schedule
+                     Generate Now
                   </button>
-                  <button type="button" onclick="switchStudioSection(3)" class="w-full py-4 text-muted hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all">&larr; Back to Visuals</button>
+                  <button type="button" onclick="switchStudioSection(3)" class="w-full py-4 text-text-muted hover:text-brand rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Back</button>
 
-                  <div class="bg-brand/10 border border-brand/20 rounded-2xl p-5 flex gap-4 text-brand">
+                  <div class="bg-brand/5 border border-brand/10 rounded-2xl p-5 flex gap-4 text-brand">
                     <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <div class="text-[10px] leading-relaxed font-bold">
-                       Submitting this form creates a draft post. A high-converting caption will be automatically generated based on the source seed using AI. You can review the caption in the Drafts list.
+                    <div class="text-[10px] leading-relaxed font-medium">
+                       Your post will be carefully drafted using your foundation. You'll be able to review and refine the high-converting content once it's ready.
                     </div>
                   </div>
                </div>
@@ -856,11 +857,11 @@ APP_LAYOUT_HTML = """<!doctype html>
            
            const nav = document.getElementById('navStep' + i);
            if(nav) {
-               nav.classList.remove('active', 'text-white');
-               nav.classList.add('text-muted');
-               nav.querySelector('.nav-num').classList.remove('border-brand', 'text-brand');
-               nav.querySelector('.nav-num').classList.add('border-white/10');
-               nav.querySelector('.nav-text').classList.remove('text-white');
+               nav.classList.remove('active', 'text-brand');
+               nav.classList.add('text-text-muted');
+               nav.querySelector('.nav-num').classList.remove('border-brand', 'text-white', 'bg-brand');
+               nav.querySelector('.nav-num').classList.add('border-brand/10');
+               nav.querySelector('.nav-text').classList.remove('text-brand');
            }
         }
         
@@ -870,11 +871,11 @@ APP_LAYOUT_HTML = """<!doctype html>
         
         const targetNav = document.getElementById('navStep' + stepIndex);
         if(targetNav) {
-           targetNav.classList.remove('text-muted');
+           targetNav.classList.remove('text-text-muted');
            targetNav.classList.add('active');
-           targetNav.querySelector('.nav-num').classList.remove('border-white/10');
-           targetNav.querySelector('.nav-num').classList.add('border-brand', 'text-brand');
-           targetNav.querySelector('.nav-text').classList.add('text-white');
+           targetNav.querySelector('.nav-num').classList.remove('border-brand/10');
+           targetNav.querySelector('.nav-num').classList.add('border-brand', 'text-white', 'bg-brand');
+           targetNav.querySelector('.nav-text').classList.add('text-brand');
         }
     }
 
@@ -1094,13 +1095,13 @@ APP_LAYOUT_HTML = """<!doctype html>
 </script>
 
 <!-- Library Explorer Side Drawer -->
-  <div id="libraryDrawer" class="fixed inset-y-0 right-0 w-full max-w-md bg-black/95 backdrop-blur-2xl z-[150] shadow-2xl border-l border-white/10 transform translate-x-full transition-transform duration-500 overflow-hidden flex flex-col">
-    <div class="p-8 pb-4 border-b border-white/5 flex justify-between items-center">
+  <div id="libraryDrawer" class="fixed inset-y-0 right-0 w-full max-w-md bg-white z-[150] shadow-2xl border-l border-brand/10 transform translate-x-full transition-transform duration-500 overflow-hidden flex flex-col">
+    <div class="p-8 pb-4 border-b border-brand/5 flex justify-between items-center">
       <div>
-        <h3 class="text-xl font-black italic text-white">Neural <span class="text-brand">Library</span></h3>
-        <p class="text-[8px] font-black text-muted uppercase tracking-widest">Build from verified sources</p>
+        <h3 class="text-xl font-bold text-brand">Content <span class="text-accent">Library</span></h3>
+        <p class="text-[8px] font-bold text-text-muted uppercase tracking-widest">Find inspiration from verified sources</p>
       </div>
-      <button onclick="closeLibraryDrawer()" class="p-2 text-muted hover:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+      <button onclick="closeLibraryDrawer()" class="p-2 text-text-muted hover:text-brand transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
     </div>
     
     <!-- Drawer Tabs -->
@@ -1143,82 +1144,82 @@ APP_LAYOUT_HTML = """<!doctype html>
 """
 
 GET_STARTED_CARD_HTML = """
-<div id="gettingStartedCard" class="glass p-6 md:p-8 rounded-[2.5rem] border-brand/20 bg-brand/5 space-y-6 md:space-y-8 animate-in fade-in slide-in-from-top-4 duration-700 transition-all">
+<div id="gettingStartedCard" class="glass p-6 md:p-8 rounded-[2.5rem] bg-brand/5 space-y-6 md:space-y-8 animate-in fade-in slide-in-from-top-4 duration-700 transition-all">
   <div class="flex justify-between items-start">
     <div>
-      <h3 class="text-xl md:text-2xl font-black italic text-white tracking-tight">Welcome to <span class="text-brand">Sabeel</span></h3>
-      <p class="text-[10px] md:text-xs text-muted mt-1 font-bold">Start creating right away. You can finish setup as you go.</p>
+      <h3 class="text-xl md:text-2xl font-bold text-brand tracking-tight">Welcome to <span class="text-accent">Sabeel Studio</span></h3>
+      <p class="text-[10px] md:text-xs text-text-muted mt-1 font-medium">Start creating with purpose. You can finish your setup as you go.</p>
     </div>
-    <button onclick="dismissGettingStarted()" class="text-[8px] md:text-[9px] font-black uppercase tracking-widest text-muted hover:text-white transition-colors px-3 py-1.5 bg-white/5 rounded-full border border-white/10 italic">Hide this</button>
+    <button onclick="dismissGettingStarted()" class="text-[8px] md:text-[9px] font-bold uppercase tracking-widest text-text-muted hover:text-brand transition-colors px-3 py-1.5 bg-brand/5 rounded-full border border-brand/10">Dismiss</button>
   </div>
   
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
     <!-- Item: Create First Post -->
-    <div class="flex items-center gap-4 p-4 rounded-2xl {item1_bg} border border-white/5 transition-colors">
+    <div class="flex items-center gap-4 p-4 rounded-2xl {item1_bg} border border-brand/5 transition-colors">
       <div class="w-8 h-8 rounded-full flex items-center justify-center {item1_icon_class} shrink-0">
         {item1_icon}
       </div>
       <div class="min-w-0">
-        <div class="text-[9px] md:text-[10px] font-black uppercase tracking-widest truncate {item1_text_class}">Create First Post</div>
-        <div class="text-[8px] font-bold text-muted uppercase tracking-tighter truncate">{item1_status}</div>
+        <div class="text-[9px] md:text-[10px] font-bold uppercase tracking-widest truncate {item1_text_class}">Compose Post</div>
+        <div class="text-[8px] font-medium text-text-muted uppercase tracking-tighter truncate">{item1_status}</div>
       </div>
     </div>
     
-    <!-- Item: Browse Library -->
-    <a href="/app/library" class="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors group">
-      <div class="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 text-muted shrink-0 group-hover:text-white">
+    <!-- Item: Content Library -->
+    <a href="/app/library" class="flex items-center gap-4 p-4 rounded-2xl bg-white border border-brand/5 hover:bg-brand/5 transition-colors group">
+      <div class="w-8 h-8 rounded-full flex items-center justify-center bg-brand/5 text-brand shrink-0 group-hover:bg-brand group-hover:text-white transition-all">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
       </div>
       <div class="min-w-0">
-        <div class="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white/50 group-hover:text-white truncate">Browse Library</div>
-        <div class="text-[8px] font-bold text-muted uppercase tracking-tighter truncate">Find Inspiration</div>
+        <div class="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-text-main group-hover:text-brand truncate">Content Library</div>
+        <div class="text-[8px] font-medium text-text-muted uppercase tracking-tighter truncate">Find Inspiration</div>
       </div>
     </a>
 
-    <!-- Item: Create Automation -->
-    <div class="flex items-center gap-4 p-4 rounded-2xl {item3_bg} border border-white/5 transition-colors">
+    <!-- Item: Create Content Plan -->
+    <div class="flex items-center gap-4 p-4 rounded-2xl {item3_bg} border border-brand/5 transition-colors">
       <div class="w-8 h-8 rounded-full flex items-center justify-center {item3_icon_class} shrink-0">
         {item3_icon}
       </div>
       <div class="min-w-0">
-        <div class="text-[9px] md:text-[10px] font-black uppercase tracking-widest truncate {item3_text_class}">First Automation</div>
-        <div class="text-[8px] font-bold text-muted uppercase tracking-tighter truncate">{item3_status}</div>
+        <div class="text-[9px] md:text-[10px] font-bold uppercase tracking-widest truncate {item3_text_class}">Content Plan</div>
+        <div class="text-[8px] font-medium text-text-muted uppercase tracking-tighter truncate">{item3_status}</div>
       </div>
     </div>
 
-    <!-- Item: Connect Instagram -->
-    <div class="flex items-center gap-4 p-4 rounded-2xl {item4_bg} border border-white/5 transition-colors">
+    <!-- Item: Link Account -->
+    <div class="flex items-center gap-4 p-4 rounded-2xl {item4_bg} border border-brand/5 transition-colors">
       <div class="w-8 h-8 rounded-full flex items-center justify-center {item4_icon_class} shrink-0">
         {item4_icon}
       </div>
       <div class="min-w-0">
-        <div class="text-[9px] md:text-[10px] font-black uppercase tracking-widest truncate {item4_text_class}">Connect Instagram</div>
-        <div class="text-[8px] font-bold text-muted uppercase tracking-tighter truncate">{item4_status}</div>
+        <div class="text-[9px] md:text-[10px] font-bold uppercase tracking-widest truncate {item4_text_class}">Link Account</div>
+        <div class="text-[8px] font-medium text-text-muted uppercase tracking-tighter truncate">{item4_status}</div>
       </div>
     </div>
   </div>
   
   <div class="flex flex-col sm:flex-row gap-3 md:gap-4 pt-2">
-    <button onclick="openNewPostModal()" class="w-full sm:w-auto px-8 py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/40 hover:scale-[1.02] transition-transform">Create First Post</button>
-    <a href="/onboarding" class="w-full sm:w-auto px-8 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest text-muted hover:text-white text-center transition-all">Guided Setup (Optional)</a>
+    <button onclick="openNewPostModal()" class="w-full sm:w-auto px-8 py-4 bg-brand rounded-2xl font-bold text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Create New Post</button>
+    <a href="/onboarding" class="w-full sm:w-auto px-8 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-xs uppercase tracking-widest text-text-muted hover:text-brand text-center transition-all">Guided Setup</a>
   </div>
 </div>
 """
 
 CONNECT_INSTAGRAM_MODAL_HTML = """
-<div id="connectInstagramModal" class="fixed inset-0 bg-black/90 backdrop-blur-xl z-[200] flex items-center justify-center p-6 hidden">
-  <div class="glass max-w-md w-full rounded-[2.5rem] p-8 md:p-10 border-brand/20 bg-brand/5 shadow-2xl animate-in zoom-in duration-300">
+<div id="connectInstagramModal" class="fixed inset-0 bg-brand/10 backdrop-blur-xl z-[200] flex items-center justify-center p-6 hidden">
+  <div class="glass max-w-md w-full rounded-[2.5rem] p-8 md:p-10 border-brand/10 bg-white shadow-2xl animate-in zoom-in duration-300">
     <div class="text-center space-y-6">
-      <div class="w-20 h-20 bg-brand/20 rounded-3xl flex items-center justify-center text-brand mx-auto shadow-inner">
+      <div class="w-20 h-20 bg-brand/5 rounded-3xl flex items-center justify-center text-brand mx-auto">
         <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
       </div>
       <div>
-        <h3 class="text-2xl font-black italic text-white tracking-tight">Connect Instagram</h3>
-        <p class="text-xs text-muted mt-2 font-medium leading-relaxed">You need to connect an Instagram account to publish or schedule your content. It only takes a minute.</p>
+        <h3 class="text-2xl font-bold text-brand tracking-tight">Link Your Account</h3>
+        <p class="text-xs text-text-muted mt-2 font-medium leading-relaxed">Connect your Instagram account to start sharing your content with the world. It only takes a minute.</p>
       </div>
       <div class="flex flex-col gap-3 pt-2">
-        <button onclick="window.location.href='/onboarding'" class="w-full py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/40 hover:scale-[1.02] transition-transform">Connect Now</button>
-        <button onclick="closeConnectInstagramModal()" class="w-full py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest text-muted hover:text-white transition-all">Maybe Later</button>
+        <button onclick="window.location.href='/onboarding'" class="w-full py-4 bg-brand rounded-2xl font-bold text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Link Now</button>
+        <button onclick="closeConnectInstagramModal()" class="w-full py-4 bg-white border border-brand/10 rounded-2xl font-bold text-xs uppercase tracking-widest text-text-muted hover:text-brand transition-all">Maybe Later</button>
       </div>
     </div>
   </div>
@@ -1229,33 +1230,33 @@ APP_DASHBOARD_CONTENT = """
     <!-- Header -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
-        <h1 class="text-3xl font-black italic tracking-tight text-white">System <span class="text-brand">Overview</span></h1>
-        <p class="text-xs font-bold text-muted uppercase tracking-widest">Structured content feed</p>
+        <h1 class="text-3xl font-bold text-brand tracking-tight">Your <span class="text-accent">Activity</span></h1>
+        <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest">Meaningful content pipeline</p>
       </div>
       <div class="flex flex-col md:flex-row w-full md:w-auto gap-3 md:gap-2 mt-4 md:mt-0">
         {admin_cta}
-        <button onclick="openNewPostModal()" class="w-full md:w-auto px-6 py-4 md:py-3 bg-white/5 border border-white/10 rounded-2xl md:rounded-xl font-black text-xs md:text-[10px] uppercase tracking-widest text-white hover:bg-white/10 transition-all">New Post</button>
-        <button onclick="syncAccounts()" class="w-full md:w-auto px-6 py-4 md:py-3 bg-brand rounded-2xl md:rounded-xl font-black text-xs md:text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20">Sync Accounts</button>
+        <button onclick="openNewPostModal()" class="w-full md:w-auto px-6 py-4 md:py-3 bg-white border border-brand/10 rounded-2xl md:rounded-xl font-bold text-xs md:text-[10px] uppercase tracking-widest text-brand hover:bg-brand/5 transition-all">New Post</button>
+        <button onclick="syncAccounts()" class="w-full md:w-auto px-6 py-4 md:py-3 bg-brand rounded-2xl md:rounded-xl font-bold text-xs md:text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Sync Accounts</button>
       </div>
     </div>
 
     <!-- Quick Stats -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="glass p-6 rounded-2xl">
-        <div class="text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-1">Weekly Output</div>
-        <div class="text-2xl font-black text-white">{weekly_post_count} Posts</div>
+      <div class="glass p-6 rounded-2xl bg-white">
+        <div class="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em] mb-1">Weekly Output</div>
+        <div class="text-2xl font-bold text-brand">{weekly_post_count} Posts</div>
       </div>
-      <div class="glass p-6 rounded-2xl">
-        <div class="text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-1">Active Accounts</div>
-        <div class="text-2xl font-black text-white">{account_count} Connected</div>
+      <div class="glass p-6 rounded-2xl bg-white">
+        <div class="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em] mb-1">Active Accounts</div>
+        <div class="text-2xl font-bold text-brand">{account_count} Connected</div>
       </div>
-      <div class="glass p-6 rounded-2xl">
-        <div class="text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-1">Automation Status</div>
-        <div class="text-2xl font-black text-emerald-400">Operational</div>
+      <div class="glass p-6 rounded-2xl bg-white">
+        <div class="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em] mb-1">Creation Status</div>
+        <div class="text-2xl font-bold text-brand">Ready</div>
       </div>
-      <div class="glass p-6 rounded-2xl">
-        <div class="text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-1">Next Post In</div>
-        <div class="text-2xl font-black text-brand">{next_post_countdown}</div>
+      <div class="glass p-6 rounded-2xl bg-white">
+        <div class="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em] mb-1">Next Post In</div>
+        <div class="text-2xl font-bold text-accent">{next_post_countdown}</div>
       </div>
     </div>
 
@@ -1267,21 +1268,21 @@ APP_DASHBOARD_CONTENT = """
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Next Post Preview -->
       <div class="lg:col-span-1 space-y-6">
-        <h2 class="text-xs font-black uppercase tracking-[0.3em] text-muted">Next Scheduled Post</h2>
-        <div class="glass rounded-[2.5rem] p-8 space-y-6 border-brand/20">
-          <div class="aspect-square rounded-2xl overflow-hidden bg-white/5 relative border border-white/10">
+        <h2 class="text-xs font-bold uppercase tracking-[0.3em] text-text-muted">Next Scheduled Post</h2>
+        <div class="glass rounded-[2.5rem] bg-white p-8 space-y-6 border-brand/5">
+          <div class="aspect-square rounded-2xl overflow-hidden bg-cream relative border border-brand/5">
             {next_post_media}
-            <div class="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 text-[8px] font-black uppercase tracking-widest text-white">
+            <div class="absolute top-4 right-4 bg-brand px-3 py-1.5 rounded-lg border border-brand/10 text-[8px] font-bold uppercase tracking-widest text-white shadow-lg shadow-brand/20">
               {next_post_time}
             </div>
           </div>
           <div class="space-y-4">
-            <p class="text-sm text-white/90 leading-relaxed font-medium line-clamp-3">
-              {next_post_caption}
+            <p class="text-sm text-text-main leading-relaxed font-medium line-clamp-3 italic">
+              "{next_post_caption}"
             </p>
             <div class="pt-4 flex gap-2">
-              <button onclick="openEditPostModal('{next_post_id}', {next_post_caption_json}, '{next_post_time_iso}')" class="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all">Edit</button>
-              <button onclick="approvePost('{next_post_id}')" class="flex-1 py-3 bg-brand/20 text-brand rounded-xl font-black text-[10px] uppercase tracking-widest border border-brand/20">Approve</button>
+              <button onclick="openEditPostModal('{next_post_id}', {next_post_caption_json}, '{next_post_time_iso}')" class="flex-1 py-3 bg-white border border-brand/10 rounded-xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand transition-all">Refine</button>
+              <button onclick="approvePost('{next_post_id}')" class="flex-1 py-3 bg-brand/5 text-brand rounded-xl font-bold text-[10px] uppercase tracking-widest border border-brand/20 hover:bg-brand/10 transition-all">Approve</button>
             </div>
           </div>
         </div>
@@ -1290,22 +1291,22 @@ APP_DASHBOARD_CONTENT = """
       <!-- Feed / Calendar Preview -->
       <div class="lg:col-span-2 space-y-6">
         <div class="flex justify-between items-center">
-          <h2 class="text-xs font-black uppercase tracking-[0.3em] text-muted">Upcoming Pipeline</h2>
-          <a href="/app/calendar" class="text-[8px] font-black uppercase tracking-widest text-brand hover:underline">View Full Calendar &rarr;</a>
+          <h2 class="text-xs font-bold uppercase tracking-[0.3em] text-text-muted">Content Pipeline</h2>
+          <a href="/app/calendar" class="text-[8px] font-bold uppercase tracking-widest text-brand hover:text-accent transition-colors">View Schedule &rarr;</a>
         </div>
         
-        <div class="hidden md:block glass rounded-[2.5rem] overflow-hidden border border-white/10">
-          <div class="grid grid-cols-7 border-b border-white/5 bg-white/5">
+        <div class="hidden md:block glass rounded-[2.5rem] bg-white overflow-hidden border border-brand/5">
+          <div class="grid grid-cols-7 border-b border-brand/5 bg-brand/5 text-brand">
             {calendar_headers}
           </div>
-          <div class="grid grid-cols-7 h-48">
+          <div class="grid grid-cols-7 h-48 bg-white">
             {calendar_days}
           </div>
         </div>
 
         <!-- Recent Posts List -->
         <div class="space-y-4 pt-4">
-          <h2 class="text-xs font-black uppercase tracking-[0.3em] text-muted">Recent Activity</h2>
+          <h2 class="text-xs font-bold uppercase tracking-[0.3em] text-text-muted">Recent Content</h2>
           <div class="space-y-2">
             {recent_posts}
           </div>
@@ -1315,50 +1316,50 @@ APP_DASHBOARD_CONTENT = """
     </div>
 
     <!-- Edit Post Modal -->
-    <div id="editPostModal" class="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] hidden flex items-end md:items-center justify-center p-0 md:p-6">
-      <div class="glass w-full h-[90vh] md:h-auto md:max-w-xl pb-safe rounded-t-[2.5rem] md:rounded-[3rem] p-6 md:p-10 space-y-8 animate-in slide-in-from-bottom md:zoom-in-95 duration-300 border-t md:border border-brand/20 overflow-y-auto">
+    <div id="editPostModal" class="fixed inset-0 bg-brand/20 backdrop-blur-xl z-[100] hidden flex items-end md:items-center justify-center p-0 md:p-6">
+      <div class="glass w-full h-[90vh] md:h-auto md:max-w-xl pb-safe rounded-t-[2.5rem] md:rounded-[3rem] p-6 md:p-10 space-y-8 animate-in slide-in-from-bottom md:zoom-in-95 duration-300 border-t md:border border-brand/10 bg-white overflow-y-auto">
         <div class="flex justify-between items-center">
           <div>
-            <h2 class="text-2xl font-black italic text-white tracking-tight">Edit <span class="text-brand">Post</span></h2>
-            <p class="text-[10px] font-bold text-muted uppercase tracking-widest">Modify scheduled content</p>
+            <h2 class="text-2xl font-bold text-brand tracking-tight">Refine <span class="text-accent">Post</span></h2>
+            <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest">Thoughtfully adjust your content</p>
           </div>
-          <button onclick="closeEditPostModal()" class="p-2 text-muted hover:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+          <button onclick="closeEditPostModal()" class="p-2 text-text-muted hover:text-brand"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
         </div>
 
         <input type="hidden" id="editPostId">
         
         <div class="space-y-6">
           <div class="space-y-2">
-            <label class="text-[10px] font-black text-muted uppercase tracking-widest ml-1">Caption / Content</label>
-            <textarea id="editPostCaption" rows="6" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white text-sm focus:border-brand/50 focus:ring-0 transition-all font-medium"></textarea>
+            <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Content Caption</label>
+            <textarea id="editPostCaption" rows="6" class="w-full bg-cream border border-brand/10 rounded-2xl p-4 text-brand text-sm focus:border-brand/30 transition-all font-medium italic"></textarea>
           </div>
           <div class="space-y-2">
-            <label class="text-[10px] font-black text-muted uppercase tracking-widest ml-1">Scheduled Time (UTC)</label>
-            <input type="datetime-local" id="editPostTime" class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white text-sm focus:border-brand/50 focus:ring-0 transition-all">
+            <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Scheduled Time (UTC)</label>
+            <input type="datetime-local" id="editPostTime" class="w-full bg-cream border border-brand/10 rounded-2xl p-4 text-brand text-sm focus:border-brand/30 transition-all font-bold">
           </div>
         </div>
 
         <div id="editPostActions" class="flex gap-4 pt-4">
-          <button id="deletePostBtn" onclick="showDeleteConfirm()" class="flex-1 py-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl font-black text-xs uppercase tracking-widest text-rose-400 hover:bg-rose-500/20 transition-all">Delete Post</button>
+          <button id="deletePostBtn" onclick="showDeleteConfirm()" class="flex-1 py-4 bg-rose-50 border border-rose-100 rounded-2xl font-bold text-xs uppercase tracking-widest text-rose-600 hover:bg-rose-100 transition-all">Remove</button>
           <div class="flex-1 flex gap-2">
-            <button onclick="closeEditPostModal()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest text-white hover:bg-white/10 transition-all">Cancel</button>
-            <button id="savePostBtn" onclick="savePostEdit()" class="flex-[2] py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Apply</button>
+            <button onclick="closeEditPostModal()" class="flex-1 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-xs uppercase tracking-widest text-text-muted hover:text-brand transition-all">Cancel</button>
+            <button id="savePostBtn" onclick="savePostEdit()" class="flex-[2] py-4 bg-brand rounded-2xl font-bold text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Save Changes</button>
           </div>
         </div>
 
         <div id="deleteConfirmActions" class="hidden pt-4">
-          <div class="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 mb-4 hstack gap-3">
-             <div class="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 shrink-0">
+          <div class="p-4 rounded-2xl bg-rose-50 border border-rose-100 mb-4 flex gap-3 items-center">
+             <div class="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
              </div>
              <div>
-               <h4 class="text-sm font-black text-white">Delete Scheduled Post?</h4>
-               <p class="text-[10px] font-bold text-muted uppercase tracking-widest mt-1">This action cannot be undone.</p>
+               <h4 class="text-sm font-bold text-rose-900">Delete this post?</h4>
+               <p class="text-[10px] font-bold text-rose-600 uppercase tracking-widest mt-1">This action cannot be undone.</p>
              </div>
           </div>
           <div class="flex gap-4">
-            <button onclick="hideDeleteConfirm()" class="flex-1 py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-xs uppercase tracking-widest text-white hover:bg-white/10 transition-all">Cancel</button>
-            <button id="confirmDeleteBtn" onclick="deletePost()" class="flex-1 py-4 bg-rose-500 hover:bg-rose-600 rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-rose-500/20 transition-all">Yes, Delete Post</button>
+            <button onclick="hideDeleteConfirm()" class="flex-1 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-xs uppercase tracking-widest text-text-muted hover:text-brand transition-all">Cancel</button>
+            <button id="confirmDeleteBtn" onclick="deletePost()" class="flex-1 py-4 bg-rose-600 hover:bg-rose-700 rounded-2xl font-bold text-xs uppercase tracking-widest text-white shadow-xl shadow-rose-600/20 transition-all">Confirm Delete</button>
           </div>
         </div>
       </div>
@@ -1376,22 +1377,22 @@ ONBOARDING_HTML = """<!doctype html>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', sans-serif; background: #020617; color: #ffffff; }
-    .ai-bg { background: radial-gradient(circle at top right, #312e81, #0f172a, #020617); }
-    .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
-    .step-dot.active { background: #6366f1; transform: scale(1.2); }
-    .step-dot.complete { background: #10b981; }
+    body { font-family: 'Inter', sans-serif; background: #F8F6F2; color: #1A1A1A; }
+    .brand-bg { background: radial-gradient(circle at top right, #0F3D2E, #F8F6F2); }
+    .glass { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(15, 61, 46, 0.1); }
+    .step-dot.active { background: #0F3D2E; transform: scale(1.2); }
+    .step-dot.complete { background: #C9A96E; }
   </style>
 </head>
-<body class="ai-bg min-h-screen p-4 md:p-6 flex flex-col md:items-center justify-center">
+<body class="brand-bg min-h-screen p-4 md:p-6 flex flex-col md:items-center justify-center">
   <div class="max-w-2xl w-full flex-1 md:flex-none flex flex-col justify-center py-6 md:py-0">
     <!-- Progress -->
     <div class="flex justify-center gap-4 mb-8 md:mb-12" id="progress-dots">
-      <div class="step-dot active w-3 h-3 rounded-full bg-white/20 transition-all"></div>
-      <div class="step-dot w-3 h-3 rounded-full bg-white/20 transition-all"></div>
-      <div class="step-dot w-3 h-3 rounded-full bg-white/20 transition-all"></div>
-      <div class="step-dot w-3 h-3 rounded-full bg-white/20 transition-all"></div>
-      <div class="step-dot w-3 h-3 rounded-full bg-white/20 transition-all"></div>
+      <div class="step-dot active w-3 h-3 rounded-full bg-brand/20 transition-all"></div>
+      <div class="step-dot w-3 h-3 rounded-full bg-brand/20 transition-all"></div>
+      <div class="step-dot w-3 h-3 rounded-full bg-brand/20 transition-all"></div>
+      <div class="step-dot w-3 h-3 rounded-full bg-brand/20 transition-all"></div>
+      <div class="step-dot w-3 h-3 rounded-full bg-brand/20 transition-all"></div>
     </div>
 
     <div class="glass rounded-[2rem] md:rounded-[3rem] p-6 md:p-12 space-y-8 md:space-y-10 min-h-[80vh] md:min-h-[500px] flex flex-col justify-between" id="onboarding-card">
@@ -1414,9 +1415,9 @@ ONBOARDING_HTML = """<!doctype html>
       const dots = document.querySelectorAll('.step-dot');
       dots.forEach((dot, i) => {
         dot.className = 'step-dot w-3 h-3 rounded-full transition-all';
-        if (i + 1 < currentStep) dot.classList.add('complete', 'bg-emerald-500');
-        else if (i + 1 === currentStep) dot.classList.add('active', 'bg-indigo-500', 'scale-125');
-        else dot.classList.add('bg-white/20');
+        if (i + 1 < currentStep) dot.classList.add('complete', 'bg-accent');
+        else if (i + 1 === currentStep) dot.classList.add('active', 'bg-brand', 'scale-125');
+        else dot.classList.add('bg-brand/10');
       });
     }
 
@@ -1518,7 +1519,7 @@ ONBOARDING_HTML = """<!doctype html>
                <div class="flex justify-between text-[10px] font-black uppercase tracking-widest"><span>Intelligence</span> <span class="text-white">${onboardingData.contentMode}</span></div>
                <div class="flex justify-between text-[10px] font-black uppercase tracking-widest"><span>Schedule</span> <span class="text-white">Daily @ ${onboardingData.autoTime}</span></div>
             </div>
-            <p class="text-muted text-center text-xs font-medium">Click finish to activate your neural automation engine.</p>
+            <p class="text-text-muted text-center text-xs font-medium">Click finish to activate your content engine.</p>
           </div>
           <div class="flex gap-4 pt-8">
             <button onclick="prevStep()" class="flex-1 bg-white/5 py-5 rounded-2xl font-black text-sm uppercase tracking-widest border border-white/10">Review</button>
@@ -1726,7 +1727,7 @@ async def app_dashboard_page(
             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
           </div>
           <div class="space-y-2">
-            <h3 class="text-xl font-black italic text-white">Neural Engine Offline</h3>
+            <h3 class="text-xl font-bold text-brand tracking-tight">System Status: Inactive</h3>
             <p class="text-muted text-sm max-w-md mx-auto">Your account is active, but no publishing destinations are linked. Connect your first Instagram account to activate the automation loop.</p>
           </div>
           <button onclick="alert('Instagram connection flow coming in next update. For now, use Admin or re-run onboarding.')" class="px-10 py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/40">Initialize IG Connection</button>
@@ -1792,7 +1793,7 @@ async def app_dashboard_page(
 
     if user.is_superadmin:
         admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>'
-        admin_cta = '<a href="/admin" class="px-6 py-3 bg-rose-500/10 border border-rose-500/20 rounded-xl font-black text-[10px] uppercase tracking-widest text-rose-400 hover:bg-rose-500/20 transition-all flex items-center gap-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>Owner Ops</a>'
+        admin_cta = '<a href="/admin" class="px-6 py-3 bg-brand/5 border border-brand/10 rounded-xl font-bold text-[10px] uppercase tracking-widest text-brand hover:bg-brand/10 transition-all flex items-center gap-2"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>System Admin</a>'
 
     content = APP_DASHBOARD_CONTENT.replace("{admin_cta}", admin_cta)\
                                    .replace("{connection_cta}", connection_cta)\
@@ -1885,11 +1886,11 @@ async def app_calendar_page(
                     indicators += f'<div class="w-1.5 h-1.5 rounded-full {color}"></div>'
                 
                 is_today = (day == today.day)
-                today_class = "border-brand/40 bg-brand/5 shadow-[0_0_20px_rgba(99,102,241,0.1)]" if is_today else "border-white/5 hover:border-white/20"
+                today_class = "border-brand/40 bg-brand/5 shadow-[0_0_20px_rgba(15,61,46,0.05)]" if is_today else "border-brand/5 hover:border-brand/20 bg-white"
                 
                 calendar_html += f"""
-                <div class="aspect-square glass border rounded-xl p-3 flex flex-col justify-between transition-all {today_class}">
-                    <span class="text-xs font-black { 'text-brand' if is_today else 'text-white/40' }">{day}</span>
+                <div class="aspect-square glass border rounded-3xl p-4 flex flex-col justify-between transition-all {today_class}">
+                    <span class="text-xs font-bold { 'text-brand' if is_today else 'text-text-muted' }">{day}</span>
                     <div class="flex gap-1 flex-wrap">
                         {indicators}
                     </div>
@@ -1900,12 +1901,12 @@ async def app_calendar_page(
     <div class="space-y-8">
         <div class="flex justify-between items-end">
             <div>
-                <h1 class="text-3xl font-black italic tracking-tight text-white">{today.strftime('%B')} <span class="text-brand">{year}</span></h1>
-                <p class="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Automated Content Distribution Hub</p>
+                <h1 class="text-3xl font-bold text-brand tracking-tight">{today.strftime('%B')} <span class="text-accent">{year}</span></h1>
+                <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.2em]">Your Content Journey</p>
             </div>
             <div class="flex gap-2">
-                <button class="px-4 py-2 glass rounded-lg text-[10px] font-black uppercase text-white opacity-50 cursor-not-allowed">&larr; Prev</button>
-                <button class="px-4 py-2 glass rounded-lg text-[10px] font-black uppercase text-white opacity-50 cursor-not-allowed">Next &rarr;</button>
+                <button class="px-4 py-2 bg-white border border-brand/10 rounded-lg text-[10px] font-bold uppercase text-text-muted opacity-50 cursor-not-allowed">&larr; Prev</button>
+                <button class="px-4 py-2 bg-white border border-brand/10 rounded-lg text-[10px] font-bold uppercase text-text-muted opacity-50 cursor-not-allowed">Next &rarr;</button>
             </div>
         </div>
         
@@ -1913,10 +1914,10 @@ async def app_calendar_page(
             {calendar_html}
         </div>
         
-        <div class="glass p-8 rounded-[2rem] border-white/5 space-y-4">
-            <h3 class="text-xs font-black uppercase tracking-widest text-white">Upcoming Pipeline</h3>
+        <div class="glass p-8 rounded-[2rem] bg-white border border-brand/5 space-y-4">
+            <h3 class="text-xs font-bold uppercase tracking-widest text-brand">Planned Content</h3>
             <div class="space-y-2">
-                { "".join([f'<div class="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 text-[10px] font-bold text-white"><div class="flex items-center gap-3"><div class="w-1.5 h-1.5 rounded-full bg-brand"></div>{p.caption[:60] if p.caption else "No Caption"}...</div><div class="text-muted tracking-widest">{p.scheduled_time.strftime("%b %d, %H:%M")}</div></div>' for p in posts if p.status == "scheduled"][:5]) or '<div class="text-center py-4 text-muted italic">No upcoming posts</div>' }
+                { "".join([f'<div class="flex items-center justify-between p-4 bg-cream rounded-xl border border-brand/5 text-[10px] font-bold text-brand"><div class="flex items-center gap-3"><div class="w-1.5 h-1.5 rounded-full bg-brand"></div>{p.caption[:60] if p.caption else "Untitled Post"}...</div><div class="text-text-muted tracking-widest">{p.scheduled_time.strftime("%b %d, %H:%M")}</div></div>' for p in posts if p.status == "scheduled"][:5]) or '<div class="text-center py-4 text-text-muted italic font-medium">No upcoming posts planned</div>' }
             </div>
         </div>
     </div>
@@ -1991,14 +1992,14 @@ async def app_automations_page(
     <div class="space-y-8">
       <div class="flex justify-between items-end">
         <div>
-          <h1 class="text-3xl font-black italic tracking-tight text-white">Neural <span class="text-brand">Automations</span></h1>
-          <p class="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Neural Loop Configuration</p>
+          <h1 class="text-3xl font-bold text-brand tracking-tight">Content <span class="text-accent">Plans</span></h1>
+          <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Automated Content Strategy</p>
         </div>
-        <button onclick="showNewAutoModal()" class="px-8 py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20">+ New Automation</button>
+        <button onclick="showNewAutoModal()" class="px-8 py-4 bg-brand rounded-2xl font-bold text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">+ New Content Plan</button>
       </div>
 
       <div class="space-y-4">
-        {autos_html or '<div class="py-20 text-center glass rounded-[3rem]"><p class="text-muted font-black text-[10px] uppercase tracking-widest">No active automations. Run the onboarding wizard or create one manually.</p></div>'}
+        {autos_html or '<div class="py-20 text-center glass bg-white rounded-[3rem] border border-brand/5"><p class="text-text-muted font-bold text-[10px] uppercase tracking-widest">No active content plans. Create one to start your automated journey.</p></div>'}
       </div>
     </div>
 
@@ -2076,7 +2077,7 @@ async def app_automations_page(
     <!-- New Automation Modal -->
     <div id="newAutoModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-6">
       <div class="glass max-w-2xl w-full p-10 rounded-[2.5rem] space-y-6 max-h-[90vh] overflow-y-auto">
-        <h2 class="text-2xl font-black italic text-white tracking-tight">New <span class="text-brand">Neural Automation</span></h2>
+        <h2 class="text-2xl font-bold text-brand tracking-tight">New <span class="text-accent">Content Plan</span></h2>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="space-y-4">
@@ -2501,7 +2502,7 @@ async def app_automations_page(
         btn.textContent = 'RUNNING...';
         try {{
           const res = await fetch(`/automations/${{id}}/run`, {{ method: 'POST' }});
-          if (res.ok) alert('Neural loop triggered. Check dashboard for the new post.');
+          if (res.ok) alert('Content plan initiated. Your post is being prepared.');
           else alert('Run failed');
         }} finally {{ btn.disabled = false; btn.textContent = 'Run Now'; }}
       }}
@@ -2532,10 +2533,10 @@ async def app_media_page(
     
     content = """
     <div class="space-y-6">
-        <h1 class="text-3xl font-black italic tracking-tight text-white">Media <span class="text-brand">Vault</span></h1>
-        <div class="glass p-12 rounded-[3rem] border-brand/20 bg-brand/5 text-center">
-            <h3 class="text-xl font-black italic text-white mb-2">Asset Intelligence</h3>
-            <p class="text-muted text-sm max-w-md mx-auto">The media library is being synchronized with your generated assets. Check back shortly for full access.</p>
+        <h1 class="text-3xl font-bold text-brand tracking-tight">Media <span class="text-accent">Library</span></h1>
+        <div class="glass p-12 rounded-[3rem] border-brand/5 bg-white text-center">
+            <h3 class="text-xl font-bold text-brand mb-2">Visual Foundations</h3>
+            <p class="text-text-muted text-sm max-w-md mx-auto font-medium">Your media library is being synchronized with your generated assets. Check back shortly to manage your visual collection.</p>
         </div>
     </div>
     """
@@ -2643,13 +2644,13 @@ async def app_library_page(
     <div class="space-y-8 h-full flex flex-col">
       <div class="flex justify-between items-end flex-shrink-0">
         <div>
-          <h1 class="text-3xl font-black italic tracking-tight text-white">Source <span class="text-brand">Library</span></h1>
-          <p class="text-[10px] font-black text-muted uppercase tracking-[0.3em]">Structured knowledge for content creation</p>
+          <h1 class="text-3xl font-bold text-brand tracking-tight">Content <span class="text-accent">Library</span></h1>
+          <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Structured knowledge for your content</p>
         </div>
         <div class="flex gap-4">
-          <button onclick="openEntryModal()" class="px-8 py-4 bg-brand rounded-2xl font-black text-[11px] uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3">
+          <button onclick="openEntryModal()" class="px-8 py-4 bg-brand rounded-2xl font-bold text-[11px] uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center gap-3">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-            Add Library Entry
+            Add Knowledge
           </button>
         </div>
       </div>
@@ -2657,37 +2658,37 @@ async def app_library_page(
       <!-- Main Layout: Sidebar + List -->
       <div class="flex flex-col md:flex-row gap-4 md:gap-8 flex-1 overflow-hidden min-h-0">
         <!-- Sidebar: Sources -->
-        <div class="w-full md:w-80 glass rounded-[1.5rem] md:rounded-[2.5rem] flex flex-col overflow-hidden border border-white/5 shrink-0">
-          <div class="p-4 md:p-6 border-b border-white/10 flex flex-col md:flex-col gap-4 bg-white/2 items-start md:items-stretch justify-between">
+        <div class="w-full md:w-80 glass rounded-[1.5rem] md:rounded-[2.5rem] bg-white flex flex-col overflow-hidden border border-brand/5 shrink-0">
+          <div class="p-4 md:p-6 border-b border-brand/5 flex flex-col md:flex-col gap-4 bg-brand/5 items-start md:items-stretch justify-between">
             <div class="flex flex-col">
                 <div class="flex items-center gap-3">
-                    <h3 class="text-xs font-black uppercase tracking-widest text-white/50">Collections</h3>
-                    <span id="sourceCount" class="text-[9px] font-black text-brand bg-brand/10 px-2 py-0.5 rounded-full">0</span>
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-text-muted">Collections</h3>
+                    <span id="sourceCount" class="text-[9px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded-full">0</span>
                 </div>
-                <span id="sabeelDefaultsLabel" class="hidden text-[8px] font-bold text-brand uppercase tracking-widest mt-1">Showing Sabeel Defaults</span>
+                <span id="sabeelDefaultsLabel" class="hidden text-[8px] font-bold text-accent uppercase tracking-widest mt-1">Sabeel Recommendations</span>
             </div>
             
             {library_controls}
           </div>
-          <div id="sourceList" class="flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto p-4 gap-2 md:space-y-2 hide-scrollbar">
+          <div id="sourceList" class="flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto p-4 gap-2 md:space-y-2 bg-white">
             <!-- Loaded via JS -->
           </div>
         </div>
 
         <!-- Main Content: Entries Grid -->
-        <div class="flex-1 glass rounded-[2.5rem] flex flex-col overflow-hidden border border-white/5 bg-white/2">
-          <div class="p-6 border-b border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0">
+        <div class="flex-1 glass rounded-[2.5rem] bg-white flex flex-col overflow-hidden border border-brand/5">
+          <div class="p-6 border-b border-brand/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0">
             <div class="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 w-full md:flex-1">
-              <h3 class="hidden md:block text-xs font-black uppercase tracking-widest text-white/50 shrink-0">Knowledge Nodes</h3>
+              <h3 class="hidden md:block text-xs font-bold uppercase tracking-widest text-text-muted shrink-0">Knowledge Base</h3>
               <div class="relative w-full md:max-w-md">
-                <input type="text" id="entrySearch" oninput="debounceEntryQuery()" placeholder="Search through your library..." class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-3 text-[11px] font-bold text-white outline-none focus:border-brand/40 transition-all placeholder:text-white/10">
-                <svg class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                <input type="text" id="entrySearch" oninput="debounceEntryQuery()" placeholder="Search your library..." class="w-full bg-cream border border-brand/10 rounded-2xl px-6 py-3 text-[11px] font-bold text-brand outline-none focus:border-brand/30 transition-all placeholder:text-brand/20">
+                <svg class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-brand/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
               </div>
             </div>
             <div class="flex items-center gap-4 ml-4">
-                <div class="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-4 py-2 relative">
-                    <span class="text-[9px] font-black uppercase text-white/30">Topic:</span>
-                    <select id="filterTopic" onchange="loadEntries()" class="bg-transparent text-[10px] font-black uppercase tracking-widest text-white outline-none cursor-pointer">
+                <div class="flex items-center gap-2 bg-cream border border-brand/10 rounded-xl px-4 py-2 relative">
+                    <span class="text-[9px] font-bold uppercase text-text-muted">Topic:</span>
+                    <select id="filterTopic" onchange="loadEntries()" class="bg-transparent text-[10px] font-bold uppercase tracking-widest text-brand outline-none cursor-pointer">
                         <option value="">All Topics</option>
                         <!-- Populated via JS -->
                     </select>
@@ -2707,9 +2708,9 @@ async def app_library_page(
           </div>
           
           <!-- RECOMMENDED TRACK -->
-          <div id="recommendedTrackWrapper" class="hidden flex-col border-b border-white/5 bg-gradient-to-b from-brand/5 to-transparent shrink-0">
+          <div id="recommendedTrackWrapper" class="hidden flex-col border-b border-brand/5 bg-gradient-to-b from-brand/5 to-transparent shrink-0">
             <div class="px-6 md:px-8 py-3 flex items-center justify-between">
-              <h3 class="text-[9px] font-black uppercase tracking-widest text-brand flex items-center gap-2">
+              <h3 class="text-[9px] font-bold uppercase tracking-widest text-brand flex items-center gap-2">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143z"/></svg>
                 Recommended For You
               </h3>
@@ -2720,16 +2721,16 @@ async def app_library_page(
           </div>
 
           <!-- Topic Chips -->
-          <div id="topicChips" class="px-6 md:px-8 py-3 border-b border-white/5 flex gap-3 overflow-x-auto hide-scrollbar bg-white/[0.01]">
+          <div id="topicChips" class="px-6 md:px-8 py-3 border-b border-brand/5 flex gap-3 overflow-x-auto hide-scrollbar bg-cream/50">
                 <!-- Populated via JS -->
           </div>
-          <div id="entryList" class="flex-1 overflow-y-auto p-8 grid grid-cols-1 xl:grid-cols-2 gap-6 items-start content-start hide-scrollbar">
+          <div id="entryList" class="flex-1 overflow-y-auto p-8 grid grid-cols-1 xl:grid-cols-2 gap-6 items-start content-start hide-scrollbar bg-white">
             <!-- Loaded via JS -->
             <div class="col-span-full h-full flex flex-col items-center justify-center text-center space-y-4 opacity-50 py-20">
-                <div class="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center border border-white/10">
+                <div class="w-16 h-16 rounded-3xl bg-brand/5 flex items-center justify-center border border-brand/10">
                     <svg class="w-8 h-8 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
                 </div>
-                <p class="text-[11px] font-black uppercase tracking-[0.3em] text-white">Select a collection to browse</p>
+                <p class="text-[11px] font-bold uppercase tracking-[0.3em] text-brand">Select a collection to browse</p>
             </div>
           </div>
         </div>
@@ -2737,14 +2738,14 @@ async def app_library_page(
     </div>
 
     <!-- Unified Entry Modal -->
-    <div id="entryModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[500] hidden flex items-center justify-center p-6 animate-in fade-in duration-300">
-      <div class="glass max-w-5xl w-full p-10 rounded-[3rem] border border-white/10 shadow-2xl space-y-8 max-h-[90vh] overflow-y-auto hide-scrollbar">
+    <div id="entryModal" class="fixed inset-0 bg-brand/20 backdrop-blur-xl z-[500] hidden flex items-center justify-center p-6 animate-in fade-in duration-300">
+      <div class="glass max-w-5xl w-full p-10 rounded-[3rem] border border-brand/10 shadow-2xl space-y-8 max-h-[90vh] overflow-y-auto hide-scrollbar bg-white">
         <div class="flex justify-between items-center">
             <div>
-                <h2 id="entryModalTitle" class="text-3xl font-black italic text-white tracking-tight">Add <span class="text-brand">Library Entry</span></h2>
-                <p class="text-[10px] font-bold text-muted uppercase tracking-[0.2em] mt-1">Populate your intelligence database</p>
+                <h2 id="entryModalTitle" class="text-3xl font-bold text-brand tracking-tight">Add <span class="text-accent">Knowledge</span></h2>
+                <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.2em] mt-1">Thoughtfully populate your database</p>
             </div>
-            <button onclick="hideEntryModal()" class="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center text-white/40 hover:bg-white/10 hover:text-white transition-all">
+            <button onclick="hideEntryModal()" class="w-10 h-10 rounded-2xl bg-brand/5 flex items-center justify-center text-text-muted hover:bg-brand/10 hover:text-brand transition-all">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
             </button>
         </div>
@@ -2753,10 +2754,10 @@ async def app_library_page(
         
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
             <!-- Left Side: Source & Settings -->
-            <div class="lg:col-span-4 space-y-6 bg-white/5 p-8 rounded-[2.5rem] border border-white/5">
+            <div class="lg:col-span-4 space-y-6 bg-brand/5 p-8 rounded-[2.5rem] border border-brand/5">
                 <div class="space-y-4">
-                    <label class="text-[10px] font-black uppercase tracking-[0.3em] text-brand">Collection Name</label>
-                    <select id="sourceSelect" onchange="checkNewSource()" class="w-full bg-white/10 border border-white/10 rounded-2xl px-6 py-4 text-sm text-white outline-none focus:ring-2 focus:ring-brand font-bold appearance-none">
+                    <label class="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">Collection Name</label>
+                    <select id="sourceSelect" onchange="checkNewSource()" class="w-full bg-white border border-brand/10 rounded-2xl px-6 py-4 text-sm text-brand outline-none focus:ring-2 focus:ring-brand font-bold appearance-none">
                         <option value="">Select or Create New...</option>
                         <!-- Populated via JS -->
                     </select>
@@ -2764,36 +2765,36 @@ async def app_library_page(
 
                 <div id="newSourceFields" class="space-y-6 hidden animate-in slide-in-from-top-2">
                     <div class="space-y-2">
-                        <label class="text-[9px] font-black uppercase tracking-[0.2em] text-white/30">New Collection Title</label>
-                        <input type="text" id="newSourceName" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm text-white outline-none focus:ring-2 focus:ring-amber-500/50" placeholder="e.g. My Personal Journal">
+                        <label class="text-[9px] font-bold uppercase tracking-[0.2em] text-text-muted">New Collection Title</label>
+                        <input type="text" id="newSourceName" class="w-full bg-white border border-brand/10 rounded-2xl px-6 py-4 text-sm text-brand outline-none focus:ring-2 focus:ring-accent/50" placeholder="e.g. My Personal Journal">
                     </div>
                 </div>
 
                 <div class="space-y-4">
-                    <label class="text-[10px] font-black uppercase tracking-[0.3em] text-brand">Knowledge Type</label>
+                    <label class="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">Knowledge Type</label>
                     <div class="grid grid-cols-2 gap-2">
-                        <button onclick="setEntryType('quran', this)" class="type-btn p-4 rounded-2xl border border-white/5 bg-white/2 hover:bg-white/5 text-[10px] font-black uppercase tracking-wider text-white/40 transition-all flex flex-col items-center gap-2">
+                        <button onclick="setEntryType('quran', this)" class="type-btn p-4 rounded-2xl border border-brand/5 bg-white hover:bg-brand/5 text-[10px] font-bold uppercase tracking-wider text-text-muted transition-all flex flex-col items-center gap-2">
                             <span class="text-xs">📖</span> Quran
                         </button>
-                        <button onclick="setEntryType('hadith', this)" class="type-btn p-4 rounded-2xl border border-white/5 bg-white/2 hover:bg-white/5 text-[10px] font-black uppercase tracking-wider text-white/40 transition-all flex flex-col items-center gap-2">
+                        <button onclick="setEntryType('hadith', this)" class="type-btn p-4 rounded-2xl border border-brand/5 bg-white hover:bg-brand/5 text-[10px] font-bold uppercase tracking-wider text-text-muted transition-all flex flex-col items-center gap-2">
                             <span class="text-xs">📜</span> Hadith
                         </button>
-                        <button onclick="setEntryType('quote', this)" class="type-btn p-4 rounded-2xl border border-white/5 bg-white/2 hover:bg-white/5 text-[10px] font-black uppercase tracking-wider text-white/40 transition-all flex flex-col items-center gap-2">
+                        <button onclick="setEntryType('quote', this)" class="type-btn p-4 rounded-2xl border border-brand/5 bg-white hover:bg-brand/5 text-[10px] font-bold uppercase tracking-wider text-text-muted transition-all flex flex-col items-center gap-2">
                             <span class="text-xs">💬</span> Quote
                         </button>
-                        <button onclick="setEntryType('book', this)" class="type-btn p-4 rounded-2xl border border-white/5 bg-white/2 hover:bg-white/5 text-[10px] font-black uppercase tracking-wider text-white/40 transition-all flex flex-col items-center gap-2">
+                        <button onclick="setEntryType('book', this)" class="type-btn p-4 rounded-2xl border border-brand/5 bg-white hover:bg-brand/5 text-[10px] font-bold uppercase tracking-wider text-text-muted transition-all flex flex-col items-center gap-2">
                             <span class="text-xs">📚</span> Book
                         </button>
                     </div>
                     <input type="hidden" id="entryType" value="note">
                 </div>
-                <div id="globalToggleContainer" class="hidden py-4 border-t border-white/5 mt-6 animate-in slide-in-from-bottom-2">
+                <div id="globalToggleContainer" class="hidden py-4 border-t border-brand/5 mt-6 animate-in slide-in-from-bottom-2">
                     <label class="flex items-center gap-3 cursor-pointer group">
                         <div class="relative">
                             <input type="checkbox" id="isGlobalCheckbox" class="sr-only peer">
-                            <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+                            <div class="w-11 h-6 bg-brand/10 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
                         </div>
-                        <span class="text-[10px] font-black uppercase tracking-widest text-white/40 group-hover:text-white transition-colors">System Default (Global)</span>
+                        <span class="text-[10px] font-bold uppercase tracking-widest text-text-muted group-hover:text-brand transition-colors">Sabeel Recommendation (Global)</span>
                     </label>
                 </div>
             </div>
@@ -2802,10 +2803,10 @@ async def app_library_page(
             <div class="lg:col-span-8 space-y-8">
                 <div class="space-y-4">
                     <div class="flex justify-between items-end">
-                        <label class="text-[10px] font-black uppercase tracking-[0.3em] text-brand">Knowledge Content</label>
-                        <span id="charCount" class="text-[9px] font-bold text-muted tracking-widest">0 / 3000</span>
+                        <label class="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">Knowledge Content</label>
+                        <span id="charCount" class="text-[9px] font-bold text-text-muted tracking-widest">0 / 3000</span>
                     </div>
-                    <textarea id="entryText" oninput="updateCharCount()" rows="8" class="w-full bg-white/5 border border-white/10 rounded-[2rem] px-8 py-8 text-sm text-white outline-none focus:ring-2 focus:ring-brand leading-relaxed placeholder:text-white/5" placeholder="Paste the verse, hadith, or quote text here..."></textarea>
+                    <textarea id="entryText" oninput="updateCharCount()" rows="8" class="w-full bg-cream border border-brand/10 rounded-[2rem] px-8 py-8 text-sm text-brand outline-none focus:ring-2 focus:ring-brand leading-relaxed placeholder:text-brand/10" placeholder="Paste the verse, hadith, or quote text here..."></textarea>
                 </div>
 
                 <div id="dynamicMetadata" class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
@@ -2813,8 +2814,8 @@ async def app_library_page(
                 </div>
 
                 <div class="flex gap-4 pt-10">
-                    <button onclick="hideEntryModal()" class="flex-1 py-5 bg-white/5 border border-white/10 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] text-white hover:bg-white/10 transition-all">Cancel</button>
-                    <button onclick="saveEntry()" class="flex-[2] py-5 bg-brand rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] text-white shadow-2xl shadow-brand/40 hover:scale-[1.02] active:scale-[0.98] transition-all">Commit Knowledge</button>
+                    <button onclick="hideEntryModal()" class="flex-1 py-5 bg-white border border-brand/10 rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] text-brand hover:bg-brand/5 transition-all">Cancel</button>
+                    <button onclick="saveEntry()" class="flex-[2] py-5 bg-brand rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] text-white shadow-2xl shadow-brand/40 hover:bg-brand-hover transition-all">Commit Knowledge</button>
                 </div>
             </div>
         </div>
@@ -2886,7 +2887,7 @@ async def app_library_page(
     </div>
 
     <script>
-      console.log("Library Neural Interface: Online");
+      console.log("Library System: Ready");
       let libraryEntries = {}; // Global entry map for safer access
       let currentSourceId = null;
       let showGlobalOnly = false;
@@ -3079,7 +3080,7 @@ async def app_library_page(
                     list.appendChild(el);
               });
           } catch(e) {
-              console.error("Library Neural Transmission Error (Entries):", e);
+              console.error("Library System Error:", e);
               list.innerHTML = '<div class="col-span-full py-20 text-center"><div class="text-[10px] font-black text-rose-500/50 uppercase tracking-widest">Something went wrong.</div><p class="text-[8px] text-white/20 mt-2 uppercase font-bold">' + e.message + '</p></div>';
           }
       }
@@ -3429,7 +3430,7 @@ async def app_library_page(
                   loadEntries();
               } else {
                   const err = await res.json();
-                  alert(`Neural sync failed: ${err.detail || 'Unknown error'}`);
+                  alert(`Save failed: ${err.detail || 'Unknown error'}`);
               }
           } catch(e) { alert('Transmission error: ' + e.message); }
       }
@@ -3546,7 +3547,7 @@ async def app_library_page(
       }
 
       function toggleManageMode() {
-          console.log("Manager mode restricted to superadmin neural interface");
+          console.log("Admin interface restricted to system authorized users");
       }
 
       async function deleteEntry(id) {
