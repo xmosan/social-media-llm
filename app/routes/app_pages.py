@@ -2372,27 +2372,27 @@ async def app_automations_page(
     </div>
 
     <script>
-      function showNewAutoModal() {{
+      function showNewAutoModal() {
         document.getElementById('newAutoModal').classList.remove('hidden');
-      }}
+      }
 
-      function hideNewAutoModal() {{
+      function hideNewAutoModal() {
         document.getElementById('newAutoModal').classList.add('hidden');
-      }}
+      }
 
-      function toggleNewSeedText() {{
+      function toggleNewSeedText() {
         const mode = document.getElementById('newSeedMode').value;
         const group = document.getElementById('newSeedTextGroup');
         if (mode === 'manual') group.classList.remove('hidden');
         else group.classList.add('hidden');
-      }}
+      }
 
-      async function saveNewAutomation() {{
+      async function saveNewAutomation() {
         const providerScope = document.getElementById('newProviderScope').value;
         const btn = document.getElementById('btnSaveNew');
         if (!btn) return;
 
-        const payload = {{
+        const payload = {
           name: document.getElementById('newName').value,
           ig_account_id: parseInt(document.getElementById('newAccount').value),
           topic_prompt: document.getElementById('newTopic').value,
@@ -2401,39 +2401,39 @@ async def app_automations_page(
           post_time_local: document.getElementById('newTime').value,
           content_provider_scope: providerScope,
           enabled: true
-        }};
+        };
 
-        if (!payload.name || !payload.topic_prompt || isNaN(payload.ig_account_id)) {{
+        if (!payload.name || !payload.topic_prompt || isNaN(payload.ig_account_id)) {
           alert('Please provide a Name, Topic, and select a Target Account.');
           return;
-        }}
+        }
         
         btn.disabled = true;
         const originalText = btn.textContent;
         btn.textContent = 'CREATING...';
 
-        try {{
-          const res = await fetch('/automations', {{
+        try {
+          const res = await fetch('/automations', {
             method: 'POST',
-            headers: {{ 'Content-Type': 'application/json' }},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
-          }});
-          if (res.ok) {{
+          });
+          if (res.ok) {
             alert('Success: Growth Plan created.');
             window.location.reload();
-          }} else {{
+          } else {
             const err = await res.text();
             alert('Failed to create plan: ' + err);
-          }}
-        }} catch(e) {{ 
+          }
+        } catch(e) { 
           alert('Network disruption occurred. Please check your connection.'); 
-        }} finally {{ 
+        } finally { 
           btn.disabled = false; 
           btn.textContent = originalText; 
-        }}
-      }}
+        }
+      }
 
-      function showEditModal(data) {{
+      function showEditModal(data) {
         document.getElementById('editId').value = data.id;
         document.getElementById('editName').value = data.name;
         document.getElementById('editTopic').value = data.topic;
@@ -2445,26 +2445,26 @@ async def app_automations_page(
 
         toggleSeedText();
         document.getElementById('editModal').classList.remove('hidden');
-      }}
+      }
 
-      function hideEditModal() {{
+      function hideEditModal() {
         document.getElementById('editModal').classList.add('hidden');
-      }}
+      }
 
-      function toggleSeedText() {{
+      function toggleSeedText() {
         const mode = document.getElementById('editSeedMode').value;
         const group = document.getElementById('seedTextGroup');
         if (mode === 'manual') group.classList.remove('hidden');
         else group.classList.add('hidden');
-      }}
+      }
 
-      async function saveAutomation() {{
+      async function saveAutomation() {
         const id = document.getElementById('editId').value;
         const providerScope = document.getElementById('editProviderScope').value;
         const btn = document.getElementById('btnSaveEdit');
         if (!btn) return;
 
-        const payload = {{
+        const payload = {
           name: document.getElementById('editName').value,
           topic_prompt: document.getElementById('editTopic').value,
           library_topic_slug: document.getElementById('editLibraryTopic').value,
@@ -2472,34 +2472,34 @@ async def app_automations_page(
           content_seed_text: document.getElementById('editSeedText').value,
           post_time_local: document.getElementById('editTime').value,
           content_provider_scope: providerScope
-        }};
+        };
         
         btn.disabled = true;
         const originalText = btn.textContent;
         btn.textContent = 'SAVING...';
 
-        try {{
-          const res = await fetch(`/automations/${{id}}`, {{
+        try {
+          const res = await fetch(`/automations/${id}`, {
             method: 'PATCH',
-            headers: {{ 'Content-Type': 'application/json' }},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
-          }});
-          if (res.ok) {{
+          });
+          if (res.ok) {
             alert('Success: Plan details updated.');
             window.location.reload();
-          }} else {{
+          } else {
             const err = await res.text();
             alert('Save failed: ' + err);
-          }}
-        }} catch(e) {{ 
+          }
+        } catch(e) { 
           alert('Failed to transmit update. Verify your connection.'); 
-        }} finally {{ 
+        } finally { 
           btn.disabled = false; 
           btn.textContent = originalText; 
-        }}
-      }}
+        }
+      }
 
-      async function suggestAutomationTopic(inputId, hiddenId) {{
+      async function suggestAutomationTopic(inputId, hiddenId) {
           const prompt = document.getElementById(inputId).value;
           if (!prompt) return alert("Please enter a topic overview first.");
           
@@ -2508,62 +2508,62 @@ async def app_automations_page(
           btn.textContent = 'SEARCHING...';
           btn.disabled = true;
           
-          try {{
-              const res = await fetch('/library/topic-suggest', {{
+          try {
+              const res = await fetch('/library/topic-suggest', {
                   method: 'POST',
-                  headers: {{ 'Content-Type': 'application/json' }},
-                  body: JSON.stringify({{ text: prompt, max: 1 }})
-              }});
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ text: prompt, max: 1 })
+              });
               const data = await res.json();
-              if (data.suggestions && data.suggestions.length > 0) {{
+              if (data.suggestions && data.suggestions.length > 0) {
                   const s = data.suggestions[0];
-                  if (confirm(`Suggested Library Source: ${{s.topic}}\\n(${{s.reason}})\\n\\nLink this context for safer drafting?`)) {{
+                  if (confirm(`Suggested Library Source: ${s.topic}\n(${s.reason})\n\nLink this context for safer drafting?`)) {
                       document.getElementById(hiddenId).value = s.slug;
-                      btn.textContent = `LINKED: ${{s.topic.toUpperCase()}}`;
+                      btn.textContent = `LINKED: ${s.topic.toUpperCase()}`;
                       btn.classList.add('text-green-500');
-                  }} else {{ btn.textContent = originalText; }}
-              }} else {{
+                  } else { btn.textContent = originalText; }
+              } else {
                   alert("No direct source matches found. Generator will rely on broader library defaults.");
                   btn.textContent = originalText;
-              }}
-          }} catch(e) {{ btn.textContent = originalText; }}
-          finally {{ btn.disabled = false; }}
-      }}
+              }
+          } catch(e) { btn.textContent = originalText; }
+          finally { btn.disabled = false; }
+      }
 
       // ---- COMPOSER SMART ASSIST ----
       let composerSuggestTimer;
-      function debounceComposerSuggest(inputId, containerId) {{
+      function debounceComposerSuggest(inputId, containerId) {
           clearTimeout(composerSuggestTimer);
-          composerSuggestTimer = setTimeout(() => {{
+          composerSuggestTimer = setTimeout(() => {
               runComposerSuggest(inputId, containerId);
-          }}, 800);
-      }}
+          }, 800);
+      }
 
-      async function runComposerSuggest(inputId, containerId) {{
+      async function runComposerSuggest(inputId, containerId) {
           const text = document.getElementById(inputId).value;
           const container = document.getElementById(containerId);
           
-          if (!text || text.length < 3) {{
+          if (!text || text.length < 3) {
               container.classList.add('hidden');
               container.innerHTML = '';
               return;
-          }}
+          }
           
-          try {{
+          try {
               container.innerHTML = '<span class="text-[8px] font-black uppercase tracking-widest text-muted animate-pulse">Scanning library for context...</span>';
               container.classList.remove('hidden');
               container.classList.add('flex');
               
-              const res = await fetch(`/library/suggest?query=${{encodeURIComponent(text)}}`);
+              const res = await fetch(`/library/suggest?query=${encodeURIComponent(text)}`);
               const items = await res.json();
               
-              if (items.length === 0) {{
+              if (items.length === 0) {
                   container.innerHTML = '<span class="text-[8px] font-black uppercase tracking-widest text-muted">No specific grounding found. Sabeel will use verified defaults.</span>';
                   return;
-              }}
+              }
               
               let html = '<span class="text-[8px] font-black uppercase tracking-widest text-brand mb-1">Recommended Grounding</span>';
-              items.forEach((item, idx) => {{
+              items.forEach((item, idx) => {
                   if(idx > 2) return; 
                   
                   const safeText = item.text.replace(/"/g, '&quot;').replace(/\\n/g, '\\\\n');
@@ -2572,141 +2572,141 @@ async def app_automations_page(
                   html += `
                   <div class="p-3 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between gap-4">
                       <div class="flex-1 overflow-hidden">
-                          <h5 class="text-[9px] font-black text-white uppercase tracking-tight truncate">${{item.title}}</h5>
-                          <p class="text-[9px] text-white/50 truncate italic">${{preview}}</p>
+                          <h5 class="text-[9px] font-black text-white uppercase tracking-tight truncate">${item.title}</h5>
+                          <p class="text-[9px] text-white/50 truncate italic">${preview}</p>
                       </div>
-                      <button type="button" onclick="insertComposerSuggest('${{inputId}}', '${{safeText}}', ${{item.id}})" class="px-3 py-1.5 bg-brand/20 text-brand rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-brand hover:text-white transition-all shrink-0">Use This</button>
+                      <button type="button" onclick="insertComposerSuggest('${inputId}', '${safeText}', ${item.id})" class="px-3 py-1.5 bg-brand/20 text-brand rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-brand hover:text-white transition-all shrink-0">Use This</button>
                   </div>`;
-              }});
+              });
               container.innerHTML = html;
-          }} catch(e) {{ container.classList.add('hidden'); }}
-      }}
+          } catch(e) { container.classList.add('hidden'); }
+      }
 
-      function insertComposerSuggest(inputId, textToInsert, entryId) {{
+      function insertComposerSuggest(inputId, textToInsert, entryId) {
           const input = document.getElementById(inputId);
-          if (input.tagName === 'TEXTAREA') {{
+          if (input.tagName === 'TEXTAREA') {
               if (input.value.trim() !== '') input.value += '\n\n';
               input.value += textToInsert;
-          }} else {{
-              if (inputId === 'newTopic') {{
+          } else {
+              if (inputId === 'newTopic') {
                   document.getElementById('newSeedMode').value = 'manual';
                   toggleNewSeedText();
                   document.getElementById('newSeedText').value = textToInsert;
-              }}
-          }}
+              }
+          }
           
           trackInteraction("used_entry", entryId.toString(), "composer");
           input.classList.add('ring-2', 'ring-brand');
           setTimeout(() => input.classList.remove('ring-2', 'ring-brand'), 1000);
-      }}
+      }
 
       let pickerTargetId = null;
-      function openLibraryPicker(targetId) {{
+      function openLibraryPicker(targetId) {
           pickerTargetId = targetId;
           document.getElementById('libraryPickerModal').classList.remove('hidden');
           loadPickerTopics();
           loadPickerEntries();
-      }}
-      function closeLibraryPicker() {{
+      }
+      function closeLibraryPicker() {
           document.getElementById('libraryPickerModal').classList.add('hidden');
           pickerTargetId = null;
-      }}
-      async function loadPickerTopics() {{
-          try {{
+      }
+      async function loadPickerTopics() {
+          try {
               const res = await fetch('/library/topics');
               const topics = await res.json();
               const select = document.getElementById('pickerTopic');
               select.innerHTML = '<option value="">All Topics</option>';
-              topics.forEach(t => {{
+              topics.forEach(t => {
                   const opt = document.createElement('option');
                   opt.value = t.slug;
                   opt.textContent = t.slug.replace(/_/g, ' ').toUpperCase();
                   select.appendChild(opt);
-              }});
-          }} catch(e) {{}}
-      }}
-      async function loadPickerEntries() {{
+              });
+          } catch(e) {}
+      }
+      async function loadPickerEntries() {
           const query = document.getElementById('pickerSearch').value;
           const topic = document.getElementById('pickerTopic').value;
           const type = document.getElementById('pickerType').value;
           const list = document.getElementById('pickerResults');
           list.innerHTML = '<div class="text-center py-10 text-[9px] font-black uppercase text-muted animate-pulse">Consulting Library...</div>';
-          try {{
-              let url = `/library/entries?query=${{encodeURIComponent(query)}}`;
-              if (topic) url += `&topic=${{encodeURIComponent(topic)}}`;
-              if (type) url += `&item_type=${{encodeURIComponent(type)}}`;
+          try {
+              let url = `/library/entries?query=${encodeURIComponent(query)}`;
+              if (topic) url += `&topic=${encodeURIComponent(topic)}`;
+              if (type) url += `&item_type=${encodeURIComponent(type)}`;
               const res = await fetch(url);
               const entries = await res.json();
-              if (entries.length === 0) {{
+              if (entries.length === 0) {
                   list.innerHTML = '<div class="text-center py-10 text-[9px] font-black uppercase text-muted opacity-40">No entries found</div>';
                   return;
-              }}
+              }
               list.innerHTML = '';
-              entries.forEach(e => {{
+              entries.forEach(e => {
                   const div = document.createElement('div');
                   div.className = "p-4 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-brand/30 transition-all cursor-pointer space-y-2";
                   div.onclick = () => selectPickerEntry(e);
                   div.innerHTML = `
                       <div class="flex justify-between items-center">
-                        <span class="text-[7px] font-black text-brand uppercase tracking-widest">${{e.item_type}}</span>
-                        <span class="text-[8px] font-black text-muted">${{e.topic || ''}}</span>
+                        <span class="text-[7px] font-black text-brand uppercase tracking-widest">${e.item_type}</span>
+                        <span class="text-[8px] font-black text-muted">${e.topic || ''}</span>
                       </div>
-                      <p class="text-[10px] text-white/70 line-clamp-2">${{e.text.substring(0, 150)}}...</p>
+                      <p class="text-[10px] text-white/70 line-clamp-2">${e.text.substring(0, 150)}...</p>
                   `;
                   list.appendChild(div);
-              }});
-          }} catch(e) {{}}
-      }}
-      function selectPickerEntry(entry) {{
+              });
+          } catch(e) {}
+      }
+      function selectPickerEntry(entry) {
           const target = document.getElementById(pickerTargetId);
-          if (target) {{
+          if (target) {
               let credit = "";
-              if (entry.item_type === 'hadith') credit = `\\n\\n[Ref: ${{entry.meta.collection}} #${{entry.meta.hadith_number}}]`;
-              else if (entry.item_type === 'quran') credit = `\\n\\n[Quran ${{entry.meta.surah_number}}:${{entry.meta.verse_start}}]`;
+              if (entry.item_type === 'hadith') credit = `\n\n[Ref: ${entry.meta.collection} #${entry.meta.hadith_number}]`;
+              else if (entry.item_type === 'quran') credit = `\n\n[Quran ${entry.meta.surah_number}:${entry.meta.verse_start}]`;
               target.value = entry.text + credit;
-          }}
+          }
           closeLibraryPicker();
-      }}
+      }
 
-      async function toggleAuto(event, id, enabled) {{
+      async function toggleAuto(event, id, enabled) {
         const btn = event.currentTarget;
         const originalText = btn.innerText;
         btn.disabled = true;
         btn.innerText = 'WAIT...';
 
-        try {{
-          const res = await fetch(`/automations/${{id}}`, {{
+        try {
+          const res = await fetch(`/automations/${id}`, {
             method: 'PATCH',
-            headers: {{ 'Content-Type': 'application/json' }},
-            body: JSON.stringify({{ enabled: enabled }})
-          }});
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: enabled })
+          });
           if (res.ok) window.location.reload();
           else alert('Operation failed. Please try again.');
-        }} catch(e) {{ alert('Network error. Check your connection.'); }}
-        finally {{ btn.disabled = false; btn.innerText = originalText; }}
-      }}
+        } catch(e) { alert('Network error. Check your connection.'); }
+        finally { btn.disabled = false; btn.innerText = originalText; }
+      }
 
-      async function runNow(event, id) {{
+      async function runNow(event, id) {
         if (!confirm('Start growth stream now? A new draft will be crafted immediately based on your verified strategy.')) return;
         const btn = event.currentTarget;
         const originalText = btn.innerText;
         btn.disabled = true;
         btn.innerText = 'GENERATING...';
         
-        try {{
-          const res = await fetch(`/automations/${{ id }}/run`, {{ method: 'POST' }});
-          if (res.ok) {{
+        try {
+          const res = await fetch(`/automations/${id}/run`, { method: 'POST' });
+          if (res.ok) {
             alert('Generation started. Visit your Home dashboard in a few moments to review the draft.');
-          }} else {{
+          } else {
             alert('Draft generation failed or limit reached.');
-          }}
-        }} catch(e) {{ alert('Network interruption during drafting.'); }}
-        finally {{ btn.disabled = false; btn.innerText = originalText; }}
-      }}
+          }
+        } catch(e) { alert('Network interruption during drafting.'); }
+        finally { btn.disabled = false; btn.innerText = originalText; }
+      }
     </script>
     """
     
-    return APP_LAYOUT_HTML.replace("{content}", content)\
+    return APP_LAYOUT_HTML.replace("{content}", content.replace("{autos_html}", autos_html or empty_state_html))\
                           .replace("{title}", "Automations")\
                           .replace("{user_name}", user.name or user.email)\
                           .replace("{org_name}", org.name if org else "Personal Workspace")\
