@@ -2058,6 +2058,19 @@ async def app_automations_page(
     for a in autos:
         status_color = "text-emerald-600" if a.enabled else "text-rose-600"
         status_bg = "bg-emerald-50" if a.enabled else "bg-rose-50"
+        
+        # Correctly escape JSON for use in HTML onclick attribute with double-escaping for f-strings
+        edit_data_json = json.dumps({
+            "id": a.id,
+            "name": a.name,
+            "topic": a.topic_prompt,
+            "library_topic_slug": a.library_topic_slug,
+            "seed_mode": a.content_seed_mode,
+            "seed_text": a.content_seed_text,
+            "time": a.post_time_local,
+            "content_provider_scope": a.content_provider_scope
+        }).replace("\\", "\\\\").replace("'", "\\'")
+        
         status_label = "Active" if a.enabled else "Paused"
         
         mode_icon = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>'
@@ -2104,7 +2117,7 @@ async def app_automations_page(
           </div>
 
           <div class="flex items-center gap-3 w-full md:w-auto relative border-t md:border-t-0 border-brand/5 pt-6 md:pt-0">
-            <button onclick="showEditModal({edit_data_json})" class="flex-1 md:flex-none px-6 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand hover:border-brand/30 hover:bg-brand/[0.02] transition-all shadow-sm">Configure</button>
+            <button onclick='showEditModal({edit_data_json})' class="flex-1 md:flex-none px-6 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand hover:border-brand/30 hover:bg-brand/[0.02] transition-all shadow-sm">Configure</button>
             <button onclick="runNow(event, {a.id})" class="flex-1 md:flex-none px-6 py-4 bg-brand rounded-2xl text-white font-bold text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.02] transition-all">Generate Now</button>
           </div>
         </div>
