@@ -2055,6 +2055,11 @@ async def app_automations_page(
         account_options = '<option value="">No accounts connected</option>'
     
     autos_html = ""
+    # Default status values to prevent scoping crashes (NameError)
+    status_color = "text-text-muted"
+    status_bg = "bg-brand/5"
+    status_label = "Active"
+    
     for a in autos:
         status_color = "text-emerald-600" if a.enabled else "text-rose-600"
         status_bg = "bg-emerald-50" if a.enabled else "bg-rose-50"
