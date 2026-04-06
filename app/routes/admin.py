@@ -24,12 +24,12 @@ LOGIN_HTML = r"""<!doctype html>
       --accent: #C9A96E;
       --text-main: #1A1A1A;
       --text-muted: #4A4A4A;
-      --border: rgba(15, 61, 46, 0.1);
+      --border: rgba(15, 61, 46, 0.08);
     }
     body { font-family: 'Inter', sans-serif; background: var(--bg-cream); color: var(--text-main); }
-    .card { background: white; border: 1px solid var(--border); }
-    .btn-primary { background-color: var(--primary); color: white; transition: all 0.3s ease; }
-    .btn-primary:hover { background-color: #0a2d22; transform: translateY(-2px); }
+    .card { background: white; border: 1px solid var(--border); border-radius: 12px; }
+    .btn-primary { background-color: var(--primary); color: white; transition: all 150ms ease-in-out; }
+    .btn-primary:hover { background-color: #0a2d22; transform: translateY(-1px); }
   </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-6 text-main">
@@ -221,16 +221,21 @@ HTML = r"""<!doctype html>
       --card-bg: #ffffff;
     }
     body { font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: var(--text-main); line-height: 1.5; -webkit-font-smoothing: antialiased; }
-    .card { background: var(--card-bg); border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(15, 61, 46, 0.04); border-radius: 16px; transition: all 0.2s ease-in-out; }
-    .card:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(15, 61, 46, 0.06); }
-    .glass { background: var(--surface); border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(15, 61, 46, 0.04); border-radius: 16px; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(15, 61, 46, 0.04); border-radius: 12px; transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1); }
+    .card:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15, 61, 46, 0.08); }
+    .btn-primary, .bg-brand { transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1); }
+    .btn-primary:hover, .bg-brand:hover { transform: translateY(-1px) scale(1.01); box-shadow: 0 10px 20px -5px rgba(15, 61, 46, 0.15); }
+    .btn-primary:active, .bg-brand:active { transform: translateY(0) scale(0.98); }
+    .glass { background: var(--surface); border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(15, 61, 46, 0.04); border-radius: 12px; }
     .text-brand { color: var(--brand); }
     .bg-brand { background-color: var(--brand); }
     .border-brand { border-color: var(--brand); }
     .text-accent { color: var(--accent); }
     .fade-in { animation: fadeIn 0.3s ease-out; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-    .nav-link.active { color: var(--brand); border-bottom: 2px solid var(--brand); }
+    .nav-link.active { color: var(--brand); border-bottom: 2px solid var(--brand); font-weight: 700; opacity: 1; }
+    .nav-link { transition: all 150ms ease; border-bottom: 2px solid transparent; color: var(--text-muted); opacity: 0.8; }
+    .nav-link:hover { color: var(--brand); opacity: 1; }
     select option { background-color: #020617; color: white; }
     
     /* Toast System */
@@ -242,7 +247,7 @@ HTML = r"""<!doctype html>
     .toast-info { background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.3); }
     
     /* Global Input Overrides */
-    select, input, textarea { background-color: white !important; color: var(--text-main) !important; border: 1px solid var(--border) !important; border-radius: 1rem !important; }
+    select, input, textarea { background-color: white !important; color: var(--text-main) !important; border: 1px solid var(--border) !important; border-radius: 0.75rem !important; }
     select option { background-color: white !important; color: var(--text-main) !important; }
     input[type="range"] { -webkit-appearance: none; background: rgba(15,61,46,0.1); border: none !important; }
     
@@ -258,7 +263,7 @@ HTML = r"""<!doctype html>
     <div class="flex items-center gap-6">
       <div class="flex flex-col">
         <a href="/app" class="text-xl font-bold tracking-tight text-brand">Sabeel <span class="text-accent">Studio</span></a>
-        <span class="text-[8px] font-bold uppercase tracking-[0.2em] text-text-muted leading-none mt-0.5">Administration</span>
+        <span class="text-[8px] font-bold uppercase tracking-[0.2em] text-text-muted leading-none mt-1">Management Console</span>
       </div>
       <div class="h-6 w-px bg-brand/10 mx-2 hidden md:block"></div>
       <div class="hidden md:flex items-center gap-4">
@@ -292,8 +297,8 @@ HTML = r"""<!doctype html>
         <div class="w-full max-w-md bg-white h-full shadow-2xl p-10 flex flex-col overflow-y-auto border-l border-brand/5" onclick="event.stopPropagation()">
             <div class="flex justify-between items-center mb-10">
                 <div>
-                    <h2 class="text-2xl font-bold text-brand tracking-tight">System <span class="text-accent">Settings</span></h2>
-                    <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest mt-1">Account Management</p>
+                    <h2 class="text-2xl font-bold text-brand tracking-tight">System Settings</h2>
+                    <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest mt-1">Control Center</p>
                 </div>
                 <button onclick="toggleSettings()" class="w-10 h-10 rounded-2xl bg-brand/5 flex items-center justify-center text-text-muted hover:bg-brand/10 hover:text-brand transition-all">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
