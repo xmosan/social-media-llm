@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     # Google OAuth
     google_client_id: str | None = Field(default=None, alias="GOOGLE_CLIENT_ID")
     google_client_secret: str | None = Field(default=None, alias="GOOGLE_CLIENT_SECRET")
+    google_redirect_uri: str | None = Field(default=None, alias="GOOGLE_REDIRECT_URI")
 
     # Meta (Facebook) OAuth
     fb_app_id: str | None = Field(default=None, alias="FB_APP_ID")
