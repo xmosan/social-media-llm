@@ -2056,10 +2056,9 @@ async def app_automations_page(
     
     autos_html = ""
     for a in autos:
-        status_color = "text-emerald-600" if a.enabled else "text-rose-600"
-        status_bg = "bg-emerald-50" if a.enabled else "bg-rose-50"
-        
-        # Correctly escape JSON for use in HTML onclick attribute with double-escaping for f-strings
+        # Correctly escape JSON for use in HTML onclick attribute
+        # We replace " with &quot; so it's safe inside onclick="..."
+        # We replace \ with \\ so JS strings are preserved correctly
         edit_data_json = json.dumps({
             "id": a.id,
             "name": a.name,
@@ -2069,7 +2068,7 @@ async def app_automations_page(
             "seed_text": a.content_seed_text,
             "time": a.post_time_local,
             "content_provider_scope": a.content_provider_scope
-        }).replace("\\", "\\\\").replace("'", "\\'")
+        }).replace('"', "&quot;")
         
         status_label = "Active" if a.enabled else "Paused"
         
@@ -2117,7 +2116,7 @@ async def app_automations_page(
           </div>
 
           <div class="flex items-center gap-3 w-full md:w-auto relative border-t md:border-t-0 border-brand/5 pt-6 md:pt-0">
-            <button onclick='showEditModal({edit_data_json})' class="flex-1 md:flex-none px-6 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand hover:border-brand/30 hover:bg-brand/[0.02] transition-all shadow-sm">Configure</button>
+            <button onclick="showEditModal({edit_data_json})" class="flex-1 md:flex-none px-6 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand hover:border-brand/30 hover:bg-brand/[0.02] transition-all shadow-sm">Configure</button>
             <button onclick="runNow(event, {a.id})" class="flex-1 md:flex-none px-6 py-4 bg-brand rounded-2xl text-white font-bold text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.02] transition-all">Generate Now</button>
           </div>
         </div>
@@ -2597,8 +2596,9 @@ async def app_automations_page(
 
       function insertComposerSuggest(inputId, textToInsert, entryId) {
           const input = document.getElementById(inputId);
+          const nl = String.fromCharCode(10);
           if (input.tagName === 'TEXTAREA') {
-              if (input.value.trim() !== '') input.value += '\\n\\n';
+              if (input.value.trim() !== '') input.value += nl + nl;
               input.value += textToInsert;
           } else {
               if (inputId === 'newTopic') {
@@ -2673,9 +2673,10 @@ async def app_automations_page(
       function selectPickerEntry(entry) {
           const target = document.getElementById(pickerTargetId);
           if (target) {
+              const nl = String.fromCharCode(10);
               let credit = "";
-              if (entry.item_type === 'hadith') credit = `\\n\\n[Ref: ${entry.meta.collection} #${entry.meta.hadith_number}]`;
-              else if (entry.item_type === 'quran') credit = `\\n\\n[Quran ${entry.meta.surah_number}:${entry.meta.verse_start}]`;
+              if (entry.item_type === 'hadith') credit = nl + nl + "[Ref: " + entry.meta.collection + " #" + entry.meta.hadith_number + "]";
+              else if (entry.item_type === 'quran') credit = nl + nl + "[Quran " + entry.meta.surah_number + ":" + entry.meta.verse_start + "]";
               target.value = entry.text + credit;
           }
           closeLibraryPicker();
