@@ -216,6 +216,10 @@ APP_LAYOUT_HTML = """<!doctype html>
     }
 
     function openEditPostModal(id, caption, time) {
+        if (!id || id === 'null' || id === '') {
+            console.error("Attempted to open edit modal with no ID");
+            return;
+        }
         document.getElementById('editPostId').value = id;
         document.getElementById('editPostCaption').value = caption;
         // Format time for datetime-local
@@ -1349,7 +1353,7 @@ APP_DASHBOARD_CONTENT = """
                   "{next_post_caption}"
                 </p>
             </div>
-            <div class="flex gap-4">
+            <div class="flex gap-4 {next_post_actions_class}">
               <button onclick="openEditPostModal('{next_post_id}', {next_post_caption_json}, '{next_post_time_iso}')" class="flex-1 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand hover:border-brand/30 transition-all shadow-sm">Refine</button>
               <button onclick="approvePost('{next_post_id}')" class="flex-1 py-4 bg-brand rounded-2xl text-white font-bold text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.02] transition-all">Approve</button>
             </div>
@@ -1727,6 +1731,7 @@ async def app_dashboard_page(
     next_post_id = ""
     next_post_caption_json = "null"
     next_post_time_iso = ""
+    next_post_actions_class = "hidden"
     
     if next_post:
         diff = next_post.scheduled_time - now_utc
@@ -1739,6 +1744,7 @@ async def app_dashboard_page(
         next_post_id = str(next_post.id)
         next_post_caption_json = html.escape(json.dumps(next_post.caption or ""), quote=True)
         next_post_time_iso = next_post.scheduled_time.isoformat()
+        next_post_actions_class = ""
         
         if next_post.media_url:
             next_post_media = f'<img src="{next_post.media_url}" class="w-full h-full object-cover">'
@@ -1878,6 +1884,7 @@ async def app_dashboard_page(
                                    .replace("{next_post_id}", str(next_post_id))\
                                    .replace("{next_post_caption_json}", str(next_post_caption_json))\
                                    .replace("{next_post_time_iso}", str(next_post_time_iso))\
+                                   .replace("{next_post_actions_class}", next_post_actions_class)\
                                    .replace("{org_id}", str(org_id))
     
     # --- GET ACCOUNT OPTIONS FOR STUDIO MODAL ---
