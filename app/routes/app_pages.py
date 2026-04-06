@@ -1870,6 +1870,30 @@ async def app_calendar_page(
                 </div>
                 """
 
+    # Map posts to a list of HTML snippets
+    scheduled_posts_html = []
+    for p in [p for p in posts if p.status == "scheduled"][:5]:
+        caption = p.caption[:60] if p.caption else "Untitled Post"
+        time_str = p.scheduled_time.strftime("%b %d, %H:%M")
+        scheduled_posts_html.append(f"""
+            <div class="flex items-center justify-between p-4 bg-cream rounded-xl border border-brand/5 text-[10px] font-bold text-brand">
+                <div class="flex items-center gap-3">
+                    <div class="w-1.5 h-1.5 rounded-full bg-brand"></div>
+                    {caption}...
+                </div>
+                <div class="text-text-muted tracking-widest">{time_str}</div>
+            </div>
+        """)
+        
+    scheduled_list_html = "".join(scheduled_posts_html)
+    if not scheduled_list_html:
+        scheduled_list_html = """
+            <div class="py-12 flex flex-col items-center space-y-3">
+                <div class="text-[11px] font-bold uppercase tracking-[0.3em] text-brand">No posts scheduled yet</div>
+                <p class="text-xs text-text-muted">Create your first post to begin</p>
+            </div>
+        """
+
     content = f"""
     <div class="space-y-8">
         <div class="flex justify-between items-end">
@@ -1892,7 +1916,7 @@ async def app_calendar_page(
         <div class="card p-10 bg-white border border-brand/5 text-center flex flex-col items-center justify-center space-y-6">
             <h3 class="text-[10px] font-bold uppercase tracking-[0.3em] text-accent">Planned Content</h3>
             <div class="space-y-4 w-full max-w-lg">
-                { "".join([f'<div class="flex items-center justify-between p-4 bg-cream rounded-xl border border-brand/5 text-[10px] font-bold text-brand"><div class="flex items-center gap-3"><div class="w-1.5 h-1.5 rounded-full bg-brand"></div>{p.caption[:60] if p.caption else "Untitled Post"}...</div><div class="text-text-muted tracking-widest">{p.scheduled_time.strftime("%b %d, %H:%M")}</div></div>' for p in posts if p.status == "scheduled"][:5]) or '<div class="py-12 flex flex-col items-center space-y-3"><div class="text-[11px] font-bold uppercase tracking-[0.3em] text-brand">No posts scheduled yet</div><p class="text-xs text-text-muted">Create your first post to begin</p></div>' }
+                {scheduled_list_html}
             </div>
         </div>
     </div>
