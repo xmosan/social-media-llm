@@ -38,8 +38,15 @@ APP_LAYOUT_HTML = """<!doctype html>
             surface: '#FFFFFF',
             accent: '#C9A96E',
             'text-main': '#1A1A1A',
-            'text-muted': '#4A4A4A',
+            'text-muted': '#6B6B6B',
             cream: '#F8F6F2'
+          },
+          boxShadow: {
+            'card': '0 4px 12px rgba(15, 61, 46, 0.04)',
+            'card-hover': '0 12px 24px rgba(15, 61, 46, 0.06)'
+          },
+          borderRadius: {
+            'card': '16px'
           }
         }
       }
@@ -54,12 +61,16 @@ APP_LAYOUT_HTML = """<!doctype html>
       --surface: #FFFFFF;
       --accent: #C9A96E;
       --text-main: #1A1A1A;
-      --text-muted: #4A4A4A;
-      --border: rgba(15, 61, 46, 0.08);
+      --text-muted: #6B6B6B;
+      --border: rgba(15, 61, 46, 0.05);
     }
-    body { font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: var(--text-main); }
-    .glass { background: var(--surface); border: 1px solid var(--border); box-shadow: 0 4px 20px -2px rgba(15, 61, 46, 0.05); }
+    body { font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: var(--text-main); -webkit-font-smoothing: antialiased; }
+    .card { background: var(--surface); border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(15, 61, 46, 0.04); border-radius: 16px; transition: all 0.2s ease-in-out; }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(15, 61, 46, 0.06); }
+    .glass { background: var(--surface); border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(15, 61, 46, 0.04); border-radius: 16px; }
     .nav-link.active { color: var(--brand); border-bottom: 2px solid var(--brand); font-weight: 700; }
+    .nav-link { transition: all 0.2s ease; border-bottom: 2px solid transparent; }
+    .nav-link:hover { color: var(--brand); }
     .studio-tab.active { background: var(--brand); color: white; border-color: var(--brand); }
     .bg-brand { background-color: var(--brand) !important; }
     .bg-brand-hover:hover { background-color: var(--brand-hover) !important; }
@@ -129,30 +140,29 @@ APP_LAYOUT_HTML = """<!doctype html>
   </footer>
 
   <!-- Mobile Bottom Tab Bar -->
-  <div class="md:hidden fixed bottom-0 left-0 right-0 z-[100] bg-white/95 backdrop-blur-xl border-t border-brand/10 pb-safe">
-    <div class="flex justify-around items-center h-16 px-2">
-      <a href="/app" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-text-muted hover:text-brand {active_dashboard}">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-        <span class="text-[9px] font-bold uppercase tracking-tighter">Home</span>
-      </a>
-      <a href="/app/automations" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-text-muted hover:text-brand {active_automations}">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-        <span class="text-[9px] font-bold uppercase tracking-tighter">Plans</span>
-      </a>
-      <a href="/app/library" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-text-muted hover:text-brand {active_library}">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-        <span class="text-[9px] font-bold uppercase tracking-tighter">Library</span>
-      </a>
-      <a href="/app/media" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-text-muted hover:text-brand {active_media}">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-        <span class="text-[9px] font-bold uppercase tracking-tighter">Media</span>
-      </a>
-      <a href="/admin" class="mobile-tab flex flex-col items-center justify-center w-full h-full space-y-1 text-text-muted hover:text-brand {admin_mobile}">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
-        <span class="text-[9px] font-bold uppercase tracking-tighter">Settings</span>
-      </a>
+  <nav class="md:hidden fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] max-w-[400px] bg-white border border-brand/10 p-2 flex justify-between items-center z-[140] shadow-2xl rounded-[2.5rem] backdrop-blur-xl bg-white/90">
+    <a href="/app" class="flex-1 flex flex-col items-center gap-1 py-1 mobile-tab {active_dashboard}">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+        <span class="text-[8px] font-bold uppercase tracking-widest">Home</span>
+    </a>
+    <a href="/app/calendar" class="flex-1 flex flex-col items-center gap-1 py-1 mobile-tab {active_calendar} text-text-muted">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+        <span class="text-[8px] font-bold uppercase tracking-widest">Plan</span>
+    </a>
+    <div class="px-1">
+        <button onclick="openNewPostModal()" class="w-12 h-12 bg-brand text-white rounded-2xl flex items-center justify-center shadow-lg shadow-brand/20">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+        </button>
     </div>
-  </div>
+    <a href="/app/automations" class="flex-1 flex flex-col items-center gap-1 py-1 mobile-tab {active_automations} text-text-muted">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+        <span class="text-[8px] font-bold uppercase tracking-widest">Growth</span>
+    </a>
+    <a href="/app/library" class="flex-1 flex flex-col items-center gap-1 py-1 mobile-tab {active_library} text-text-muted">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+        <span class="text-[8px] font-bold uppercase tracking-widest">Library</span>
+    </a>
+  </nav>
 
   <script>
     async function logout() {
@@ -638,16 +648,16 @@ APP_LAYOUT_HTML = """<!doctype html>
 
             <div class="max-w-3xl space-y-6">
               <!-- Selected Source Display -->
-              <div id="activeSourceCard" class="hidden glass p-6 rounded-2xl border border-accent/20 relative overflow-hidden group">
-                 <div class="absolute top-0 right-0 p-4 opacity-5 blur-sm pointer-events-none">
-                    <svg class="w-24 h-24 text-brand" fill="currentColor" viewBox="0 0 24 24"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"></path></svg>
+              <div id="activeSourceCard" class="hidden card p-8 border-accent/20 bg-accent/[0.02] relative overflow-hidden group">
+                 <div class="absolute top-0 right-0 p-4 opacity-[0.03] blur-sm pointer-events-none">
+                    <svg class="w-32 h-32 text-brand" fill="currentColor" viewBox="0 0 24 24"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"></path></svg>
                  </div>
-                 <div class="flex justify-between items-start mb-4 relative z-10">
-                    <span id="activeSourceBadge" class="px-2.5 py-1 bg-brand text-white rounded-[4px] text-[8px] font-bold uppercase tracking-widest">Source Foundation</span>
-                    <button type="button" onclick="clearSelectedSource()" class="text-rose-600 hover:text-rose-700 text-[9px] font-bold uppercase tracking-widest transition-all">Remove</button>
+                 <div class="flex justify-between items-start mb-6 relative z-10">
+                    <span id="activeSourceBadge" class="px-3 py-1 bg-brand text-white rounded-lg text-[8px] font-bold uppercase tracking-[0.2em]">Foundation Selected</span>
+                    <button type="button" onclick="clearSelectedSource()" class="text-rose-600 hover:text-rose-700 text-[9px] font-bold uppercase tracking-widest transition-all">Change Source</button>
                  </div>
-                 <div id="activeSourceText" class="text-sm font-medium text-text-main leading-relaxed relative z-10 italic"></div>
-                 <div id="activeSourceRef" class="mt-4 text-[10px] font-bold text-accent uppercase tracking-widest relative z-10"></div>
+                 <div id="activeSourceText" class="text-base font-medium text-brand leading-relaxed relative z-10 italic"></div>
+                 <div id="activeSourceRef" class="mt-6 text-[10px] font-bold text-accent uppercase tracking-widest relative z-10"></div>
               </div>
 
               <!-- Manual / Seed Textarea -->
@@ -802,27 +812,28 @@ APP_LAYOUT_HTML = """<!doctype html>
                  </div>
                </div>
                
-               <!-- Schedule & Settings -->
-               <div class="space-y-8">
-                  <div class="space-y-6 bg-cream border border-brand/5 rounded-3xl p-8">
-                     <div class="space-y-2">
-                       <label class="text-[9px] font-bold uppercase tracking-widest text-brand pl-1">Share To</label>
-                       <select name="ig_account_id" class="w-full bg-white border border-brand/10 rounded-2xl px-5 py-4 text-xs font-bold text-brand outline-none focus:border-brand/30 appearance-none">
-                         {account_options}
-                       </select>
-                     </div>
-                     <div class="space-y-2">
-                       <label class="text-[9px] font-bold uppercase tracking-widest text-brand pl-1">Preferred Time (UTC)</label>
-                       <input type="datetime-local" name="scheduled_time" class="w-full bg-white border border-brand/10 rounded-2xl px-5 py-4 text-xs font-bold text-brand outline-none focus:border-brand/30">
-                       <p class="text-[9px] text-text-muted font-medium mt-2 px-1">Defaults to your account's next optimal slot if empty.</p>
-                     </div>
-                  </div>
+                <!-- Schedule & Settings -->
+                <div class="space-y-8">
+                   <div class="space-y-6 bg-cream border border-brand/5 rounded-3xl p-8">
+                      <div class="space-y-2">
+                        <label class="text-[9px] font-bold uppercase tracking-widest text-brand pl-1">Share To</label>
+                        <select name="ig_account_id" class="w-full bg-white border border-brand/10 rounded-2xl px-5 py-4 text-xs font-bold text-brand outline-none focus:border-brand/30 appearance-none">
+                          {account_options}
+                        </select>
+                      </div>
+                      <div class="space-y-2">
+                        <label class="text-[9px] font-bold uppercase tracking-widest text-brand pl-1">Preferred Time (Local)</label>
+                        <input type="datetime-local" name="scheduled_time" class="w-full bg-white border border-brand/10 rounded-2xl px-5 py-4 text-xs font-bold text-brand outline-none focus:border-brand/30">
+                        <p class="text-[9px] text-text-muted font-medium mt-2 px-1 italic">Consistency is the bridge between goals and accomplishment.</p>
+                      </div>
+                   </div>
 
-                  <button type="submit" id="studioSubmitBtn" class="w-full py-5 bg-brand text-white rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center justify-center gap-3">
-                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                     Generate Now
-                  </button>
-                  <button type="button" onclick="switchStudioSection(3)" class="w-full py-4 text-text-muted hover:text-brand rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Back</button>
+                   <button type="submit" id="studioSubmitBtn" class="w-full py-5 bg-brand text-white rounded-2xl font-bold text-[10px] uppercase tracking-[0.25em] shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center justify-center gap-3">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                      ACTIVATE GENERATION
+                   </button>
+                   <button type="button" onclick="switchStudioSection(3)" class="w-full py-4 text-text-muted hover:text-brand rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Refine Visuals</button>
+                </div>
 
                   <div class="bg-brand/5 border border-brand/10 rounded-2xl p-5 flex gap-4 text-brand">
                     <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -911,7 +922,7 @@ APP_LAYOUT_HTML = """<!doctype html>
             } else {
                 data.forEach(item => {
                    const div = document.createElement('div');
-                   div.className = "flex justify-between items-center p-4 bg-black/20 hover:bg-white/5 border border-white/5 rounded-xl transition-all group cursor-pointer";
+                    div.className = "flex justify-between items-center p-4 bg-cream hover:bg-brand/5 border border-brand/5 rounded-xl transition-all group cursor-pointer";
                    
                    let ref = '';
                    if (item.item_type === 'quran') ref = `Quran ${item.meta.surah_number}:${item.meta.verse_start}`;
@@ -920,10 +931,10 @@ APP_LAYOUT_HTML = """<!doctype html>
 
                    div.innerHTML = `
                      <div class="flex-1 pr-6">
-                        <div class="text-[9px] font-black text-brand uppercase tracking-widest mb-1">${ref}</div>
-                        <div class="text-xs text-white/80 font-medium line-clamp-2">${item.text}</div>
+                        <div class="text-[9px] font-bold text-accent uppercase tracking-widest mb-1">${ref}</div>
+                        <div class="text-xs text-brand font-medium line-clamp-2">${item.text}</div>
                      </div>
-                     <button class="px-4 py-2 border border-brand/40 text-brand rounded-lg text-[9px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all shrink-0">Use</button>
+                     <button class="px-4 py-2 border border-brand/20 text-brand rounded-lg text-[9px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all shrink-0">Use</button>
                    `;
                    div.onclick = () => { applySuggestedSource(item, ref); };
                    cont.appendChild(div);
@@ -1143,68 +1154,64 @@ APP_LAYOUT_HTML = """<!doctype html>
 </html>
 """
 
-GET_STARTED_CARD_HTML = """
-<div id="gettingStartedCard" class="glass p-6 md:p-8 rounded-[2.5rem] bg-brand/5 space-y-6 md:space-y-8 animate-in fade-in slide-in-from-top-4 duration-700 transition-all">
-  <div class="flex justify-between items-start">
+GET_STARTED_CARD_HTML = """<div id="gettingStartedCard" class="card p-8 md:p-12 mb-10 animate-in slide-in-from-top-4 duration-500">
+  <div class="flex justify-between items-start mb-8">
     <div>
-      <h3 class="text-xl md:text-2xl font-bold text-brand tracking-tight">Welcome to <span class="text-accent">Sabeel Studio</span></h3>
-      <p class="text-[10px] md:text-xs text-text-muted mt-1 font-medium">Start creating with purpose. You can finish your setup as you go.</p>
+      <h3 class="text-2xl md:text-3xl font-bold text-brand tracking-tight">Assalamu Alaikum, <span class="text-accent">{user_name}</span></h3>
+      <p class="text-sm md:text-base text-text-muted mt-2 font-medium">Your platform is ready for meaningful content. Where shall we start today?</p>
     </div>
-    <button onclick="dismissGettingStarted()" class="text-[8px] md:text-[9px] font-bold uppercase tracking-widest text-text-muted hover:text-brand transition-colors px-3 py-1.5 bg-brand/5 rounded-full border border-brand/10">Dismiss</button>
+    <button onclick="dismissGettingStarted()" class="text-[9px] font-bold uppercase tracking-widest text-text-muted hover:text-brand transition-colors px-4 py-2 bg-brand/5 rounded-full border border-brand/10">Dismiss</button>
   </div>
   
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-    <!-- Item: Create First Post -->
-    <div class="flex items-center gap-4 p-4 rounded-2xl {item1_bg} border border-brand/5 transition-colors">
-      <div class="w-8 h-8 rounded-full flex items-center justify-center {item1_icon_class} shrink-0">
-        {item1_icon}
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Focal Point: Create Post -->
+    <div class="md:col-span-2 card p-8 border-brand/10 bg-brand/[0.02] flex flex-col justify-between group cursor-pointer" onclick="openNewPostModal()">
+      <div class="space-y-4">
+        <div class="w-12 h-12 rounded-2xl bg-brand text-white flex items-center justify-center shadow-lg shadow-brand/20 group-hover:scale-110 transition-transform">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+        </div>
+        <div>
+          <h4 class="text-xl font-bold text-brand">Create your next post</h4>
+          <p class="text-sm text-text-muted mt-1 font-medium italic">"The best of people are those who are most beneficial to others."</p>
+        </div>
       </div>
-      <div class="min-w-0">
-        <div class="text-[9px] md:text-[10px] font-bold uppercase tracking-widest truncate {item1_text_class}">Compose Post</div>
-        <div class="text-[8px] font-medium text-text-muted uppercase tracking-tighter truncate">{item1_status}</div>
-      </div>
-    </div>
-    
-    <!-- Item: Content Library -->
-    <a href="/app/library" class="flex items-center gap-4 p-4 rounded-2xl bg-white border border-brand/5 hover:bg-brand/5 transition-colors group">
-      <div class="w-8 h-8 rounded-full flex items-center justify-center bg-brand/5 text-brand shrink-0 group-hover:bg-brand group-hover:text-white transition-all">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-      </div>
-      <div class="min-w-0">
-        <div class="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-text-main group-hover:text-brand truncate">Content Library</div>
-        <div class="text-[8px] font-medium text-text-muted uppercase tracking-tighter truncate">Find Inspiration</div>
-      </div>
-    </a>
-
-    <!-- Item: Create Content Plan -->
-    <div class="flex items-center gap-4 p-4 rounded-2xl {item3_bg} border border-brand/5 transition-colors">
-      <div class="w-8 h-8 rounded-full flex items-center justify-center {item3_icon_class} shrink-0">
-        {item3_icon}
-      </div>
-      <div class="min-w-0">
-        <div class="text-[9px] md:text-[10px] font-bold uppercase tracking-widest truncate {item3_text_class}">Content Plan</div>
-        <div class="text-[8px] font-medium text-text-muted uppercase tracking-tighter truncate">{item3_status}</div>
+      <div class="mt-8 flex items-center gap-2 text-xs font-bold text-brand uppercase tracking-widest group-hover:translate-x-2 transition-transform">
+        Start Drafting <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
       </div>
     </div>
 
-    <!-- Item: Link Account -->
-    <div class="flex items-center gap-4 p-4 rounded-2xl {item4_bg} border border-brand/5 transition-colors">
-      <div class="w-8 h-8 rounded-full flex items-center justify-center {item4_icon_class} shrink-0">
-        {item4_icon}
-      </div>
-      <div class="min-w-0">
-        <div class="text-[9px] md:text-[10px] font-bold uppercase tracking-widest truncate {item4_text_class}">Link Account</div>
-        <div class="text-[8px] font-medium text-text-muted uppercase tracking-tighter truncate">{item4_status}</div>
-      </div>
+    <!-- Quick Links Sidebar -->
+    <div class="space-y-4">
+       <a href="/app/library" class="card p-5 flex items-center gap-4 hover:border-brand/20 transition-all group">
+         <div class="w-10 h-10 rounded-xl bg-brand/5 text-brand flex items-center justify-center group-hover:bg-brand group-hover:text-white transition-all">
+           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+         </div>
+         <div>
+           <div class="text-[10px] font-bold text-brand uppercase tracking-widest">Library</div>
+           <div class="text-[9px] font-medium text-text-muted uppercase tracking-tighter">Find Sparks</div>
+         </div>
+       </a>
+       <a href="/app/automations" class="card p-5 flex items-center gap-4 hover:border-brand/20 transition-all group">
+         <div class="w-10 h-10 rounded-xl bg-brand/5 text-brand flex items-center justify-center group-hover:bg-brand group-hover:text-white transition-all">
+           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+         </div>
+         <div>
+           <div class="text-[10px] font-bold text-brand uppercase tracking-widest">Plans</div>
+           <div class="text-[9px] font-medium text-text-muted uppercase tracking-tighter">Stay Consistent</div>
+         </div>
+       </a>
+       <button onclick="openConnectInstagramModal()" class="w-full card p-5 flex items-center gap-4 hover:border-brand/20 transition-all group text-left">
+         <div class="w-10 h-10 rounded-xl bg-brand/5 text-brand flex items-center justify-center group-hover:bg-brand group-hover:text-white transition-all">
+           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+         </div>
+         <div>
+           <div class="text-[10px] font-bold text-brand uppercase tracking-widest">Accounts</div>
+           <div class="text-[9px] font-medium text-text-muted uppercase tracking-tighter">Expand Reach</div>
+         </div>
+       </button>
     </div>
   </div>
-  
-  <div class="flex flex-col sm:flex-row gap-3 md:gap-4 pt-2">
-    <button onclick="openNewPostModal()" class="w-full sm:w-auto px-8 py-4 bg-brand rounded-2xl font-bold text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Create New Post</button>
-    <a href="/onboarding" class="w-full sm:w-auto px-8 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-xs uppercase tracking-widest text-text-muted hover:text-brand text-center transition-all">Guided Setup</a>
-  </div>
-</div>
-"""
+</div>"""
 
 CONNECT_INSTAGRAM_MODAL_HTML = """
 <div id="connectInstagramModal" class="fixed inset-0 bg-brand/10 backdrop-blur-xl z-[200] flex items-center justify-center p-6 hidden">
@@ -1228,34 +1235,33 @@ CONNECT_INSTAGRAM_MODAL_HTML = """
 
 APP_DASHBOARD_CONTENT = """
     <!-- Header -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
       <div>
         <h1 class="text-3xl font-bold text-brand tracking-tight">Your <span class="text-accent">Activity</span></h1>
-        <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest">Meaningful content pipeline</p>
+        <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.2em] mt-1">Consistency through purpose</p>
       </div>
-      <div class="flex flex-col md:flex-row w-full md:w-auto gap-3 md:gap-2 mt-4 md:mt-0">
-        {admin_cta}
-        <button onclick="openNewPostModal()" class="w-full md:w-auto px-6 py-4 md:py-3 bg-white border border-brand/10 rounded-2xl md:rounded-xl font-bold text-xs md:text-[10px] uppercase tracking-widest text-brand hover:bg-brand/5 transition-all">New Post</button>
-        <button onclick="syncAccounts()" class="w-full md:w-auto px-6 py-4 md:py-3 bg-brand rounded-2xl md:rounded-xl font-bold text-xs md:text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Sync Accounts</button>
+      <div class="flex items-center gap-3">
+        <button onclick="openNewPostModal()" class="px-6 py-3.5 bg-brand text-white rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-brand/20 hover:bg-brand-hover transition-all">Create Post</button>
+        <button onclick="syncAccounts()" class="px-6 py-3.5 bg-white border border-brand/10 text-brand rounded-xl font-bold text-[10px] uppercase tracking-widest hover:border-brand/20 transition-all">Sync Status</button>
       </div>
     </div>
 
     <!-- Quick Stats -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="glass p-6 rounded-2xl bg-white">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+      <div class="card p-6">
         <div class="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em] mb-1">Weekly Output</div>
         <div class="text-2xl font-bold text-brand">{weekly_post_count} Posts</div>
       </div>
-      <div class="glass p-6 rounded-2xl bg-white">
+      <div class="card p-6">
         <div class="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em] mb-1">Active Accounts</div>
-        <div class="text-2xl font-bold text-brand">{account_count} Connected</div>
+        <div class="text-2xl font-bold text-brand">{account_count} Linked</div>
       </div>
-      <div class="glass p-6 rounded-2xl bg-white">
-        <div class="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em] mb-1">Creation Status</div>
+      <div class="card p-6">
+        <div class="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em] mb-1">Creation Engine</div>
         <div class="text-2xl font-bold text-brand">Ready</div>
       </div>
-      <div class="glass p-6 rounded-2xl bg-white">
-        <div class="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em] mb-1">Next Post In</div>
+      <div class="card p-6">
+        <div class="text-[8px] font-bold text-text-muted uppercase tracking-[0.2em] mb-1">Next Post</div>
         <div class="text-2xl font-bold text-accent">{next_post_countdown}</div>
       </div>
     </div>
@@ -1268,11 +1274,11 @@ APP_DASHBOARD_CONTENT = """
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       <!-- Next Post Preview -->
       <div class="lg:col-span-1 space-y-6">
-        <h2 class="text-xs font-bold uppercase tracking-[0.3em] text-text-muted">Next Scheduled Post</h2>
-        <div class="glass rounded-[2.5rem] bg-white p-8 space-y-6 border-brand/5">
+        <h2 class="text-[10px] font-bold uppercase tracking-[0.3em] text-text-muted">Next Scheduled Post</h2>
+        <div class="card p-8 space-y-6">
           <div class="aspect-square rounded-2xl overflow-hidden bg-cream relative border border-brand/5">
             {next_post_media}
-            <div class="absolute top-4 right-4 bg-brand px-3 py-1.5 rounded-lg border border-brand/10 text-[8px] font-bold uppercase tracking-widest text-white shadow-lg shadow-brand/20">
+            <div class="absolute top-4 right-4 bg-brand px-3 py-1.5 rounded-lg text-[8px] font-bold uppercase tracking-widest text-white shadow-lg shadow-brand/20">
               {next_post_time}
             </div>
           </div>
@@ -1280,9 +1286,9 @@ APP_DASHBOARD_CONTENT = """
             <p class="text-sm text-text-main leading-relaxed font-medium line-clamp-3 italic">
               "{next_post_caption}"
             </p>
-            <div class="pt-4 flex gap-2">
-              <button onclick="openEditPostModal('{next_post_id}', {next_post_caption_json}, '{next_post_time_iso}')" class="flex-1 py-3 bg-white border border-brand/10 rounded-xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand transition-all">Refine</button>
-              <button onclick="approvePost('{next_post_id}')" class="flex-1 py-3 bg-brand/5 text-brand rounded-xl font-bold text-[10px] uppercase tracking-widest border border-brand/20 hover:bg-brand/10 transition-all">Approve</button>
+            <div class="pt-4 flex gap-3">
+              <button onclick="openEditPostModal('{next_post_id}', {next_post_caption_json}, '{next_post_time_iso}')" class="flex-1 py-3.5 bg-white border border-brand/10 rounded-xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand transition-all">Refine</button>
+              <button onclick="approvePost('{next_post_id}')" class="flex-1 py-3.5 bg-brand/5 text-brand rounded-xl font-bold text-[10px] uppercase tracking-widest border border-brand/20 hover:bg-brand/10 transition-all">Approve</button>
             </div>
           </div>
         </div>
@@ -1291,15 +1297,15 @@ APP_DASHBOARD_CONTENT = """
       <!-- Feed / Calendar Preview -->
       <div class="lg:col-span-2 space-y-6">
         <div class="flex justify-between items-center">
-          <h2 class="text-xs font-bold uppercase tracking-[0.3em] text-text-muted">Content Pipeline</h2>
-          <a href="/app/calendar" class="text-[8px] font-bold uppercase tracking-widest text-brand hover:text-accent transition-colors">View Schedule &rarr;</a>
+          <h2 class="text-[10px] font-bold uppercase tracking-[0.3em] text-text-muted">Content Pipeline</h2>
+          <a href="/app/calendar" class="text-[8px] font-bold uppercase tracking-widest text-brand hover:text-accent transition-colors flex items-center gap-1">Full Calendar <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg></a>
         </div>
         
-        <div class="hidden md:block glass rounded-[2.5rem] bg-white overflow-hidden border border-brand/5">
-          <div class="grid grid-cols-7 border-b border-brand/5 bg-brand/5 text-brand">
+        <div class="hidden md:block card overflow-hidden border-brand/5">
+          <div class="grid grid-cols-7 border-b border-brand/5 bg-brand/[0.02] text-brand">
             {calendar_headers}
           </div>
-          <div class="grid grid-cols-7 h-48 bg-white">
+          <div class="grid grid-cols-7 h-48">
             {calendar_days}
           </div>
         </div>
@@ -1699,21 +1705,21 @@ async def app_dashboard_page(
         caption_json = html.escape(json.dumps(p.caption or ""), quote=True)
         
         recent_posts_html += f"""
-        <div class="glass p-4 rounded-2xl flex justify-between items-center">
+        <div class="card p-5 flex justify-between items-center hover:border-brand/20 transition-all">
           <div class="flex items-center gap-4">
-            <div class="w-8 h-8 rounded-lg bg-white/5 overflow-hidden border border-white/10">
-                {f'<img src="{p.media_url}" class="w-full h-full object-cover">' if p.media_url else ''}
+            <div class="w-10 h-10 rounded-xl bg-cream overflow-hidden border border-brand/5 shrink-0">
+                {f'<img src="{p.media_url}" class="w-full h-full object-cover">' if p.media_url else '<div class="w-full h-full flex items-center justify-center text-[8px] font-bold text-text-muted/40 uppercase">No Media</div>'}
             </div>
-            <div>
-              <div class="text-[10px] font-black text-white uppercase tracking-wider truncate max-w-[200px]">{p.caption[:40] if p.caption else "Untitled Post"}...</div>
-              <div class="text-[8px] font-bold text-muted uppercase tracking-widest">{p.created_at.strftime("%b %d, %H:%M")}</div>
+            <div class="min-w-0">
+              <div class="text-[10px] font-bold text-brand uppercase tracking-wider truncate max-w-[180px] md:max-w-[240px]">{p.caption[:40] if p.caption else "Untitled Post"}...</div>
+              <div class="text-[9px] font-medium text-text-muted uppercase tracking-widest mt-0.5">{p.created_at.strftime("%b %d, %H:%M")}</div>
             </div>
           </div>
-          <div class="flex items-center gap-2">
-            <button onclick="openEditPostModal('{p.id}', {caption_json}, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}')" class="p-2 text-muted hover:text-white transition-colors">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+          <div class="flex items-center gap-4">
+            <div class="text-[8px] font-bold uppercase tracking-[0.2em] {status_color}">{p.status}</div>
+            <button onclick="openEditPostModal('{p.id}', {caption_json}, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}')" class="p-2 text-text-muted hover:text-brand transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
             </button>
-            <div class="text-[8px] font-black uppercase tracking-widest {status_color}">{p.status}</div>
           </div>
         </div>
         """
@@ -1722,15 +1728,15 @@ async def app_dashboard_page(
     connection_cta = ""
     if account_count == 0:
         connection_cta = f"""
-        <div class="glass p-12 rounded-[3rem] border-brand/20 bg-brand/5 text-center space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-          <div class="w-16 h-16 bg-brand/20 rounded-2xl flex items-center justify-center text-brand mx-auto">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+        <div class="card p-12 text-center space-y-8 animate-in slide-in-from-bottom-4 duration-1000 border-dashed border-2 border-brand/10 bg-brand/[0.01]">
+          <div class="w-20 h-20 bg-brand/5 rounded-[2rem] flex items-center justify-center text-brand mx-auto">
+            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
           </div>
-          <div class="space-y-2">
-            <h3 class="text-xl font-bold text-brand tracking-tight">System Status: Inactive</h3>
-            <p class="text-muted text-sm max-w-md mx-auto">Your account is active, but no publishing destinations are linked. Connect your first Instagram account to activate the automation loop.</p>
+          <div class="space-y-3">
+            <h3 class="text-2xl font-bold text-brand tracking-tight">Expand Your Reach</h3>
+            <p class="text-text-muted text-sm max-w-lg mx-auto font-medium">Your studio is ready to create. Link your Instagram account to start sharing your content automatically with your community.</p>
           </div>
-          <button onclick="alert('Instagram connection flow coming in next update. For now, use Admin or re-run onboarding.')" class="px-10 py-4 bg-brand rounded-2xl font-black text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/40">Initialize IG Connection</button>
+          <button onclick="openConnectInstagramModal()" class="px-10 py-4 bg-brand rounded-2xl font-bold text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Link Account Now</button>
         </div>
         """
     

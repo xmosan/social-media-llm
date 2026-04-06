@@ -34,9 +34,9 @@ LOGIN_HTML = r"""<!doctype html>
 </head>
 <body class="min-h-screen flex items-center justify-center p-6 text-main">
   <div class="max-w-md w-full card rounded-[2rem] md:rounded-[2.5rem] p-6 md:p-10 space-y-6 md:space-y-8 shadow-xl shadow-black/5">
-    <div class="text-center space-y-2">
-      <h1 class="text-2xl font-extrabold tracking-tighter text-primary">Sabeel Studio</h1>
-      <h2 class="text-xl font-bold italic opacity-80">Administration</h2>
+    <div class="text-center space-y-3">
+      <h1 class="text-3xl font-bold tracking-tight text-brand">Sabeel <span class="text-accent">Studio</span></h1>
+      <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted">Administrative Access</p>
     </div>
 
     <form id="loginForm" class="space-y-4">
@@ -117,13 +117,13 @@ REGISTER_HTML = """<!doctype html>
       --bg-cream: #F8F6F2;
       --accent: #C9A96E;
       --text-main: #1A1A1A;
-      --text-muted: #4A4A4A;
-      --border: rgba(15, 61, 46, 0.1);
+      --text-muted: #6B6B6B;
+      --border: rgba(15, 61, 46, 0.05);
     }
-    body { font-family: 'Inter', sans-serif; background: var(--bg-cream); color: var(--text-main); }
-    .card { background: white; border: 1px solid var(--border); }
-    .btn-primary { background-color: var(--primary); color: white; transition: all 0.3s ease; }
-    .btn-primary:hover { background-color: #0a2d22; transform: translateY(-2px); }
+    body { font-family: 'Inter', sans-serif; background: var(--bg-cream); color: var(--text-main); -webkit-font-smoothing: antialiased; }
+    .card { background: white; border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(15, 61, 46, 0.04); border-radius: 24px; transition: all 0.2s ease; }
+    .btn-primary { background-color: var(--primary); color: white; transition: all 0.3s ease; box-shadow: 0 10px 20px -5px rgba(15, 61, 46, 0.2); }
+    .btn-primary:hover { background-color: #0a2d22; transform: translateY(-1px); box-shadow: 0 15px 30px -5px rgba(15, 61, 46, 0.3); }
   </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-6 text-main">
@@ -216,12 +216,14 @@ HTML = r"""<!doctype html>
       --main-bg: #F8F6F2;
       --surface: #ffffff;
       --text-main: #1A1A1A;
-      --text-muted: #4A4A4A;
+      --text-muted: #6B6B6B;
       --border: rgba(15, 61, 46, 0.05);
       --card-bg: #ffffff;
     }
     body { font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: var(--text-main); line-height: 1.5; -webkit-font-smoothing: antialiased; }
-    .glass { background: var(--surface); border: 1px solid var(--border); box-shadow: 0 10px 30px -10px rgba(15, 61, 46, 0.05); }
+    .card { background: var(--card-bg); border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(15, 61, 46, 0.04); border-radius: 16px; transition: all 0.2s ease-in-out; }
+    .card:hover { transform: translateY(-2px); box-shadow: 0 12px 24px rgba(15, 61, 46, 0.06); }
+    .glass { background: var(--surface); border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(15, 61, 46, 0.04); border-radius: 16px; }
     .text-brand { color: var(--brand); }
     .bg-brand { background-color: var(--brand); }
     .border-brand { border-color: var(--brand); }
@@ -252,55 +254,35 @@ HTML = r"""<!doctype html>
   </style>
 </head>
 <body class="min-h-screen pb-12">
-  <!-- Localhost Warning Banner -->
-  <div id="localhost_warning" class="hidden bg-accent text-white px-6 py-2 text-center text-xs font-bold uppercase tracking-widest shadow-lg fade-in">
-      Environment Notice: Local environment detected
-  </div>
-  <nav class="border-b border-brand/5 bg-white/80 backdrop-blur-md sticky top-0 z-50 h-20">
-    <div class="max-w-7xl mx-auto px-6 h-full flex justify-between items-center">
-      <div class="flex items-center gap-8">
-        <a href="/" class="flex flex-col">
-            <div class="text-xl font-extrabold tracking-tighter text-brand">SABEEL</div>
-            <div class="text-[9px] font-bold text-brand uppercase tracking-[0.3em] pl-1 leading-none -mt-0.5">Admin</div>
-        </a>
-        <div class="h-8 w-px bg-brand/10"></div>
-        <div class="flex items-center gap-4">
-            <label class="text-[9px] font-bold text-text-muted uppercase tracking-[0.2em]">Account</label>
-            <select id="account_selector" onchange="onAccountChange()" class="bg-cream border border-brand/5 rounded-xl px-4 py-2.5 text-[10px] font-bold text-brand outline-none focus:ring-1 focus:ring-brand min-w-[200px] transition-all">
-                <option value="">Select Account</option>
-            </select>
-        </div>
+  <nav class="bg-white border-b border-brand/5 py-4 px-6 md:px-10 flex justify-between items-center sticky top-0 z-50">
+    <div class="flex items-center gap-6">
+      <div class="flex flex-col">
+        <a href="/app" class="text-xl font-bold tracking-tight text-brand">Sabeel <span class="text-accent">Studio</span></a>
+        <span class="text-[8px] font-bold uppercase tracking-[0.2em] text-text-muted leading-none mt-0.5">Administration</span>
       </div>
-      <div class="flex items-center gap-6">
-        <div class="hidden md:flex items-center gap-2">
-            <label class="text-[9px] font-bold text-text-muted uppercase tracking-[0.2em]">Workspace</label>
-            <select id="org_selector" onchange="onOrgChange()" class="bg-cream border border-brand/5 rounded-xl px-4 py-2.5 text-[10px] font-bold text-brand outline-none focus:ring-1 focus:ring-brand min-w-[150px] transition-all">
-                <option value="">Global</option>
-            </select>
-        </div>
-        <div class="h-8 w-px bg-brand/10"></div>
-        <div class="flex items-center gap-4 relative group">
-           <div class="flex flex-col text-right hidden lg:block">
-              <div class="text-[10px] font-bold text-brand uppercase tracking-wider" id="user_dropdown_name">Admin</div>
-              <div class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none mt-1" id="user_dropdown_email">admin@sabeel.studio</div>
-           </div>
-           <div class="w-11 h-11 rounded-2xl bg-brand/5 border border-brand/5 flex items-center justify-center font-bold text-sm cursor-pointer text-brand hover:bg-brand/10 transition-all" id="user_avatar">A</div>
-           <div class="absolute right-0 top-14 w-56 glass rounded-3xl shadow-2xl p-2 hidden group-hover:block animate-in fade-in slide-in-from-top-2 z-[60]">
-               <button onclick="logout()" class="w-full text-left px-5 py-4 text-[10px] font-bold text-rose-500 hover:bg-rose-500/5 rounded-2xl transition-all uppercase tracking-widest flex items-center justify-between">
-                   Sign Out
-                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-               </button>
-           </div>
-        </div>
-        <div class="h-8 w-px bg-brand/10"></div>
-        <div class="flex gap-3">
-            <button onclick="toggleSettings()" class="w-11 h-11 rounded-2xl bg-cream border border-brand/5 flex items-center justify-center text-brand hover:bg-brand hover:text-white transition-all" title="Settings">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
-            </button>
-            <button id="run_scheduler_btn" onclick="runGlobalScheduler()" class="w-11 h-11 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all" title="Run Scheduler">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-            </button>
-        </div>
+      <div class="h-6 w-px bg-brand/10 mx-2 hidden md:block"></div>
+      <div class="hidden md:flex items-center gap-4">
+        <label class="text-[9px] font-bold text-text-muted uppercase tracking-[0.2em]">Active Account</label>
+        <select id="account_selector" onchange="onAccountChange()" class="bg-cream border border-brand/5 rounded-xl px-4 py-2 text-[10px] font-bold text-brand outline-none focus:ring-1 focus:ring-brand min-w-[180px] transition-all">
+          <option value="">Select Account</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="flex items-center gap-6">
+      <div class="hidden lg:flex flex-col text-right">
+        <div class="text-[10px] font-bold text-brand uppercase tracking-wider" id="user_dropdown_name">Admin</div>
+        <div class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none mt-1" id="user_dropdown_email">admin@sabeel.studio</div>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="toggleSettings()" class="w-10 h-10 rounded-xl bg-cream border border-brand/5 flex items-center justify-center text-brand hover:bg-brand hover:text-white transition-all" title="Settings">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+        </button>
+        <button id="run_scheduler_btn" onclick="runGlobalScheduler()" class="w-10 h-10 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-center text-emerald-600 hover:bg-emerald-500 hover:text-white transition-all" title="Run Scheduler">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </button>
+        <div class="h-8 w-px bg-brand/10 mx-1"></div>
+        <a href="/logout" class="text-[10px] font-bold uppercase tracking-widest text-rose-500 hover:text-rose-600 transition-colors">Sign Out</a>
       </div>
     </div>
   </nav>
