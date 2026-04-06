@@ -257,15 +257,31 @@ APP_LAYOUT_HTML = """<!doctype html>
         const btn = document.getElementById('confirmDeleteBtn');
         const id = document.getElementById('editPostId').value;
         
+        if (!id) {
+            alert('Selection state lost. Please close and reopen the modal.');
+            return;
+        }
+
         btn.disabled = true;
         btn.innerText = 'DELETING...';
 
         try {
-            const res = await fetch(`/posts/${id}`, { method: 'DELETE' });
-            if (res.ok) window.location.reload();
-            else alert('Failed to delete post');
-        } catch(e) { alert('Error deleting post'); }
-        finally { btn.disabled = false; btn.innerText = 'Yes, Delete Post'; }
+            const res = await fetch(`/posts/${id}`, { 
+                method: 'DELETE',
+                headers: { 'X-Org-Id': '{org_id}' }
+            });
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                const data = await res.json().catch(() => ({}));
+                alert(`Error [${res.status}]: ${data.detail || 'The system could not remove this content. It might have been already removed or access was restricted.'}`);
+            }
+        } catch(e) { 
+            alert('The interface could not reach the server: ' + e.message); 
+        } finally { 
+            btn.disabled = false; 
+            btn.innerText = 'Yes, Delete Content'; 
+        }
     }
 
     function showDeleteConfirm() {
@@ -1861,7 +1877,8 @@ async def app_dashboard_page(
                                    .replace("{recent_posts}", recent_posts_html or '<div class="text-center py-6 text-[10px] font-black uppercase text-muted italic">No recent activity</div>')\
                                    .replace("{next_post_id}", str(next_post_id))\
                                    .replace("{next_post_caption_json}", str(next_post_caption_json))\
-                                   .replace("{next_post_time_iso}", str(next_post_time_iso))
+                                   .replace("{next_post_time_iso}", str(next_post_time_iso))\
+                                   .replace("{org_id}", str(org_id))
     
     # --- GET ACCOUNT OPTIONS FOR STUDIO MODAL ---
     accs = db.query(IGAccount).filter(IGAccount.org_id == user.active_org_id).all()
