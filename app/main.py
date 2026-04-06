@@ -4,7 +4,7 @@
 import os
 import time
 from fastapi import FastAPI, Request, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -199,6 +199,31 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             
         return response
 
+class ComingSoonMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if not settings.coming_soon_mode:
+            return await call_next(request)
+            
+        path = request.url.path
+        
+        # 1. ALLOWED PATHS (Always accessible)
+        allowed_prefixes = [
+            "/login", "/register", "/auth", "/static", "/api/contact", "/health", "/api-test", "/demo", "/contact"
+        ]
+        if path == "/" or any(path.startswith(p) for p in allowed_prefixes):
+            # If authenticated and visiting root, redirect to /app
+            if path == "/" and request.cookies.get("access_token"):
+                return RedirectResponse(url="/app")
+            return await call_next(request)
+            
+        # 2. CHECK AUTHENTICATION FOR OTHER ROUTES
+        # Fast path: check cookie existence
+        if request.cookies.get("access_token"):
+            return await call_next(request)
+            
+        # 3. REDIRECT UNSTHENTICATED TO COMING SOON PAGE
+        return RedirectResponse(url="/")
+
 # Robust Environment Detection
 is_railway = os.getenv("RAILWAY_ENVIRONMENT") is not None or "up.railway.app" in str(settings.public_base_url)
 is_prod = is_railway or "localhost" not in str(settings.public_base_url)
@@ -213,6 +238,7 @@ app.add_middleware(
     same_site="lax",
     max_age=3600 * 24 * 7 # 1 week
 )
+app.add_middleware(ComingSoonMiddleware)
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 

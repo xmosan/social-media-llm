@@ -13,6 +13,9 @@ class Settings(BaseSettings):
 
     # In production (Railway), BASE_URL env var will override this
     public_base_url: str = Field(default="http://localhost:8000", alias="BASE_URL")
+    
+    # Feature Flags
+    coming_soon_mode: bool = Field(default=True, alias="COMING_SOON_MODE")
 
     ig_access_token: str | None = Field(default=None, alias="IG_ACCESS_TOKEN")
     ig_user_id: str | None = Field(default=None, alias="IG_USER_ID")

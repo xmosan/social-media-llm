@@ -639,8 +639,6 @@ CONTACT_HTML = """<!doctype html>
         statusMsg.className = "text-xs font-bold text-red-500 bg-red-500/10 p-4 rounded-xl border border-red-500/20 text-center";
         statusMsg.classList.remove('hidden');
       } finally {
-        btn.disabled = false;
-        btn.textContent = "SEND MESSAGE";
       }
     });
   </script>
@@ -648,10 +646,77 @@ CONTACT_HTML = """<!doctype html>
 </html>
 """
 
+COMING_SOON_HTML = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Coming Soon | Sabeel Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --brand: #6366f1;
+      --main-bg: #020617;
+    }
+    body { font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: #ffffff; }
+    .ai-bg { background: radial-gradient(circle at top right, #312e81, #020617, #020617); }
+    .text-gradient {
+      background: linear-gradient(to right, #818cf8, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+  </style>
+</head>
+<body class="ai-bg min-h-screen flex items-center justify-center p-6">
+  <div class="max-w-2xl w-full text-center space-y-12">
+    <!-- Logo -->
+    <div class="flex flex-col items-center">
+      <div class="text-3xl font-black italic tracking-tighter text-gradient">SABEEL</div>
+      <div class="text-[10px] font-black text-white uppercase tracking-[0.3em] mt-1">Studio</div>
+    </div>
+
+    <!-- Content -->
+    <div class="space-y-6">
+      <h1 class="text-5xl md:text-7xl font-black tracking-tighter leading-[1.1]">
+        SOMETHING <span class="text-gradient">POWERFUL</span> IS COMING.
+      </h1>
+      <p class="text-slate-400 text-lg md:text-xl font-medium max-w-lg mx-auto leading-relaxed">
+        AI-powered content creation for meaningful social media. We're refining the engine for high-output strategy.
+      </p>
+    </div>
+
+    <!-- Early Access -->
+    <div class="max-w-md mx-auto w-full space-y-4">
+      <div class="flex flex-col md:flex-row gap-3">
+        <input type="email" placeholder="Enter your email" class="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm focus:ring-2 focus:ring-brand outline-none transition-all placeholder:text-white/20">
+        <button class="bg-brand hover:bg-brand/90 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-xl shadow-brand/20">Notify Me</button>
+      </div>
+      <p class="text-[10px] font-black uppercase tracking-widest text-white/30">Be the first to experience the future of content</p>
+    </div>
+
+    <!-- Footer -->
+    <div class="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 opacity-40">
+        <span class="text-[10px] font-black uppercase tracking-widest">© 2026 Sabeel Studio</span>
+        <div class="flex gap-6">
+            <a href="#" class="text-[10px] font-black uppercase tracking-widest hover:text-brand transition-colors">Twitter</a>
+            <a href="#" class="text-[10px] font-black uppercase tracking-widest hover:text-brand transition-colors">Instagram</a>
+        </div>
+    </div>
+  </div>
+</body>
+</html>
+"""
+
 # --- ROUTES ---
 
 @router.get("/", response_class=HTMLResponse)
-def landing_page(user: Optional[User] = Depends(get_current_user), db: Session = Depends(get_db)):
+def landing_page(user: Optional[User] = Depends(get_current_user)):
+    from app.config import settings
+    # COMING SOON LOGIC
+    if settings.coming_soon_mode and not user:
+        return COMING_SOON_HTML
+
     html = LANDING_HTML
 
     if user:
