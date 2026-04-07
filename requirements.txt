@@ -46,3 +46,4 @@ PyJWT
 authlib
 httpx
 itsdangerous
+jinja2

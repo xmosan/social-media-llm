@@ -8,6 +8,10 @@ from app.db import get_db
 from app.models import ContactMessage, User, TopicAutomation
 from app.security.auth import get_current_user
 from typing import Optional
+from fastapi.templating import Jinja2Templates
+import os
+
+templates = Jinja2Templates(directory="app/templates")
 
 router = APIRouter()
 
@@ -247,9 +251,11 @@ LANDING_HTML = """<!doctype html>
   <!-- Footer -->
   <footer class="max-w-7xl mx-auto px-6 py-20 border-t border-primary/5 flex flex-col md:flex-row justify-between items-center gap-8">
     <div class="text-text-muted font-bold text-[10px] uppercase tracking-[0.2em] italic">&copy; 2026 Mohammed Hassan. Sabeel Studio&trade;</div>
-    <div class="flex gap-8 text-[10px] font-bold uppercase tracking-widest text-text-muted">
+    <div class="flex flex-wrap justify-center gap-8 text-[10px] font-bold uppercase tracking-widest text-text-muted">
       <a href="/demo" class="hover:text-primary transition-colors">Demo</a>
       <a href="/contact" class="hover:text-primary transition-colors">Contact</a>
+      <a href="/privacy" class="hover:text-primary transition-colors">Privacy</a>
+      <a href="/terms" class="hover:text-primary transition-colors">Terms</a>
       <a href="/login" class="hover:text-primary transition-colors">Sign In</a>
     </div>
   </footer>
@@ -877,3 +883,11 @@ def api_auth_debug(db: Session = Depends(get_db)):
 def api_debug_automations(db: Session = Depends(get_db)):
     autos = db.query(TopicAutomation).all()
     return [{"id": a.id, "name": a.name, "topic": a.topic_prompt, "last_error": a.last_error} for a in autos]
+
+@router.get("/privacy", response_class=HTMLResponse)
+def privacy_page(request: Request):
+    return templates.TemplateResponse("privacy.html", {"request": request})
+
+@router.get("/terms", response_class=HTMLResponse)
+def terms_page(request: Request):
+    return templates.TemplateResponse("terms.html", {"request": request})
