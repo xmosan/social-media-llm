@@ -9,25 +9,98 @@ from app.config import settings
 def get_client():
     return None # Mocked for UI verification
 
-def generate_draft(source_text: str, media_hint: str | None = None) -> dict[str, Any]:
-    """Generates a caption draft from raw source text."""
+def generate_draft(
+    source_text: str,
+    intent: str | None = None,
+    audience: str | None = None,
+    source_foundation: str | None = None,
+    emotion: str | None = None,
+    depth: str | None = None,
+    post_format: str | None = None,
+    visual_style: str | None = None,
+    hook_style: str | None = None,
+    strictness: str = "balanced"
+) -> dict[str, Any]:
+    """
+    Structured generator for high-integrity Islamic content.
+    Respects strictness guidelines and intent parameters.
+    """
     client = get_client()
+    if not client:
+        # Mock logic for UI testing environments
+        return {
+            "hook": "Seeking the Path of Sabr",
+            "caption": "Patience is not just waiting; it is how we behave while we wait for Allah's decree. This reflection explores the depth of spiritual endurance.",
+            "source": "Qur'an 2:153",
+            "hashtags": ["Islam", "Sabr", "Faith"],
+            "tone_notes": "Gentle, reassuring, and spiritually grounded.",
+            "alt_text": "Minimalistic calligraphy on a serene background."
+        }
     
+    # 1. Construct Strictness Directives
+    strict_clause = ""
+    if strictness == "strict":
+        strict_clause = """
+        STRICT MODE ACTIVE: 
+        - DO NOT add creative analogies or modern slang.
+        - DO NOT paraphrase sacred texts loosely. 
+        - Use traditional, scholarly, and literal language.
+        - If a source is provided, use it exactly.
+        - If no clear source or reference exists, state 'General Reflection' and DO NOT fabricate a Hadith number.
+        """
+    elif strictness == "balanced":
+        strict_clause = """
+        BALANCED MODE:
+        - Harmonize traditional wisdom with contemporary understanding.
+        - Maintain spiritual depth while making it accessible.
+        - Use inspired reflections to connect the source to daily life.
+        """
+    else: # creative
+        strict_clause = """
+        CREATIVE MODE:
+        - Use storytelling, metaphors, and modern applications.
+        - Focus on the emotional and psychological impact.
+        - Feel free to expand on the message for maximum inspiration.
+        """
+
+    # 2. Build the Global Prompt
     prompt = f"""
-    Generate a social media caption and alt text for the following content.
-    Content: {source_text}
-    Media Hint: {media_hint or 'Standard image'}
+    ROLE: You are an expert Islamic Content Designer specializing in authentic and engaging social media education.
+
+    INPUT PARAMETERS:
+    - Intent: {intent or 'Daily Reminder'}
+    - Target Audience: {audience or 'General Muslims'}
+    - Source Foundation: {source_foundation or 'General'}
+    - Core Seed/Message: {source_text}
+    - Emotion: {emotion or 'Spiritual'}
+    - Intellectual Depth: {depth or 'Moderate'}
+    - Post Format: {post_format or 'Feed Post'}
+    - Hook Style: {hook_style or 'Inspirational'}
     
-    Return JSON format:
+    {strict_clause}
+
+    TASK: Generate a high-integrity social media post.
+    
+    CONSTRAINTS:
+    1. Hook: A powerful first line (max 90 chars).
+    2. Caption: The primary body text. High conversion, respectful, and meaningful.
+    3. Source: Proper attribution (e.g., 'Sahih Bukhari #123' or 'Surah Al-Baqarah 2:153').
+    4. Tone/Notes: A brief note for the creator on the intended delivery tone.
+    5. Alt Text: Descriptive text for accessibility.
+
+    OUTPUT FORMAT: Strictly JSON.
     {{
-        "caption": "The main caption text",
+        "hook": "text",
+        "caption": "text",
+        "source": "text",
         "hashtags": ["list", "of", "relevant", "hashtags"],
-        "alt_text": "Accessibility alt text"
+        "tone_notes": "text",
+        "alt_text": "text"
     }}
     """
     
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4", # Use GPT-4 for intelligence tasks if possible
         messages=[{"role": "user", "content": prompt}],
         response_format={"type": "json_object"}
     )

@@ -88,6 +88,20 @@ APP_LAYOUT_HTML = """<!doctype html>
     .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     .mobile-tab.active { color: var(--brand); }
     .mobile-tab.active svg { color: var(--brand); stroke-width: 2.5; }
+
+    /* Content Studio Styles */
+    .studio-nav-step.active .nav-num { background: var(--brand); color: white; border-color: var(--brand); }
+    .intent-card.active, .foundation-card.active, .emotion-card.active, 
+    .depth-card.active, .hook-card.active, .strict-card.active { 
+      border-color: var(--brand) !important; 
+      background-color: rgba(15, 61, 46, 0.05) !important;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px -5px rgba(15, 61, 46, 0.1);
+    }
+    .intent-card.active .text-brand, .foundation-card.active .text-brand { color: var(--brand); }
+    .strict-card.active { border-color: var(--brand) !important; background-color: rgba(15, 61, 46, 0.03) !important; }
+    .strict-card.active[onclick*="strict"] { border-color: #EF4444 !important; background-color: rgba(239, 68, 68, 0.03) !important; }
+    .strict-card.active[onclick*="strict"] .nav-num { background-color: #EF4444 !important; }
   </style>
 </head>
 <body class="min-h-screen">
@@ -586,18 +600,26 @@ APP_LAYOUT_HTML = """<!doctype html>
         <div class="flex-1 mt-12 space-y-6">
           <div id="navStep1" class="studio-nav-step active flex items-center gap-4 cursor-pointer" onclick="switchStudioSection(1)">
              <div class="w-8 h-8 rounded-full border-2 border-brand flex items-center justify-center text-[10px] font-bold text-white bg-brand nav-num transition-all">1</div>
-             <div class="text-xs font-bold uppercase text-brand tracking-widest nav-text transition-all">Intent & Topic</div>
+             <div class="text-xs font-bold uppercase text-brand tracking-widest nav-text transition-all">Intent & Audience</div>
           </div>
           <div id="navStep2" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted" onclick="switchStudioSection(2)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num transition-all">2</div>
-             <div class="text-xs font-bold uppercase tracking-widest nav-text transition-all">Content Seed</div>
+             <div class="text-xs font-bold uppercase tracking-widest nav-text transition-all">Foundations</div>
           </div>
           <div id="navStep3" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted" onclick="switchStudioSection(3)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num transition-all">3</div>
-             <div class="text-xs font-bold uppercase tracking-widest nav-text transition-all">Visuals</div>
+             <div class="text-xs font-bold uppercase tracking-widest nav-text transition-all">Message Refinement</div>
           </div>
           <div id="navStep4" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted" onclick="switchStudioSection(4)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num transition-all">4</div>
+             <div class="text-xs font-bold uppercase tracking-widest nav-text transition-all">Style & Delivery</div>
+          </div>
+          <div id="navStep5" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted" onclick="switchStudioSection(5)">
+             <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num transition-all">5</div>
+             <div class="text-xs font-bold uppercase tracking-widest nav-text transition-all">Verification</div>
+          </div>
+          <div id="navStep6" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted" onclick="switchStudioSection(6)">
+             <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num transition-all">6</div>
              <div class="text-xs font-bold uppercase tracking-widest nav-text transition-all">Generate</div>
           </div>
         </div>
@@ -611,47 +633,78 @@ APP_LAYOUT_HTML = """<!doctype html>
       <form id="composerForm" onsubmit="submitNewPost(event)" class="flex-1 overflow-hidden flex flex-col relative bg-white/2">
         <input type="hidden" name="visual_mode" id="studioVisualMode" value="upload">
         <input type="hidden" name="library_item_id" id="studioLibraryItemId">
+        
+        <!-- Intelligence Payload -->
+        <input type="hidden" name="intent_type" id="studioIntent" value="daily_reminder">
+        <input type="hidden" name="target_audience" id="studioAudience" value="general">
+        <input type="hidden" name="source_foundation" id="studioFoundation" value="reflection">
+        <input type="hidden" name="emotion" id="studioEmotion" value="spiritual">
+        <input type="hidden" name="depth" id="studioDepth" value="moderate">
+        <input type="hidden" name="post_format" id="studioFormat" value="feed_post">
+        <input type="hidden" name="hook_style" id="studioHook" value="inspirational">
+        <input type="hidden" name="visual_style" id="studioVisualStyle" value="nature">
+        <input type="hidden" name="strictness_mode" id="studioStrictness" value="balanced">
 
         <div class="flex-1 overflow-y-auto p-6 md:p-12 pb-32">
           
-          <!-- SECTION 1: TOPIC & INTENT -->
-          <div id="studioSection1" class="studio-section space-y-10 animate-in slide-in-from-right-8 duration-500">
+          <!-- SECTION 1: INTENT & AUDIENCE -->
+          <div id="studioSection1" class="studio-section space-y-12 animate-in slide-in-from-right-8 duration-500">
             <div>
               <label class="text-[10px] font-bold uppercase tracking-[0.2em] text-accent">Step 01</label>
-              <h4 class="text-2xl font-bold text-brand">What is your topic?</h4>
-              <p class="text-xs text-text-muted mt-2 font-medium">Sabeel uses this to suggest meaningful sources and draft your content.</p>
+              <h4 class="text-2xl font-bold text-brand">What is your intention?</h4>
+              <p class="text-xs text-text-muted mt-2 font-medium">Sabeel uses your niyyah to guide the tone and structure of your content.</p>
             </div>
 
-            <div class="space-y-6 max-w-2xl">
-               <div class="space-y-2">
-                 <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Topic or Message</label>
-                 <input type="text" id="composerTopic" name="topic" oninput="debounceComposerSuggest('composerTopic')" placeholder="e.g. The importance of Sabr (Patience)" class="w-full bg-cream border border-brand/10 rounded-2xl px-6 py-5 text-sm text-brand font-bold outline-none focus:border-brand/30 transition-all">
+            <!-- Intent Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+               <div onclick="setStudioIntent('daily_reminder', this)" class="intent-card active p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                  <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                  <div class="text-[11px] font-bold text-brand uppercase tracking-widest relative z-10">Daily Reminder</div>
+                  <div class="text-[9px] font-medium text-text-muted mt-1 relative z-10 line-clamp-2">Tazkiyah and general spiritual improvement for busy Muslims.</div>
                </div>
 
-               <div class="grid grid-cols-2 gap-4">
-                 <div class="space-y-2">
-                   <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Tone</label>
-                   <select name="tone" class="w-full bg-cream border border-brand/10 rounded-2xl px-4 py-4 text-xs font-bold text-brand outline-none focus:border-brand/20 appearance-none">
-                     <option value="philosophical">Philosophical</option>
-                     <option value="motivational">Motivational</option>
-                     <option value="educational">Educational</option>
-                     <option value="gentle">Gentle Reminder</option>
-                   </select>
-                 </div>
-                 <div class="space-y-2">
-                   <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Post Type</label>
-                   <select name="post_type" class="w-full bg-cream border border-brand/10 rounded-2xl px-4 py-4 text-xs font-bold text-brand outline-none focus:border-brand/20 appearance-none">
-                     <option value="reflection">Reflection</option>
-                     <option value="quote">Quote Card</option>
-                     <option value="announcement">Announcement</option>
-                   </select>
-                 </div>
+               <div onclick="setStudioIntent('dawah', this)" class="intent-card p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                  <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                  <div class="text-[11px] font-bold text-brand uppercase tracking-widest relative z-10">Da’wah</div>
+                  <div class="text-[9px] font-medium text-text-muted mt-1 relative z-10 line-clamp-2">Outreach and clarification for Non-Muslims or seekers.</div>
                </div>
 
-               <div id="topicSuggestionsArea" class="hidden mt-8 pt-8 border-t border-brand/5 space-y-4">
-                 <div class="flex justify-between items-center">
-                    <label class="text-[10px] font-bold uppercase tracking-[0.2em] text-brand">Library Inspiration</label>
-                 </div>
+               <div onclick="setStudioIntent('educational', this)" class="intent-card p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                  <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                  <div class="text-[11px] font-bold text-brand uppercase tracking-widest relative z-10">Educational</div>
+                  <div class="text-[9px] font-medium text-text-muted mt-1 relative z-10 line-clamp-2">Deep dives into Qur’an, Hadith, Fiqh, or Islamic history.</div>
+               </div>
+
+               <div onclick="setStudioIntent('reflection', this)" class="intent-card p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                  <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                  <div class="text-[11px] font-bold text-brand uppercase tracking-widest relative z-10">Reflection</div>
+                  <div class="text-[9px] font-medium text-text-muted mt-1 relative z-10 line-clamp-2">Emotional and spiritual thoughts on life’s challenges.</div>
+               </div>
+
+               <div onclick="setStudioIntent('storytelling', this)" class="intent-card p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                  <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                  <div class="text-[11px] font-bold text-brand uppercase tracking-widest relative z-10">Storytelling</div>
+                  <div class="text-[9px] font-medium text-text-muted mt-1 relative z-10 line-clamp-2">Lessons from the Seerah, Sahabah, or moral parables.</div>
+               </div>
+            </div>
+
+            <!-- Audience Selection -->
+            <div class="space-y-4 max-w-xl">
+               <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Primary Audience</label>
+               <select onchange="document.getElementById('studioAudience').value = this.value" class="w-full bg-cream border border-brand/10 rounded-2xl px-6 py-5 text-sm text-brand font-bold outline-none focus:border-brand/30 transition-all appearance-none shadow-sm">
+                  <option value="general">General Muslims</option>
+                  <option value="youth">Muslim Youth / Gen Z</option>
+                  <option value="new_muslims">New Muslims / Reverts</option>
+                  <option value="non_muslims">Non-Muslim Seekers</option>
+                  <option value="students">Students of Knowledge</option>
+               </select>
+               <p class="text-[10px] text-text-muted italic px-1">Tip: Narrowing your audience leads to more relevant, high-converting copy.</p>
+            </div>
+            
+            <div class="pt-8 flex justify-end">
+               <button type="button" onclick="switchStudioSection(2)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/10">Next: Foundation &rarr;</button>
+            </div>
+          </div>
                  <div id="topicSuggestionsList" class="flex flex-col gap-3"></div>
                </div>
             </div>
@@ -661,28 +714,47 @@ APP_LAYOUT_HTML = """<!doctype html>
             </div>
           </div>
 
-          <!-- SECTION 2: SOURCE & CONTENT SEED -->
-          <div id="studioSection2" class="studio-section hidden space-y-10 animate-in slide-in-from-right-8 duration-500">
+          <!-- SECTION 2: FOUNDATIONS -->
+          <div id="studioSection2" class="studio-section hidden space-y-12 animate-in slide-in-from-right-8 duration-500">
             <div class="flex justify-between items-end">
               <div>
                 <label class="text-[10px] font-bold uppercase tracking-[0.2em] text-accent">Step 02</label>
-                <h4 class="text-2xl font-bold text-brand">Content Foundation</h4>
-                <p class="text-xs text-text-muted mt-2 font-medium">Your content will be thoughtfully drafted based on this foundation.</p>
+                <h4 class="text-2xl font-bold text-brand">Define your foundation</h4>
+                <p class="text-xs text-text-muted mt-2 font-medium">Select the source of truth that will ground your content.</p>
               </div>
-              <button type="button" onclick="openLibraryDrawer()" class="px-4 py-2 bg-brand/5 text-brand border border-brand/10 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-brand/10 transition-all flex items-center gap-2">
-                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+              <button type="button" onclick="openLibraryDrawer()" class="px-5 py-3 bg-brand/5 text-brand border border-brand/10 rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-brand/10 transition-all flex items-center gap-2">
+                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
                  Explore Library
               </button>
             </div>
 
-            <div class="max-w-3xl space-y-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl">
+               <div onclick="setStudioFoundation('quran', this)" class="foundation-card p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                  <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                  <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Qur’an</div>
+               </div>
+               <div onclick="setStudioFoundation('hadith', this)" class="foundation-card p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                  <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                  <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Hadith</div>
+               </div>
+               <div onclick="setStudioFoundation('combined', this)" class="foundation-card p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                  <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                  <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Combined</div>
+               </div>
+               <div onclick="setStudioFoundation('reflection', this)" class="foundation-card active p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                  <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                  <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">AI Reflection</div>
+               </div>
+            </div>
+
+            <div class="max-w-3xl space-y-8">
               <!-- Selected Source Display -->
-              <div id="activeSourceCard" class="hidden card p-8 border-accent/20 bg-accent/[0.02] relative overflow-hidden group">
+              <div id="activeSourceCard" class="hidden card p-8 border-accent/20 bg-accent/[0.02] relative overflow-hidden group rounded-[2rem]">
                  <div class="absolute top-0 right-0 p-4 opacity-[0.03] blur-sm pointer-events-none">
                     <svg class="w-32 h-32 text-brand" fill="currentColor" viewBox="0 0 24 24"><path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"></path></svg>
                  </div>
                  <div class="flex justify-between items-start mb-6 relative z-10">
-                    <span id="activeSourceBadge" class="px-3 py-1 bg-brand text-white rounded-lg text-[8px] font-bold uppercase tracking-[0.2em]">Foundation Selected</span>
+                    <span id="activeSourceBadge" class="px-3 py-1 bg-brand text-white rounded-lg text-[8px] font-bold uppercase tracking-[0.2em]">Source Selected</span>
                     <button type="button" onclick="clearSelectedSource()" class="text-rose-600 hover:text-rose-700 text-[9px] font-bold uppercase tracking-widest transition-all">Change Source</button>
                  </div>
                  <div id="activeSourceText" class="text-base font-medium text-brand leading-relaxed relative z-10 italic"></div>
@@ -691,27 +763,107 @@ APP_LAYOUT_HTML = """<!doctype html>
 
               <!-- Manual / Seed Textarea -->
               <div class="space-y-4">
-                 <label id="seedLabel" class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Share your core message or directives</label>
-                 <textarea id="studioSourceText" name="source_text" required placeholder="Type the message you want to amplify or specific directives for the generation..." class="w-full bg-cream border border-brand/10 rounded-2xl p-6 text-sm font-medium text-brand outline-none focus:border-brand/30 transition-all h-40 resize-none"></textarea>
+                 <label id="seedLabel" class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Key Message or Directives</label>
+                 <textarea id="studioSourceText" name="source_text" required placeholder="Type the core message or specific directives..." class="w-full bg-cream border border-brand/10 rounded-2xl p-6 text-sm font-medium text-brand outline-none focus:border-brand/30 transition-all h-40 resize-none shadow-sm"></textarea>
                  
                  <div class="flex gap-4">
-                    <input type="text" id="studioReference" name="source_reference" placeholder="Reference (Optional, e.g. Bukhari 123)" class="flex-1 bg-cream border border-brand/10 rounded-xl px-4 py-3 text-xs font-bold text-brand outline-none focus:border-brand/30">
+                    <input type="text" id="studioReference" name="source_reference" placeholder="Reference (Optional, e.g. Bukhari 123)" class="flex-1 bg-cream border border-brand/10 rounded-xl px-5 py-4 text-xs font-bold text-brand outline-none focus:border-brand/30 shadow-sm">
                  </div>
               </div>
             </div>
 
             <div class="pt-8 flex justify-between">
-               <button type="button" onclick="switchStudioSection(1)" class="px-6 py-4 text-text-muted hover:text-brand rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Back</button>
-               <button type="button" onclick="switchStudioSection(3)" class="px-8 py-4 bg-brand text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-lg shadow-brand/10">Continue &rarr;</button>
+               <button type="button" onclick="switchStudioSection(1)" class="px-8 py-4 text-text-muted hover:text-brand rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Back</button>
+               <button type="button" onclick="switchStudioSection(3)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/10">Next: Refinement &rarr;</button>
             </div>
           </div>
 
-          <!-- SECTION 3: VISUALS -->
-          <div id="studioSection3" class="studio-section hidden space-y-10 animate-in slide-in-from-right-8 duration-500">
+          <!-- SECTION 3: MESSAGE REFINEMENT -->
+          <div id="studioSection3" class="studio-section hidden space-y-12 animate-in slide-in-from-right-8 duration-500">
             <div>
               <label class="text-[10px] font-bold uppercase tracking-[0.2em] text-accent">Step 03</label>
-              <h4 class="text-2xl font-bold text-brand">Style & Visuals</h4>
-              <p class="text-xs text-text-muted mt-1 font-medium">Choose how your content should feel visually.</p>
+              <h4 class="text-2xl font-bold text-brand">Refine your message</h4>
+              <p class="text-xs text-text-muted mt-2 font-medium">Define the core 'heart' and intellectual depth of this content.</p>
+            </div>
+
+            <div class="space-y-10 max-w-4xl">
+               <!-- Emotion / Heart Selection -->
+               <div class="space-y-4">
+                  <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Primary Emotion (Heart State)</label>
+                  <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                     <div onclick="setStudioEmotion('spiritual', this)" class="emotion-card active p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Faith</div>
+                     </div>
+                     <div onclick="setStudioEmotion('hope', this)" class="emotion-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Hope</div>
+                     </div>
+                     <div onclick="setStudioEmotion('wisdom', this)" class="emotion-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Wisdom</div>
+                     </div>
+                     <div onclick="setStudioEmotion('mercy', this)" class="emotion-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Mercy</div>
+                     </div>
+                     <div onclick="setStudioEmotion('fear', this)" class="emotion-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Warning</div>
+                     </div>
+                  </div>
+               </div>
+
+               <!-- Intellectual Depth -->
+               <div class="space-y-4">
+                  <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Intellectual Depth</label>
+                  <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                     <div onclick="setStudioDepth('essence', this)" class="depth-card p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 group">
+                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 group-[.active]:text-accent">Essence</div>
+                        <div class="text-[8px] text-text-muted font-medium">Simple, bite-sized truth.</div>
+                     </div>
+                     <div onclick="setStudioDepth('moderate', this)" class="depth-card active p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 group">
+                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 group-[.active]:text-accent">Explorer</div>
+                        <div class="text-[8px] text-text-muted font-medium">Standard reflection.</div>
+                     </div>
+                     <div onclick="setStudioDepth('student', this)" class="depth-card p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 group">
+                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 group-[.active]:text-accent">Student</div>
+                        <div class="text-[8px] text-text-muted font-medium">Academic & Detailed.</div>
+                     </div>
+                     <div onclick="setStudioDepth('scholar', this)" class="depth-card p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 group">
+                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 group-[.active]:text-accent">Scholar</div>
+                        <div class="text-[8px] text-text-muted font-medium">Theological depth.</div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+            <div class="pt-8 flex justify-between">
+               <button type="button" onclick="switchStudioSection(2)" class="px-8 py-4 text-text-muted hover:text-brand rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Back</button>
+               <button type="button" onclick="switchStudioSection(4)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/10">Next: Style &rarr;</button>
+            </div>
+          </div>
+
+          <!-- SECTION 4: STYLE & DELIVERY -->
+          <div id="studioSection4" class="studio-section hidden space-y-10 animate-in slide-in-from-right-8 duration-500">
+            <div>
+              <label class="text-[10px] font-bold uppercase tracking-[0.2em] text-accent">Step 04</label>
+              <h4 class="text-2xl font-bold text-brand">Style & Delivery</h4>
+              <p class="text-xs text-text-muted mt-1 font-medium">Choose how your content should be packaged and hooked.</p>
+            </div>
+
+            <!-- Hook Style -->
+            <div class="space-y-4 max-w-4xl">
+               <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Hook Strategy</label>
+               <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div onclick="setStudioHook('question', this)" class="hook-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Thought-Provoking</div>
+                  </div>
+                  <div onclick="setStudioHook('inspirational', this)" class="hook-card active p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Inspirational</div>
+                  </div>
+                  <div onclick="setStudioHook('educational', this)" class="hook-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Educational</div>
+                  </div>
+                  <div onclick="setStudioHook('cta', this)" class="hook-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Call-to-Action</div>
+                  </div>
+               </div>
             </div>
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl">
@@ -790,18 +942,90 @@ APP_LAYOUT_HTML = """<!doctype html>
             </div>
 
             <div class="pt-8 flex justify-between">
-               <button type="button" onclick="switchStudioSection(2)" class="px-6 py-4 text-text-muted hover:text-brand rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Back</button>
-               <button type="button" onclick="switchStudioSection(4)" class="px-8 py-4 bg-brand text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-lg shadow-brand/10">Continue &rarr;</button>
+               <button type="button" onclick="switchStudioSection(3)" class="px-8 py-4 text-text-muted hover:text-brand rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Back</button>
+               <button type="button" onclick="switchStudioSection(5)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/10">Next: Verification &rarr;</button>
             </div>
           </div>
 
-          <!-- SECTION 4: OUTPUT & ACTIONS -->
-          <div id="studioSection4" class="studio-section hidden space-y-10 animate-in slide-in-from-right-8 duration-500 min-h-full">
+          <!-- SECTION 5: VERIFICATION & STRICTNESS -->
+          <div id="studioSection5" class="studio-section hidden space-y-10 animate-in slide-in-from-right-8 duration-500">
+            <div>
+              <label class="text-[10px] font-bold uppercase tracking-[0.2em] text-accent">Step 05</label>
+              <h4 class="text-2xl font-bold text-brand">Content Verification</h4>
+              <p class="text-xs text-text-muted mt-2 font-medium">Finalize the strictness level and verify your source foundation.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+               <!-- Strictness Selector -->
+               <div class="bg-brand/5 rounded-[2rem] p-8 space-y-6">
+                  <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Strictness Mode</label>
+                  <div class="space-y-3">
+                     <div onclick="setStudioStrictness('strict', this)" class="strict-card p-5 rounded-2xl border border-rose-100 bg-white cursor-pointer transition-all hover:bg-rose-50 group flex items-start gap-4">
+                        <div class="w-2 h-2 rounded-full bg-rose-500 mt-1.5 shrink-0"></div>
+                        <div>
+                           <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 group-[.active]:text-rose-600">Strict</div>
+                           <div class="text-[8px] text-text-muted font-medium">Literal, authentic, no creative analogies.</div>
+                        </div>
+                     </div>
+                     <div onclick="setStudioStrictness('balanced', this)" class="strict-card active p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 group flex items-start gap-4">
+                        <div class="w-2 h-2 rounded-full bg-brand mt-1.5 shrink-0"></div>
+                        <div>
+                           <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 group-[.active]:text-brand">Balanced</div>
+                           <div class="text-[8px] text-text-muted font-medium">Authentic wisdom for modern life.</div>
+                        </div>
+                     </div>
+                     <div onclick="setStudioStrictness('creative', this)" class="strict-card p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 group flex items-start gap-4">
+                        <div class="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0"></div>
+                        <div>
+                           <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 group-[.active]:text-amber-600">Creative</div>
+                           <div class="text-[8px] text-text-muted font-medium">Inspired storytelling and analogies.</div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+
+               <!-- Verification Checklist -->
+               <div class="space-y-6">
+                  <div class="bg-cream border border-brand/5 rounded-3xl p-8">
+                     <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1 mb-6 block">Foundation Integrity Check</label>
+                     <div class="space-y-4">
+                        <div class="flex items-center gap-3">
+                           <div class="w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>
+                           <span class="text-[10px] font-bold text-brand uppercase tracking-wider">Source Reference Linked</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                           <div class="w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>
+                           <span class="text-[10px] font-bold text-brand uppercase tracking-wider">Tone Aligned with Intent</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                           <div id="checkVisual" class="w-5 h-5 rounded-full bg-brand/5 text-brand/20 flex items-center justify-center"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>
+                           <span class="text-[10px] font-bold text-brand uppercase tracking-wider opacity-30">Visual Background Ready</span>
+                        </div>
+                     </div>
+                  </div>
+
+                  <div class="p-6 bg-brand/5 border border-brand/10 rounded-2xl flex gap-4 text-brand">
+                    <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <div class="text-[9px] leading-relaxed font-bold uppercase tracking-widest">
+                       Strict mode ensures only literal translations and verified narrations are used. Use it for sensitive Fiqh or Aqidah content.
+                    </div>
+                  </div>
+               </div>
+            </div>
+
+            <div class="pt-8 flex justify-between">
+               <button type="button" onclick="switchStudioSection(4)" class="px-8 py-4 text-text-muted hover:text-brand rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Back</button>
+               <button type="button" onclick="switchStudioSection(6)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/10">Next: Final Review &rarr;</button>
+            </div>
+          </div>
+
+          <!-- SECTION 6: FINAL GENERATE -->
+          <div id="studioSection6" class="studio-section hidden space-y-10 animate-in slide-in-from-right-8 duration-500 min-h-full">
             <div class="flex justify-between items-end">
               <div>
-                <label class="text-[10px] font-bold uppercase tracking-[0.2em] text-accent">Step 04</label>
+                <label class="text-[10px] font-bold uppercase tracking-[0.2em] text-accent">Step 06</label>
                 <h4 class="text-2xl font-bold text-brand">Final Review</h4>
-                <p class="text-xs text-text-muted mt-2 font-medium">Review your visual foundation before generating your content.</p>
+                <p class="text-xs text-text-muted mt-2 font-medium">Review your content intelligence before activation.</p>
               </div>
               <button type="button" onclick="launchLivePreview()" class="px-5 py-3 bg-brand/5 text-brand border border-brand/10 rounded-xl text-[9px] font-bold uppercase tracking-widest shadow-sm hover:bg-brand/10 transition-all flex items-center gap-2">
                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -809,70 +1033,74 @@ APP_LAYOUT_HTML = """<!doctype html>
               </button>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-               
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
                <!-- Preview Phone Mockup -->
                <div class="flex justify-center items-start">
-                 <div class="w-full max-w-[340px] bg-white border-[8px] border-brand rounded-[3.5rem] overflow-hidden flex flex-col shadow-2xl relative">
-                    <!-- Nav Bar -->
-                    <div class="px-4 py-4 flex items-center justify-between bg-white border-b border-brand/5 z-10">
-                       <div class="text-[12px] font-bold text-brand">Sabeel Studio</div>
-                       <svg class="w-5 h-5 text-brand/40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path></svg>
+                 <div class="w-full max-w-[340px] bg-white border-[10px] border-brand rounded-[4rem] overflow-hidden flex flex-col shadow-2xl relative">
+                    <div class="px-4 py-5 flex items-center justify-between bg-white border-b border-brand/5 z-10">
+                       <div class="text-[12px] font-bold text-brand tracking-tight">Sabeel Content Studio</div>
                     </div>
                     
-                    <!-- Image -->
                     <div class="w-full aspect-[4/5] bg-cream relative flex items-center justify-center overflow-hidden">
                        <img id="previewImage" class="hidden w-full h-full object-cover">
-                       <div id="previewLoader" class="flex flex-col items-center gap-3">
-                          <svg class="w-8 h-8 text-brand/10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                          <span class="text-[9px] font-bold uppercase tracking-widest text-text-muted">Load Preview</span>
+                       <div id="previewLoader" class="flex flex-col items-center gap-4">
+                          <div class="w-10 h-10 rounded-full border-2 border-brand/10 border-t-brand animate-spin"></div>
+                          <span class="text-[9px] font-bold uppercase tracking-widest text-text-muted">Analyzing Intent...</span>
                        </div>
                     </div>
 
-                    <!-- Post Data Info -->
-                    <div class="p-4 bg-white flex-1 flex flex-col justify-start">
-                        <div class="flex gap-3 mb-3 text-brand/20">
+                    <div class="p-5 bg-white flex-1 flex flex-col gap-4">
+                        <div class="flex gap-4 text-brand/20">
                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-                           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                         </div>
-                        <div class="text-[10px] text-text-muted font-medium italic">Content will be generated here...</div>
+                        <div class="space-y-2">
+                           <div class="h-2 w-3/4 bg-brand/5 rounded-full"></div>
+                           <div class="h-2 w-1/2 bg-brand/5 rounded-full opacity-60"></div>
+                        </div>
+                        <div class="mt-auto pt-4 border-t border-brand/5 flex justify-between items-center">
+                           <span class="text-[9px] font-bold text-accent uppercase tracking-widest">Awaiting Generation</span>
+                           <div id="previewSourceBadge" class="px-2 py-0.5 bg-brand/5 text-[8px] font-bold text-brand uppercase rounded">Sourced</div>
+                        </div>
                     </div>
                  </div>
                </div>
                
-                <!-- Schedule & Settings -->
+                <!-- Final Settings -->
                 <div class="space-y-8">
-                   <div class="space-y-6 bg-cream border border-brand/5 rounded-3xl p-8">
-                      <div class="space-y-2">
-                        <label class="text-[9px] font-bold uppercase tracking-widest text-brand pl-1">Share To</label>
-                        <select name="ig_account_id" class="w-full bg-white border border-brand/10 rounded-2xl px-5 py-4 text-xs font-bold text-brand outline-none focus:border-brand/30 appearance-none">
+                   <div class="space-y-6 bg-cream border border-brand/5 rounded-[2.5rem] p-10">
+                      <div class="space-y-3">
+                        <label class="text-[9px] font-bold uppercase tracking-widest text-brand pl-1">Target Account</label>
+                        <select name="ig_account_id" class="w-full bg-white border border-brand/10 rounded-2xl px-6 py-5 text-sm font-bold text-brand outline-none focus:border-brand/30 appearance-none shadow-sm">
                           {account_options}
                         </select>
                       </div>
-                      <div class="space-y-2">
-                        <label class="text-[9px] font-bold uppercase tracking-widest text-brand pl-1">Preferred Time (Local)</label>
-                        <input type="datetime-local" name="scheduled_time" class="w-full bg-white border border-brand/10 rounded-2xl px-5 py-4 text-xs font-bold text-brand outline-none focus:border-brand/30">
-                        <p class="text-[9px] text-text-muted font-medium mt-2 px-1 italic">Consistency is the bridge between goals and accomplishment.</p>
+                      <div class="space-y-3">
+                        <label class="text-[9px] font-bold uppercase tracking-widest text-brand pl-1">Activation Time</label>
+                        <input type="datetime-local" name="scheduled_time" class="w-full bg-white border border-brand/10 rounded-2xl px-6 py-5 text-sm font-bold text-brand outline-none focus:border-brand/30 shadow-sm">
+                        <p class="text-[9px] text-text-muted font-bold uppercase tracking-widest mt-2 px-1">Consistency creates trust.</p>
+                      </div>
+
+                      <!-- Intelligence Summary -->
+                      <div class="pt-6 border-t border-brand/5 grid grid-cols-2 gap-4">
+                         <div class="space-y-1">
+                            <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest">Intent</span>
+                            <div id="summaryIntent" class="text-[10px] font-bold text-brand uppercase">Daily Reminder</div>
+                         </div>
+                         <div class="space-y-1">
+                            <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest">Strictness</span>
+                            <div id="summaryStrict" class="text-[10px] font-bold text-brand uppercase">Balanced</div>
+                         </div>
                       </div>
                    </div>
 
-                   <button type="submit" id="studioSubmitBtn" class="w-full py-5 bg-brand text-white rounded-2xl font-bold text-[10px] uppercase tracking-[0.25em] shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center justify-center gap-3">
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-                      ACTIVATE GENERATION
+                   <button type="submit" id="studioSubmitBtn" class="w-full py-6 bg-brand text-white rounded-[2rem] font-bold text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center justify-center gap-4">
+                      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                      ACTIVATE INTELLIGENCE
                    </button>
-                   <button type="button" onclick="switchStudioSection(3)" class="w-full py-4 text-text-muted hover:text-brand rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Refine Visuals</button>
+                   <button type="button" onclick="switchStudioSection(5)" class="w-full py-4 text-text-muted hover:text-brand font-bold text-[10px] uppercase tracking-widest transition-all">Verification Layer &rarr;</button>
                 </div>
-
-                  <div class="bg-brand/5 border border-brand/10 rounded-2xl p-5 flex gap-4 text-brand">
-                    <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <div class="text-[10px] leading-relaxed font-medium">
-                       Your post will be carefully drafted using your foundation. You'll be able to review and refine the high-converting content once it's ready.
-                    </div>
-                  </div>
-               </div>
             </div>
-
           </div>
         </div>
       </form>
@@ -890,8 +1118,8 @@ APP_LAYOUT_HTML = """<!doctype html>
         document.getElementById('newPostModal').classList.add('hidden');
     }
     function switchStudioSection(stepIndex) {
-        // hide all
-        for(let i=1; i<=4; i++) {
+        // hide all sections
+        for(let i=1; i<=6; i++) {
            const el = document.getElementById('studioSection' + i);
            if(el) el.classList.add('hidden');
            
@@ -902,10 +1130,11 @@ APP_LAYOUT_HTML = """<!doctype html>
                nav.querySelector('.nav-num').classList.remove('border-brand', 'text-white', 'bg-brand');
                nav.querySelector('.nav-num').classList.add('border-brand/10');
                nav.querySelector('.nav-text').classList.remove('text-brand');
+               nav.querySelector('.nav-text').classList.add('text-text-muted');
            }
         }
         
-        // activate requested
+        // activate requested section
         const target = document.getElementById('studioSection' + stepIndex);
         if(target) target.classList.remove('hidden');
         
@@ -915,8 +1144,58 @@ APP_LAYOUT_HTML = """<!doctype html>
            targetNav.classList.add('active');
            targetNav.querySelector('.nav-num').classList.remove('border-brand/10');
            targetNav.querySelector('.nav-num').classList.add('border-brand', 'text-white', 'bg-brand');
+           targetNav.querySelector('.nav-text').classList.remove('text-text-muted');
            targetNav.querySelector('.nav-text').classList.add('text-brand');
         }
+
+        // Specific section logic
+        if (stepIndex === 1) {
+            document.getElementById('studioSourceText').placeholder = "Enter key directives or manual seed...";
+        }
+        if (stepIndex === 6) {
+            // Summary logic
+            const intentVal = document.getElementById('studioIntent').value;
+            const strictVal = document.getElementById('studioStrictness').value;
+            document.getElementById('summaryIntent').innerText = intentVal.replace('_', ' ');
+            document.getElementById('summaryStrict').innerText = strictVal;
+        }
+    }
+
+    // Intelligence State Handlers
+    function setStudioIntent(intent, el) {
+        document.getElementById('studioIntent').value = intent;
+        document.querySelectorAll('.intent-card').forEach(c => c.classList.remove('active', 'border-brand', 'bg-brand/5'));
+        el.closest('.intent-card').classList.add('active', 'border-brand', 'bg-brand/5');
+    }
+
+    function setStudioFoundation(foundation, el) {
+        document.getElementById('studioFoundation').value = foundation;
+        document.querySelectorAll('.foundation-card').forEach(c => c.classList.remove('active', 'border-brand', 'bg-brand/5'));
+        el.closest('.foundation-card').classList.add('active', 'border-brand', 'bg-brand/5');
+    }
+
+    function setStudioEmotion(emotion, el) {
+        document.getElementById('studioEmotion').value = emotion;
+        document.querySelectorAll('.emotion-card').forEach(c => c.classList.remove('active', 'border-brand', 'bg-brand/5'));
+        el.closest('.emotion-card').classList.add('active', 'border-brand', 'bg-brand/5');
+    }
+
+    function setStudioDepth(depth, el) {
+        document.getElementById('studioDepth').value = depth;
+        document.querySelectorAll('.depth-card').forEach(c => c.classList.remove('active', 'border-brand', 'bg-brand/5'));
+        el.closest('.depth-card').classList.add('active', 'border-brand', 'bg-brand/5');
+    }
+
+    function setStudioHook(hook, el) {
+        document.getElementById('studioHook').value = hook;
+        document.querySelectorAll('.hook-card').forEach(c => c.classList.remove('active', 'border-brand', 'bg-brand/5'));
+        el.closest('.hook-card').classList.add('active', 'border-brand', 'bg-brand/5');
+    }
+
+    function setStudioStrictness(strict, el) {
+        document.getElementById('studioStrictness').value = strict;
+        document.querySelectorAll('.strict-card').forEach(c => c.classList.remove('active', 'border-brand', 'bg-rose-50', 'border-rose-200'));
+        el.closest('.strict-card').classList.add('active', 'border-brand', 'bg-brand/5');
     }
 
     let suggestTimer;
@@ -1009,9 +1288,6 @@ APP_LAYOUT_HTML = """<!doctype html>
         modes.forEach(m => {
             const el = document.getElementById('mode'+m);
             if(el) el.classList.remove('active', 'border-brand', 'bg-brand/5');
-            else {
-               // try lower
-            }
         });
         
         const target = {
@@ -1037,6 +1313,14 @@ APP_LAYOUT_HTML = """<!doctype html>
            if (mode === 'quote_card') {
                document.getElementById('uiQuoteMod').classList.remove('hidden');
            }
+        }
+
+        // Update verification checklist
+        const checkVisual = document.getElementById('checkVisual');
+        if (checkVisual) {
+            checkVisual.classList.remove('bg-brand/5', 'text-brand/20');
+            checkVisual.classList.add('bg-emerald-50', 'text-emerald-600');
+            checkVisual.parentElement.classList.remove('opacity-30');
         }
     }
 

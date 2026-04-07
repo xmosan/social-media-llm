@@ -51,6 +51,19 @@ def intake_post(
     topic: str | None = Form(None),
     post_type: str | None = Form(None),
     source_reference: str | None = Form(None),
+    
+    # Intelligence Fields
+    intent_type: str | None = Form(None),
+    target_audience: str | None = Form(None),
+    source_foundation: str | None = Form(None),
+    message_hint: str | None = Form(None),
+    emotion: str | None = Form(None),
+    depth: str | None = Form(None),
+    post_format: str | None = Form(None),
+    visual_style: str | None = Form(None),
+    hook_style: str | None = Form(None),
+    strictness_mode: str = Form("balanced"),
+
     org_id: int = Depends(get_current_org_id),
 ):
     # Parse library_item_id
@@ -134,6 +147,18 @@ def intake_post(
         visual_mode=visual_mode,
         visual_prompt=visual_prompt,
         library_item_id=lib_id,
+        
+        intent_type=intent_type,
+        target_audience=target_audience,
+        source_foundation=source_foundation,
+        message_hint=message_hint,
+        emotion=emotion,
+        depth=depth,
+        post_format=post_format,
+        visual_style=visual_style,
+        hook_style=hook_style,
+        strictness_mode=strictness_mode,
+
         flags={},
     )
     db.add(post)
@@ -242,7 +267,20 @@ def generate_for_post(
     post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    draft = generate_draft(post.source_text or "")
+    
+    draft = generate_draft(
+        source_text=post.source_text or "",
+        intent=post.intent_type,
+        audience=post.target_audience,
+        source_foundation=post.source_foundation,
+        emotion=post.emotion,
+        depth=post.depth,
+        post_format=post.post_format,
+        visual_style=post.visual_style,
+        hook_style=post.hook_style,
+        strictness=post.strictness_mode or "balanced"
+    )
+    
     flags = keyword_flags((post.source_text or "") + "\n" + (draft.get("caption") or ""))
     post.caption = draft["caption"]
     post.hashtags = draft["hashtags"]

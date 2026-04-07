@@ -125,6 +125,18 @@ def run_admin_library_migration():
             "ig_accounts": [
                 ("profile_picture_url", "TEXT"),
                 ("fb_page_id", "VARCHAR")
+            ],
+            "posts": [
+                ("intent_type", "VARCHAR"),
+                ("target_audience", "VARCHAR"),
+                ("source_foundation", "VARCHAR"),
+                ("message_hint", "TEXT"),
+                ("emotion", "VARCHAR"),
+                ("depth", "VARCHAR"),
+                ("post_format", "VARCHAR"),
+                ("visual_style", "VARCHAR"),
+                ("hook_style", "VARCHAR"),
+                ("strictness_mode", "VARCHAR DEFAULT 'balanced'")
             ]
         }
         

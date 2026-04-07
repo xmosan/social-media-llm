@@ -56,6 +56,17 @@ class PostOut(BaseModel):
     
     visual_mode: str = "upload"
     visual_prompt: str | None = None
+    
+    intent_type: str | None = None
+    target_audience: str | None = None
+    source_foundation: str | None = None
+    message_hint: str | None = None
+    emotion: str | None = None
+    depth: str | None = None
+    post_format: str | None = None
+    visual_style: str | None = None
+    hook_style: str | None = None
+    strictness_mode: str = "balanced"
 
     caption: str | None = None
     hashtags: list[str] | None = None
@@ -405,6 +416,18 @@ class PostUpdate(BaseModel):
     topic: str | None = None
     post_type: str | None = None
     source_reference: str | None = None
+    
+    intent_type: str | None = None
+    target_audience: str | None = None
+    source_foundation: str | None = None
+    message_hint: str | None = None
+    emotion: str | None = None
+    depth: str | None = None
+    post_format: str | None = None
+    visual_style: str | None = None
+    hook_style: str | None = None
+    strictness_mode: str | None = None
+
     flags: dict[str, Any] | None = None
 
 class LibraryTopicSynonymBase(BaseModel):

@@ -140,6 +140,18 @@ class Post(Base):
     visual_prompt = Column(Text, nullable=True)
     library_item_id = Column(Integer, ForeignKey("content_items.id"), nullable=True)
 
+    # NEW: Islamic Content Intelligence fields
+    intent_type = Column(String, nullable=True)
+    target_audience = Column(String, nullable=True)
+    source_foundation = Column(String, nullable=True) # quran, hadith, combined, reflection
+    message_hint = Column(Text, nullable=True)
+    emotion = Column(String, nullable=True)
+    depth = Column(String, nullable=True)
+    post_format = Column(String, nullable=True)
+    visual_style = Column(String, nullable=True)
+    hook_style = Column(String, nullable=True)
+    strictness_mode = Column(String, default="balanced", nullable=False)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
