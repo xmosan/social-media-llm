@@ -1174,6 +1174,7 @@ APP_LAYOUT_HTML = """<!doctype html>
       </div>
   </div>
   {connect_instagram_modal}
+  {extra_js}
 </body>
 </html>
 """
@@ -1902,7 +1903,7 @@ async def app_dashboard_page(
     accs = db.query(IGAccount).filter(IGAccount.org_id == user.active_org_id).all()
     account_options = "".join([f'<option value="{a.id}">{a.name} (@{a.ig_user_id})</option>' for a in accs])
 
-    return APP_LAYOUT_HTML.replace("{content}", content)\
+    return HTMLResponse(content=APP_LAYOUT_HTML.replace("{content}", content)\
                           .replace("{title}", "Dashboard")\
                           .replace("{user_name}", user.name or user.email)\
                           .replace("{org_name}", org.name if org else "Personal Workspace")\
@@ -1912,7 +1913,38 @@ async def app_dashboard_page(
                           .replace("{active_automations}", "")\
                           .replace("{active_library}", "")\
                           .replace("{active_media}", "")\
-                          .replace("{account_options}", account_options).replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)
+                          .replace("{account_options}", account_options)\
+                          .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
+                          .replace("{extra_js}", f"""
+<script>
+    window.hasConnectedInstagram = {"true" if is_connected else "false"};
+    
+    // Safety Sync: Ensure UI matches DB state
+    async function syncAccountState() {{
+        try {{
+            const res = await fetch('/ig-accounts/me');
+            const accounts = await res.json();
+            const actuallyConnected = accounts.length > 0;
+            
+            if (actuallyConnected !== window.hasConnectedInstagram) {{
+                console.log("State mismatch detected, refreshing to sync UI...");
+                window.location.reload();
+            }}
+        }} catch(e) {{
+            console.error("Failed to sync account state", e);
+        }}
+    }}
+
+    window.onload = function() {{
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('error')) {{
+            alert(urlParams.get('error'));
+        }}
+        // Run sync check
+        syncAccountState();
+    }};
+</script>
+"""))
 
 @router.get("/app/calendar", response_class=HTMLResponse)
 async def app_calendar_page(
@@ -2045,7 +2077,9 @@ async def app_calendar_page(
                           .replace("{active_automations}", "")\
                           .replace("{active_library}", "")\
                           .replace("{active_media}", "")\
-                          .replace("{account_options}", "").replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)
+                          .replace("{account_options}", "")\
+                          .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
+                          .replace("{extra_js}", "")
 
 @router.get("/app/automations", response_class=HTMLResponse)
 async def app_automations_page(
@@ -2709,6 +2743,16 @@ async def app_automations_page(
       }
 
       async function runNow(event, id) {
+        // Safety Sync: Ensure UI matches DB state
+        try {
+            const res = await fetch('/ig-accounts/me');
+            const accounts = await res.json();
+            if (accounts.length > 0 && !window.hasConnectedInstagram) {
+                window.location.reload();
+                return;
+            }
+        } catch(e) {}
+
         if (!window.hasConnectedInstagram) {
           openConnectInstagramModal();
           return;
@@ -2756,7 +2800,9 @@ async def app_automations_page(
                           .replace("{active_automations}", "active")\
                           .replace("{active_library}", "")\
                           .replace("{active_media}", "")\
-                          .replace("{account_options}", account_options).replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)
+                          .replace("{account_options}", account_options)\
+                          .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
+                          .replace("{extra_js}", "")
 
 @router.get("/app/media", response_class=HTMLResponse)
 async def app_media_page(
@@ -2803,7 +2849,9 @@ async def app_media_page(
                           .replace("{active_automations}", "")\
                           .replace("{active_library}", "")\
                           .replace("{active_media}", "active")\
-                          .replace("{account_options}", "").replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)
+                          .replace("{account_options}", "")\
+                          .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
+                          .replace("{extra_js}", "")
 
 @router.get("/app/library", response_class=HTMLResponse)
 async def app_library_page(
@@ -3884,7 +3932,9 @@ async def app_library_page(
                           .replace("{active_library}", "active")\
                           .replace("{active_media}", "")\
                           .replace("{is_superadmin_js}", "true" if user.is_superadmin else "false")\
-                          .replace("{account_options}", "").replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)
+                          .replace("{account_options}", "")\
+                          .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
+                          .replace("{extra_js}", "")
 
 @router.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_page(user: User = Depends(require_user)):

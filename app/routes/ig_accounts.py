@@ -11,6 +11,17 @@ from ..schemas import IGAccountOut, AccountCreate, AccountUpdate
 
 router = APIRouter(prefix="/ig-accounts", tags=["ig-accounts"])
 
+@router.get("/me", response_model=list[IGAccountOut])
+def get_my_accounts(
+    db: Session = Depends(get_db),
+    user = Depends(require_user)
+):
+    """List all IG accounts for the current user's active organization."""
+    org_id = user.active_org_id
+    if not org_id:
+        return []
+    return db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
+
 @router.get("", response_model=list[IGAccountOut])
 def list_accounts(
     request: Request,

@@ -85,38 +85,45 @@ async def instagram_callback(
         if not token_data:
             return RedirectResponse(url="/app?error=Failed to secure long-term access.")
 
-        # 4. Discover Instagram Business account linked to user's Professional Setup
-        ig_details = await instagram_auth_service.discover_ig_business_account(token_data["access_token"])
-        if not ig_details:
+        # 4. Discover Instagram Business accounts linked to user's Professional Setup
+        discovered_accounts = await instagram_auth_service.discover_ig_business_account(token_data["access_token"])
+        if not discovered_accounts:
             msg = "No linked Instagram account found. Please ensure your Professional account is correctly configured and try again."
             return RedirectResponse(url=f"/app?error={msg}")
 
-        # 4. Check if account already exists in this org, otherwise create
-        acc = db.query(IGAccount).filter(
-            IGAccount.org_id == org_id,
-            IGAccount.ig_user_id == ig_details["ig_user_id"]
-        ).first()
+        # 5. Process and store each discovered account
+        print(f"DEBUG: Processing {len(discovered_accounts)} accounts for Org ID: {org_id}")
+        
+        for ig_details in discovered_accounts:
+            # Check if account already exists in this org
+            acc = db.query(IGAccount).filter(
+                IGAccount.org_id == org_id,
+                IGAccount.ig_user_id == ig_details["ig_user_id"]
+            ).first()
 
-        if not acc:
-            acc = IGAccount(
-                org_id=org_id,
-                ig_user_id=ig_details["ig_user_id"],
-                name=ig_details["username"] or ig_details["name"] or "Instagram Account"
-            )
-            db.add(acc)
-            db.flush()
-
-        # Update token and metadata
-        acc.access_token = token_data["access_token"]
-        acc.expires_at = token_data["expires_at"]
-        acc.fb_page_id = ig_details["fb_page_id"]
-        acc.active = True
+            if not acc:
+                print(f"DEBUG: Creating new IGAccount entry for @{ig_details['username']}")
+                acc = IGAccount(
+                    org_id=org_id,
+                    ig_user_id=ig_details["ig_user_id"],
+                    name=ig_details["username"] or ig_details["name"] or "Instagram Account"
+                )
+                db.add(acc)
+                db.flush() # Ensure ID is generated
+            
+            # Update token and metadata
+            print(f"DEBUG: Updating access token for @{ig_details['username']}")
+            acc.access_token = token_data["access_token"]
+            acc.expires_at = token_data["expires_at"]
+            acc.fb_page_id = ig_details["fb_page_id"]
+            acc.active = True
         
         # Mark user as having connected IG
         user.has_connected_instagram = True
         
         db.commit()
-        log_event("ig_connect_success", user_id=user.id, ig_user_id=acc.ig_user_id)
+        print(f"DEBUG: Successfully committed all accounts to database for User {user.id}")
+        log_event("ig_connect_success", user_id=user.id, count=len(discovered_accounts))
         
         return RedirectResponse(url="/app?success=ig_connected")
 
