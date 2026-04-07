@@ -89,64 +89,28 @@ async def instagram_callback(
             print("DEBUG: Upgrade failed - no token_data returned")
             return RedirectResponse(url="/app?error=Failed to secure long-term access.")
 
-        # --- MULTI-ACCOUNT HANDLING (TASK 6) ---
-        # Perform discovery immediately to see if we can skip the selection UI
+        # --- SEAMLESS UX FLOW ---
+        # Perform discovery silently
         accounts = await instagram_auth_service.discover_ig_business_account(token_data["access_token"])
         
         if not accounts:
             log_event("ig_callback_no_accounts", user_id=user.id)
             return RedirectResponse(url="/app?error=No Instagram Business accounts found on your Facebook Pages.")
 
-        if len(accounts) == 1:
-            # AUTO-SELECT SINGLE ACCOUNT
-            acc_data = accounts[0]
-            print(f"DEBUG: Auto-selecting single IG account: {acc_data['username']}")
-            
-            # Upsert logic
-            existing = db.query(IGAccount).filter(IGAccount.org_id == org_id).first()
-            if existing:
-                existing.name = acc_data["name"]
-                existing.ig_user_id = acc_data["ig_user_id"]
-                existing.access_token = token_data["access_token"]
-                existing.fb_page_id = acc_data["fb_page_id"]
-                existing.profile_picture_url = acc_data["profile_picture_url"]
-                existing.expires_at = token_data["expires_at"]
-            else:
-                new_acc = IGAccount(
-                    org_id=org_id,
-                    name=acc_data["name"],
-                    ig_user_id=acc_data["ig_user_id"],
-                    access_token=token_data["access_token"],
-                    fb_page_id=acc_data["fb_page_id"],
-                    profile_picture_url=acc_data["profile_picture_url"],
-                    expires_at=token_data["expires_at"]
-                )
-                db.add(new_acc)
-            
-            user.has_connected_instagram = True
-            db.commit()
-            log_event("ig_connect_autoselect", user_id=user.id, ig_id=acc_data["ig_user_id"])
-            return RedirectResponse(url="/app?success=Instagram connected successfully!")
-
-        # MULTIPLE ACCOUNTS FOUND -> SHOW SELECTION UI
-        print(f"DEBUG: {len(accounts)} accounts discovered. Redirecting to selection UI for User {user.id}")
-        response = RedirectResponse(url="/app/select-account")
-        response.set_cookie(
-            key="temp_ig_token",
-            value=token_data["access_token"],
-            httponly=True,
-            secure=True, 
-            samesite="lax",
-            max_age=900 
-        )
-        return response
+        # Store Discovery in Session
+        request.session["discovered_accounts"] = accounts
+        request.session["temp_ig_token"] = token_data["access_token"]
+        
+        log_event("ig_callback_discovery_complete", user_id=user.id, count=len(accounts))
+        
+        # Always redirect to the clean selection UI
+        return RedirectResponse(url="/select-account", status_code=302)
 
     except Exception as e:
         print(f"CRITICAL ERROR in ig_callback: {str(e)}")
         log_event("ig_callback_error", error=str(e))
         traceback.print_exc()
-        err_msg = f"ig_callback_exception: {type(e).__name__} - {str(e)}"
-        return RedirectResponse(url=f"/app?error={err_msg}")
+        return RedirectResponse(url=f"/app?error=Authentication failed: {type(e).__name__}")
 
 @router.post("/disconnect")
 async def instagram_disconnect(

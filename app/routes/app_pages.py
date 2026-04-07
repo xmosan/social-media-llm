@@ -1457,13 +1457,8 @@ SELECT_ACCOUNT_HTML = """
         </div>
 
         <!-- Account List -->
-        <div id="accountList" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div id="account-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Loading Skeletons -->
-            <div class="card p-10 bg-white shadow-xl shadow-brand/5 border-brand/5 animate-pulse flex flex-col items-center gap-6 rounded-[2.5rem]">
-                <div class="w-24 h-24 bg-brand/5 rounded-[2.5rem]"></div>
-                <div class="h-5 bg-brand/5 rounded w-40"></div>
-                <div class="h-12 bg-brand/5 rounded-2xl w-full mt-4"></div>
-            </div>
             <div class="card p-10 bg-white shadow-xl shadow-brand/5 border-brand/5 animate-pulse flex flex-col items-center gap-6 rounded-[2.5rem]">
                 <div class="w-24 h-24 bg-brand/5 rounded-[2.5rem]"></div>
                 <div class="h-5 bg-brand/5 rounded w-40"></div>
@@ -1471,7 +1466,7 @@ SELECT_ACCOUNT_HTML = """
             </div>
         </div>
 
-        <div id="emptyState" class="hidden text-center py-24 space-y-8 bg-white rounded-[3rem] border border-brand/5 shadow-2xl">
+        <div id="empty-state" class="hidden text-center py-24 space-y-8 bg-white rounded-[3rem] border border-brand/5 shadow-2xl">
             <div class="w-24 h-24 bg-rose-50 rounded-[2.5rem] flex items-center justify-center text-rose-300 mx-auto border border-rose-100 italic">
                 !
             </div>
@@ -1493,70 +1488,63 @@ SELECT_ACCOUNT_HTML = """
 
 <script>
     async function loadAccounts() {
-        const list = document.getElementById('accountList');
-        const empty = document.getElementById('emptyState');
+        const grid = document.getElementById('account-grid');
+        const emptyState = document.getElementById('empty-state');
         
         try {
-            const res = await fetch('/ig-accounts/meta-options');
-            if (res.status === 401) {
-                window.location.href = '/app?error=Session expired. Please reconnect Meta.';
-                return;
-            }
-            const data = await res.json();
-            const accounts = data.accounts || [];
-
-            if (accounts.length === 0) {
-                list.classList.add('hidden');
-                empty.classList.remove('hidden');
+            const res = await fetch('/accounts/available');
+            const accounts = await res.json();
+            
+            if (!accounts || accounts.length === 0) {
+                emptyState.classList.remove('hidden');
+                grid.innerHTML = '';
                 return;
             }
 
-            list.innerHTML = accounts.map(acc => `
-                <div class="card p-10 bg-white border-brand/5 hover:border-brand/20 transition-all flex flex-col items-center gap-8 group rounded-[2.5rem] shadow-xl hover:shadow-2xl hover:shadow-brand/5">
-                    <div class="relative">
-                        <img src="${acc.profile_picture_url || 'https://ui-avatars.com/api/?name=' + acc.username}" 
-                             class="w-32 h-32 rounded-[3.5rem] object-cover ring-8 ring-brand/5 group-hover:ring-brand/10 transition-all shadow-2xl"
-                             alt="${acc.username}">
-                        <div class="absolute -bottom-2 -right-2 bg-emerald-500 text-white p-2 rounded-2xl shadow-xl ring-4 ring-white">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
+            grid.innerHTML = accounts.map(acc => `
+                <div class="flex items-center justify-between p-6 bg-white border border-brand/5 rounded-3xl hover:border-brand/20 hover:shadow-xl hover:shadow-brand/5 transition-all group">
+                    <div class="flex items-center gap-5">
+                        <div class="relative">
+                            <img src="${acc.profile_picture_url || 'https://ui-avatars.com/api/?name=' + acc.username}" class="w-16 h-16 rounded-2xl ring-4 ring-brand/5 group-hover:ring-brand/10 transition-all object-cover">
+                            <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-lg flex items-center justify-center border-2 border-white shadow-lg">
+                                <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-xs font-black text-brand uppercase tracking-widest mb-1">@${acc.username}</div>
+                            <h3 class="text-base font-bold text-text-muted tracking-tight">${acc.name || acc.username}</h3>
                         </div>
                     </div>
-                    <div class="text-center space-y-2">
-                        <div class="text-xl font-bold text-brand tracking-tight">@${acc.username}</div>
-                        <div class="text-[10px] font-black uppercase tracking-widest text-text-muted/80">Instagram Business</div>
-                    </div>
-                    <button onclick="connectAccount('${acc.ig_user_id}', this)" class="w-full py-5 bg-brand rounded-[1.5rem] font-bold text-[11px] uppercase tracking-widest text-white shadow-2xl shadow-brand/20 hover:bg-brand-hover hover:scale-[1.03] transition-all">
-                        Complete Connection
+                    <button onclick="selectAccount('${acc.ig_user_id}', '${acc.fb_page_id}', this)" class="px-8 py-4 bg-brand text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-brand/20 hover:scale-[1.02] active:scale-95 transition-all">
+                        Connect
                     </button>
                 </div>
             `).join('');
-
         } catch (e) {
             console.error(e);
-            list.innerHTML = '<div class="col-span-full card p-10 bg-rose-50 text-rose-500 border-rose-100 text-center font-bold text-sm rounded-[2.5rem]">System connection error. Please refresh.</div>';
+            alert('Session expired. Please reconnect Meta.');
         }
     }
 
-    async function connectAccount(id, btn) {
+    async function selectAccount(igId, pageId, btn) {
         const originalText = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = '<span class="flex items-center justify-center gap-2 animate-pulse uppercase">Authenticating...</span>';
+        btn.innerHTML = 'Connecting...';
         
         try {
-            const res = await fetch('/ig-accounts/connect', {
+            const res = await fetch('/accounts/select', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ig_user_id: id })
+                body: JSON.stringify({ ig_user_id: igId, page_id: pageId })
             });
-
-            if (res.ok) {
-                btn.innerHTML = 'Connecting...';
-                btn.classList.add('bg-emerald-500');
-                btn.classList.remove('bg-brand');
-                setTimeout(() => window.location.href = '/app?success=Welcome @' + id, 500);
+            
+            if (res.redirected) {
+                window.location.href = res.url;
+            } else if (res.ok) {
+                window.location.href = '/app';
             } else {
-                const err = await res.json();
-                alert(err.detail || 'Connection failed');
+                const data = await res.json();
+                alert(data.detail || 'Failed to select account');
                 btn.disabled = false;
                 btn.innerHTML = originalText;
             }
@@ -1570,7 +1558,6 @@ SELECT_ACCOUNT_HTML = """
     window.onload = loadAccounts;
 </script>
 """
-
 
 ONBOARDING_HTML = """<!doctype html>
 <html lang="en">
@@ -2143,10 +2130,11 @@ async def app_dashboard_page(
 """))
 
 @router.get("/app/select-account", response_class=HTMLResponse)
+@router.get("/select-account", response_class=HTMLResponse)
 async def app_select_account_page(
     user: User = Depends(require_user)
 ):
-    """Renders the account selection page after OAuth."""
+    """Renders the clean account selection page after OAuth discovery."""
     return HTMLResponse(content=SELECT_ACCOUNT_HTML)
 
 @router.get("/app/calendar", response_class=HTMLResponse)

@@ -2,6 +2,7 @@
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import IGAccount
@@ -12,6 +13,72 @@ from pydantic import BaseModel
 from datetime import datetime, timezone, timedelta
 
 router = APIRouter(prefix="/ig-accounts", tags=["ig-accounts"])
+
+# --- SEAMLESS UX DISCOVERY API ---
+accounts_router = APIRouter(prefix="/accounts", tags=["accounts"])
+
+@accounts_router.get("/available")
+async def get_available_accounts(request: Request, user = Depends(require_user)):
+    """Fetch discovered accounts from session storage."""
+    return request.session.get("discovered_accounts", [])
+
+class SelectionPayload(BaseModel):
+    ig_user_id: str
+    page_id: str
+
+@accounts_router.post("/select")
+async def select_account(
+    payload: SelectionPayload,
+    request: Request,
+    db: Session = Depends(get_db),
+    user = Depends(require_user)
+):
+    """Persist discovery selection to the database."""
+    accounts = request.session.get("discovered_accounts", [])
+    token = request.session.get("temp_ig_token")
+    
+    if not token or not accounts:
+        raise HTTPException(status_code=401, detail="Meta session expired. Please reconnect.")
+        
+    selected = next((a for a in accounts if a["ig_user_id"] == payload.ig_user_id), None)
+    if not selected:
+        raise HTTPException(status_code=404, detail="Selected account no longer available.")
+
+    org_id = user.active_org_id
+    # Set all as inactive
+    db.query(IGAccount).filter(IGAccount.org_id == org_id).update({"active": False})
+    
+    # Upsert
+    acc = db.query(IGAccount).filter(
+        IGAccount.org_id == org_id,
+        IGAccount.ig_user_id == selected["ig_user_id"]
+    ).first()
+    
+    if not acc:
+        acc = IGAccount(
+            org_id=org_id,
+            ig_user_id=selected["ig_user_id"],
+            username=selected.get("username"),
+            name=selected.get("name") or selected["username"] or "Instagram Account",
+            profile_picture_url=selected.get("profile_picture_url")
+        )
+        db.add(acc)
+    
+    acc.access_token = token
+    acc.username = selected.get("username")
+    acc.fb_page_id = selected["fb_page_id"]
+    acc.profile_picture_url = selected.get("profile_picture_url")
+    acc.expires_at = datetime.now(timezone.utc) + timedelta(days=60)
+    acc.active = True
+    
+    user.has_connected_instagram = True
+    db.commit()
+    
+    # Cleanup session
+    request.session.pop("discovered_accounts", None)
+    request.session.pop("temp_ig_token", None)
+    
+    return RedirectResponse(url="/app", status_code=302)
 
 
 @router.get("", response_model=list[IGAccountOut])

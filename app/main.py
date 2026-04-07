@@ -272,9 +272,6 @@ app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    import traceback
-    print(f"GLOBAL ERROR: {exc}")
-    traceback.print_exc()
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal Server Error"}
@@ -327,6 +324,7 @@ app.include_router(posts.router)
 app.include_router(admin.router)
 app.include_router(orgs.router)
 app.include_router(ig_accounts.router)
+app.include_router(ig_accounts.accounts_router)
 app.include_router(automations.router)
 app.include_router(library.router)
 app.include_router(media.router)
