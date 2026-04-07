@@ -104,7 +104,7 @@ async def instagram_callback(
         log_event("ig_callback_discovery_complete", user_id=user.id, count=len(accounts))
         
         # Always redirect to the clean selection UI
-        return RedirectResponse(url="/select-account", status_code=302)
+        return RedirectResponse(url="https://app.sabeelstudio.com/select-account", status_code=302)
 
     except Exception as e:
         print(f"CRITICAL ERROR in ig_callback: {str(e)}")

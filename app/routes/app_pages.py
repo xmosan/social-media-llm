@@ -1460,9 +1460,9 @@ SELECT_ACCOUNT_HTML = """
         <div id="account-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Loading Skeletons -->
             <div class="card p-10 bg-white shadow-xl shadow-brand/5 border-brand/5 animate-pulse flex flex-col items-center gap-6 rounded-[2.5rem]">
-                <div class="w-24 h-24 bg-brand/5 rounded-[2.5rem]"></div>
-                <div class="h-5 bg-brand/5 rounded w-40"></div>
-                <div class="h-12 bg-brand/5 rounded-2xl w-full mt-4"></div>
+                <div class="w-16 h-16 bg-brand/5 rounded-2xl"></div>
+                <div class="h-4 bg-brand/5 rounded w-32"></div>
+                <div class="h-10 bg-brand/5 rounded-xl w-full mt-4"></div>
             </div>
         </div>
 
@@ -1487,6 +1487,11 @@ SELECT_ACCOUNT_HTML = """
 </div>
 
 <script>
+    // Fix Facebook redirect hash issue
+    if (window.location.hash === '#_=_') {
+        history.replaceState(null, null, window.location.pathname);
+    }
+
     async function loadAccounts() {
         const grid = document.getElementById('account-grid');
         const emptyState = document.getElementById('empty-state');
