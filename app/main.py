@@ -121,6 +121,10 @@ def run_admin_library_migration():
                 ("use_count", "INTEGER DEFAULT 0"),
                 ("last_used_at", "TIMESTAMP WITH TIME ZONE"),
                 ("updated_at", "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP")
+            ],
+            "ig_accounts": [
+                ("profile_picture_url", "TEXT"),
+                ("fb_page_id", "VARCHAR")
             ]
         }
         
