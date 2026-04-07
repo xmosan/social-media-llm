@@ -66,7 +66,16 @@ async def google_login(request: Request):
 async def google_auth(request: Request, db: Session = Depends(get_db)):
     """Handles the OAuth callback, provisions users/orgs, and sets the JWT cookie."""
     from app.main import is_prod
-    from authlib.integrations.base_client.errors import MismatchedStateError
+    
+    # SAFE IMPORT: Handle different Authlib versions for state mismatch errors
+    try:
+        from authlib.integrations.base_client.errors import MismatchedStateError
+    except ImportError:
+        try:
+            from authlib.integrations.base_client.errors import MismatchingStateError as MismatchedStateError
+        except ImportError:
+            # Fallback to generic Exception if Authlib names have shifted
+            MismatchedStateError = Exception
     
     # 1. DYNAMIC REDIRECT RESOLUTION: Must match the one used in google_login
     redirect_uri = settings.google_redirect_uri or f"{settings.public_base_url.rstrip('/')}/auth/google/callback"
