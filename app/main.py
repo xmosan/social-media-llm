@@ -139,12 +139,30 @@ def run_admin_library_migration():
                 except Exception:
                     pass
 
-        # Ensure org_id is nullable (important for global)
         if is_postgres:
             try: conn.execute(text("ALTER TABLE content_sources ALTER COLUMN org_id DROP NOT NULL"))
             except Exception: pass
             try: conn.execute(text("ALTER TABLE content_items ALTER COLUMN org_id DROP NOT NULL"))
             except Exception: pass
+
+        # 2. EMERGENCY IG_ACCOUNTS COLUMN MIGRATION
+        log_startup("MIGRATION: Running emergency ig_accounts schema check...")
+        ig_cols = [
+            ("profile_picture_url", "TEXT"),
+            ("fb_page_id", "VARCHAR"),
+            ("expires_at", "TIMESTAMP WITH TIME ZONE")
+        ]
+        for col, col_def in ig_cols:
+            try:
+                if is_postgres:
+                    conn.execute(text(f"ALTER TABLE ig_accounts ADD COLUMN IF NOT EXISTS {col} {col_def}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE ig_accounts ADD COLUMN {col} {col_def}"))
+                log_startup(f"MIGRATION: Added {col} to ig_accounts")
+            except Exception as e:
+                # Log if it fails but dont crash
+                log_startup(f"MIGRATION: IG column {col} already exists or failed: {e}")
+                pass
 
     log_startup("MIGRATION: Finished aggressive library schema checks.")
 
