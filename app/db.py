@@ -67,25 +67,85 @@ if DATABASE_URL.startswith("sqlite"):
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-def get_db():
-    # --- PROACTIVE SCHEMA SYNC (Self-Healing) ---
-    # This ensures the production DB stays in sync with the model automatically.
+def sync_database_schema():
+    """
+    Perform a resilient, granular schema sync.
+    Every column addition is isolated in its own transaction to prevent rollback cascades.
+    """
+    is_postgres = engine.drivername and "postgresql" in engine.drivername
+    json_type = "JSONB" if is_postgres else "JSON"
+    
+    # Define all mission-critical columns that might be missing in production
+    missing_cols = {
+        "ig_accounts": [
+            ("profile_picture_url", "TEXT"),
+            ("fb_page_id", "VARCHAR"),
+            ("expires_at", "TIMESTAMP WITH TIME ZONE" if is_postgres else "TIMESTAMP"),
+            ("username", "VARCHAR")
+        ],
+        "posts": [
+            ("intent_type", "VARCHAR"),
+            ("target_audience", "VARCHAR"),
+            ("source_foundation", "VARCHAR"),
+            ("message_hint", "TEXT"),
+            ("emotion", "VARCHAR"),
+            ("depth", "VARCHAR"),
+            ("post_format", "VARCHAR"),
+            ("visual_style", "VARCHAR"),
+            ("hook_style", "VARCHAR"),
+            ("strictness_mode", "VARCHAR DEFAULT 'balanced'"),
+            ("visual_mode", "VARCHAR DEFAULT 'upload'"),
+            ("visual_prompt", "TEXT"),
+            ("library_item_id", "INTEGER")
+        ],
+        "content_items": [
+            ("item_type", "VARCHAR DEFAULT 'note'"),
+            ("arabic_text", "TEXT"),
+            ("translation", "TEXT"),
+            ("meta", json_type),
+            ("tags", json_type),
+            ("topic", "VARCHAR"),
+            ("topics", json_type),
+            ("topics_slugs", json_type)
+        ],
+        "content_sources": [
+            ("category", "VARCHAR"),
+            ("description", "TEXT"),
+            ("config", json_type),
+            ("enabled", "BOOLEAN DEFAULT TRUE")
+        ]
+    }
+
+    print(f"SCHEMA SYNC: Starting resilient sync (DB: {'Postgres' if is_postgres else 'SQLite'})...")
+    
+    for tbl, cols in missing_cols.items():
+        for col, col_def in cols:
+            # Use a fresh transaction for EVERY command
+            try:
+                with engine.begin() as conn:
+                    if is_postgres:
+                        conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS {col} {col_def}"))
+                    else:
+                        # SQLite doesn't support IF NOT EXISTS for ADD COLUMN, so we rely on the try/except
+                        conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN {col} {col_def}"))
+                # print(f"  [OK] {tbl}.{col}")
+            except Exception as e:
+                # Silently skip if column already exists or other non-critical error
+                # print(f"  [SKIP] {tbl}.{col} (Reason: {e})")
+                pass
+
+    # Ensure Nullability for global content
     try:
         with engine.begin() as conn:
-            is_postgres = "postgresql" in engine.drivername
-            # Sync ig_accounts
             if is_postgres:
-                conn.execute(text("ALTER TABLE ig_accounts ADD COLUMN IF NOT EXISTS profile_picture_url TEXT"))
-                conn.execute(text("ALTER TABLE ig_accounts ADD COLUMN IF NOT EXISTS fb_page_id VARCHAR"))
-                conn.execute(text("ALTER TABLE ig_accounts ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE"))
-            else:
-                for col, col_type in [("profile_picture_url", "TEXT"), ("fb_page_id", "VARCHAR"), ("expires_at", "TIMESTAMP")]:
-                    try: conn.execute(text(f"ALTER TABLE ig_accounts ADD COLUMN {col} {col_type}"))
-                    except: pass
-    except Exception as e:
-        # Standard logging as print for the logs
-        print(f"SCHEMA SYNC LOG: {e}")
+                conn.execute(text("ALTER TABLE content_sources ALTER COLUMN org_id DROP NOT NULL"))
+                conn.execute(text("ALTER TABLE content_items ALTER COLUMN org_id DROP NOT NULL"))
+    except Exception:
+        pass
+    
+    print("SCHEMA SYNC: Resilient sync complete.")
 
+def get_db():
     db = SessionLocal()
     try:
         yield db

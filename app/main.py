@@ -37,6 +37,7 @@ def log_startup(msg: str):
 def run_admin_library_migration():
     from sqlalchemy import text
     from .models import Base
+    from .db import sync_database_schema
     
     log_startup("MIGRATION: Ensuring all tables exist...")
     try:
@@ -45,124 +46,18 @@ def run_admin_library_migration():
     except Exception as e:
         log_startup(f"MIGRATION: Metadata creation failed: {e}")
 
+    # Use the new resilient sync for column additions
+    try:
+        sync_database_schema()
+        log_startup("MIGRATION: Resilient column sync complete.")
+    except Exception as e:
+        log_startup(f"MIGRATION: Resilient sync failed: {e}")
+
+    # 2. DEFINITIVE IG_ACCOUNTS SCHEMA SYNC (Taking Control)
+    log_startup("MIGRATION: Syncing database state...")
     with engine.begin() as conn:
-        log_startup("MIGRATION: Checking/Creating content_sources and content_items manually...")
         is_postgres = "postgresql" in engine.drivername
-        
-        # Manual Source Table Creation (Fallback)
-        try:
-            id_col = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
-            json_type = "JSONB" if is_postgres else "JSON"
-            
-            conn.execute(text(f"""
-                CREATE TABLE IF NOT EXISTS content_sources (
-                    id {id_col},
-                    org_id INTEGER REFERENCES orgs(id),
-                    name VARCHAR NOT NULL,
-                    source_type VARCHAR NOT NULL,
-                    category VARCHAR,
-                    description TEXT,
-                    config {json_type} NOT NULL DEFAULT '{{}}',
-                    enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                )
-            """))
-        except Exception as e:
-            log_startup(f"MIGRATION: Source table creation status: {e}")
-
-        # Manual Item Table Creation
-        try:
-            id_col = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
-            json_type = "JSONB" if is_postgres else "JSON"
-            
-            conn.execute(text(f"""
-                CREATE TABLE IF NOT EXISTS content_items (
-                    id {id_col},
-                    org_id INTEGER REFERENCES orgs(id),
-                    source_id INTEGER NOT NULL REFERENCES content_sources(id),
-                    item_type VARCHAR DEFAULT 'note',
-                    title VARCHAR,
-                    text TEXT NOT NULL,
-                    arabic_text TEXT,
-                    translation TEXT,
-                    url TEXT,
-                    meta {json_type} NOT NULL DEFAULT '{{}}',
-                    tags {json_type} NOT NULL DEFAULT '[]',
-                    last_used_at TIMESTAMP WITH TIME ZONE,
-                    use_count INTEGER DEFAULT 0,
-                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-                )
-            """))
-        except Exception as e:
-            log_startup(f"MIGRATION: Item table creation status: {e}")
-            
-        # 1. Force Column Check (Fix for broken/partial tables)
-        tables_cols = {
-            "content_sources": [
-                ("org_id", "INTEGER"),
-                ("category", "VARCHAR"),
-                ("description", "TEXT"),
-                ("config", "JSONB" if is_postgres else "TEXT"),
-                ("enabled", "BOOLEAN DEFAULT TRUE")
-            ],
-            "content_items": [
-                ("org_id", "INTEGER"),
-                ("item_type", "VARCHAR DEFAULT 'note'"),
-                ("arabic_text", "TEXT"),
-                ("translation", "TEXT"),
-                ("meta", "JSONB" if is_postgres else "JSON"),
-                ("tags", "JSONB" if is_postgres else "JSON"),
-                ("topic", "VARCHAR"),
-                ("topics", "JSONB" if is_postgres else "JSON"),
-                ("topics_slugs", "JSONB" if is_postgres else "JSON"),
-                ("owner_user_id", "INTEGER"),
-                ("use_count", "INTEGER DEFAULT 0"),
-                ("last_used_at", "TIMESTAMP WITH TIME ZONE"),
-                ("updated_at", "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP")
-            ],
-            "ig_accounts": [
-                ("profile_picture_url", "TEXT"),
-                ("fb_page_id", "VARCHAR")
-            ],
-            "posts": [
-                ("intent_type", "VARCHAR"),
-                ("target_audience", "VARCHAR"),
-                ("source_foundation", "VARCHAR"),
-                ("message_hint", "TEXT"),
-                ("emotion", "VARCHAR"),
-                ("depth", "VARCHAR"),
-                ("post_format", "VARCHAR"),
-                ("visual_style", "VARCHAR"),
-                ("hook_style", "VARCHAR"),
-                ("strictness_mode", "VARCHAR DEFAULT 'balanced'")
-            ]
-        }
-        
-        for tbl, cols in tables_cols.items():
-            for col_name, col_def in cols:
-                try:
-                    if is_postgres:
-                        conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS {col_name} {col_def}"))
-                    else:
-                        conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN {col_name} {col_def}"))
-                    log_startup(f"MIGRATION: Checked/Added {col_name} to {tbl}")
-                except Exception:
-                    pass
-
-        # Ensure org_id is nullable (important for global)
-        if is_postgres:
-            try: conn.execute(text("ALTER TABLE content_sources ALTER COLUMN org_id DROP NOT NULL"))
-            except Exception: pass
-            try: conn.execute(text("ALTER TABLE content_items ALTER COLUMN org_id DROP NOT NULL"))
-            except Exception: pass
-
-        # 2. DEFINITIVE IG_ACCOUNTS SCHEMA SYNC (Taking Control)
-        log_startup("MIGRATION: Syncing ig_accounts table...")
         ig_cols = [
-            ("profile_picture_url", "TEXT"),
-            ("username", "VARCHAR"),
             ("fb_page_id", "VARCHAR"),
             ("expires_at", "TIMESTAMP WITH TIME ZONE"),
             ("active", "BOOLEAN DEFAULT TRUE")
