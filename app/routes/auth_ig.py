@@ -55,30 +55,37 @@ async def instagram_login(
 @router.get("/callback")
 async def instagram_callback(
     request: Request,
-    code: str,
+    code: str = None,
     db: Session = Depends(get_db),
     user: User = Depends(require_user)
 ):
     """Handles the Meta OAuth callback."""
+    # 1. HANDLE CANCEL OR ERROR FROM META
+    error = request.query_params.get("error")
+    if error or not code:
+        log_event("ig_auth_cancelled", user_id=user.id, error=error)
+        msg = "Instagram connection was not completed. Please try again."
+        return RedirectResponse(url=f"/app?error={msg}")
+
     org_id = user.active_org_id
     if not org_id:
         raise HTTPException(status_code=400, detail="Active Organization not found")
 
     try:
-        # 1. Exchange code for short-lived token
+        # 2. Exchange code for short-lived token
         short_token = await instagram_auth_service.exchange_code_for_token(code)
         if not short_token:
-            return RedirectResponse(url="/app?error=ig_auth_failed")
+            return RedirectResponse(url="/app?error=Instagram authentication failed.")
 
-        # 2. Upgrade to long-lived token (60 days)
+        # 3. Upgrade to long-lived token (60 days)
         token_data = await instagram_auth_service.get_long_lived_token(short_token)
         if not token_data:
-            return RedirectResponse(url="/app?error=ig_token_upgrade_failed")
+            return RedirectResponse(url="/app?error=Failed to secure long-term access.")
 
-        # 3. Discover Instagram Business account linked to user's FB Pages
+        # 4. Discover Instagram Business account linked to user's Professional Setup
         ig_details = await instagram_auth_service.discover_ig_business_account(token_data["access_token"])
         if not ig_details:
-            msg = "No Instagram account found. Please make sure your Instagram is connected to a Facebook Page and try again."
+            msg = "No linked Instagram account found. Please ensure your Professional account is correctly configured and try again."
             return RedirectResponse(url=f"/app?error={msg}")
 
         # 4. Check if account already exists in this org, otherwise create
