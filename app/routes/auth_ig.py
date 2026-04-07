@@ -14,6 +14,8 @@ import traceback
 import os
 
 router = APIRouter(prefix="/auth/instagram", tags=["auth"])
+# ALIAS ROUTER: To handle legacy /auth/meta/callback without breaking existing config
+meta_alias_router = APIRouter(prefix="/auth/meta", tags=["auth"])
 
 @router.get("/login")
 async def instagram_login(
@@ -53,6 +55,7 @@ async def instagram_login(
     return RedirectResponse(url=auth_url)
 
 @router.get("/callback")
+@meta_alias_router.get("/callback")
 async def instagram_callback(
     request: Request,
     code: str = None,
