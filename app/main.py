@@ -146,6 +146,24 @@ def run_admin_library_migration():
             try: conn.execute(text("ALTER TABLE content_items ALTER COLUMN org_id DROP NOT NULL"))
             except Exception: pass
 
+        # 2. DEFINITIVE IG_ACCOUNTS SCHEMA SYNC (Taking Control)
+        log_startup("MIGRATION: Syncing ig_accounts table...")
+        ig_cols = [
+            ("profile_picture_url", "TEXT"),
+            ("fb_page_id", "VARCHAR"),
+            ("expires_at", "TIMESTAMP WITH TIME ZONE")
+        ]
+        for col, col_def in ig_cols:
+            try:
+                if is_postgres:
+                    conn.execute(text(f"ALTER TABLE ig_accounts ADD COLUMN IF NOT EXISTS {col} {col_def}"))
+                else:
+                    conn.execute(text(f"ALTER TABLE ig_accounts ADD COLUMN {col} {col_def}"))
+                log_startup(f"MIGRATION: Verified/Added {col} to ig_accounts")
+            except Exception as e:
+                log_startup(f"MIGRATION: Notice on ig_accounts.{col}: {e}")
+                pass
+
     log_startup("MIGRATION: Finished aggressive library schema checks.")
 
 # -------------------------------------------------

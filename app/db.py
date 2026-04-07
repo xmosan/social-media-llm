@@ -68,6 +68,24 @@ if DATABASE_URL.startswith("sqlite"):
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db():
+    # --- PROACTIVE SCHEMA SYNC (Self-Healing) ---
+    # This ensures the production DB stays in sync with the model automatically.
+    try:
+        with engine.begin() as conn:
+            is_postgres = "postgresql" in engine.drivername
+            # Sync ig_accounts
+            if is_postgres:
+                conn.execute(text("ALTER TABLE ig_accounts ADD COLUMN IF NOT EXISTS profile_picture_url TEXT"))
+                conn.execute(text("ALTER TABLE ig_accounts ADD COLUMN IF NOT EXISTS fb_page_id VARCHAR"))
+                conn.execute(text("ALTER TABLE ig_accounts ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE"))
+            else:
+                for col, col_type in [("profile_picture_url", "TEXT"), ("fb_page_id", "VARCHAR"), ("expires_at", "TIMESTAMP")]:
+                    try: conn.execute(text(f"ALTER TABLE ig_accounts ADD COLUMN {col} {col_type}"))
+                    except: pass
+    except Exception as e:
+        # Standard logging as print for the logs
+        print(f"SCHEMA SYNC LOG: {e}")
+
     db = SessionLocal()
     try:
         yield db
