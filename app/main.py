@@ -241,7 +241,7 @@ def bootstrap_saas():
 
         # 1. SUPERADMIN BOOTSTRAP
         # Use settings or a hardcoded fallback to ensure someone can always log in
-        superadmin_email = settings.superadmin_email or "Mohammed.Mme7@gmail.com"
+        superadmin_email = settings.superadmin_email or "app.sabeel.studio@gmail.com"
         superadmin_pass = settings.superadmin_password or "Admin123!" # Hardcoded fallback for emergency access
         
         log_startup(f"BOOTSTRAP: Targeting superadmin email: {superadmin_email}")
