@@ -48,9 +48,9 @@ def run_migration():
     for i in range(retries):
         try:
             with engine.begin() as conn:
-                is_postgres = "postgresql" in engine.drivername
+                is_postgres = "postgresql" in engine.name
                 
-                print(f"Schema check on Table: ig_accounts (Driver: {engine.drivername})")
+                print(f"Schema check on Table: ig_accounts (Dialect: {engine.name}, Driver: {engine.url.drivername})")
                 
                 # 1. Ensure Table
                 id_col = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
