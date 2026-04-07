@@ -76,16 +76,21 @@ class InstagramAuthService:
     async def discover_ig_business_account(self, user_token: str) -> List[Dict]:
         """
         Fetches the user's FB Pages and identifies all linked Instagram Business accounts.
-        Returns a list of account details.
+        Returns a detailed list of account options.
         """
         log_event("ig_discovery_start", token_present=bool(user_token))
-        print(f"DEBUG: Starting IG account discovery with token: {user_token[:10]}...")
+        logger.info(f"DISCOVERY: Starting exhaustive IG account discovery for token ending in ...{user_token[-5:]}")
         
-        # Step 1: Fetch FB Pages
+        # Step 1: Fetch FB Pages (me/accounts)
         pages_url = f"{GRAPH_URL}/me/accounts"
-        params = {"access_token": user_token}
+        # We need to request the fields specifically
+        params = {
+            "fields": "id,name,access_token,instagram_business_account{id,username,name,profile_picture_url}",
+            "access_token": user_token
+        }
         
         discovered_accounts = []
+        unique_ids = set()
         
         async with httpx.AsyncClient() as client:
             resp = await client.get(pages_url, params=params)
@@ -94,39 +99,58 @@ class InstagramAuthService:
             if "data" not in pages_data:
                 err = pages_data.get("error")
                 log_event("ig_discovery_pages_fail", error=err)
-                print(f"DEBUG: Discovery failed to fetch pages. Response: {pages_data}")
+                logger.error(f"DISCOVERY_ERROR: Failed to fetch pages: {pages_data}")
                 return []
                 
-            print(f"DEBUG: Found {len(pages_data['data'])} potential pages/accounts.")
+            logger.info(f"DISCOVERY: Found {len(pages_data['data'])} FB Pages to inspect.")
                 
             for page in pages_data["data"]:
                 page_id = page["id"]
                 page_name = page.get("name", "Unknown Page")
-                print(f"DEBUG: Checking Page: {page_name} (ID: {page_id})")
                 
-                # Step 2: Check for linked IG Business account
-                ig_url = f"{GRAPH_URL}/{page_id}"
-                ig_params = {
-                    "fields": "instagram_business_account{id,username,name,profile_picture_url}",
-                    "access_token": user_token
-                }
-                ig_resp = await client.get(ig_url, params=ig_params)
-                ig_data = ig_resp.json()
+                # Check for nested IG account (Meta Graph API often allows this projection)
+                ig_acc = page.get("instagram_business_account")
                 
-                if "instagram_business_account" in ig_data:
-                    ig_acc = ig_data["instagram_business_account"]
-                    print(f"DEBUG: Linked Instagram found: @{ig_acc.get('username')} (ID: {ig_acc['id']})")
-                    discovered_accounts.append({
-                        "ig_user_id": ig_acc["id"],
-                        "username": ig_acc.get("username"),
-                        "name": ig_acc.get("name"),
-                        "profile_picture_url": ig_acc.get("profile_picture_url"),
-                        "fb_page_id": page_id
-                    })
+                if ig_acc:
+                    ig_id = ig_acc.get("id")
+                    if ig_id and ig_id not in unique_ids:
+                        unique_ids.add(ig_id)
+                        logger.info(f"DISCOVERY: Found IG '@{ig_acc.get('username')}' on Page '{page_name}'")
+                        discovered_accounts.append({
+                            "ig_user_id": ig_id,
+                            "username": ig_acc.get("username"),
+                            "name": ig_acc.get("name") or ig_acc.get("username"),
+                            "profile_picture_url": ig_acc.get("profile_picture_url"),
+                            "fb_page_id": page_id
+                        })
                 else:
-                    print(f"DEBUG: Page {page_name} has no linked Instagram Business account.")
-                    
-        print(f"DEBUG: Total Instagram accounts discovered: {len(discovered_accounts)}")
+                    # Fallback recursive check if nested fails
+                    logger.info(f"DISCOVERY: No nested IG on '{page_name}', performing deep check...")
+                    ig_url = f"{GRAPH_URL}/{page_id}"
+                    ig_params = {
+                        "fields": "instagram_business_account{id,username,name,profile_picture_url}",
+                        "access_token": user_token
+                    }
+                    try:
+                        ig_resp = await client.get(ig_url, params=ig_params)
+                        deep_data = ig_resp.json()
+                        deep_ig = deep_data.get("instagram_business_account")
+                        if deep_ig:
+                            ig_id = deep_ig.get("id")
+                            if ig_id and ig_id not in unique_ids:
+                                unique_ids.add(ig_id)
+                                logger.info(f"DISCOVERY_DEEP: Found IG '@{deep_ig.get('username')}'")
+                                discovered_accounts.append({
+                                    "ig_user_id": ig_id,
+                                    "username": deep_ig.get("username"),
+                                    "name": deep_ig.get("name") or deep_ig.get("username"),
+                                    "profile_picture_url": deep_ig.get("profile_picture_url"),
+                                    "fb_page_id": page_id
+                                })
+                    except Exception as e:
+                        logger.error(f"DISCOVERY_DEEP_FAIL: Error checking Page {page_id}: {e}")
+
+        logger.info(f"DISCOVERY_COMPLETE: Total unique IG accounts: {len(discovered_accounts)}")
         return discovered_accounts
 
 instagram_auth_service = InstagramAuthService()

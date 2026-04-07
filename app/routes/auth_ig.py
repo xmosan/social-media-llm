@@ -89,19 +89,55 @@ async def instagram_callback(
             print("DEBUG: Upgrade failed - no token_data returned")
             return RedirectResponse(url="/app?error=Failed to secure long-term access.")
 
-        # Instead of saving all accounts, we redirect to a selection page
-        # We store the long-lived token in a temporary secure cookie
-        print(f"DEBUG: Redirecting to account selection for User {user.id}")
+        # --- MULTI-ACCOUNT HANDLING (TASK 6) ---
+        # Perform discovery immediately to see if we can skip the selection UI
+        accounts = await instagram_auth_service.discover_ig_business_account(token_data["access_token"])
         
+        if not accounts:
+            log_event("ig_callback_no_accounts", user_id=user.id)
+            return RedirectResponse(url="/app?error=No Instagram Business accounts found on your Facebook Pages.")
+
+        if len(accounts) == 1:
+            # AUTO-SELECT SINGLE ACCOUNT
+            acc_data = accounts[0]
+            print(f"DEBUG: Auto-selecting single IG account: {acc_data['username']}")
+            
+            # Upsert logic
+            existing = db.query(IGAccount).filter(IGAccount.org_id == org_id).first()
+            if existing:
+                existing.name = acc_data["name"]
+                existing.ig_user_id = acc_data["ig_user_id"]
+                existing.access_token = token_data["access_token"]
+                existing.fb_page_id = acc_data["fb_page_id"]
+                existing.profile_picture_url = acc_data["profile_picture_url"]
+                existing.expires_at = token_data["expires_at"]
+            else:
+                new_acc = IGAccount(
+                    org_id=org_id,
+                    name=acc_data["name"],
+                    ig_user_id=acc_data["ig_user_id"],
+                    access_token=token_data["access_token"],
+                    fb_page_id=acc_data["fb_page_id"],
+                    profile_picture_url=acc_data["profile_picture_url"],
+                    expires_at=token_data["expires_at"]
+                )
+                db.add(new_acc)
+            
+            user.has_connected_instagram = True
+            db.commit()
+            log_event("ig_connect_autoselect", user_id=user.id, ig_id=acc_data["ig_user_id"])
+            return RedirectResponse(url="/app?success=Instagram connected successfully!")
+
+        # MULTIPLE ACCOUNTS FOUND -> SHOW SELECTION UI
+        print(f"DEBUG: {len(accounts)} accounts discovered. Redirecting to selection UI for User {user.id}")
         response = RedirectResponse(url="/app/select-account")
-        # Set a short-lived (15 min) secure cookie for the selection process
         response.set_cookie(
             key="temp_ig_token",
             value=token_data["access_token"],
             httponly=True,
             secure=True, 
             samesite="lax",
-            max_age=900 # 15 minutes
+            max_age=900 
         )
         return response
 
