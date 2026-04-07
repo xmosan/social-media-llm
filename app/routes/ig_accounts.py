@@ -97,6 +97,78 @@ def toggle_account(
     db.refresh(acc)
     return acc
 
+@router.get("/meta-options", response_model=dict)
+async def get_meta_account_options(
+    request: Request,
+    user = Depends(require_user)
+):
+    """Fetch available IG accounts from Meta using the temporary token cookie."""
+    token = request.cookies.get("temp_ig_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Meta session expired. Please try connecting again.")
+    
+    from app.services.instagram_auth import instagram_auth_service
+    accounts = await instagram_auth_service.discover_ig_business_account(token)
+    return {"accounts": accounts}
+
+class ConnectPayload(BaseModel):
+    ig_user_id: str
+
+from pydantic import BaseModel
+from datetime import datetime, timezone, timedelta
+
+@router.post("/connect", response_model=IGAccountOut)
+async def connect_meta_account(
+    payload: ConnectPayload,
+    request: Request,
+    db: Session = Depends(get_db),
+    user = Depends(require_user)
+):
+    """Persist the selected IG account to the database."""
+    token = request.cookies.get("temp_ig_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Meta session expired.")
+    
+    org_id = user.active_org_id
+    if not org_id:
+        raise HTTPException(status_code=400, detail="Active Organization not found")
+
+    from app.services.instagram_auth import instagram_auth_service
+    # Re-discover to get full details (safe and ensures data integrity)
+    all_discovery = await instagram_auth_service.discover_ig_business_account(token)
+    selected = next((a for a in all_discovery if a["ig_user_id"] == payload.ig_user_id), None)
+    
+    if not selected:
+        raise HTTPException(status_code=404, detail="Selected account not found in your Meta profile")
+
+    # Check if exists
+    acc = db.query(IGAccount).filter(
+        IGAccount.org_id == org_id,
+        IGAccount.ig_user_id == selected["ig_user_id"]
+    ).first()
+
+    if not acc:
+        acc = IGAccount(
+            org_id=org_id,
+            ig_user_id=selected["ig_user_id"],
+            name=selected["username"] or selected["name"] or "Instagram Account",
+            profile_picture_url=selected.get("profile_picture_url")
+        )
+        db.add(acc)
+    
+    # Update latest token and metadata
+    acc.access_token = token
+    acc.fb_page_id = selected["fb_page_id"]
+    acc.profile_picture_url = selected.get("profile_picture_url")
+    acc.expires_at = datetime.now(timezone.utc) + timedelta(days=60) # Standard Meta LLT
+    acc.active = True
+    
+    user.has_connected_instagram = True
+    db.commit()
+    db.refresh(acc)
+    
+    return acc
+
 @router.delete("/{account_id}")
 def delete_account(
     account_id: int,

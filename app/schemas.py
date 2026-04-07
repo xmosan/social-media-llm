@@ -22,12 +22,20 @@ class IGAccountOut(BaseModel):
     org_id: int
     name: str
     ig_user_id: str
+    profile_picture_url: str | None = None
     active: bool
     timezone: str
     daily_post_time: str
     created_at: datetime
     class Config:
         from_attributes = True
+
+class MetaAccountOption(BaseModel):
+    ig_user_id: str
+    username: str
+    name: str | None = None
+    profile_picture_url: str | None = None
+    fb_page_id: str
 
 class PostOut(BaseModel):
     id: int

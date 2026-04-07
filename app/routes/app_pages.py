@@ -1428,6 +1428,137 @@ APP_DASHBOARD_CONTENT = """
           <div class="space-y-2">
             <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Content Caption</label>
             <textarea id="editPostCaption" rows="6" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-6 text-brand text-sm focus:border-brand/30 focus:bg-white transition-all font-medium italic outline-none leading-relaxed"></textarea>
+        </div>
+        <div class="flex flex-col gap-4">
+            <button onclick="updatePost()" class="w-full py-4 bg-brand rounded-2xl font-bold text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Apply Refinement</button>
+            <button onclick="closeEditPostModal()" class="w-full py-4 bg-white border border-brand/10 rounded-2xl font-bold text-xs uppercase tracking-widest text-text-muted hover:text-brand transition-all">Cancel</button>
+        </div>
+      </div>
+    </div>
+"""
+
+SELECT_ACCOUNT_HTML = """
+<div class="min-h-screen bg-cream flex flex-col items-center justify-center p-6">
+    <div class="max-w-2xl w-full space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <!-- Header -->
+        <div class="text-center space-y-4">
+            <div class="w-20 h-20 bg-brand rounded-[2.5rem] flex items-center justify-center text-white mx-auto shadow-2xl shadow-brand/20 rotate-3">
+                <svg class="w-10 h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+            </div>
+            <h1 class="text-4xl font-bold text-brand tracking-tighter">Choose Your <span class="text-accent underline decoration-accent/20 decoration-4 underline-offset-8">Presence</span></h1>
+            <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em]">Meta Data Discovery Complete</p>
+        </div>
+
+        <!-- Account List -->
+        <div id="accountList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Loading Skeletons -->
+            <div class="card p-8 bg-white/50 border-brand/5 animate-pulse flex flex-col items-center gap-6">
+                <div class="w-20 h-20 bg-brand/5 rounded-full"></div>
+                <div class="h-4 bg-brand/5 rounded w-32"></div>
+                <div class="h-10 bg-brand/5 rounded-xl w-full mt-2"></div>
+            </div>
+            <div class="card p-8 bg-white/50 border-brand/5 animate-pulse flex flex-col items-center gap-6">
+                <div class="w-20 h-20 bg-brand/5 rounded-full"></div>
+                <div class="h-4 bg-brand/5 rounded w-32"></div>
+                <div class="h-10 bg-brand/5 rounded-xl w-full mt-2"></div>
+            </div>
+        </div>
+
+        <div id="emptyState" class="hidden text-center py-20 space-y-6">
+            <div class="w-20 h-20 bg-brand/5 rounded-[2rem] flex items-center justify-center text-brand/20 mx-auto border border-brand/10">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9.172 9.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+            </div>
+            <div class="space-y-2">
+                <h3 class="text-xl font-bold text-brand tracking-tight">No Accounts Found</h3>
+                <p class="text-sm text-text-muted font-medium">We couldn't find any professional Instagram accounts linked to your Meta profile.</p>
+            </div>
+            <button onclick="window.location.href='/app'" class="px-8 py-3 bg-white border border-brand/10 rounded-xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand transition-colors">Return to Dashboard</button>
+        </div>
+
+        <div class="text-center">
+            <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest opacity-60">Connected via Meta Platform Service v18.0</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function loadAccounts() {
+        const list = document.getElementById('accountList');
+        const empty = document.getElementById('emptyState');
+        
+        try {
+            const res = await fetch('/ig-accounts/meta-options');
+            if (res.status === 401) {
+                window.location.href = '/app?error=Meta session expired. Please try again.';
+                return;
+            }
+            const data = await res.json();
+            const accounts = data.accounts || [];
+
+            if (accounts.length === 0) {
+                list.classList.add('hidden');
+                empty.classList.remove('hidden');
+                return;
+            }
+
+            list.innerHTML = accounts.map(acc => `
+                <div class="card p-8 bg-white border-brand/5 hover:border-brand/20 transition-all flex flex-col items-center gap-6 group">
+                    <div class="relative">
+                        <img src="${acc.profile_picture_url || 'https://ui-avatars.com/api/?name=' + acc.username}" 
+                             class="w-24 h-24 rounded-[2.5rem] object-cover ring-4 ring-brand/5 group-hover:ring-brand/10 transition-all shadow-xl"
+                             alt="${acc.username}">
+                        <div class="absolute -bottom-2 -right-2 bg-emerald-500 text-white p-1.5 rounded-xl shadow-lg">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
+                        </div>
+                    </div>
+                    <div class="text-center space-y-1">
+                        <div class="text-lg font-bold text-brand tracking-tight">@${acc.username}</div>
+                        <div class="text-[9px] font-black uppercase tracking-widest text-text-muted opacity-80">Instagram Business</div>
+                    </div>
+                    <button onclick="connectAccount('${acc.ig_user_id}', this)" class="w-full py-4 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/10 hover:shadow-brand/20 hover:scale-[1.02] active:scale-100 transition-all">
+                        Connect Account
+                    </button>
+                </div>
+            `).join('');
+
+        } catch (e) {
+            console.error(e);
+            list.innerHTML = '<div class="col-span-full card p-8 bg-rose-50 text-rose-500 border-rose-100 text-center font-bold text-xs">Failed to retrieve accounts. Please refresh page.</div>';
+        }
+    }
+
+    async function connectAccount(id, btn) {
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="flex items-center justify-center gap-2 animate-pulse uppercase">Linking...</span>';
+        
+        try {
+            const res = await fetch('/ig-accounts/connect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ig_user_id: id })
+            });
+
+            if (res.ok) {
+                btn.innerHTML = 'Linked Successfully';
+                btn.classList.add('bg-emerald-500');
+                btn.classList.remove('bg-brand');
+                setTimeout(() => window.location.href = '/app?success=Account connected successfully', 800);
+            } else {
+                const err = await res.json();
+                alert(err.detail || 'Connection failed');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        } catch (e) {
+            alert('A network error occurred. Please try again.');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+
+    window.onload = loadAccounts;
+</script>
           </div>
           <div class="space-y-2">
             <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Scheduled Time (UTC)</label>
@@ -1945,6 +2076,13 @@ async def app_dashboard_page(
     }};
 </script>
 """))
+
+@router.get("/app/select-account", response_class=HTMLResponse)
+async def app_select_account_page(
+    user: User = Depends(require_user)
+):
+    """Renders the account selection page after OAuth."""
+    return HTMLResponse(content=SELECT_ACCOUNT_HTML)
 
 @router.get("/app/calendar", response_class=HTMLResponse)
 async def app_calendar_page(

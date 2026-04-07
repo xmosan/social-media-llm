@@ -81,6 +81,7 @@ class IGAccount(Base):
     
     # NEW: OAuth Metadata
     fb_page_id = Column(String, nullable=True)
+    profile_picture_url = Column(Text, nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=True)
 
     active = Column(Boolean, default=True)

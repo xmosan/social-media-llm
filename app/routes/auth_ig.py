@@ -89,58 +89,26 @@ async def instagram_callback(
             print("DEBUG: Upgrade failed - no token_data returned")
             return RedirectResponse(url="/app?error=Failed to secure long-term access.")
 
-        # 4. Discover Instagram Business accounts linked to user's Professional Setup
-        print("DEBUG: Discovering accounts with long-lived token...")
-        discovered_accounts = await instagram_auth_service.discover_ig_business_account(token_data["access_token"])
-        if not discovered_accounts:
-            print("DEBUG: No accounts discovered.")
-            msg = "No linked Instagram account found. Please ensure your Professional account is correctly configured and try again."
-            return RedirectResponse(url=f"/app?error={msg}")
-
-        # 5. Process and store each discovered account
-        print(f"DEBUG: Processing {len(discovered_accounts)} accounts for Org ID: {org_id}")
+        # Instead of saving all accounts, we redirect to a selection page
+        # We store the long-lived token in a temporary secure cookie
+        print(f"DEBUG: Redirecting to account selection for User {user.id}")
         
-        for i, ig_details in enumerate(discovered_accounts):
-            print(f"DEBUG: Processing account {i+1}/{len(discovered_accounts)}: {ig_details.get('username')}")
-            # Check if account already exists in this org
-            acc = db.query(IGAccount).filter(
-                IGAccount.org_id == org_id,
-                IGAccount.ig_user_id == ig_details["ig_user_id"]
-            ).first()
-
-            if not acc:
-                print(f"DEBUG: Creating new IGAccount entry for @{ig_details['username']}")
-                acc = IGAccount(
-                    org_id=org_id,
-                    ig_user_id=ig_details["ig_user_id"],
-                    name=ig_details["username"] or ig_details["name"] or "Instagram Account",
-                    access_token=token_data["access_token"] # Set directly on creation to ensure non-null if DB requires it
-                )
-                db.add(acc)
-                db.flush() # Ensure ID is generated
-            
-            # Update token and metadata
-            print(f"DEBUG: Updating metadata for @{ig_details['username']}")
-            acc.access_token = token_data["access_token"]
-            acc.expires_at = token_data["expires_at"]
-            acc.fb_page_id = ig_details.get("fb_page_id")
-            acc.active = True
-        
-        # Mark user as having connected IG
-        print(f"DEBUG: Committing changes for User {user.id}")
-        user.has_connected_instagram = True
-        
-        db.commit()
-        print(f"DEBUG: Successfully committed all accounts to database for User {user.id}")
-        log_event("ig_connect_success", user_id=user.id, count=len(discovered_accounts))
-        
-        return RedirectResponse(url="/app?success=ig_connected")
+        response = RedirectResponse(url="/app/select-account")
+        # Set a short-lived (15 min) secure cookie for the selection process
+        response.set_cookie(
+            key="temp_ig_token",
+            value=token_data["access_token"],
+            httponly=True,
+            secure=True, 
+            samesite="lax",
+            max_age=900 # 15 minutes
+        )
+        return response
 
     except Exception as e:
         print(f"CRITICAL ERROR in ig_callback: {str(e)}")
         log_event("ig_callback_error", error=str(e))
         traceback.print_exc()
-        # Include the error message in the URL for immediate diagnostic via screenshot
         err_msg = f"ig_callback_exception: {type(e).__name__} - {str(e)}"
         return RedirectResponse(url=f"/app?error={err_msg}")
 

@@ -107,7 +107,7 @@ class InstagramAuthService:
                 # Step 2: Check for linked IG Business account
                 ig_url = f"{GRAPH_URL}/{page_id}"
                 ig_params = {
-                    "fields": "instagram_business_account{id,username,name}",
+                    "fields": "instagram_business_account{id,username,name,profile_picture_url}",
                     "access_token": user_token
                 }
                 ig_resp = await client.get(ig_url, params=ig_params)
@@ -120,6 +120,7 @@ class InstagramAuthService:
                         "ig_user_id": ig_acc["id"],
                         "username": ig_acc.get("username"),
                         "name": ig_acc.get("name"),
+                        "profile_picture_url": ig_acc.get("profile_picture_url"),
                         "fb_page_id": page_id
                     })
                 else:
