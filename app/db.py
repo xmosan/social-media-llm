@@ -68,6 +68,26 @@ if DATABASE_URL.startswith("sqlite"):
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db():
+    # EMERGENCY RUNTIME MIGRATION HACK
+    # Ensure the column exists before any sessions are used
+    try:
+        with engine.begin() as conn:
+            is_postgres = "postgresql" in engine.drivername
+            if is_postgres:
+                conn.execute(text("ALTER TABLE ig_accounts ADD COLUMN IF NOT EXISTS profile_picture_url TEXT"))
+                conn.execute(text("ALTER TABLE ig_accounts ADD COLUMN IF NOT EXISTS fb_page_id VARCHAR"))
+                conn.execute(text("ALTER TABLE ig_accounts ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE"))
+            else:
+                # SQLite doesn't support IF NOT EXISTS for ADD COLUMN
+                try: conn.execute(text("ALTER TABLE ig_accounts ADD COLUMN profile_picture_url TEXT"))
+                except: pass
+                try: conn.execute(text("ALTER TABLE ig_accounts ADD COLUMN fb_page_id VARCHAR"))
+                except: pass
+                try: conn.execute(text("ALTER TABLE ig_accounts ADD COLUMN expires_at TIMESTAMP"))
+                except: pass
+    except Exception as e:
+        print(f"EMERGENCY MIGRATION FAILED: {e}")
+
     db = SessionLocal()
     try:
         yield db

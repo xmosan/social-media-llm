@@ -145,8 +145,30 @@ def run_admin_library_migration():
             try: conn.execute(text("ALTER TABLE content_items ALTER COLUMN org_id DROP NOT NULL"))
             except Exception: pass
 
-        # 2. EMERGENCY IG_ACCOUNTS COLUMN MIGRATION
+        # 2. EMERGENCY IG_ACCOUNTS TABLE & COLUMN MIGRATION
         log_startup("MIGRATION: Running emergency ig_accounts schema check...")
+        
+        # Ensure table exists first
+        try:
+            id_col = "SERIAL PRIMARY KEY" if is_postgres else "INTEGER PRIMARY KEY AUTOINCREMENT"
+            conn.execute(text(f"""
+                CREATE TABLE IF NOT EXISTS ig_accounts (
+                    id {id_col},
+                    org_id INTEGER REFERENCES orgs(id),
+                    name VARCHAR NOT NULL,
+                    ig_user_id VARCHAR NOT NULL,
+                    access_token TEXT NOT NULL,
+                    active BOOLEAN DEFAULT TRUE,
+                    timezone VARCHAR DEFAULT 'America/Detroit',
+                    daily_post_time VARCHAR DEFAULT '09:00',
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            log_startup("MIGRATION: ig_accounts table check/creation success")
+        except Exception as e:
+            log_startup(f"MIGRATION: ig_accounts table creation hint: {e}")
+            
         ig_cols = [
             ("profile_picture_url", "TEXT"),
             ("fb_page_id", "VARCHAR"),
