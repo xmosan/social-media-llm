@@ -8,6 +8,8 @@ from ..models import IGAccount
 from ..security.rbac import get_current_org_id
 from ..security.auth import require_user
 from ..schemas import IGAccountOut, AccountCreate, AccountUpdate
+from pydantic import BaseModel
+from datetime import datetime, timezone, timedelta
 
 router = APIRouter(prefix="/ig-accounts", tags=["ig-accounts"])
 
@@ -113,9 +115,6 @@ async def get_meta_account_options(
 
 class ConnectPayload(BaseModel):
     ig_user_id: str
-
-from pydantic import BaseModel
-from datetime import datetime, timezone, timedelta
 
 @router.post("/connect", response_model=IGAccountOut)
 async def connect_meta_account(
