@@ -13,16 +13,6 @@ from datetime import datetime, timezone, timedelta
 
 router = APIRouter(prefix="/ig-accounts", tags=["ig-accounts"])
 
-@router.get("/me", response_model=list[IGAccountOut])
-def get_my_accounts(
-    db: Session = Depends(get_db),
-    user = Depends(require_user)
-):
-    """List all IG accounts for the current user's active organization."""
-    org_id = user.active_org_id
-    if not org_id:
-        return []
-    return db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
 
 @router.get("", response_model=list[IGAccountOut])
 def list_accounts(
@@ -116,6 +106,63 @@ async def get_meta_account_options(
 class ConnectPayload(BaseModel):
     ig_user_id: str
 
+@router.post("/set-active/{account_id}", response_model=IGAccountOut)
+def set_active_account(
+    account_id: int,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
+):
+    """Sets a specific account as the 'active' one for the organization."""
+    # 1. Unset all current active for this org
+    db.query(IGAccount).filter(IGAccount.org_id == org_id).update({"active": False})
+    
+    # 2. Set target as active
+    acc = db.query(IGAccount).filter(
+        IGAccount.id == account_id,
+        IGAccount.org_id == org_id
+    ).first()
+    
+    if not acc:
+        db.rollback()
+        raise HTTPException(status_code=404, detail="Account not found")
+        
+    acc.active = True
+    db.commit()
+    db.refresh(acc)
+    return acc
+
+@router.get("/me", response_model=list[IGAccountOut])
+def get_my_accounts(
+    db: Session = Depends(get_db),
+    user = Depends(require_user)
+):
+    """List all IG accounts for the current user's active organization."""
+    org_id = user.active_org_id
+    if not org_id:
+        return []
+    # Order by active DESC so active shows first
+    return db.query(IGAccount).filter(IGAccount.org_id == org_id).order_by(IGAccount.active.desc()).all()
+
+@router.get("/active", response_model=IGAccountOut)
+def get_active_account(
+    db: Session = Depends(get_db),
+    user = Depends(require_user)
+):
+    """Get the currently active account for the organization."""
+    org_id = user.active_org_id
+    acc = db.query(IGAccount).filter(IGAccount.org_id == org_id, IGAccount.active == True).first()
+    if not acc:
+        # Fallback to the first one found if none marked active
+        acc = db.query(IGAccount).filter(IGAccount.org_id == org_id).first()
+        if acc:
+            acc.active = True
+            db.commit()
+            db.refresh(acc)
+    
+    if not acc:
+        raise HTTPException(status_code=404, detail="No active account found")
+    return acc
+
 @router.post("/connect", response_model=IGAccountOut)
 async def connect_meta_account(
     payload: ConnectPayload,
@@ -140,6 +187,9 @@ async def connect_meta_account(
     if not selected:
         raise HTTPException(status_code=404, detail="Selected account not found in your Meta profile")
 
+    # Set all others to inactive if we are connecting a new one
+    db.query(IGAccount).filter(IGAccount.org_id == org_id).update({"active": False})
+
     # Check if exists
     acc = db.query(IGAccount).filter(
         IGAccount.org_id == org_id,
@@ -150,13 +200,15 @@ async def connect_meta_account(
         acc = IGAccount(
             org_id=org_id,
             ig_user_id=selected["ig_user_id"],
-            name=selected["username"] or selected["name"] or "Instagram Account",
+            username=selected.get("username"),
+            name=selected.get("name") or selected["username"] or "Instagram Account",
             profile_picture_url=selected.get("profile_picture_url")
         )
         db.add(acc)
     
     # Update latest token and metadata
     acc.access_token = token
+    acc.username = selected.get("username")
     acc.fb_page_id = selected["fb_page_id"]
     acc.profile_picture_url = selected.get("profile_picture_url")
     acc.expires_at = datetime.now(timezone.utc) + timedelta(days=60) # Standard Meta LLT

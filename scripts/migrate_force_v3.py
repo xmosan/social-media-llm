@@ -60,6 +60,7 @@ def run_migration():
                         org_id INTEGER,
                         name VARCHAR,
                         ig_user_id VARCHAR,
+                        username VARCHAR,
                         access_token TEXT,
                         active BOOLEAN DEFAULT TRUE,
                         timezone VARCHAR DEFAULT 'America/Detroit',
@@ -71,6 +72,7 @@ def run_migration():
                 
                 # 2. Sync Columns
                 cols = [
+                    ("username", "VARCHAR"),
                     ("fb_page_id", "VARCHAR"),
                     ("profile_picture_url", "TEXT"),
                     ("expires_at", "TIMESTAMP WITH TIME ZONE")

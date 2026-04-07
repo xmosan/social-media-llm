@@ -108,7 +108,12 @@ APP_LAYOUT_HTML = """<!doctype html>
         </div>
       </div>
       <div class="flex items-center gap-4">
-        <div class="flex flex-col text-right">
+        <!-- Account Switcher Placeholder -->
+        <div id="navbarAccountSwitcher" class="relative">
+          <div class="animate-pulse h-10 w-32 bg-brand/5 rounded-xl"></div>
+        </div>
+
+        <div class="hidden md:flex flex-col text-right">
           <div class="text-[10px] font-bold text-brand uppercase tracking-wider">{user_name}</div>
           <div class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none mt-1">{org_name}</div>
         </div>
@@ -1438,45 +1443,50 @@ APP_DASHBOARD_CONTENT = """
 """
 
 SELECT_ACCOUNT_HTML = """
-<div class="min-h-screen bg-cream flex flex-col items-center justify-center p-6">
-    <div class="max-w-2xl w-full space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+<div class="min-h-screen bg-cream flex flex-col items-center justify-center p-6 bg-gradient-to-br from-cream via-cream to-brand/5">
+    <div class="max-w-2xl w-full space-y-12 animate-in fade-in slide-in-from-bottom-6 duration-1000">
         <!-- Header -->
-        <div class="text-center space-y-4">
-            <div class="w-20 h-20 bg-brand rounded-[2.5rem] flex items-center justify-center text-white mx-auto shadow-2xl shadow-brand/20 rotate-3">
-                <svg class="w-10 h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+        <div class="text-center space-y-6">
+            <div class="w-24 h-24 bg-brand rounded-[3rem] flex items-center justify-center text-white mx-auto shadow-2xl shadow-brand/20 rotate-3 border-4 border-white">
+                <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
             </div>
-            <h1 class="text-4xl font-bold text-brand tracking-tighter">Choose Your <span class="text-accent underline decoration-accent/20 decoration-4 underline-offset-8">Presence</span></h1>
-            <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em]">Meta Data Discovery Complete</p>
+            <div class="space-y-3">
+                <h1 class="text-4xl font-bold text-brand tracking-tighter">Choose Your <span class="text-accent underline decoration-accent/20 decoration-8 underline-offset-8">Presence</span></h1>
+                <p class="text-[11px] font-bold text-text-muted uppercase tracking-[0.4em] opacity-80">Final Selection Required</p>
+            </div>
         </div>
 
         <!-- Account List -->
-        <div id="accountList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div id="accountList" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- Loading Skeletons -->
-            <div class="card p-8 bg-white/50 border-brand/5 animate-pulse flex flex-col items-center gap-6">
-                <div class="w-20 h-20 bg-brand/5 rounded-full"></div>
-                <div class="h-4 bg-brand/5 rounded w-32"></div>
-                <div class="h-10 bg-brand/5 rounded-xl w-full mt-2"></div>
+            <div class="card p-10 bg-white shadow-xl shadow-brand/5 border-brand/5 animate-pulse flex flex-col items-center gap-6 rounded-[2.5rem]">
+                <div class="w-24 h-24 bg-brand/5 rounded-[2.5rem]"></div>
+                <div class="h-5 bg-brand/5 rounded w-40"></div>
+                <div class="h-12 bg-brand/5 rounded-2xl w-full mt-4"></div>
             </div>
-            <div class="card p-8 bg-white/50 border-brand/5 animate-pulse flex flex-col items-center gap-6">
-                <div class="w-20 h-20 bg-brand/5 rounded-full"></div>
-                <div class="h-4 bg-brand/5 rounded w-32"></div>
-                <div class="h-10 bg-brand/5 rounded-xl w-full mt-2"></div>
+            <div class="card p-10 bg-white shadow-xl shadow-brand/5 border-brand/5 animate-pulse flex flex-col items-center gap-6 rounded-[2.5rem]">
+                <div class="w-24 h-24 bg-brand/5 rounded-[2.5rem]"></div>
+                <div class="h-5 bg-brand/5 rounded w-40"></div>
+                <div class="h-12 bg-brand/5 rounded-2xl w-full mt-4"></div>
             </div>
         </div>
 
-        <div id="emptyState" class="hidden text-center py-20 space-y-6">
-            <div class="w-20 h-20 bg-brand/5 rounded-[2rem] flex items-center justify-center text-brand/20 mx-auto border border-brand/10">
-                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9.172 9.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+        <div id="emptyState" class="hidden text-center py-24 space-y-8 bg-white rounded-[3rem] border border-brand/5 shadow-2xl">
+            <div class="w-24 h-24 bg-rose-50 rounded-[2.5rem] flex items-center justify-center text-rose-300 mx-auto border border-rose-100 italic">
+                !
             </div>
-            <div class="space-y-2">
-                <h3 class="text-xl font-bold text-brand tracking-tight">No Accounts Found</h3>
-                <p class="text-sm text-text-muted font-medium">We couldn't find any professional Instagram accounts linked to your Meta profile.</p>
+            <div class="space-y-3 px-10">
+                <h3 class="text-2xl font-bold text-brand tracking-tight">Access Restricted</h3>
+                <p class="text-sm text-text-muted font-medium max-w-sm mx-auto leading-relaxed">We couldn't verify any professional Instagram Business accounts linked to this Meta profile. Please ensure your account is switched to 'Professional' in Instagram settings.</p>
             </div>
-            <button onclick="window.location.href='/app'" class="px-8 py-3 bg-white border border-brand/10 rounded-xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand transition-colors">Return to Dashboard</button>
+            <button onclick="window.location.href='/app'" class="px-10 py-4 bg-brand rounded-2xl font-bold text-[11px] uppercase tracking-widest text-white shadow-xl shadow-brand/10 hover:shadow-brand/20 transition-all">Go Back</button>
         </div>
 
-        <div class="text-center">
-            <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest opacity-60">Connected via Meta Platform Service v18.0</p>
+        <div class="text-center pt-8">
+            <div class="inline-flex items-center gap-3 px-4 py-2 bg-brand/5 rounded-full border border-brand/10 transition-all">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <p class="text-[9px] font-bold text-brand uppercase tracking-widest opacity-80">Meta Authorization Active</p>
+            </div>
         </div>
     </div>
 </div>
@@ -1489,7 +1499,7 @@ SELECT_ACCOUNT_HTML = """
         try {
             const res = await fetch('/ig-accounts/meta-options');
             if (res.status === 401) {
-                window.location.href = '/app?error=Meta session expired. Please try again.';
+                window.location.href = '/app?error=Session expired. Please reconnect Meta.';
                 return;
             }
             const data = await res.json();
@@ -1502,35 +1512,35 @@ SELECT_ACCOUNT_HTML = """
             }
 
             list.innerHTML = accounts.map(acc => `
-                <div class="card p-8 bg-white border-brand/5 hover:border-brand/20 transition-all flex flex-col items-center gap-6 group">
+                <div class="card p-10 bg-white border-brand/5 hover:border-brand/20 transition-all flex flex-col items-center gap-8 group rounded-[2.5rem] shadow-xl hover:shadow-2xl hover:shadow-brand/5">
                     <div class="relative">
                         <img src="${acc.profile_picture_url || 'https://ui-avatars.com/api/?name=' + acc.username}" 
-                             class="w-24 h-24 rounded-[2.5rem] object-cover ring-4 ring-brand/5 group-hover:ring-brand/10 transition-all shadow-xl"
+                             class="w-32 h-32 rounded-[3.5rem] object-cover ring-8 ring-brand/5 group-hover:ring-brand/10 transition-all shadow-2xl"
                              alt="${acc.username}">
-                        <div class="absolute -bottom-2 -right-2 bg-emerald-500 text-white p-1.5 rounded-xl shadow-lg">
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
+                        <div class="absolute -bottom-2 -right-2 bg-emerald-500 text-white p-2 rounded-2xl shadow-xl ring-4 ring-white">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
                         </div>
                     </div>
-                    <div class="text-center space-y-1">
-                        <div class="text-lg font-bold text-brand tracking-tight">@${acc.username}</div>
-                        <div class="text-[9px] font-black uppercase tracking-widest text-text-muted opacity-80">Instagram Business</div>
+                    <div class="text-center space-y-2">
+                        <div class="text-xl font-bold text-brand tracking-tight">@${acc.username}</div>
+                        <div class="text-[10px] font-black uppercase tracking-widest text-text-muted/80">Instagram Business</div>
                     </div>
-                    <button onclick="connectAccount('${acc.ig_user_id}', this)" class="w-full py-4 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/10 hover:shadow-brand/20 hover:scale-[1.02] active:scale-100 transition-all">
-                        Connect Account
+                    <button onclick="connectAccount('${acc.ig_user_id}', this)" class="w-full py-5 bg-brand rounded-[1.5rem] font-bold text-[11px] uppercase tracking-widest text-white shadow-2xl shadow-brand/20 hover:bg-brand-hover hover:scale-[1.03] transition-all">
+                        Complete Connection
                     </button>
                 </div>
             `).join('');
 
         } catch (e) {
             console.error(e);
-            list.innerHTML = '<div class="col-span-full card p-8 bg-rose-50 text-rose-500 border-rose-100 text-center font-bold text-xs">Failed to retrieve accounts. Please refresh page.</div>';
+            list.innerHTML = '<div class="col-span-full card p-10 bg-rose-50 text-rose-500 border-rose-100 text-center font-bold text-sm rounded-[2.5rem]">System connection error. Please refresh.</div>';
         }
     }
 
     async function connectAccount(id, btn) {
         const originalText = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = '<span class="flex items-center justify-center gap-2 animate-pulse uppercase">Linking...</span>';
+        btn.innerHTML = '<span class="flex items-center justify-center gap-2 animate-pulse uppercase">Authenticating...</span>';
         
         try {
             const res = await fetch('/ig-accounts/connect', {
@@ -1540,10 +1550,10 @@ SELECT_ACCOUNT_HTML = """
             });
 
             if (res.ok) {
-                btn.innerHTML = 'Linked Successfully';
+                btn.innerHTML = 'Connecting...';
                 btn.classList.add('bg-emerald-500');
                 btn.classList.remove('bg-brand');
-                setTimeout(() => window.location.href = '/app?success=Account connected successfully', 800);
+                setTimeout(() => window.location.href = '/app?success=Welcome @' + id, 500);
             } else {
                 const err = await res.json();
                 alert(err.detail || 'Connection failed');
@@ -1551,7 +1561,7 @@ SELECT_ACCOUNT_HTML = """
                 btn.innerHTML = originalText;
             }
         } catch (e) {
-            alert('A network error occurred. Please try again.');
+            alert('Service unavailable. Please retry.');
             btn.disabled = false;
             btn.innerHTML = originalText;
         }
@@ -1559,39 +1569,8 @@ SELECT_ACCOUNT_HTML = """
 
     window.onload = loadAccounts;
 </script>
-          </div>
-          <div class="space-y-2">
-            <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Scheduled Time (UTC)</label>
-            <input type="datetime-local" id="editPostTime" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-6 text-brand text-sm focus:border-brand/30 focus:bg-white transition-all font-bold outline-none">
-          </div>
-        </div>
-
-        <div id="editPostActions" class="flex gap-4 pt-4">
-          <button id="deletePostBtn" onclick="showDeleteConfirm()" class="flex-1 py-5 bg-rose-50 border border-rose-100 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-rose-600 hover:bg-rose-100 transition-all">Remove</button>
-          <div class="flex-1 flex gap-3">
-            <button onclick="closeEditPostModal()" class="flex-1 py-5 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand transition-all">Cancel</button>
-            <button id="savePostBtn" onclick="savePostEdit()" class="flex-[2] py-5 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-2xl shadow-brand/20 hover:scale-[1.01] transition-all">Save Changes</button>
-          </div>
-        </div>
-
-        <div id="deleteConfirmActions" class="hidden pt-4">
-          <div class="p-6 rounded-[2rem] bg-rose-50 border border-rose-100 mb-6 flex gap-4 items-center">
-             <div class="w-12 h-12 rounded-2xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
-               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-             </div>
-             <div>
-               <h4 class="text-base font-bold text-rose-900 tracking-tight">Delete this content?</h4>
-               <p class="text-[10px] font-bold text-rose-600 uppercase tracking-[0.2em] mt-1">Permanent Removal</p>
-             </div>
-          </div>
-          <div class="flex gap-4">
-            <button onclick="hideDeleteConfirm()" class="flex-1 py-5 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand transition-all">Cancel</button>
-            <button id="confirmDeleteBtn" onclick="deletePost()" class="flex-1 py-5 bg-rose-600 hover:bg-rose-700 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-2xl shadow-rose-600/20 transition-all">Confirm Delete</button>
-          </div>
-        </div>
-      </div>
-    </div>
 """
+
 
 ONBOARDING_HTML = """<!doctype html>
 <html lang="en">
@@ -2049,8 +2028,85 @@ async def app_dashboard_page(
                           .replace("{extra_js}", f"""
 <script>
     window.hasConnectedInstagram = {"true" if is_connected else "false"};
-    
-    // Safety Sync: Ensure UI matches DB state
+       async function renderAccountSwitcher() {{
+        const container = document.getElementById('navbarAccountSwitcher');
+        if (!container) return;
+
+        try {{
+            const res = await fetch('/ig-accounts/me');
+            const accounts = await res.json();
+            
+            if (accounts.length === 0) {{
+                container.innerHTML = `
+                    <button onclick="openConnectInstagramModal()" class="flex items-center gap-2 px-3 py-1.5 bg-brand text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-brand-hover transition-all">
+                        Link Meta
+                    </button>
+                `;
+                return;
+            }}
+
+            const active = accounts.find(a => a.active) || accounts[0];
+            const others = accounts.filter(a => a.id !== active.id);
+
+            container.innerHTML = `
+                <div class="relative inline-block text-left" id="accountSwitcherRoot">
+                    <button onclick="toggleSwitcherDropdown()" class="flex items-center gap-3 px-3 py-2 bg-white border border-brand/10 rounded-xl hover:bg-brand/[0.02] transition-all group">
+                        <img src="${{active.profile_picture_url || 'https://ui-avatars.com/api/?name=' + active.username}}" class="w-6 h-6 rounded-full ring-2 ring-brand/10 group-hover:ring-brand/20 transition-all">
+                        <div class="text-left hidden lg:block">
+                            <div class="text-[9px] font-black text-brand uppercase tracking-wider">@${{active.username}}</div>
+                            <div class="text-[7px] font-bold text-text-muted uppercase tracking-widest">Active Studio</div>
+                        </div>
+                        <svg class="w-3 h-3 text-text-muted/40 group-hover:text-brand transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
+                    </button>
+
+                    <div id="switcherDropdown" class="hidden absolute right-0 mt-2 w-64 bg-white border border-brand/5 rounded-2xl shadow-2xl z-[100] p-2 animate-in fade-in zoom-in-95 duration-200">
+                        <div class="px-3 py-2 text-[8px] font-black text-text-muted uppercase tracking-[0.2em] mb-1">Your Workspaces</div>
+                        
+                        <div class="space-y-1">
+                            ${{accounts.map(acc => `
+                                <button onclick="setActiveAccount('${{acc.id}}')" class="w-full flex items-center justify-between p-2 rounded-xl transition-all ${{acc.id === active.id ? 'bg-brand/5 border border-brand/5' : 'hover:bg-brand/[0.02]'}}">
+                                    <div class="flex items-center gap-3">
+                                        <img src="${{acc.profile_picture_url || 'https://ui-avatars.com/api/?name=' + acc.username}}" class="w-8 h-8 rounded-lg">
+                                        <div class="text-left">
+                                            <div class="text-[10px] font-bold text-brand">@${{acc.username}}</div>
+                                            <div class="text-[8px] text-text-muted font-medium">${{acc.fb_page_id ? 'Instagram Business' : 'Personal'}}</div>
+                                        </div>
+                                    </div>
+                                    ${{acc.id === active.id ? '<div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>' : ''}}
+                                </button>
+                            `).join('')}}
+                        </div>
+
+                        <div class="mt-2 pt-2 border-t border-brand/5">
+                            <button onclick="openConnectInstagramModal()" class="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-brand/5 transition-all text-brand">
+                                <div class="w-8 h-8 rounded-lg bg-brand/5 flex items-center justify-center">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+                                </div>
+                                <div class="text-[10px] font-black uppercase tracking-widest">Connect New</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }} catch (e) {{
+            console.error("Account switcher failed", e);
+        }}
+    }}
+
+    function toggleSwitcherDropdown() {{
+        const drop = document.getElementById('switcherDropdown');
+        drop.classList.toggle('hidden');
+    }}
+
+    async function setActiveAccount(id) {{
+        try {{
+            const res = await fetch(`/ig-accounts/set-active/${{id}}`, {{ method: 'POST' }});
+            if (res.ok) {{
+                window.location.reload();
+            }}
+        }} catch (e) {{ console.error(e); }}
+    }}
+
     async function syncAccountState() {{
         try {{
             const res = await fetch('/ig-accounts/me');
@@ -2066,13 +2122,22 @@ async def app_dashboard_page(
         }}
     }}
 
+    // Close on click outside
+    window.onclick = function(event) {{
+        if (!event.target.closest('#accountSwitcherRoot')) {{
+            const drop = document.getElementById('switcherDropdown');
+            if (drop && !drop.classList.contains('hidden')) drop.classList.add('hidden');
+        }}
+    }};
+
     window.onload = function() {{
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('error')) {{
             alert(urlParams.get('error'));
         }}
-        // Run sync check
+        // Run checks
         syncAccountState();
+        renderAccountSwitcher();
     }};
 </script>
 """))

@@ -77,6 +77,7 @@ class IGAccount(Base):
     name = Column(String, nullable=False)
     
     ig_user_id = Column(String, nullable=False)
+    username = Column(String, nullable=True)
     access_token = Column(Text, nullable=False)
     
     # NEW: OAuth Metadata

@@ -22,6 +22,7 @@ class IGAccountOut(BaseModel):
     org_id: int
     name: str
     ig_user_id: str
+    username: str | None = None
     profile_picture_url: str | None = None
     active: bool
     timezone: str

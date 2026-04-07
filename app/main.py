@@ -150,8 +150,10 @@ def run_admin_library_migration():
         log_startup("MIGRATION: Syncing ig_accounts table...")
         ig_cols = [
             ("profile_picture_url", "TEXT"),
+            ("username", "VARCHAR"),
             ("fb_page_id", "VARCHAR"),
-            ("expires_at", "TIMESTAMP WITH TIME ZONE")
+            ("expires_at", "TIMESTAMP WITH TIME ZONE"),
+            ("active", "BOOLEAN DEFAULT TRUE")
         ]
         for col, col_def in ig_cols:
             try:
@@ -448,8 +450,11 @@ def on_startup():
             
             # Update ig_accounts
             ig_cols = [
+                ("profile_picture_url", "TEXT"),
+                ("username", "VARCHAR"),
                 ("fb_page_id", "VARCHAR"),
-                ("expires_at", "TIMESTAMP WITH TIME ZONE")
+                ("expires_at", "TIMESTAMP WITH TIME ZONE"),
+                ("active", "BOOLEAN DEFAULT TRUE")
             ]
             for col, col_def in ig_cols:
                 try:
