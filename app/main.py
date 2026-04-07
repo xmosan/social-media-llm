@@ -316,10 +316,6 @@ def bootstrap_saas():
     finally:
         db.close()
 
-@app.get("/temp-diag-logs")
-async def get_diag_logs():
-    return JSONResponse(content={"logs": STARTUP_LOG})
-
 @app.on_event("startup")
 def on_startup():
     log_startup("EVENT: ON_STARTUP triggered.")
