@@ -2,10 +2,13 @@
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
 import httpx
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, List
 from app.config import settings
 from app.logging_setup import log_event
+
+logger = logging.getLogger(__name__)
 
 GRAPH_URL = "https://graph.facebook.com/v18.0"
 
