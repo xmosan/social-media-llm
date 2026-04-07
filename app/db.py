@@ -70,20 +70,37 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 def sync_database_schema():
     """
     Perform a resilient, granular schema sync.
-    Every column addition is isolated in its own transaction to prevent rollback cascades.
+    Absolute source of truth for all table columns. 
+    Every column addition is isolated in its own transaction.
     """
     is_postgres = engine.drivername and "postgresql" in engine.drivername
     json_type = "JSONB" if is_postgres else "JSON"
+    ts_type = "TIMESTAMP WITH TIME ZONE" if is_postgres else "TIMESTAMP"
     
-    # Define all mission-critical columns that might be missing in production
     missing_cols = {
+        "users": [
+            ("name", "VARCHAR"),
+            ("is_active", "BOOLEAN DEFAULT TRUE"),
+            ("is_superadmin", "BOOLEAN DEFAULT FALSE"),
+            ("onboarding_complete", "BOOLEAN DEFAULT FALSE"),
+            ("active_org_id", "INTEGER"),
+            ("google_id", "VARCHAR"),
+            ("has_created_first_post", "BOOLEAN DEFAULT FALSE"),
+            ("has_created_first_automation", "BOOLEAN DEFAULT FALSE"),
+            ("has_connected_instagram", "BOOLEAN DEFAULT FALSE"),
+            ("dismissed_getting_started", "BOOLEAN DEFAULT FALSE"),
+            ("created_at", ts_type + " DEFAULT CURRENT_TIMESTAMP"),
+            ("updated_at", ts_type + " DEFAULT CURRENT_TIMESTAMP")
+        ],
         "ig_accounts": [
             ("profile_picture_url", "TEXT"),
+            ("username", "VARCHAR"),
             ("fb_page_id", "VARCHAR"),
-            ("expires_at", "TIMESTAMP WITH TIME ZONE" if is_postgres else "TIMESTAMP"),
-            ("username", "VARCHAR")
+            ("expires_at", ts_type),
+            ("active", "BOOLEAN DEFAULT TRUE")
         ],
         "posts": [
+            # INTELLIGENCE ENGINE FIELDS (Priority)
             ("intent_type", "VARCHAR"),
             ("target_audience", "VARCHAR"),
             ("source_foundation", "VARCHAR"),
@@ -94,24 +111,91 @@ def sync_database_schema():
             ("visual_style", "VARCHAR"),
             ("hook_style", "VARCHAR"),
             ("strictness_mode", "VARCHAR DEFAULT 'balanced'"),
+            
+            # Legacy & Core Studio Fields
+            ("is_auto_generated", "BOOLEAN DEFAULT FALSE"),
+            ("automation_id", "INTEGER"),
+            ("status", "VARCHAR DEFAULT 'submitted'"),
+            ("source_type", "VARCHAR DEFAULT 'form'"),
+            ("source_text", "TEXT"),
+            ("content_item_id", "INTEGER"),
+            ("media_asset_id", "INTEGER"),
+            ("topic", "VARCHAR"),
+            ("post_type", "VARCHAR"),
+            ("source_reference", "VARCHAR"),
+            ("media_url", "TEXT"),
+            ("caption", "TEXT"),
+            ("hashtags", json_type),
+            ("alt_text", "TEXT"),
+            ("flags", json_type + " DEFAULT '{}'"),
+            ("last_error", "TEXT"),
+            ("scheduled_time", ts_type),
+            ("published_time", ts_type),
             ("visual_mode", "VARCHAR DEFAULT 'upload'"),
             ("visual_prompt", "TEXT"),
-            ("library_item_id", "INTEGER")
+            ("library_item_id", "INTEGER"),
+            ("used_source_id", "INTEGER"),
+            ("used_content_item_ids", json_type),
+            ("created_at", ts_type + " DEFAULT CURRENT_TIMESTAMP"),
+            ("updated_at", ts_type + " DEFAULT CURRENT_TIMESTAMP")
+        ],
+        "topic_automations": [
+            ("library_topic_slug", "VARCHAR"),
+            ("tone", "VARCHAR DEFAULT 'medium'"),
+            ("language", "VARCHAR DEFAULT 'english'"),
+            ("banned_phrases", json_type),
+            ("include_hashtags", "BOOLEAN DEFAULT TRUE"),
+            ("hashtag_set", json_type),
+            ("include_arabic_phrase", "BOOLEAN DEFAULT TRUE"),
+            ("posting_mode", "VARCHAR DEFAULT 'schedule'"),
+            ("approval_mode", "VARCHAR DEFAULT 'auto_approve'"),
+            ("image_mode", "VARCHAR DEFAULT 'reuse_last_upload'"),
+            ("use_content_library", "BOOLEAN DEFAULT TRUE"),
+            ("avoid_repeat_days", "INTEGER DEFAULT 30"),
+            ("content_type", "VARCHAR"),
+            ("include_arabic", "BOOLEAN DEFAULT FALSE"),
+            ("post_time_local", "VARCHAR"),
+            ("timezone", "VARCHAR"),
+            ("enrich_with_hadith", "BOOLEAN DEFAULT FALSE"),
+            ("hadith_topic", "VARCHAR"),
+            ("hadith_source_id", "INTEGER"),
+            ("hadith_append_style", "VARCHAR DEFAULT 'short'"),
+            ("hadith_max_len", "INTEGER DEFAULT 450"),
+            ("media_asset_id", "INTEGER"),
+            ("media_tag_query", json_type),
+            ("media_rotation_mode", "VARCHAR DEFAULT 'random'"),
+            ("content_profile_id", "INTEGER"),
+            ("creativity_level", "INTEGER DEFAULT 3"),
+            ("content_seed", "TEXT"),
+            ("source_id", "INTEGER"),
+            ("source_mode", "VARCHAR DEFAULT 'none'"),
+            ("content_seed_mode", "VARCHAR DEFAULT 'none'"),
+            ("content_seed_text", "TEXT"),
+            ("items_per_post", "INTEGER DEFAULT 1"),
+            ("selection_mode", "VARCHAR DEFAULT 'random'"),
+            ("last_item_cursor", "VARCHAR"),
+            ("library_scope", json_type),
+            ("content_provider_scope", "VARCHAR DEFAULT 'all_sources'")
         ],
         "content_items": [
+            ("owner_user_id", "INTEGER"),
             ("item_type", "VARCHAR DEFAULT 'note'"),
             ("arabic_text", "TEXT"),
             ("translation", "TEXT"),
-            ("meta", json_type),
+            ("meta", json_type + " DEFAULT '{}'"),
             ("tags", json_type),
             ("topic", "VARCHAR"),
-            ("topics", json_type),
-            ("topics_slugs", json_type)
+            ("topics", json_type + " DEFAULT '[]'"),
+            ("topics_slugs", json_type + " DEFAULT '[]'"),
+            ("source_id", "INTEGER"),
+            ("text", "TEXT"),
+            ("last_used_at", ts_type),
+            ("use_count", "INTEGER DEFAULT 0")
         ],
         "content_sources": [
             ("category", "VARCHAR"),
             ("description", "TEXT"),
-            ("config", json_type),
+            ("config", json_type + " DEFAULT '{}'"),
             ("enabled", "BOOLEAN DEFAULT TRUE")
         ]
     }
@@ -120,18 +204,13 @@ def sync_database_schema():
     
     for tbl, cols in missing_cols.items():
         for col, col_def in cols:
-            # Use a fresh transaction for EVERY command
             try:
                 with engine.begin() as conn:
                     if is_postgres:
                         conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS {col} {col_def}"))
                     else:
-                        # SQLite doesn't support IF NOT EXISTS for ADD COLUMN, so we rely on the try/except
                         conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN {col} {col_def}"))
-                # print(f"  [OK] {tbl}.{col}")
-            except Exception as e:
-                # Silently skip if column already exists or other non-critical error
-                # print(f"  [SKIP] {tbl}.{col} (Reason: {e})")
+            except Exception:
                 pass
 
     # Ensure Nullability for global content
