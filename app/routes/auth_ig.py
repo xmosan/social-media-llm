@@ -78,7 +78,8 @@ async def instagram_callback(
         # 3. Discover Instagram Business account linked to user's FB Pages
         ig_details = await instagram_auth_service.discover_ig_business_account(token_data["access_token"])
         if not ig_details:
-            return RedirectResponse(url="/app?error=ig_account_not_found")
+            msg = "No Instagram account found. Please make sure your Instagram is connected to a Facebook Page and try again."
+            return RedirectResponse(url=f"/app?error={msg}")
 
         # 4. Check if account already exists in this org, otherwise create
         acc = db.query(IGAccount).filter(

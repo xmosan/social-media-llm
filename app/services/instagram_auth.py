@@ -7,7 +7,7 @@ from typing import Optional, Dict, List
 from app.config import settings
 from app.logging_setup import log_event
 
-GRAPH_URL = "https://graph.facebook.com/v24.0"
+GRAPH_URL = "https://graph.facebook.com/v18.0"
 
 class InstagramAuthService:
     def __init__(self):
@@ -23,8 +23,7 @@ class InstagramAuthService:
         scopes = [
             "instagram_basic",
             "instagram_content_publish",
-            "pages_show_list",
-            "public_profile"
+            "pages_show_list"
         ]
         scope_str = ",".join(scopes)
         return (
