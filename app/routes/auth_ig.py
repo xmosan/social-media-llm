@@ -11,6 +11,7 @@ from app.services.instagram_auth import instagram_auth_service
 from app.security.rbac import get_current_org_id
 from app.logging_setup import log_event
 import traceback
+import os
 
 router = APIRouter(prefix="/auth/instagram", tags=["auth"])
 
@@ -20,9 +21,20 @@ async def instagram_login(
     user: User = Depends(require_user)
 ):
     """Redirects the user to the Meta OAuth consent screen."""
-    if not instagram_auth_service.client_id:
+    from app.config import settings
+    
+    # 1. LIVE DIAGNOSTIC: Check settings and raw env
+    app_id = settings.fb_app_id or "MISSING"
+    log_event("ig_auth_attempt", user_id=user.id, app_id_present=bool(settings.fb_app_id))
+    
+    # Debug print for server logs
+    print(f"DEBUG: IG Login Attempt for User {user.id}")
+    print(f"DEBUG: settings.fb_app_id: {app_id}")
+    print(f"DEBUG: META_APP_ID env: {os.getenv('META_APP_ID', 'NOT SET')}")
+
+    if not settings.fb_app_id:
         log_event("ig_auth_config_missing", user_id=user.id)
-        raise HTTPException(status_code=400, detail="Instagram connection is not configured properly (Missing App ID)")
+        raise HTTPException(status_code=400, detail=f"Instagram connection is not configured properly (Missing App ID). Detected Env: {os.getenv('META_APP_ID', 'NOT SET')}")
 
     auth_url = instagram_auth_service.get_auth_url()
     
