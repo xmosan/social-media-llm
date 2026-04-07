@@ -1457,6 +1457,7 @@ SELECT_ACCOUNT_HTML = """<!doctype html>
             brand: '#0F3D2E',
             'brand-hover': '#0A2D22',
             accent: '#C9A96E',
+            cream: '#F8F6F2',
             neutral: '#F8F8F6'
           }
         }
@@ -1465,14 +1466,15 @@ SELECT_ACCOUNT_HTML = """<!doctype html>
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family: 'Inter', sans-serif; background-color: #F8F8F6; color: #1A1A1A; }
+    body { font-family: 'Inter', sans-serif; background-color: #F8F6F2; color: #1A1A1A; }
     .animate-in { animation: fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
     @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     .card-shadow { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
     .card-shadow-hover { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02); }
+    .selected-card { border-color: #0F3D2E !important; background-color: rgba(15, 61, 46, 0.02) !important; box-shadow: 0 10px 15px -3px rgba(15, 61, 46, 0.1) !important; }
   </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-6 md:p-10 relative">
+<body class="min-h-screen flex flex-col items-center justify-center p-6 md:p-10 relative bg-cream">
     <!-- Top-Right Cancel -->
     <a href="/app" class="absolute top-8 right-8 text-[11px] font-bold uppercase tracking-widest text-gray-400 hover:text-brand transition-colors flex items-center gap-2 group">
         Cancel
@@ -1486,8 +1488,8 @@ SELECT_ACCOUNT_HTML = """<!doctype html>
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.058-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
             </div>
             <div class="space-y-1">
-                <h1 class="text-3xl font-extrabold text-brand tracking-tight">Choose Your Account</h1>
-                <p class="text-[13px] font-medium text-gray-500">Select which Instagram account to connect to Sabeel Studio</p>
+                <h1 class="text-3xl font-extrabold text-brand tracking-tight">Connect Your Meta Account</h1>
+                <p class="text-[13px] font-medium text-gray-500">Pick which professional accounts to authorize for Sabeel Studio</p>
             </div>
         </div>
 
@@ -1506,6 +1508,14 @@ SELECT_ACCOUNT_HTML = """<!doctype html>
             </div>
         </div>
 
+        <!-- Continue Action -->
+        <div id="cta-container" class="pt-6 hidden">
+            <button id="continue-btn" onclick="saveSelected()" class="w-full py-4 bg-brand text-white rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/10 hover:shadow-brand/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                Continue to Dashboard
+            </button>
+            <p class="text-[10px] text-gray-400 text-center mt-4">You can always add more accounts later in Settings</p>
+        </div>
+
         <div id="empty-state" class="hidden text-center py-16 space-y-6 bg-white rounded-3xl border border-gray-100 card-shadow">
             <div class="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-300 mx-auto">!</div>
             <div class="space-y-2 px-8">
@@ -1518,86 +1528,152 @@ SELECT_ACCOUNT_HTML = """<!doctype html>
         <div class="pt-6 flex items-center justify-between text-gray-400">
             <div class="flex items-center gap-2">
                 <span class="w-1.5 h-1.5 rounded-full bg-brand"></span>
-                <span class="text-[10px] font-bold uppercase tracking-widest">Secure OAuth Discovery</span>
+                <span class="text-[10px] font-bold uppercase tracking-widest">Enhanced Discovery</span>
             </div>
             <div class="text-[9px] font-medium">Step 2 of 2</div>
         </div>
     </div>
 
 <script>
+    let discoveredAccounts = [];
+    let connectedIds = [];
+    let selectedIds = [];
+
     // Fix Facebook redirect hash issue
     if (window.location.hash === '#_=_') {
         history.replaceState(null, null, window.location.pathname);
     }
 
-    async function loadAccounts() {
-        const grid = document.getElementById('account-grid');
-        const emptyState = document.getElementById('empty-state');
-        
+    async function initialize() {
         try {
-            const res = await fetch('/accounts/available');
-            const accounts = await res.json();
+            const [availRes, connRes] = await Promise.all([
+                fetch('/accounts/available'),
+                fetch('/accounts/connected')
+            ]);
             
-            if (!accounts || accounts.length === 0) {
-                emptyState.classList.remove('hidden');
-                grid.innerHTML = '';
+            discoveredAccounts = await availRes.json();
+            connectedIds = await connRes.json();
+
+            // Auto-skip logic: 1 account available and NOT connected
+            if (discoveredAccounts.length === 1 && !connectedIds.includes(discoveredAccounts[0].ig_user_id)) {
+                selectedIds = [discoveredAccounts[0].ig_user_id];
+                await saveSelected();
                 return;
             }
 
-            grid.innerHTML = accounts.map(acc => `
-                <div class="bg-white border border-gray-100 rounded-2xl p-5 flex items-center justify-between card-shadow hover:card-shadow-hover hover:-translate-y-0.5 transition-all duration-300 group">
-                    <div class="flex items-center gap-4">
-                        <div class="relative">
-                            <img src="${acc.profile_picture_url || 'https://ui-avatars.com/api/?name=' + acc.username}" class="w-12 h-12 rounded-full object-cover">
-                            <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-brand border-2 border-white rounded-full"></div>
-                        </div>
-                        <div>
-                            <div class="text-[14px] font-bold text-brand leading-none mb-1">@${acc.username}</div>
-                            <div class="text-[11px] font-medium text-gray-400">${acc.name || acc.username}</div>
-                        </div>
-                    </div>
-                    <button onclick="selectAccount('${acc.ig_user_id}', '${acc.fb_page_id}', this)" class="px-6 py-2.5 bg-brand text-white rounded-lg font-bold text-[11px] hover:bg-brand-hover transition-all">
-                        Connect
-                    </button>
-                </div>
-            `).join('');
+            render();
         } catch (e) {
             console.error(e);
             alert('Session expired. Please reconnect Meta.');
         }
     }
 
-    async function selectAccount(igId, pageId, btn) {
-        if (btn.disabled) return;
-        const originalText = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<span class="flex items-center justify-center gap-2"><svg class="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Connecting...</span>';
+    function toggleSelect(igId) {
+        if (connectedIds.includes(igId)) return;
         
+        if (selectedIds.includes(igId)) {
+            selectedIds = selectedIds.filter(id => id !== igId);
+        } else {
+            selectedIds.push(igId);
+        }
+        render();
+    }
+
+    function render() {
+        const grid = document.getElementById('account-grid');
+        const emptyState = document.getElementById('empty-state');
+        const cta = document.getElementById('cta-container');
+        const continueBtn = document.getElementById('continue-btn');
+        
+        if (!discoveredAccounts || discoveredAccounts.length === 0) {
+            emptyState.classList.remove('hidden');
+            grid.innerHTML = '';
+            cta.classList.add('hidden');
+            return;
+        }
+
+        cta.classList.remove('hidden');
+        continueBtn.disabled = selectedIds.length === 0;
+
+        grid.innerHTML = discoveredAccounts.map(acc => {
+            const isConnected = connectedIds.includes(acc.ig_user_id);
+            const isSelected = selectedIds.includes(acc.ig_user_id);
+            
+            let btnLabel = "Connect";
+            let btnClass = "bg-brand text-white hover:bg-brand-hover";
+            let cardClass = "";
+
+            if (isConnected) {
+                btnLabel = `<span class="flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg> Connected</span>`;
+                btnClass = "bg-gray-100 text-gray-400 cursor-not-allowed";
+                cardClass = "opacity-75 grayscale-[0.5]";
+            } else if (isSelected) {
+                btnLabel = "Selected";
+                btnClass = "bg-brand text-white ring-4 ring-brand/10";
+                cardClass = "selected-card";
+            }
+
+            return `
+                <div onclick="toggleSelect('${acc.ig_user_id}')" class="bg-white border border-gray-100 rounded-2xl p-5 flex items-center justify-between card-shadow hover:card-shadow-hover hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group ${cardClass}">
+                    <div class="flex items-center gap-4">
+                        <div class="relative">
+                            <img src="${acc.profile_picture_url || 'https://ui-avatars.com/api/?name=' + acc.username}" class="w-12 h-12 rounded-full object-cover">
+                            ${isConnected ? `
+                                <div class="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-emerald-500 border-2 border-white rounded-full flex items-center justify-center">
+                                    <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
+                                </div>
+                            ` : `
+                                <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-gray-200 border-2 border-white rounded-full ${isSelected ? 'bg-brand' : ''}"></div>
+                            `}
+                        </div>
+                        <div>
+                            <div class="text-[14px] font-bold text-brand leading-none mb-1">@${acc.username}</div>
+                            <div class="text-[11px] font-medium text-gray-400">${acc.name || acc.username}</div>
+                        </div>
+                    </div>
+                    <button class="px-6 py-2.5 rounded-lg font-bold text-[11px] transition-all ${btnClass}">
+                        ${btnLabel}
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function saveSelected() {
+        if (selectedIds.length === 0) return;
+        
+        const btn = document.getElementById('continue-btn');
+        btn.disabled = true;
+        btn.innerHTML = `<span class="flex items-center justify-center gap-2"><svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Persisting Connections...</span>`;
+        
+        const payload = selectedIds.map(id => {
+            const acc = discoveredAccounts.find(a => a.ig_user_id === id);
+            return { ig_user_id: id, page_id: acc.fb_page_id };
+        });
+
         try {
             const res = await fetch('/accounts/select', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ig_user_id: igId, page_id: pageId })
+                body: JSON.stringify(payload)
             });
             
-            if (res.redirected) {
-                window.location.href = res.url;
-            } else if (res.ok) {
+            if (res.ok) {
                 window.location.href = '/app';
             } else {
                 const data = await res.json();
-                alert(data.detail || 'Failed to select account');
+                alert(data.detail || 'Failed to connect accounts');
                 btn.disabled = false;
-                btn.innerHTML = originalText;
+                btn.innerHTML = 'Continue to Dashboard';
             }
         } catch (e) {
             alert('Service unavailable. Please retry.');
             btn.disabled = false;
-            btn.innerHTML = originalText;
+            btn.innerHTML = 'Continue to Dashboard';
         }
     }
 
-    window.onload = loadAccounts;
+    window.onload = initialize;
 </script>
 </body>
 </html>

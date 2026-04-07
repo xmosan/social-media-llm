@@ -22,54 +22,66 @@ async def get_available_accounts(request: Request, user = Depends(require_user))
     """Fetch discovered accounts from session storage."""
     return request.session.get("discovered_accounts", [])
 
+@accounts_router.get("/connected")
+async def get_connected_accounts(db: Session = Depends(get_db), user = Depends(require_user)):
+    """Fetch IDs of accounts already connected to the current org."""
+    if not user.active_org_id:
+        return []
+    accounts = db.query(IGAccount.ig_user_id).filter(IGAccount.org_id == user.active_org_id).all()
+    return [a[0] for a in accounts]
+
 class SelectionPayload(BaseModel):
     ig_user_id: str
     page_id: str
 
 @accounts_router.post("/select")
-async def select_account(
-    payload: SelectionPayload,
+async def select_accounts(
+    payload: list[SelectionPayload],
     request: Request,
     db: Session = Depends(get_db),
     user = Depends(require_user)
 ):
-    """Persist discovery selection to the database."""
+    """Persist a list of discovery selections to the database."""
     accounts = request.session.get("discovered_accounts", [])
     token = request.session.get("temp_ig_token")
     
     if not token or not accounts:
         raise HTTPException(status_code=401, detail="Meta session expired. Please reconnect.")
         
-    selected = next((a for a in accounts if a["ig_user_id"] == payload.ig_user_id), None)
-    if not selected:
-        raise HTTPException(status_code=404, detail="Selected account no longer available.")
-
     org_id = user.active_org_id
-    # Set all as inactive
+    if not org_id:
+        raise HTTPException(status_code=400, detail="No active organization found.")
+
+    # Mark existing active accounts as inactive if we're adding new ones
     db.query(IGAccount).filter(IGAccount.org_id == org_id).update({"active": False})
     
-    # Upsert
-    acc = db.query(IGAccount).filter(
-        IGAccount.org_id == org_id,
-        IGAccount.ig_user_id == selected["ig_user_id"]
-    ).first()
-    
-    if not acc:
-        acc = IGAccount(
-            org_id=org_id,
-            ig_user_id=selected["ig_user_id"],
-            username=selected.get("username"),
-            name=selected.get("name") or selected["username"] or "Instagram Account",
-            profile_picture_url=selected.get("profile_picture_url")
-        )
-        db.add(acc)
-    
-    acc.access_token = token
-    acc.username = selected.get("username")
-    acc.fb_page_id = selected["fb_page_id"]
-    acc.profile_picture_url = selected.get("profile_picture_url")
-    acc.expires_at = datetime.now(timezone.utc) + timedelta(days=60)
-    acc.active = True
+    for item in payload:
+        selected = next((a for a in accounts if a["ig_user_id"] == item.ig_user_id), None)
+        if not selected:
+            continue
+
+        # Upsert
+        acc = db.query(IGAccount).filter(
+            IGAccount.org_id == org_id,
+            IGAccount.ig_user_id == selected["ig_user_id"]
+        ).first()
+        
+        if not acc:
+            acc = IGAccount(
+                org_id=org_id,
+                ig_user_id=selected["ig_user_id"],
+                username=selected.get("username"),
+                name=selected.get("name") or selected["username"] or "Instagram Account",
+                profile_picture_url=selected.get("profile_picture_url")
+            )
+            db.add(acc)
+        
+        acc.access_token = token
+        acc.username = selected.get("username")
+        acc.fb_page_id = selected["fb_page_id"]
+        acc.profile_picture_url = selected.get("profile_picture_url")
+        acc.expires_at = datetime.now(timezone.utc) + timedelta(days=60)
+        acc.active = True # Last one in loop will be the final active one
     
     user.has_connected_instagram = True
     db.commit()
@@ -78,7 +90,7 @@ async def select_account(
     request.session.pop("discovered_accounts", None)
     request.session.pop("temp_ig_token", None)
     
-    return RedirectResponse(url="/app", status_code=302)
+    return {"ok": True, "message": "Accounts connected successfully"}
 
 
 @router.get("", response_model=list[IGAccountOut])
