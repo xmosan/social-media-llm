@@ -624,10 +624,15 @@ APP_LAYOUT_HTML = """<!doctype html>
           </div>
         </div>
         
-        <div class="pb-10 pt-4 border-t border-brand/5 mt-auto">
-          <button type="button" onclick="closeNewPostModal()" class="w-full py-4 text-[10px] font-bold uppercase tracking-widest text-text-muted hover:text-brand transition-all">Close</button>
+        <div class="pb-10 pt-4 border-t border-brand/5 mt-auto hidden md:block">
+          <p class="text-[8px] font-bold uppercase tracking-[0.3em] text-brand/20">Studio Intelligence v2.0</p>
         </div>
       </div>
+
+      <!-- ABSOLUTE CLOSE BUTTON (Top Right) -->
+      <button type="button" onclick="closeNewPostModal()" class="absolute top-6 right-6 z-[110] w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white hover:text-brand transition-all shadow-2xl">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
 
       <!-- Studio Main Content Area -->
       <form id="composerForm" onsubmit="submitNewPost(event)" class="flex-1 overflow-hidden flex flex-col relative bg-white/2">
@@ -703,14 +708,6 @@ APP_LAYOUT_HTML = """<!doctype html>
             
             <div class="pt-8 flex justify-end">
                <button type="button" onclick="switchStudioSection(2)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/10">Next: Foundation &rarr;</button>
-            </div>
-          </div>
-                 <div id="topicSuggestionsList" class="flex flex-col gap-3"></div>
-               </div>
-            </div>
-            
-            <div class="pt-8 flex justify-end">
-               <button type="button" onclick="switchStudioSection(2)" class="px-8 py-4 bg-brand text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-lg shadow-brand/10">Continue &rarr;</button>
             </div>
           </div>
 
@@ -851,17 +848,36 @@ APP_LAYOUT_HTML = """<!doctype html>
             <div class="space-y-4 max-w-4xl">
                <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Hook Strategy</label>
                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div onclick="setStudioHook('emotional', this)" class="hook-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Emotional</div>
+                  </div>
                   <div onclick="setStudioHook('question', this)" class="hook-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
-                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Thought-Provoking</div>
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Question</div>
                   </div>
-                  <div onclick="setStudioHook('inspirational', this)" class="hook-card active p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
-                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Inspirational</div>
+                  <div onclick="setStudioHook('direct', this)" class="hook-card active p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Direct</div>
                   </div>
-                  <div onclick="setStudioHook('educational', this)" class="hook-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
-                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Educational</div>
+                  <div onclick="setStudioHook('story', this)" class="hook-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Story</div>
                   </div>
-                  <div onclick="setStudioHook('cta', this)" class="hook-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
-                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Call-to-Action</div>
+               </div>
+            </div>
+
+            <!-- Post Format -->
+            <div class="space-y-4 max-w-4xl">
+               <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Post Format</label>
+               <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div onclick="setStudioFormat('caption', this)" class="format-card active p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Caption</div>
+                  </div>
+                  <div onclick="setStudioFormat('quote_card', this)" class="format-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Quote Card</div>
+                  </div>
+                  <div onclick="setStudioFormat('carousel', this)" class="format-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Carousel</div>
+                  </div>
+                  <div onclick="setStudioFormat('story', this)" class="format-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Story</div>
                   </div>
                </div>
             </div>
@@ -985,9 +1001,20 @@ APP_LAYOUT_HTML = """<!doctype html>
                </div>
 
                <!-- Verification Checklist -->
-               <div class="space-y-6">
-                  <div class="bg-cream border border-brand/5 rounded-3xl p-8">
-                     <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1 mb-6 block">Foundation Integrity Check</label>
+                <div class="space-y-6">
+                   <!-- Source Preview Card -->
+                   <div class="bg-white border border-brand/10 rounded-3xl p-8 shadow-sm">
+                      <div class="flex justify-between items-center mb-6">
+                         <label class="text-[9px] font-bold text-brand uppercase tracking-[0.2em]">Source Preview</label>
+                         <span id="confidenceBadge" class="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-[8px] font-bold uppercase tracking-widest">Verified</span>
+                      </div>
+                      <div id="verifySourceType" class="text-[10px] font-black text-accent uppercase tracking-widest mb-2">Qur'an Based</div>
+                      <div id="verifySourceText" class="text-sm text-brand font-medium italic line-clamp-3 mb-4">"And maintain prayer and give zakah and bow with those who bow [in worship and obedience]."</div>
+                      <div id="verifyReference" class="text-[9px] font-bold text-text-muted">Surah Al-Baqarah 2:43</div>
+                   </div>
+
+                   <div class="bg-cream border border-brand/5 rounded-3xl p-8">
+                      <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1 mb-6 block">Foundation Integrity Check</label>
                      <div class="space-y-4">
                         <div class="flex items-center gap-3">
                            <div class="w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg></div>
@@ -1081,6 +1108,18 @@ APP_LAYOUT_HTML = """<!doctype html>
                         <p class="text-[9px] text-text-muted font-bold uppercase tracking-widest mt-2 px-1">Consistency creates trust.</p>
                       </div>
 
+                      <!-- Output Previews -->
+                      <div class="pt-6 border-t border-brand/5 space-y-6">
+                         <div class="space-y-2">
+                             <label class="text-[9px] font-bold uppercase tracking-widest text-brand pl-1">Hook Preview</label>
+                             <div class="p-5 bg-white border border-brand/5 rounded-2xl text-xs text-brand font-medium italic">"Ever felt like your prayers are just movements? Here is how to find Khushu today..."</div>
+                         </div>
+                         <div class="space-y-2">
+                             <label class="text-[9px] font-bold uppercase tracking-widest text-brand pl-1">Caption Preview</label>
+                             <div class="p-5 bg-white border border-brand/5 rounded-2xl text-xs text-brand/80 leading-relaxed line-clamp-4">Islam is not just a religion of rituals, but a path of the heart. When we stand before Allah, we are standing before the Creator of the Heavens and the Earth. Let us reflect on our intention...</div>
+                         </div>
+                      </div>
+
                       <!-- Intelligence Summary -->
                       <div class="pt-6 border-t border-brand/5 grid grid-cols-2 gap-4">
                          <div class="space-y-1">
@@ -1098,7 +1137,7 @@ APP_LAYOUT_HTML = """<!doctype html>
                       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
                       ACTIVATE INTELLIGENCE
                    </button>
-                   <button type="button" onclick="switchStudioSection(5)" class="w-full py-4 text-text-muted hover:text-brand font-bold text-[10px] uppercase tracking-widest transition-all">Verification Layer &rarr;</button>
+                   <button type="button" onclick="switchStudioSection(5)" class="w-full py-4 text-text-muted hover:text-brand font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Back to Verification</button>
                 </div>
             </div>
           </div>
@@ -1190,6 +1229,12 @@ APP_LAYOUT_HTML = """<!doctype html>
         document.getElementById('studioHook').value = hook;
         document.querySelectorAll('.hook-card').forEach(c => c.classList.remove('active', 'border-brand', 'bg-brand/5'));
         el.closest('.hook-card').classList.add('active', 'border-brand', 'bg-brand/5');
+    }
+
+    function setStudioFormat(format, el) {
+        document.getElementById('studioFormat').value = format;
+        document.querySelectorAll('.format-card').forEach(c => c.classList.remove('active', 'border-brand', 'bg-brand/5'));
+        el.closest('.format-card').classList.add('active', 'border-brand', 'bg-brand/5');
     }
 
     function setStudioStrictness(strict, el) {
