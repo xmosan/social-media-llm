@@ -67,17 +67,36 @@ if DATABASE_URL.startswith("sqlite"):
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-def sync_database_schema():
+def sync_database_schema(log_func=None):
     """
     Perform a resilient, granular schema sync.
     Absolute source of truth for all table columns. 
-    Every column addition is isolated in its own transaction.
     """
-    is_postgres = engine.drivername and "postgresql" in engine.drivername
+    def _log(msg):
+        if log_func: log_func(msg)
+        print(f"SCHEMA SYNC: {msg}")
+
+    # Use dialect name which is more reliable than drivername in SQLAlchemy 2.0
+    is_postgres = engine.dialect.name == "postgresql"
     json_type = "JSONB" if is_postgres else "JSON"
     ts_type = "TIMESTAMP WITH TIME ZONE" if is_postgres else "TIMESTAMP"
     
+    _log(f"Starting resilient sync (Dialect: {engine.dialect.name}, Driver: {engine.driver})")
+    
     missing_cols = {
+        "posts": [
+            # INTELLIGENCE ENGINE FIELDS (Priority Zero)
+            ("intent_type", "VARCHAR"),
+            ("target_audience", "VARCHAR"),
+            ("source_foundation", "VARCHAR"),
+            ("message_hint", "TEXT"),
+            ("emotion", "VARCHAR"),
+            ("depth", "VARCHAR"),
+            ("post_format", "VARCHAR"),
+            ("visual_style", "VARCHAR"),
+            ("hook_style", "VARCHAR"),
+            ("strictness_mode", "VARCHAR DEFAULT 'balanced'")
+        ],
         "users": [
             ("name", "VARCHAR"),
             ("is_active", "BOOLEAN DEFAULT TRUE"),
@@ -98,46 +117,6 @@ def sync_database_schema():
             ("fb_page_id", "VARCHAR"),
             ("expires_at", ts_type),
             ("active", "BOOLEAN DEFAULT TRUE")
-        ],
-        "posts": [
-            # INTELLIGENCE ENGINE FIELDS (Priority)
-            ("intent_type", "VARCHAR"),
-            ("target_audience", "VARCHAR"),
-            ("source_foundation", "VARCHAR"),
-            ("message_hint", "TEXT"),
-            ("emotion", "VARCHAR"),
-            ("depth", "VARCHAR"),
-            ("post_format", "VARCHAR"),
-            ("visual_style", "VARCHAR"),
-            ("hook_style", "VARCHAR"),
-            ("strictness_mode", "VARCHAR DEFAULT 'balanced'"),
-            
-            # Legacy & Core Studio Fields
-            ("is_auto_generated", "BOOLEAN DEFAULT FALSE"),
-            ("automation_id", "INTEGER"),
-            ("status", "VARCHAR DEFAULT 'submitted'"),
-            ("source_type", "VARCHAR DEFAULT 'form'"),
-            ("source_text", "TEXT"),
-            ("content_item_id", "INTEGER"),
-            ("media_asset_id", "INTEGER"),
-            ("topic", "VARCHAR"),
-            ("post_type", "VARCHAR"),
-            ("source_reference", "VARCHAR"),
-            ("media_url", "TEXT"),
-            ("caption", "TEXT"),
-            ("hashtags", json_type),
-            ("alt_text", "TEXT"),
-            ("flags", json_type + " DEFAULT '{}'"),
-            ("last_error", "TEXT"),
-            ("scheduled_time", ts_type),
-            ("published_time", ts_type),
-            ("visual_mode", "VARCHAR DEFAULT 'upload'"),
-            ("visual_prompt", "TEXT"),
-            ("library_item_id", "INTEGER"),
-            ("used_source_id", "INTEGER"),
-            ("used_content_item_ids", json_type),
-            ("created_at", ts_type + " DEFAULT CURRENT_TIMESTAMP"),
-            ("updated_at", ts_type + " DEFAULT CURRENT_TIMESTAMP")
         ],
         "topic_automations": [
             ("library_topic_slug", "VARCHAR"),
@@ -177,6 +156,33 @@ def sync_database_schema():
             ("library_scope", json_type),
             ("content_provider_scope", "VARCHAR DEFAULT 'all_sources'")
         ],
+        "posts_extended": [
+            ("is_auto_generated", "BOOLEAN DEFAULT FALSE"),
+            ("automation_id", "INTEGER"),
+            ("status", "VARCHAR DEFAULT 'submitted'"),
+            ("source_type", "VARCHAR DEFAULT 'form'"),
+            ("source_text", "TEXT"),
+            ("content_item_id", "INTEGER"),
+            ("media_asset_id", "INTEGER"),
+            ("topic", "VARCHAR"),
+            ("post_type", "VARCHAR"),
+            ("source_reference", "VARCHAR"),
+            ("media_url", "TEXT"),
+            ("caption", "TEXT"),
+            ("hashtags", json_type),
+            ("alt_text", "TEXT"),
+            ("flags", json_type + " DEFAULT '{}'"),
+            ("last_error", "TEXT"),
+            ("scheduled_time", ts_type),
+            ("published_time", ts_type),
+            ("visual_mode", "VARCHAR DEFAULT 'upload'"),
+            ("visual_prompt", "TEXT"),
+            ("library_item_id", "INTEGER"),
+            ("used_source_id", "INTEGER"),
+            ("used_content_item_ids", json_type),
+            ("created_at", ts_type + " DEFAULT CURRENT_TIMESTAMP"),
+            ("updated_at", ts_type + " DEFAULT CURRENT_TIMESTAMP")
+        ],
         "content_items": [
             ("owner_user_id", "INTEGER"),
             ("item_type", "VARCHAR DEFAULT 'note'"),
@@ -200,9 +206,8 @@ def sync_database_schema():
         ]
     }
 
-    print(f"SCHEMA SYNC: Starting resilient sync (DB: {'Postgres' if is_postgres else 'SQLite'})...")
-    
-    for tbl, cols in missing_cols.items():
+    for key, cols in missing_cols.items():
+        tbl = key if not key.endswith("_extended") else key.split("_")[0]
         for col, col_def in cols:
             try:
                 with engine.begin() as conn:
@@ -210,7 +215,9 @@ def sync_database_schema():
                         conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS {col} {col_def}"))
                     else:
                         conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN {col} {col_def}"))
-            except Exception:
+                _log(f"SUCCESS: {tbl}.{col} added/verified")
+            except Exception as e:
+                _log(f"DETAIL: {tbl}.{col} skip or error: {str(e)[:100]}")
                 pass
 
     # Ensure Nullability for global content
@@ -219,10 +226,11 @@ def sync_database_schema():
             if is_postgres:
                 conn.execute(text("ALTER TABLE content_sources ALTER COLUMN org_id DROP NOT NULL"))
                 conn.execute(text("ALTER TABLE content_items ALTER COLUMN org_id DROP NOT NULL"))
-    except Exception:
-        pass
+                _log("SUCCESS: org_id nullability updated")
+    except Exception as e:
+        _log(f"DETAIL: Nullability update error: {e}")
     
-    print("SCHEMA SYNC: Resilient sync complete.")
+    _log("Resilient sync complete.")
 
 def get_db():
     db = SessionLocal()

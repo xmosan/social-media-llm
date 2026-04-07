@@ -48,30 +48,12 @@ def run_admin_library_migration():
 
     # Use the new resilient sync for column additions
     try:
-        sync_database_schema()
+        sync_database_schema(log_startup)
         log_startup("MIGRATION: Resilient column sync complete.")
     except Exception as e:
         log_startup(f"MIGRATION: Resilient sync failed: {e}")
 
-    # 2. DEFINITIVE IG_ACCOUNTS SCHEMA SYNC (Taking Control)
-    log_startup("MIGRATION: Syncing database state...")
-    with engine.begin() as conn:
-        is_postgres = "postgresql" in engine.drivername
-        ig_cols = [
-            ("fb_page_id", "VARCHAR"),
-            ("expires_at", "TIMESTAMP WITH TIME ZONE"),
-            ("active", "BOOLEAN DEFAULT TRUE")
-        ]
-        for col, col_def in ig_cols:
-            try:
-                if is_postgres:
-                    conn.execute(text(f"ALTER TABLE ig_accounts ADD COLUMN IF NOT EXISTS {col} {col_def}"))
-                else:
-                    conn.execute(text(f"ALTER TABLE ig_accounts ADD COLUMN {col} {col_def}"))
-                log_startup(f"MIGRATION: Verified/Added {col} to ig_accounts")
-            except Exception as e:
-                log_startup(f"MIGRATION: Notice on ig_accounts.{col}: {e}")
-                pass
+    log_startup("MIGRATION: Finished all schema checks.")
 
     log_startup("MIGRATION: Finished aggressive library schema checks.")
 
@@ -333,6 +315,10 @@ def bootstrap_saas():
         db.rollback()
     finally:
         db.close()
+
+@app.get("/temp-diag-logs")
+async def get_diag_logs():
+    return JSONResponse(content={"logs": STARTUP_LOG})
 
 @app.on_event("startup")
 def on_startup():
