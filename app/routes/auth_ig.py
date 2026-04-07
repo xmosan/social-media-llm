@@ -36,11 +36,18 @@ async def instagram_login(
         log_event("ig_auth_config_missing", user_id=user.id)
         raise HTTPException(status_code=400, detail=f"Instagram connection is not configured properly (Missing App ID). Detected Env: {os.getenv('META_APP_ID', 'NOT SET')}")
 
-    auth_url = instagram_auth_service.get_auth_url()
+    # 4. FINAL SAFETY CHECK: Ensure the redirect URI is correctly resolved
+    redirect_uri = instagram_auth_service.redirect_uri
+    print(f"DEBUG: Final Meta Redirect URI: {redirect_uri}")
     
-    # 3. DEBUG LOGGING: Print full URL (sanitized) to help identify App ID issues
-    print(f"DEBUG: Constructing Meta OAuth URL for User {user.id}")
-    print(f"DEBUG: URL: {auth_url}")
+    if "app.sabeelstudio.com" not in redirect_uri and "localhost" not in redirect_uri and "127.0.0.1" not in redirect_uri:
+        log_event("ig_auth_bad_redirect", user_id=user.id, redirect=redirect_uri)
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Instagram connection is not configured correctly. The redirect URL '{redirect_uri}' does not match the allowed domains."
+        )
+
+    auth_url = instagram_auth_service.get_auth_url()
     
     log_event("ig_auth_redirect", user_id=user.id)
     return RedirectResponse(url=auth_url)

@@ -2,7 +2,7 @@
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import Field, AliasChoices
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore", case_sensitive=False)
@@ -11,8 +11,11 @@ class Settings(BaseSettings):
     timezone: str = Field(default="America/Detroit", alias="TIMEZONE")
     uploads_dir: str = Field(default="uploads", alias="UPLOADS_DIR")
 
-    # In production (Railway), BASE_URL env var will override this
-    public_base_url: str = Field(default="http://localhost:8000", alias="BASE_URL")
+    # Centralized Public Base URL (Production Custom Domain)
+    public_base_url: str = Field(
+        default="https://app.sabeelstudio.com", 
+        validation_alias=AliasChoices("BASE_URL", "APP_URL", "FRONTEND_URL", "PUBLIC_APP_URL")
+    )
     
     # Feature Flags
     coming_soon_mode: bool = Field(default=True, alias="COMING_SOON_MODE")

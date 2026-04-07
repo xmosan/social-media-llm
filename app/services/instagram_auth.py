@@ -13,10 +13,13 @@ class InstagramAuthService:
     def __init__(self):
         self.client_id = settings.fb_app_id
         self.client_secret = settings.fb_app_secret
-        self.redirect_uri = settings.fb_redirect_uri
+        # Dynamic Resolution: Prefer explicit META_REDIRECT_URI, fallback to Base URL + /auth/instagram/callback
+        self.redirect_uri = settings.fb_redirect_uri or f"{settings.public_base_url.rstrip('/')}/auth/instagram/callback"
 
     def get_auth_url(self) -> str:
         """Construct the Meta OAuth authorization URL."""
+        log_event("ig_auth_url_gen", redirect_uri=self.redirect_uri)
+        print(f"DEBUG: Resolving Meta Redirect URI: {self.redirect_uri}")
         scopes = [
             "instagram_basic",
             "instagram_content_publish",

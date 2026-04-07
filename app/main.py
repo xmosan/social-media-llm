@@ -225,8 +225,8 @@ class ComingSoonMiddleware(BaseHTTPMiddleware):
         return RedirectResponse(url="/")
 
 # Robust Environment Detection
-is_railway = os.getenv("RAILWAY_ENVIRONMENT") is not None or "up.railway.app" in str(settings.public_base_url)
-is_prod = is_railway or "localhost" not in str(settings.public_base_url)
+is_railway = os.getenv("RAILWAY_ENVIRONMENT") is not None
+is_prod = is_railway or ("localhost" not in str(settings.public_base_url) and "127.0.0.1" not in str(settings.public_base_url))
 
 # Stabilize Secret Key (Prefer SECRET_KEY -> JWT_SECRET -> Fallback)
 eff_secret_key = os.environ.get("SECRET_KEY") or os.environ.get("JWT_SECRET") or settings.secret_key
@@ -388,6 +388,7 @@ def bootstrap_saas():
         log_startup("BOOTSTRAP: Core data committed successfully.")
         
         # 5. INITIAL IG ACCOUNT (REMOVED - Use OAuth flow instead)
+        log_startup(f"BOOTSTRAP: Public Base URL is set to: {settings.public_base_url}")
         log_startup(f"BOOTSTRAP: FB_APP_ID present in settings: {bool(settings.fb_app_id)}")
         log_startup(f"BOOTSTRAP: FB_APP_SECRET present in settings: {bool(settings.fb_app_secret)}")
         log_startup("BOOTSTRAP: Finished.")
