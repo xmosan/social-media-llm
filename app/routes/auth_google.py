@@ -32,73 +32,74 @@ oauth.register(
 async def google_login(request: Request):
     """Redirects the user to the Google OAuth consent screen."""
     try:
+        from app.main import is_prod
         print("AUTH DIAGNOSTIC: Initiating Google OAuth redirect...")
         if not oauth.google.client_id or not oauth.google.client_secret:
             print("AUTH DIAGNOSTIC: Google Client ID/Secret missing or empty")
             return RedirectResponse(url="/login?error=google_config_missing")
         
-        # Use configured redirect URI if present, otherwise generate dynamically
-        if settings.google_redirect_uri:
-            redirect_uri = settings.google_redirect_uri
-        else:
-            redirect_uri = request.url_for('google_auth')
-            # Force HTTPS for production redirects
-            if "railway.app" in str(request.url) or request.headers.get("x-forwarded-proto") == "https":
-                redirect_uri = str(redirect_uri).replace("http://", "https://")
-                request.scope['scheme'] = 'https'
+        # 1. DYNAMIC REDIRECT RESOLUTION: Prefer explicit GOOGLE_REDIRECT_URI, fallback to Base URL + /auth/google/callback
+        redirect_uri = settings.google_redirect_uri or f"{settings.public_base_url.rstrip('/')}/auth/google/callback"
         
-        print(f"AUTH DIAGNOSTIC: Google redirect_uri: {redirect_uri}")
+        # 2. SCHEME STABILIZATION: Force HTTPS in production
+        if is_prod or request.headers.get("x-forwarded-proto") == "https":
+            redirect_uri = str(redirect_uri).replace("http://", "https://")
+            # This is critical for Authlib/Starlette session matching
+            request.scope['scheme'] = 'https'
+        
+        print(f"AUTH DIAGNOSTIC: Final Google redirect_uri: {redirect_uri}")
         response = await oauth.google.authorize_redirect(request, str(redirect_uri))
         
-        # DEBUG: Check if session was actually set
+        # 3. DEBUG: Check if session state was actually set by Authlib
+        # Note: Authlib sets '_google_state' in the session during authorize_redirect
         sess_state = request.session.get('_google_state')
-        print(f"AUTH DIAGNOSTIC: Session state set: {bool(sess_state)}")
+        print(f"AUTH DIAGNOSTIC: Google OAuth State generated: {sess_state}")
         
         return response
     except Exception as e:
         print(f"AUTH DIAGNOSTIC: Google Login start ERROR: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Failed to start Google Auth: {str(e)}")
 
 @router.get("/callback")
 async def google_auth(request: Request, db: Session = Depends(get_db)):
     """Handles the OAuth callback, provisions users/orgs, and sets the JWT cookie."""
-    # Use configured redirect URI if present, otherwise generate dynamically
-    if settings.google_redirect_uri:
-        redirect_uri = settings.google_redirect_uri
-    else:
-        redirect_uri = request.url_for('google_auth')
-        # Force HTTPS for production redirects
-        if "railway.app" in str(request.url) or request.headers.get("x-forwarded-proto") == "https":
-            redirect_uri = str(redirect_uri).replace("http://", "https://")
+    from app.main import is_prod
+    from authlib.integrations.base_client.errors import MismatchedStateError
+    
+    # 1. DYNAMIC REDIRECT RESOLUTION: Must match the one used in google_login
+    redirect_uri = settings.google_redirect_uri or f"{settings.public_base_url.rstrip('/')}/auth/google/callback"
+    
+    # 2. SCHEME STABILIZATION
+    if is_prod or request.headers.get("x-forwarded-proto") == "https":
+        redirect_uri = str(redirect_uri).replace("http://", "https://")
+        request.scope['scheme'] = 'https'
 
     try:
-        # Force internal scheme to https for Authlib consistency on Railway
-        if "railway.app" in str(request.url) or request.headers.get("x-forwarded-proto") == "https":
-            request.scope['scheme'] = 'https'
-
-        print(f"AUTH DIAGNOSTIC: Google OAuth callback received. Using URI: {redirect_uri}")
+        sess_state = request.session.get('_google_state')
+        returned_state = request.query_params.get('state')
+        
+        print(f"AUTH DIAGNOSTIC: Google OAuth callback received.")
+        print(f"AUTH DIAGNOSTIC: Session State: {sess_state}")
+        print(f"AUTH DIAGNOSTIC: Return State: {returned_state}")
+        print(f"AUTH DIAGNOSTIC: Using Redirect URI: {redirect_uri}")
+        
         token = await oauth.google.authorize_access_token(request)
         user_info = token.get('userinfo')
         if not user_info:
             print("AUTH DIAGNOSTIC: Google user_info is missing")
             raise Exception("Failed to fetch user info from Google")
         print(f"AUTH DIAGNOSTIC: Google user info: {user_info.get('email')}")
+    except MismatchedStateError:
+        print("AUTH DIAGNOSTIC: CSRF State Mismatch Detected")
+        fail_msg = "OAuth session expired or domain mismatch detected. Please ensure you are logging in from app.sabeelstudio.com and try again."
+        raise HTTPException(status_code=400, detail=fail_msg)
     except Exception as e:
         # LOGGING SENSITIVE DATA SAFELY FOR DIAGNOSTICS
-        cid_len = len(GLOBAL_GOOGLE_ID)
-        sec_len = len(GLOBAL_GOOGLE_SECRET)
-        cid_trunc = GLOBAL_GOOGLE_ID[:10] + "..." if cid_len > 10 else GLOBAL_GOOGLE_ID
-        sec_trunc = GLOBAL_GOOGLE_SECRET[:5] + "..." if sec_len > 5 else "???"
-        
-        uri = settings.google_redirect_uri or "AUTO"
-        sess_keys = list(request.session.keys())
-        
-        diag_msg = f"OAuth verification failed: {e}. [Diag: ID_LEN={cid_len}, SEC_LEN={sec_len}, URI={uri}]"
+        diag_msg = f"OAuth verification failed: {str(e)}"
         print(f"AUTH DIAGNOSTIC: {diag_msg}")
-        print(f"AUTH DIAGNOSTIC: Using CID: {cid_trunc}, SEC: {sec_trunc}")
-        print(f"AUTH DIAGNOSTIC: Session keys present: {sess_keys}")
+        print(f"AUTH DIAGNOSTIC: Session keys present: {list(request.session.keys())}")
         raise HTTPException(status_code=400, detail=diag_msg)
 
     google_id = user_info.get("sub")
@@ -150,13 +151,19 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
     
     print(f"AUTH DIAGNOSTIC: Google login successful for {user.email}. Setting cookie...")
     response = RedirectResponse(url="/app")
+    
+    # 3. DOMAIN STABILIZATION: Extract domain for cookie
+    from urllib.parse import urlparse
+    domain = urlparse(settings.public_base_url).hostname if is_prod else None
+    
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=True, # MUST be True in production (HTTPS)
+        secure=is_prod, # MUST be True in production (HTTPS)
         samesite="lax",
         max_age=int(access_token_expires.total_seconds()),
-        path="/"
+        path="/",
+        domain=domain
     )
     return response

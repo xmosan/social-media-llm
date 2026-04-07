@@ -231,12 +231,16 @@ is_prod = is_railway or ("localhost" not in str(settings.public_base_url) and "1
 # Stabilize Secret Key (Prefer SECRET_KEY -> JWT_SECRET -> Fallback)
 eff_secret_key = os.environ.get("SECRET_KEY") or os.environ.get("JWT_SECRET") or settings.secret_key
 
+from urllib.parse import urlparse
+eff_domain = urlparse(settings.public_base_url).hostname if is_prod else None
+
 app.add_middleware(
     SessionMiddleware, 
     secret_key=eff_secret_key,
     https_only=is_prod,
     same_site="lax",
-    max_age=3600 * 24 * 7 # 1 week
+    max_age=3600 * 24 * 7, # 1 week
+    domain=eff_domain
 )
 app.add_middleware(ComingSoonMiddleware)
 app.add_middleware(LoggingMiddleware)
