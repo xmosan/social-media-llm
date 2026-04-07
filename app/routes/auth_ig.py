@@ -76,25 +76,32 @@ async def instagram_callback(
 
     try:
         # 2. Exchange code for short-lived token
+        print(f"DEBUG: Exchanging code for token. Code: {code[:10]}...")
         short_token = await instagram_auth_service.exchange_code_for_token(code)
         if not short_token:
+            print("DEBUG: Exchange failed - no short_token returned")
             return RedirectResponse(url="/app?error=Instagram authentication failed.")
 
         # 3. Upgrade to long-lived token (60 days)
+        print("DEBUG: Upgrading to long-lived token...")
         token_data = await instagram_auth_service.get_long_lived_token(short_token)
         if not token_data:
+            print("DEBUG: Upgrade failed - no token_data returned")
             return RedirectResponse(url="/app?error=Failed to secure long-term access.")
 
         # 4. Discover Instagram Business accounts linked to user's Professional Setup
+        print("DEBUG: Discovering accounts with long-lived token...")
         discovered_accounts = await instagram_auth_service.discover_ig_business_account(token_data["access_token"])
         if not discovered_accounts:
+            print("DEBUG: No accounts discovered.")
             msg = "No linked Instagram account found. Please ensure your Professional account is correctly configured and try again."
             return RedirectResponse(url=f"/app?error={msg}")
 
         # 5. Process and store each discovered account
         print(f"DEBUG: Processing {len(discovered_accounts)} accounts for Org ID: {org_id}")
         
-        for ig_details in discovered_accounts:
+        for i, ig_details in enumerate(discovered_accounts):
+            print(f"DEBUG: Processing account {i+1}/{len(discovered_accounts)}: {ig_details.get('username')}")
             # Check if account already exists in this org
             acc = db.query(IGAccount).filter(
                 IGAccount.org_id == org_id,
@@ -106,19 +113,21 @@ async def instagram_callback(
                 acc = IGAccount(
                     org_id=org_id,
                     ig_user_id=ig_details["ig_user_id"],
-                    name=ig_details["username"] or ig_details["name"] or "Instagram Account"
+                    name=ig_details["username"] or ig_details["name"] or "Instagram Account",
+                    access_token=token_data["access_token"] # Set directly on creation to ensure non-null if DB requires it
                 )
                 db.add(acc)
                 db.flush() # Ensure ID is generated
             
             # Update token and metadata
-            print(f"DEBUG: Updating access token for @{ig_details['username']}")
+            print(f"DEBUG: Updating metadata for @{ig_details['username']}")
             acc.access_token = token_data["access_token"]
             acc.expires_at = token_data["expires_at"]
-            acc.fb_page_id = ig_details["fb_page_id"]
+            acc.fb_page_id = ig_details.get("fb_page_id")
             acc.active = True
         
         # Mark user as having connected IG
+        print(f"DEBUG: Committing changes for User {user.id}")
         user.has_connected_instagram = True
         
         db.commit()
@@ -128,9 +137,12 @@ async def instagram_callback(
         return RedirectResponse(url="/app?success=ig_connected")
 
     except Exception as e:
+        print(f"CRITICAL ERROR in ig_callback: {str(e)}")
         log_event("ig_callback_error", error=str(e))
         traceback.print_exc()
-        return RedirectResponse(url="/app?error=ig_callback_exception")
+        # Include the error message in the URL for immediate diagnostic via screenshot
+        err_msg = f"ig_callback_exception: {type(e).__name__} - {str(e)}"
+        return RedirectResponse(url=f"/app?error={err_msg}")
 
 @router.post("/disconnect")
 async def instagram_disconnect(
