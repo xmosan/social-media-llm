@@ -1442,49 +1442,87 @@ APP_DASHBOARD_CONTENT = """
     </div>
 """
 
-SELECT_ACCOUNT_HTML = """
-<div class="min-h-screen bg-cream flex flex-col items-center justify-center p-6 bg-gradient-to-br from-cream via-cream to-brand/5">
-    <div class="max-w-2xl w-full space-y-12 animate-in fade-in slide-in-from-bottom-6 duration-1000">
+SELECT_ACCOUNT_HTML = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Choose Account | Sabeel Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: '#0F3D2E',
+            'brand-hover': '#0A2D22',
+            accent: '#C9A96E',
+            neutral: '#F8F8F6'
+          }
+        }
+      }
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #F8F8F6; color: #1A1A1A; }
+    .animate-in { animation: fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .card-shadow { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
+    .card-shadow-hover { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02); }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-6 md:p-10 relative">
+    <!-- Top-Right Cancel -->
+    <a href="/app" class="absolute top-8 right-8 text-[11px] font-bold uppercase tracking-widest text-gray-400 hover:text-brand transition-colors flex items-center gap-2 group">
+        Cancel
+        <svg class="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+    </a>
+
+    <div class="max-w-[560px] w-full space-y-10 animate-in">
         <!-- Header -->
-        <div class="text-center space-y-6">
-            <div class="w-24 h-24 bg-brand rounded-[3rem] flex items-center justify-center text-white mx-auto shadow-2xl shadow-brand/20 rotate-3 border-4 border-white">
-                <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+        <div class="space-y-4">
+            <div class="w-10 h-10 bg-brand/5 rounded-xl flex items-center justify-center text-brand">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.058-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
             </div>
-            <div class="space-y-3">
-                <h1 class="text-4xl font-bold text-brand tracking-tighter">Choose Your <span class="text-accent underline decoration-accent/20 decoration-8 underline-offset-8">Presence</span></h1>
-                <p class="text-[11px] font-bold text-text-muted uppercase tracking-[0.4em] opacity-80">Final Selection Required</p>
+            <div class="space-y-1">
+                <h1 class="text-3xl font-extrabold text-brand tracking-tight">Choose Your Account</h1>
+                <p class="text-[13px] font-medium text-gray-500">Select which Instagram account to connect to Sabeel Studio</p>
             </div>
         </div>
 
         <!-- Account List -->
-        <div id="account-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div id="account-grid" class="space-y-4">
             <!-- Loading Skeletons -->
-            <div class="card p-10 bg-white shadow-xl shadow-brand/5 border-brand/5 animate-pulse flex flex-col items-center gap-6 rounded-[2.5rem]">
-                <div class="w-16 h-16 bg-brand/5 rounded-2xl"></div>
-                <div class="h-4 bg-brand/5 rounded w-32"></div>
-                <div class="h-10 bg-brand/5 rounded-xl w-full mt-4"></div>
+            <div class="bg-white border border-gray-100 rounded-2xl p-5 flex items-center justify-between card-shadow animate-pulse">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-gray-50 rounded-full"></div>
+                    <div class="space-y-2">
+                        <div class="h-4 bg-gray-50 rounded w-32"></div>
+                        <div class="h-3 bg-gray-50 rounded w-20"></div>
+                    </div>
+                </div>
+                <div class="h-9 w-24 bg-gray-50 rounded-lg"></div>
             </div>
         </div>
 
-        <div id="empty-state" class="hidden text-center py-24 space-y-8 bg-white rounded-[3rem] border border-brand/5 shadow-2xl">
-            <div class="w-24 h-24 bg-rose-50 rounded-[2.5rem] flex items-center justify-center text-rose-300 mx-auto border border-rose-100 italic">
-                !
+        <div id="empty-state" class="hidden text-center py-16 space-y-6 bg-white rounded-3xl border border-gray-100 card-shadow">
+            <div class="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-300 mx-auto">!</div>
+            <div class="space-y-2 px-8">
+                <h3 class="text-lg font-bold text-brand">No Accounts Found</h3>
+                <p class="text-[12px] text-gray-500 max-w-xs mx-auto leading-relaxed">Ensure your Instagram account is set to 'Professional' and linked to a Facebook Page.</p>
             </div>
-            <div class="space-y-3 px-10">
-                <h3 class="text-2xl font-bold text-brand tracking-tight">Access Restricted</h3>
-                <p class="text-sm text-text-muted font-medium max-w-sm mx-auto leading-relaxed">We couldn't verify any professional Instagram Business accounts linked to this Meta profile. Please ensure your account is switched to 'Professional' in Instagram settings.</p>
-            </div>
-            <button onclick="window.location.href='/app'" class="px-10 py-4 bg-brand rounded-2xl font-bold text-[11px] uppercase tracking-widest text-white shadow-xl shadow-brand/10 hover:shadow-brand/20 transition-all">Go Back</button>
+            <button onclick="window.location.href='/app'" class="px-8 py-3 bg-brand text-white rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all">Go Back</button>
         </div>
 
-        <div class="text-center pt-8">
-            <div class="inline-flex items-center gap-3 px-4 py-2 bg-brand/5 rounded-full border border-brand/10 transition-all">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <p class="text-[9px] font-bold text-brand uppercase tracking-widest opacity-80">Meta Authorization Active</p>
+        <div class="pt-6 flex items-center justify-between text-gray-400">
+            <div class="flex items-center gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-brand"></span>
+                <span class="text-[10px] font-bold uppercase tracking-widest">Secure OAuth Discovery</span>
             </div>
+            <div class="text-[9px] font-medium">Step 2 of 2</div>
         </div>
     </div>
-</div>
 
 <script>
     // Fix Facebook redirect hash issue
@@ -1507,20 +1545,18 @@ SELECT_ACCOUNT_HTML = """
             }
 
             grid.innerHTML = accounts.map(acc => `
-                <div class="flex items-center justify-between p-6 bg-white border border-brand/5 rounded-3xl hover:border-brand/20 hover:shadow-xl hover:shadow-brand/5 transition-all group">
-                    <div class="flex items-center gap-5">
+                <div class="bg-white border border-gray-100 rounded-2xl p-5 flex items-center justify-between card-shadow hover:card-shadow-hover hover:-translate-y-0.5 transition-all duration-300 group">
+                    <div class="flex items-center gap-4">
                         <div class="relative">
-                            <img src="${acc.profile_picture_url || 'https://ui-avatars.com/api/?name=' + acc.username}" class="w-16 h-16 rounded-2xl ring-4 ring-brand/5 group-hover:ring-brand/10 transition-all object-cover">
-                            <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-lg flex items-center justify-center border-2 border-white shadow-lg">
-                                <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
-                            </div>
+                            <img src="${acc.profile_picture_url || 'https://ui-avatars.com/api/?name=' + acc.username}" class="w-12 h-12 rounded-full object-cover">
+                            <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-brand border-2 border-white rounded-full"></div>
                         </div>
                         <div>
-                            <div class="text-xs font-black text-brand uppercase tracking-widest mb-1">@${acc.username}</div>
-                            <h3 class="text-base font-bold text-text-muted tracking-tight">${acc.name || acc.username}</h3>
+                            <div class="text-[14px] font-bold text-brand leading-none mb-1">@${acc.username}</div>
+                            <div class="text-[11px] font-medium text-gray-400">${acc.name || acc.username}</div>
                         </div>
                     </div>
-                    <button onclick="selectAccount('${acc.ig_user_id}', '${acc.fb_page_id}', this)" class="px-8 py-4 bg-brand text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-brand/20 hover:scale-[1.02] active:scale-95 transition-all">
+                    <button onclick="selectAccount('${acc.ig_user_id}', '${acc.fb_page_id}', this)" class="px-6 py-2.5 bg-brand text-white rounded-lg font-bold text-[11px] hover:bg-brand-hover transition-all">
                         Connect
                     </button>
                 </div>
@@ -1532,9 +1568,10 @@ SELECT_ACCOUNT_HTML = """
     }
 
     async function selectAccount(igId, pageId, btn) {
+        if (btn.disabled) return;
         const originalText = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = 'Connecting...';
+        btn.innerHTML = '<span class="flex items-center justify-center gap-2"><svg class="animate-spin h-3 w-3 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Connecting...</span>';
         
         try {
             const res = await fetch('/accounts/select', {
@@ -1562,6 +1599,8 @@ SELECT_ACCOUNT_HTML = """
 
     window.onload = loadAccounts;
 </script>
+</body>
+</html>
 """
 
 ONBOARDING_HTML = """<!doctype html>
