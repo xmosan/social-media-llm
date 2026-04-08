@@ -2762,7 +2762,14 @@ async def app_automations_page(
             "seed_mode": a.content_seed_mode,
             "seed_text": a.content_seed_text,
             "time": a.post_time_local,
-            "content_provider_scope": a.content_provider_scope
+            "content_provider_scope": a.content_provider_scope,
+            "pillars": a.pillars,
+            "frequency": a.frequency,
+            "custom_days": a.custom_days,
+            "source_mode": a.source_mode,
+            "tone_style": a.tone_style,
+            "verification_mode": a.verification_mode,
+            "ig_account_id": a.ig_account_id
         }), quote=True)
 
         autos_html += f"""
@@ -2829,192 +2836,200 @@ async def app_automations_page(
       <div class="space-y-6">
         {autos_html}
       </div>
-    </div>
-
-    <!-- Edit Modal -->
-    <div id="editModal" class="fixed inset-0 bg-brand/20 backdrop-blur-xl z-[100] hidden flex flex-col items-center justify-center p-0 md:p-6">
-      <div class="glass w-full h-[90vh] md:h-auto md:max-w-xl pb-safe rounded-t-[2.5rem] md:rounded-[3rem] p-6 md:p-10 space-y-10 animate-in slide-in-from-bottom md:zoom-in-95 duration-300 border-t md:border border-brand/10 bg-white overflow-y-auto">
-        <div class="flex justify-between items-center">
+      
+      <!-- Growth Plan Modal (New & Update) -->
+    <div id="newAutoModal" class="fixed inset-0 bg-brand/40 backdrop-blur-2xl z-[100] hidden flex flex-col items-center justify-center p-0 md:p-6">
+      <div class="glass w-full h-[95vh] md:h-auto md:max-w-xl pb-safe rounded-t-[3rem] md:rounded-[3.5rem] p-8 md:p-12 space-y-12 animate-in slide-in-from-bottom md:zoom-in-95 duration-500 border-t md:border border-white/20 bg-white/95 overflow-y-auto custom-scrollbar">
+        <div class="flex justify-between items-start">
           <div>
-            <h2 class="text-2xl font-bold text-brand tracking-tight italic">Refine Your <span class="text-accent font-normal">Creative Strategy</span></h2>
-            <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest">Adjust this growth plan</p>
+            <h2 id="modalTitle" class="text-3xl font-black text-brand tracking-tighter italic">Automation <span class="text-accent font-normal underline decoration-brand/10 underline-offset-8">Engine</span></h2>
+            <p class="text-[11px] font-bold text-text-muted uppercase tracking-[0.3em] mt-2">Architect your creative stream</p>
           </div>
-          <button onclick="hideEditModal()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-brand/5 text-text-muted hover:text-brand transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+          <button onclick="hideNewAutoModal()" class="w-12 h-12 flex items-center justify-center rounded-2xl bg-brand/5 hover:bg-brand/10 text-text-muted hover:text-brand transition-all group">
+            <svg class="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
         </div>
         
-        <input type="hidden" id="editId">
+        <input type="hidden" id="autoId">
         
-        <div class="space-y-10 max-w-lg mx-auto">
-          <!-- SECTION 1 -->
-          <div class="space-y-4">
-            <div>
-              <h3 class="text-sm font-bold text-brand italic">Identity & Naming</h3>
-              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Give your plan a simple name</p>
-            </div>
-            <input type="text" id="editName" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm focus:border-brand/20 focus:bg-white transition-all font-bold outline-none shadow-sm" placeholder="e.g. Ramadan Reminders">
-          </div>
-
-          <!-- SECTION 2 -->
-          <div class="space-y-4">
-            <div>
-              <div class="flex justify-between items-end">
-                <div>
-                  <h3 class="text-sm font-bold text-brand">What content do you want to share?</h3>
-                  <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Describe the themes you want your content to focus on</p>
-                </div>
-                <button onclick="suggestAutomationTopic('editTopic', 'editLibraryTopic')" class="text-[9px] font-bold text-accent uppercase hover:text-brand transition-all pb-1">Browse Ideas</button>
+        <div class="space-y-14 max-w-xl mx-auto">
+          <!-- Step 1: Core Identity -->
+          <div class="space-y-6">
+            <div class="flex items-center gap-4">
+              <span class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center text-xs font-black">01</span>
+              <div>
+                <h3 class="text-sm font-black text-brand uppercase tracking-widest">Base Identity</h3>
+                <p class="text-[10px] text-text-muted font-bold uppercase tracking-wider">Naming & Destination</p>
               </div>
             </div>
-            <textarea id="editTopic" rows="3" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm focus:border-brand/20 focus:bg-white transition-all font-medium italic outline-none shadow-sm" placeholder="e.g. Daily reminders on patience and gratitude..."></textarea>
-            <input type="hidden" id="editLibraryTopic">
-          </div>
-
-          <!-- SECTION 3 -->
-          <div class="space-y-4">
-            <div>
-              <h3 class="text-sm font-bold text-brand italic">Generation Strategy</h3>
-              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Choose your preferred drafting approach</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <input type="text" id="newName" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-bold outline-none focus:border-brand/20 focus:bg-white transition-all shadow-sm" placeholder="Plan Name (e.g. Daily Seerah)">
+              <select id="newAccount" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-bold outline-none appearance-none shadow-sm">
+                  {account_options}
+              </select>
             </div>
-            <select id="editSeedMode" onchange="toggleSeedText()" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-bold outline-none appearance-none shadow-sm">
-                <option value="auto_library">Verified Content (Research Synthesis)</option>
-                <option value="manual">Guided Drafting (Seed Text)</option>
-            </select>
           </div>
 
-          <div id="seedTextGroup" class="space-y-4 hidden">
-            <div class="flex justify-between items-center px-1">
-              <label class="text-[10px] font-bold text-brand uppercase tracking-widest">Grounding Text</label>
-              <button onclick="openLibraryPicker('editSeedText')" class="text-[9px] font-bold text-accent hover:text-brand transition-all">Select From Library</button>
-            </div>
-            <textarea id="editSeedText" rows="4" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-5 text-brand text-[10px] outline-none h-[120px]"></textarea>
-          </div>
-
-          <!-- SECTION 4 -->
-          <div class="space-y-4">
-            <div>
-              <h3 class="text-sm font-bold text-brand italic">Knowledge Pool</h3>
-              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Which repository should we pull from?</p>
-            </div>
-            <select id="editProviderScope" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-bold outline-none appearance-none shadow-sm">
-                <option value="all_sources">Unified Knowledge (Both Libraries)</option>
-                <option value="system_library">Sabeel Studio Defaults</option>
-                <option value="user_library">Your Personal Knowledge</option>
-            </select>
-          </div>
-
-          <!-- SECTION 5 -->
-          <div class="space-y-4">
-            <div>
-              <h3 class="text-sm font-bold text-brand italic">Manifestation Schedule</h3>
-              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">When should new drafts be crafted?</p>
-            </div>
-            <input type="time" id="editTime" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-bold outline-none shadow-sm">
-          </div>
-        </div>
-
-        <div class="flex gap-4 pt-4 border-t border-brand/5 max-w-lg mx-auto w-full">
-          <button onclick="hideEditModal()" class="flex-1 py-5 bg-cream/30 border border-brand/5 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:bg-cream/50 transition-all">Discard</button>
-          <button id="btnSaveEdit" onclick="saveAutomation()" class="flex-[2] py-5 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all">Save Plan</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- New Automation Modal -->
-    <div id="newAutoModal" class="fixed inset-0 bg-brand/20 backdrop-blur-xl z-[100] hidden flex flex-col items-center justify-center p-0 md:p-6">
-      <div class="glass w-full h-[90vh] md:h-auto md:max-w-xl pb-safe rounded-t-[2.5rem] md:rounded-[3rem] p-6 md:p-10 space-y-10 animate-in slide-in-from-bottom md:zoom-in-95 duration-300 border-t md:border border-brand/10 bg-white overflow-y-auto">
-        <div class="flex justify-between items-center">
-          <div>
-            <h2 class="text-2xl font-bold text-brand tracking-tight italic">Establish Your <span class="text-accent font-normal">Growth Plan</span></h2>
-            <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest">Architect a new creative stream</p>
-          </div>
-          <button onclick="hideNewAutoModal()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-brand/5 text-text-muted hover:text-brand transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg></button>
-        </div>
-        
-        <div class="space-y-10 max-w-lg mx-auto">
-          <!-- Step 1: Blueprint -->
-          <div class="space-y-4">
-            <div>
-              <h3 class="text-sm font-bold text-brand italic">Identity & Naming</h3>
-              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Give this growth plan a clear, inspiring name</p>
-            </div>
-            <input type="text" id="newName" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm focus:border-brand/20 focus:bg-white transition-all font-bold outline-none shadow-sm" placeholder="e.g. Daily Wisdom Pool">
-          </div>
-
-          <!-- SECTION 2 -->
-          <div class="space-y-4">
-            <div class="space-y-1">
-              <h3 class="text-sm font-bold text-brand">Choose Account</h3>
-              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Target delivery account</p>
-            </div>
-            <select id="newAccount" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-bold outline-none appearance-none shadow-sm">
-                {account_options}
-            </select>
-          </div>
-
-          <!-- SECTION 3 -->
-          <div class="space-y-4">
-            <div>
-              <div class="flex justify-between items-end">
+          <!-- Step 2: Content Pillars (Selection Grid) -->
+          <div class="space-y-6">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+              <div class="flex items-center gap-4">
+                <span class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center text-xs font-black">02</span>
                 <div>
-                  <h3 class="text-sm font-bold text-brand">What content do you want to share?</h3>
-                  <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Describe the themes for this plan</p>
+                  <h3 class="text-sm font-black text-brand uppercase tracking-widest">Content Pillars</h3>
+                  <p class="text-[10px] text-text-muted font-bold uppercase tracking-wider">Select themes to rotate</p>
                 </div>
-                <button onclick="suggestAutomationTopic('newTopic', 'newLibraryTopic')" class="text-[9px] font-bold text-accent uppercase hover:text-brand transition-all pb-1">Link Source</button>
+              </div>
+              <p class="text-[9px] font-black text-accent uppercase tracking-widest bg-accent/5 px-3 py-1.5 rounded-full">Multi-Select Enabled</p>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-3" id="pillarGrid">
+              <button onclick="togglePillar(this)" data-pillar="Daily Reminder" class="pillar-card p-5 rounded-2xl border border-brand/5 bg-cream/20 text-center space-y-3 transition-all hover:bg-brand/5">
+                <div class="text-xl">✨</div>
+                <div class="text-[10px] font-black text-brand uppercase tracking-tighter">Daily Reminder</div>
+              </button>
+              <button onclick="togglePillar(this)" data-pillar="Quran Reflection" class="pillar-card p-5 rounded-2xl border border-brand/5 bg-cream/20 text-center space-y-3 transition-all hover:bg-brand/5">
+                <div class="text-xl">📖</div>
+                <div class="text-[10px] font-black text-brand uppercase tracking-tighter">Qur’an Reflection</div>
+              </button>
+              <button onclick="togglePillar(this)" data-pillar="Hadith Study" class="pillar-card p-5 rounded-2xl border border-brand/5 bg-cream/20 text-center space-y-3 transition-all hover:bg-brand/5">
+                <div class="text-xl">📜</div>
+                <div class="text-[10px] font-black text-brand uppercase tracking-tighter">Hadith Study</div>
+              </button>
+              <button onclick="togglePillar(this)" data-pillar="Storytelling" class="pillar-card p-5 rounded-2xl border border-brand/5 bg-cream/20 text-center space-y-3 transition-all hover:bg-brand/5">
+                <div class="text-xl">🌙</div>
+                <div class="text-[10px] font-black text-brand uppercase tracking-tighter">Seerah/Sahaba</div>
+              </button>
+              <button onclick="togglePillar(this)" data-pillar="Da’wah" class="pillar-card p-5 rounded-2xl border border-brand/5 bg-cream/20 text-center space-y-3 transition-all hover:bg-brand/5">
+                <div class="text-xl">📢</div>
+                <div class="text-[10px] font-black text-brand uppercase tracking-tighter">Da’wah Call</div>
+              </button>
+              <button onclick="togglePillar(this)" data-pillar="Personal Reflection" class="pillar-card p-5 rounded-2xl border border-brand/5 bg-cream/20 text-center space-y-3 transition-all hover:bg-brand/5">
+                <div class="text-xl">💭</div>
+                <div class="text-[10px] font-black text-brand uppercase tracking-tighter">Reflections</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 3: Distribution Pattern -->
+          <div class="space-y-6">
+            <div class="flex items-center gap-4">
+              <span class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center text-xs font-black">03</span>
+              <div>
+                <h3 class="text-sm font-black text-brand uppercase tracking-widest">Manifestation Cycle</h3>
+                <p class="text-[10px] text-text-muted font-bold uppercase tracking-wider">How often should we publish?</p>
               </div>
             </div>
-            <textarea id="newTopic" oninput="debounceComposerSuggest('newTopic', 'autoSuggestions')" rows="3" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm focus:border-brand/20 focus:bg-white transition-all font-medium outline-none shadow-sm" placeholder="e.g. Deep-dive into Quranic patient persistence..."></textarea>
-            <input type="hidden" id="newLibraryTopic">
-            <div id="autoSuggestions" class="hidden flex-col gap-2 pt-2"></div>
+            
+            <div class="space-y-4">
+              <div class="grid grid-cols-3 gap-3">
+                <button onclick="setFrequency('daily')" id="btnFreqDaily" class="freq-btn py-4 rounded-xl border border-brand/5 bg-cream/20 text-[10px] font-black uppercase tracking-widest transition-all">Daily</button>
+                <button onclick="setFrequency('3x_weekly')" id="btnFreq3x" class="freq-btn py-4 rounded-xl border border-brand/5 bg-cream/20 text-[10px] font-black uppercase tracking-widest transition-all">3x / Week</button>
+                <button onclick="setFrequency('weekly')" id="btnFreqWeekly" class="freq-btn py-4 rounded-xl border border-brand/5 bg-cream/20 text-[10px] font-black uppercase tracking-widest transition-all">Weekly</button>
+              </div>
+              
+              <div id="customDaysGroup" class="hidden animate-in fade-in slide-in-from-top-2 duration-300">
+                <div class="flex flex-wrap gap-2 justify-center py-2">
+                  <button onclick="toggleDay('Mon')" data-day="Mon" class="day-btn w-10 h-10 rounded-full border border-brand/5 bg-cream/10 text-[9px] font-black uppercase">M</button>
+                  <button onclick="toggleDay('Tue')" data-day="Tue" class="day-btn w-10 h-10 rounded-full border border-brand/5 bg-cream/10 text-[9px] font-black uppercase">T</button>
+                  <button onclick="toggleDay('Wed')" data-day="Wed" class="day-btn w-10 h-10 rounded-full border border-brand/5 bg-cream/10 text-[9px] font-black uppercase">W</button>
+                  <button onclick="toggleDay('Thu')" data-day="Thu" class="day-btn w-10 h-10 rounded-full border border-brand/5 bg-cream/10 text-[9px] font-black uppercase">T</button>
+                  <button onclick="toggleDay('Fri')" data-day="Fri" class="day-btn w-10 h-10 rounded-full border border-brand/5 bg-cream/10 text-[9px] font-black uppercase">F</button>
+                  <button onclick="toggleDay('Sat')" data-day="Sat" class="day-btn w-10 h-10 rounded-full border border-brand/5 bg-cream/10 text-[9px] font-black uppercase">S</button>
+                  <button onclick="toggleDay('Sun')" data-day="Sun" class="day-btn w-10 h-10 rounded-full border border-brand/5 bg-cream/10 text-[9px] font-black uppercase">S</button>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between bg-brand/[0.02] p-5 rounded-2xl border border-brand/5">
+                <label class="text-[10px] font-black text-brand uppercase tracking-widest">Daily Broadcast Time</label>
+                <input type="time" id="newTime" value="09:00" class="bg-transparent text-sm font-black text-brand outline-none">
+              </div>
+            </div>
           </div>
 
-          <!-- SECTION 4 -->
-          <div class="space-y-4">
-            <div>
-              <h3 class="text-sm font-bold text-brand italic">Generation Strategy</h3>
-              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Choose your preferred drafting approach</p>
+          <!-- Step 4: Logic & Safety -->
+          <div class="space-y-8">
+            <div class="flex items-center gap-4">
+              <span class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center text-xs font-black">04</span>
+              <div>
+                <h3 class="text-sm font-black text-brand uppercase tracking-widest">Intelligence Layer</h3>
+                <p class="text-[10px] text-text-muted font-bold uppercase tracking-wider">Source controls & Safety</p>
+              </div>
             </div>
-            <select id="newSeedMode" onchange="toggleNewSeedText()" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-bold outline-none appearance-none shadow-sm">
-                <option value="auto_library">Verified Content (Knowledge Pool)</option>
-                <option value="manual">Guided Drafting (Manual Seed)</option>
-            </select>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div class="space-y-3">
+                <label class="text-[9px] font-black text-text-muted uppercase tracking-widest px-1">Source Mode</label>
+                <select id="newSourceMode" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-4 text-brand text-xs font-bold outline-none shadow-sm">
+                  <option value="strict">Strict (Authenticated Only)</option>
+                  <option value="balanced" selected>Balanced (Broad Research)</option>
+                  <option value="reflection_first">Reflection-First (Adaptive)</option>
+                </select>
+              </div>
+              <div class="space-y-3">
+                <label class="text-[9px] font-black text-text-muted uppercase tracking-widest px-1">Voice & Style</label>
+                <select id="newToneStyle" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-4 text-brand text-xs font-bold outline-none shadow-sm">
+                  <option value="soft">Soft & Gentle Reminder</option>
+                  <option value="deep" selected>Deep & Philosophical</option>
+                  <option value="direct">Direct & Clarifying (Deen)</option>
+                  <option value="emotional">Emotional Storytelling</option>
+                </select>
+              </div>
+              <div class="space-y-3 md:col-span-2">
+                <div class="flex justify-between items-center px-1">
+                  <label class="text-[9px] font-black text-text-muted uppercase tracking-widest">Verification Rigor</label>
+                  <span id="labelSafety" class="text-[9px] font-black text-accent uppercase tracking-widest">Standard Safety</span>
+                </div>
+                <input type="range" id="newSafetyRange" min="1" max="3" step="1" value="2" oninput="updateSafetyLabel(this.value)" class="w-full accent-brand">
+              </div>
+            </div>
           </div>
 
-          <div id="newSeedTextGroup" class="space-y-4 hidden">
-            <div class="flex justify-between items-center px-1">
-              <label class="text-[10px] font-bold text-brand uppercase tracking-widest">Grounding Text</label>
-              <button onclick="openLibraryPicker('newSeedText')" class="text-[9px] font-bold text-accent hover:text-brand transition-all">Import Knowledge</button>
-            </div>
-            <textarea id="newSeedText" rows="4" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-5 text-brand text-[10px] outline-none h-[120px]"></textarea>
+          <!-- Step 5: Advanced (Hidden initially) -->
+          <div class="pt-4 border-t border-brand/5">
+             <button onclick="document.getElementById('advancedSettings').classList.toggle('hidden')" class="text-[9px] font-black text-text-muted uppercase tracking-widest hover:text-brand transition-colors flex items-center gap-2">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
+                Advanced Parameters
+             </button>
+             <div id="advancedSettings" class="hidden pt-6 space-y-6 animate-in slide-in-from-top-2">
+                <div class="space-y-3">
+                  <label class="text-[9px] font-black text-text-muted uppercase tracking-widest">Manual Topic Grounding (Optional)</label>
+                  <textarea id="newTopic" rows="3" class="w-full bg-cream/20 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-medium outline-none focus:bg-white transition-all shadow-inner" placeholder="Add specific guidance or custom topics for this stream..."></textarea>
+                </div>
+                <div class="space-y-3">
+                    <label class="text-[9px] font-black text-text-muted uppercase tracking-widest">Prompt Logic Mode</label>
+                    <select id="newSeedMode" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-4 text-brand text-xs font-bold outline-none">
+                      <option value="auto_library">Verified Library Context</option>
+                      <option value="none">Creative Autonomy</option>
+                      <option value="manual">Guided Script (Manual Seed)</option>
+                    </select>
+                </div>
+             </div>
           </div>
 
-          <!-- SECTION 5 -->
-          <div class="space-y-4">
-            <div>
-              <h3 class="text-sm font-bold text-brand">Content Library</h3>
-              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">Which repository should we pull from?</p>
-            </div>
-            <select id="newProviderScope" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-bold outline-none appearance-none shadow-sm">
-                <option value="all_sources">Unified Knowledge (Both Libraries)</option>
-                <option value="system_library">Sabeel Studio Defaults</option>
-                <option value="user_library">Your Personal Knowledge</option>
-            </select>
-          </div>
-
-          <!-- Step 6: Manifestation Cycle -->
-          <div class="space-y-4">
-            <div>
-              <h3 class="text-sm font-bold text-brand italic">Manifestation Schedule</h3>
-              <p class="text-[10px] text-text-muted font-medium uppercase tracking-wider">When should new drafts be crafted?</p>
-            </div>
-            <input type="time" id="newTime" value="09:00" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-bold outline-none shadow-sm">
+          <!-- Step 6: Predictive Preview -->
+          <div class="bg-brand/[0.03] rounded-[2.5rem] border border-brand/5 overflow-hidden">
+             <div class="p-6 border-b border-brand/5 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                  <div class="w-6 h-6 rounded-lg bg-brand flex items-center justify-center shadow-lg shadow-brand/20">
+                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                  </div>
+                  <h3 class="text-xs font-black text-brand uppercase tracking-widest">Strategy Preview</h3>
+                </div>
+                <div class="text-[8px] font-bold text-accent uppercase tracking-widest">Next 5 Manifestations</div>
+             </div>
+             <div id="strategyPreview" class="p-6 space-y-3 bg-white/50">
+                <div class="text-[8px] font-black text-text-muted uppercase text-center py-4">Select pillars to see your rotation pattern</div>
+             </div>
           </div>
         </div>
 
-        <div class="flex gap-4 pt-4 border-t border-brand/5 max-w-lg mx-auto w-full">
+        <div class="flex gap-4 pt-4 border-t border-brand/5 max-w-xl mx-auto w-full">
           <button onclick="hideNewAutoModal()" class="flex-1 py-5 bg-cream/30 border border-brand/5 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:bg-cream/50 transition-all">Discard</button>
-          <button id="btnSaveNew" onclick="saveNewAutomation()" class="flex-[2] py-5 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all">Save Plan</button>
+          <button id="btnSaveAuto" onclick="saveAutomation()" class="flex-[2] py-5 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-2xl shadow-brand/40 hover:scale-[1.01] hover:brightness-110 active:scale-95 transition-all">Establish Plan</button>
         </div>
       </div>
+    </div>
     </div>
 
     <!-- Library Picker Modal -->
@@ -3058,11 +3073,27 @@ async def app_automations_page(
         <div class="text-[8px] font-bold text-muted uppercase tracking-widest text-center">
             Click an entry to insert its text and auto-formatted citation.
         </div>
-      </div>
-    </div>
+           let selectedPillars = [];
+      let selectedFrequency = 'daily';
+      let selectedDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-    <script>
       function showNewAutoModal() {
+        // Reset For New
+        document.getElementById('autoId').value = '';
+        document.getElementById('modalTitle').innerHTML = 'Automation <span class="text-accent font-normal underline decoration-brand/10 underline-offset-8">Engine</span>';
+        document.getElementById('newName').value = '';
+        document.getElementById('newTopic').value = '';
+        document.getElementById('newTime').value = '09:00';
+        document.getElementById('btnSaveAuto').textContent = 'Establish Plan';
+        
+        selectedPillars = [];
+        selectedFrequency = 'daily';
+        selectedDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        
+        refreshPillarUI();
+        refreshFreqUI();
+        updatePreview();
+        
         document.getElementById('newAutoModal').classList.remove('hidden');
       }
 
@@ -3070,124 +3101,193 @@ async def app_automations_page(
         document.getElementById('newAutoModal').classList.add('hidden');
       }
 
-      function toggleNewSeedText() {
-        const mode = document.getElementById('newSeedMode').value;
-        const group = document.getElementById('newSeedTextGroup');
-        if (mode === 'manual') group.classList.remove('hidden');
-        else group.classList.add('hidden');
+      function showEditModal(data) {
+        document.getElementById('autoId').value = data.id;
+        document.getElementById('modalTitle').innerHTML = 'Adjust <span class="text-accent font-normal underline decoration-brand/10 underline-offset-8">Strategy</span>';
+        document.getElementById('newName').value = data.name;
+        document.getElementById('newTopic').value = data.topic;
+        document.getElementById('newTime').value = data.time || '09:00';
+        document.getElementById('newAccount').value = data.ig_account_id;
+        document.getElementById('newSourceMode').value = data.source_mode || 'balanced';
+        document.getElementById('newToneStyle').value = data.tone_style || 'deep';
+        document.getElementById('newSeedMode').value = data.seed_mode || 'auto_library';
+        
+        const safetyMap = { 'strict': 3, 'standard': 2, 'off': 1 };
+        document.getElementById('newSafetyRange').value = safetyMap[data.verification_mode] || 2;
+        updateSafetyLabel(document.getElementById('newSafetyRange').value);
+
+        selectedPillars = Array.isArray(data.pillars) ? data.pillars : [];
+        selectedFrequency = data.frequency || 'daily';
+        selectedDays = Array.isArray(data.custom_days) ? data.custom_days : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+        document.getElementById('btnSaveAuto').textContent = 'Apply Strategy';
+        
+        refreshPillarUI();
+        refreshFreqUI();
+        updatePreview();
+        
+        document.getElementById('newAutoModal').classList.remove('hidden');
       }
 
-      async function saveNewAutomation() {
-        const providerScope = document.getElementById('newProviderScope').value;
-        const btn = document.getElementById('btnSaveNew');
+      function togglePillar(el) {
+        const pillar = el.getAttribute('data-pillar');
+        if (selectedPillars.includes(pillar)) {
+          selectedPillars = selectedPillars.filter(p => p !== pillar);
+        } else {
+          selectedPillars.push(pillar);
+        }
+        refreshPillarUI();
+        updatePreview();
+      }
+
+      function refreshPillarUI() {
+        document.querySelectorAll('.pillar-card').forEach(card => {
+          const pillar = card.getAttribute('data-pillar');
+          if (selectedPillars.includes(pillar)) {
+            card.classList.add('bg-brand/10', 'border-brand/40', 'scale-[0.98]', 'shadow-inner');
+            card.classList.remove('bg-cream/20');
+          } else {
+            card.classList.add('bg-cream/20');
+            card.classList.remove('bg-brand/10', 'border-brand/40', 'scale-[0.98]', 'shadow-inner');
+          }
+        });
+      }
+
+      function setFrequency(freq) {
+        selectedFrequency = freq;
+        if (freq === 'daily') selectedDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        else if (freq === '3x_weekly') selectedDays = ['Mon', 'Wed', 'Fri'];
+        else if (freq === 'weekly') selectedDays = ['Fri'];
+        
+        refreshFreqUI();
+        updatePreview();
+      }
+
+      function toggleDay(day) {
+        if (selectedFrequency !== 'custom') {
+            selectedFrequency = 'custom';
+        }
+        
+        if (selectedDays.includes(day)) {
+          selectedDays = selectedDays.filter(d => d !== day);
+        } else {
+          selectedDays.push(day);
+        }
+        refreshFreqUI();
+        updatePreview();
+      }
+
+      function refreshFreqUI() {
+        // Buttons
+        document.querySelectorAll('.freq-btn').forEach(btn => btn.className = btn.className.replace('bg-brand text-white', 'bg-cream/20 text-brand'));
+        if (selectedFrequency === 'daily') document.getElementById('btnFreqDaily').className = document.getElementById('btnFreqDaily').className.replace('bg-cream/20 text-brand', 'bg-brand text-white');
+        if (selectedFrequency === '3x_weekly') document.getElementById('btnFreq3x').className = document.getElementById('btnFreq3x').className.replace('bg-cream/20 text-brand', 'bg-brand text-white');
+        if (selectedFrequency === 'weekly') document.getElementById('btnFreqWeekly').className = document.getElementById('btnFreqWeekly').className.replace('bg-cream/20 text-brand', 'bg-brand text-white');
+
+        // Days
+        document.querySelectorAll('.day-btn').forEach(btn => {
+          const day = btn.getAttribute('data-day');
+          if (selectedDays.includes(day)) {
+            btn.className = btn.className.replace('bg-cream/10 text-brand', 'bg-brand text-white');
+            btn.classList.add('border-brand/40');
+          } else {
+            btn.className = btn.className.replace('bg-brand text-white', 'bg-cream/10 text-brand');
+            btn.classList.remove('border-brand/40');
+          }
+        });
+
+        const dayGroup = document.getElementById('customDaysGroup');
+        if (selectedFrequency === 'custom') dayGroup.classList.remove('hidden');
+        else dayGroup.classList.add('hidden');
+      }
+
+      function updateSafetyLabel(val) {
+        const label = document.getElementById('labelSafety');
+        if (val == 1) { label.innerText = 'Off (Unrestricted)'; label.className = 'text-[9px] font-black text-rose-500 uppercase tracking-widest'; }
+        else if (val == 2) { label.innerText = 'Standard Safety'; label.className = 'text-[9px] font-black text-accent uppercase tracking-widest'; }
+        else { label.innerText = 'Strict (High Precision)'; label.className = 'text-[9px] font-black text-emerald-500 uppercase tracking-widest'; }
+      }
+
+      function updatePreview() {
+        const container = document.getElementById('strategyPreview');
+        if (selectedPillars.length === 0) {
+          container.innerHTML = '<div class="text-[8px] font-black text-text-muted uppercase text-center py-4">Select pillars to see your rotation pattern</div>';
+          return;
+        }
+
+        let html = '';
+        for (let i = 0; i < 5; i++) {
+          const pillar = selectedPillars[i % selectedPillars.length];
+          html += `
+            <div class="flex items-center justify-between py-3 border-b border-brand/5 last:border-0 opacity-${(100 - i*15)}">
+              <div class="flex items-center gap-3">
+                <div class="text-[10px] w-6 h-6 flex items-center justify-center bg-brand/5 rounded-lg border border-brand/10 font-black text-brand">${i+1}</div>
+                <div class="text-[10px] font-black text-brand uppercase tracking-tighter">${pillar}</div>
+              </div>
+              <div class="text-[8px] font-bold text-text-muted uppercase tracking-widest">Automation Draft</div>
+            </div>
+          `;
+        }
+        container.innerHTML = html;
+      }
+
+      async function saveAutomation() {
+        const id = document.getElementById('autoId').value;
+        const btn = document.getElementById('btnSaveAuto');
         if (!btn) return;
 
+        const safetyMapRev = { '3': 'strict', '2': 'standard', '1': 'off' };
+        
         const payload = {
           name: document.getElementById('newName').value,
           ig_account_id: parseInt(document.getElementById('newAccount').value),
           topic_prompt: document.getElementById('newTopic').value,
-          content_seed_mode: document.getElementById('newSeedMode').value,
-          content_seed_text: document.getElementById('newSeedText').value,
+          pillars: selectedPillars,
+          frequency: selectedFrequency,
+          custom_days: selectedDays,
           post_time_local: document.getElementById('newTime').value,
-          content_provider_scope: providerScope,
+          source_mode: document.getElementById('newSourceMode').value,
+          tone_style: document.getElementById('newToneStyle').value,
+          verification_mode: safetyMapRev[document.getElementById('newSafetyRange').value],
+          content_seed_mode: document.getElementById('newSeedMode').value,
           enabled: true
         };
 
-        if (!payload.name || !payload.topic_prompt || isNaN(payload.ig_account_id)) {
-          alert('Please provide a Name, Topic, and select a Target Account.');
+        if (!payload.name || isNaN(payload.ig_account_id)) {
+          alert('Please provide a Name and select a Target Account.');
           return;
         }
-        
-        btn.disabled = true;
-        const originalText = btn.textContent;
-        btn.innerHTML = '<span class="flex items-center gap-2"><svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> ESTABLISHING...</span>';
-
-        try {
-          const res = await fetch('/automations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          if (res.ok) {
-            btn.innerHTML = 'SUCCESS!';
-            btn.className = btn.className.replace('bg-brand', 'bg-emerald-500');
-            setTimeout(() => window.location.reload(), 1000);
-          } else {
-            const err = await res.text();
-            alert('Failed to establish plan: ' + err);
-            btn.disabled = false; 
-            btn.textContent = originalText; 
-          }
-        } catch(e) { 
-          alert('Network disruption occurred. Please check your connection.'); 
-          btn.disabled = false; 
-          btn.textContent = originalText; 
+        if (selectedPillars.length === 0) {
+            alert('Please select at least one Content Pillar.');
+            return;
         }
-      }
-
-      function showEditModal(data) {
-        document.getElementById('editId').value = data.id;
-        document.getElementById('editName').value = data.name;
-        document.getElementById('editTopic').value = data.topic;
-        document.getElementById('editLibraryTopic').value = data.library_topic_slug || '';
-        document.getElementById('editSeedMode').value = (data.seed_mode === 'none' ? 'auto_library' : data.seed_mode);
-        document.getElementById('editSeedText').value = data.seed_text;
-        document.getElementById('editTime').value = data.time;
-        document.getElementById('editProviderScope').value = data.content_provider_scope || 'all_sources';
-
-        toggleSeedText();
-        document.getElementById('editModal').classList.remove('hidden');
-      }
-
-      function hideEditModal() {
-        document.getElementById('editModal').classList.add('hidden');
-      }
-
-      function toggleSeedText() {
-        const mode = document.getElementById('editSeedMode').value;
-        const group = document.getElementById('seedTextGroup');
-        if (mode === 'manual') group.classList.remove('hidden');
-        else group.classList.add('hidden');
-      }
-
-      async function saveAutomation() {
-        const id = document.getElementById('editId').value;
-        const providerScope = document.getElementById('editProviderScope').value;
-        const btn = document.getElementById('btnSaveEdit');
-        if (!btn) return;
-
-        const payload = {
-          name: document.getElementById('editName').value,
-          topic_prompt: document.getElementById('editTopic').value,
-          library_topic_slug: document.getElementById('editLibraryTopic').value,
-          content_seed_mode: document.getElementById('editSeedMode').value,
-          content_seed_text: document.getElementById('editSeedText').value,
-          post_time_local: document.getElementById('editTime').value,
-          content_provider_scope: providerScope
-        };
         
         btn.disabled = true;
         const originalText = btn.textContent;
-        btn.innerHTML = '<span class="flex items-center gap-2"><svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> SAVING...</span>';
+        btn.innerHTML = '<span class="flex items-center gap-2 font-black"><svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> DEPLOYING ENGINE...</span>';
 
         try {
-          const res = await fetch(`/automations/${id}`, {
-            method: 'PATCH',
+          const method = id ? 'PATCH' : 'POST';
+          const url = id ? `/automations/${id}` : '/automations';
+          
+          const res = await fetch(url, {
+            method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
+          
           if (res.ok) {
-            btn.innerHTML = 'SYNCED!';
+            btn.innerHTML = 'ENGINE READY!';
             btn.className = btn.className.replace('bg-brand', 'bg-emerald-500');
             setTimeout(() => window.location.reload(), 1000);
           } else {
             const err = await res.text();
-            alert('Save failed: ' + err);
+            alert('Failed to deploy engine: ' + err);
             btn.disabled = false; 
             btn.textContent = originalText; 
           }
         } catch(e) { 
-          alert('Failed to transmit update. Verify your connection.'); 
+          alert('Network disruption. Check connection.'); 
           btn.disabled = false; 
           btn.textContent = originalText; 
         }

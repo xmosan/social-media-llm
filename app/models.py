@@ -254,6 +254,14 @@ class TopicAutomation(Base):
     media_asset_id = Column(Integer, ForeignKey("media_assets.id"), nullable=True)
     media_tag_query = Column(JSON, nullable=True) # e.g. ["ramadan","masjid"]
     media_rotation_mode = Column(String, default="random") # "random" | "round_robin"
+    
+    # NEW: Islamic Content Automation Engine
+    pillars = Column(JSON, nullable=False, default=list) # e.g. ["quran", "hadith"]
+    frequency = Column(String, nullable=False, default="daily") # daily, 3x_weekly, weekly, custom
+    custom_days = Column(JSON, nullable=False, default=list) # e.g. ["Mon", "Wed", "Fri"]
+    source_mode = Column(String, nullable=False, default="balanced") # strict, balanced, reflection_first
+    tone_style = Column(String, nullable=False, default="deep") # soft, deep, direct, emotional
+    verification_mode = Column(String, nullable=False, default="standard") # strict, standard, off
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

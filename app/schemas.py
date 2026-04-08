@@ -168,6 +168,14 @@ class TopicAutomationOut(BaseModel):
     post_time_local: str | None = None
     last_run_at: datetime | None = None
     last_error: str | None = None
+    
+    # NEW: Automation Engine
+    pillars: list[str] = Field(default_factory=list)
+    frequency: str = "daily"
+    custom_days: list[str] = Field(default_factory=list)
+    source_mode: str = "balanced"
+    tone_style: str = "deep"
+    verification_mode: str = "standard"
 
     class Config:
         from_attributes = True
@@ -205,6 +213,14 @@ class TopicAutomationCreate(BaseModel):
     media_asset_id: int | None = None
     media_tag_query: list[str] | None = None
     media_rotation_mode: str = "random"
+
+    # NEW: Automation Engine
+    pillars: list[str] = Field(default_factory=list)
+    frequency: str = "daily"
+    custom_days: list[str] = Field(default_factory=list)
+    source_mode: str = "balanced"
+    tone_style: str = "deep"
+    verification_mode: str = "standard"
 
     @validator("media_tag_query", pre=True)
     def parse_media_tag_query(cls, v):
@@ -246,6 +262,14 @@ class TopicAutomationUpdate(BaseModel):
     media_asset_id: int | None = None
     media_tag_query: list[str] | None = None
     media_rotation_mode: str | None = None
+
+    # NEW: Automation Engine
+    pillars: list[str] | None = None
+    frequency: str | None = None
+    custom_days: list[str] | None = None
+    source_mode: str | None = None
+    tone_style: str | None = None
+    verification_mode: str | None = None
 
     @validator("media_tag_query", pre=True)
     def parse_media_tag_query(cls, v):

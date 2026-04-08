@@ -29,6 +29,8 @@ def compute_next_run_time(ig_account: IGAccount, automation: TopicAutomation) ->
     """
     tz_str = automation.timezone or ig_account.timezone or "UTC"
     time_str = automation.post_time_local or ig_account.daily_post_time or "09:00"
+    frequency = getattr(automation, "frequency", "daily")
+    custom_days = getattr(automation, "custom_days", []) or []
     
     tz = pytz.timezone(tz_str)
     now_tz = datetime.now(tz)
@@ -36,10 +38,34 @@ def compute_next_run_time(ig_account: IGAccount, automation: TopicAutomation) ->
     hour, minute = map(int, time_str.split(":"))
     scheduled_today = now_tz.replace(hour=hour, minute=minute, second=0, microsecond=0)
     
-    if scheduled_today <= now_tz:
+    # 3x Weekly: Mon, Wed, Fri
+    # Weekly: Fri
+    # Custom: Use list
+    target_days = []
+    if frequency == "daily":
+        target_days = [0,1,2,3,4,5,6]
+    elif frequency == "3x_weekly":
+        target_days = [0,2,4] # Mon, Wed, Fri
+    elif frequency == "weekly":
+        target_days = [4] # Fri
+    elif frequency == "custom":
+        day_map = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6}
+        target_days = [day_map[d] for d in custom_days if d in day_map]
+    
+    if not target_days: target_days = [0,1,2,3,4,5,6] # Fallback to daily
+
+    # Find next available day
+    found_next = False
+    for i in range(8):
+        check_day = scheduled_today + timedelta(days=i)
+        if check_day.weekday() in target_days:
+            if check_day > now_tz:
+                scheduled_next = check_day
+                found_next = True
+                break
+    
+    if not found_next:
         scheduled_next = scheduled_today + timedelta(days=1)
-    else:
-        scheduled_next = scheduled_today
         
     return scheduled_next.astimezone(pytz.UTC)
 
@@ -184,7 +210,18 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         return None
     
     try:
+        # Pillar Rotation Logic
+        pillars = automation.pillars or []
         topic_base = automation.topic_prompt
+        
+        if pillars:
+            # Count previous SUCCESSFUL posts to determine rotation index
+            post_count = db.query(Post).filter(Post.automation_id == automation.id, Post.status == "published").count()
+            selected_pillar = pillars[post_count % len(pillars)]
+            # If topic_prompt exists, use it as grounding context, otherwise use pillar as main topic
+            topic_base = f"{selected_pillar}: {topic_base}" if topic_base else selected_pillar
+            log_event("automation_pillar_selected", automation_id=automation.id, pillar=selected_pillar, index=post_count % len(pillars))
+
         log_event("automation_run_start", automation_id=automation.id, topic=topic_base, style=automation.style_preset)
         
         # 1. Topic Variations
@@ -281,12 +318,17 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             ],
             "content_profile_prompt": content_profile_prompt,
             "creativity_level": getattr(automation, "creativity_level", 3),
+            "source_mode": getattr(automation, "source_mode", "balanced"),
+            "tone_style": getattr(automation, "tone_style", "deep"),
+            "verification_mode": getattr(automation, "verification_mode", "standard"),
             "instructions": [
                 "Do NOT output the topic label literally.",
                 "Do NOT output 'AUTO: <name>' literally as the caption.",
                 "You MUST build the post primarily around the structured `source_items` provided below.",
                 "DO NOT hallucinate or generate quotes/hadith/verses that are not explicitly provided in the `source_items`.",
-                "Always cite the exact reference provided."
+                "Always cite the exact reference provided.",
+                f"SOURCE MODE: {getattr(automation, 'source_mode', 'balanced')}. (Strict means only use provided items, Balanced means you can add connective tissue/context).",
+                f"TONE STYLE: {getattr(automation, 'tone_style', 'deep')}. (Apply this specific voice to the writing)."
             ],
         }
 

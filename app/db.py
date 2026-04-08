@@ -154,7 +154,13 @@ def sync_database_schema(log_func=None):
             ("selection_mode", "VARCHAR DEFAULT 'random'"),
             ("last_item_cursor", "VARCHAR"),
             ("library_scope", json_type),
-            ("content_provider_scope", "VARCHAR DEFAULT 'all_sources'")
+            ("content_provider_scope", "VARCHAR DEFAULT 'all_sources'"),
+            ("pillars", json_type),
+            ("frequency", "VARCHAR DEFAULT 'daily'"),
+            ("custom_days", json_type),
+            ("source_mode", "VARCHAR DEFAULT 'balanced'"),
+            ("tone_style", "VARCHAR DEFAULT 'deep'"),
+            ("verification_mode", "VARCHAR DEFAULT 'standard'")
         ],
         "posts_extended": [
             ("is_auto_generated", "BOOLEAN DEFAULT FALSE"),
