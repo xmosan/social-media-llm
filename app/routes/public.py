@@ -708,6 +708,94 @@ CONTACT_HTML = """<!doctype html>
 </html>
 """
 
+PRIVACY_HTML = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy Policy | Sabeel Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --primary: #0F3D2E; --bg-cream: #F8F6F2; --accent: #C9A96E; --text-muted: #4A4A4A; }
+    body { font-family: 'Inter', sans-serif; background-color: var(--bg-cream); color: #1A1A1A; line-height: 1.6; }
+  </style>
+</head>
+<body class="p-8 md:p-20">
+  <div class="max-w-3xl mx-auto space-y-12">
+    <a href="/" class="text-[10px] font-bold uppercase tracking-widest text-text-muted hover:text-primary transition-colors">&larr; Back to Home</a>
+    <div class="space-y-4">
+        <h1 class="text-4xl font-black text-primary tracking-tight">Privacy Policy</h1>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-accent italic">Last updated: April 2026</p>
+    </div>
+    <div class="space-y-8 text-sm font-medium text-gray-700">
+        <section class="space-y-3">
+            <h2 class="text-lg font-bold text-primary">1. Information We Collect</h2>
+            <p>We collect information you provide directly to us (name, email, organization) and data from third-party services you connect, specifically Meta (Facebook/Instagram) for the purpose of content management and publishing.</p>
+        </section>
+        <section class="space-y-3">
+            <h2 class="text-lg font-bold text-primary">2. How We Use Information</h2>
+            <p>Your data is used to provide, maintain, and improve Sabeel Studio. We use your connected Instagram data solely to facilitate content drafting, scheduling, and publishing at your explicit request.</p>
+        </section>
+        <section class="space-y-3">
+            <h2 class="text-lg font-bold text-primary">3. Data Security</h2>
+            <p>All data is transmitted via secure HTTPS and stored using industry-standard encryption. We do not sell your personal data to third parties.</p>
+        </section>
+        <section class="space-y-3">
+            <h2 class="text-lg font-bold text-primary">4. Contact</h2>
+            <p>For any privacy-related inquiries, contact <span class="text-primary font-bold">hello@sabeel.studio</span>.</p>
+        </section>
+    </div>
+    <footer class="pt-12 border-t border-primary/5 text-[10px] font-bold uppercase tracking-widest text-text-muted">
+       &copy; 2026 Mohammed Hassan. Sabeel Studio&trade;
+    </footer>
+  </div>
+</body>
+</html>
+"""
+
+TERMS_HTML = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Terms of Service | Sabeel Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root { --primary: #0F3D2E; --bg-cream: #F8F6F2; --accent: #C9A96E; --text-muted: #4A4A4A; }
+    body { font-family: 'Inter', sans-serif; background-color: var(--bg-cream); color: #1A1A1A; line-height: 1.6; }
+  </style>
+</head>
+<body class="p-8 md:p-20">
+  <div class="max-w-3xl mx-auto space-y-12">
+    <a href="/" class="text-[10px] font-bold uppercase tracking-widest text-text-muted hover:text-primary transition-colors">&larr; Back to Home</a>
+    <div class="space-y-4">
+        <h1 class="text-4xl font-black text-primary tracking-tight">Terms of Service</h1>
+        <p class="text-[10px] font-bold uppercase tracking-widest text-accent italic">Last updated: April 2026</p>
+    </div>
+    <div class="space-y-8 text-sm font-medium text-gray-700">
+        <section class="space-y-3">
+            <h2 class="text-lg font-bold text-primary">1. Acceptable Use</h2>
+            <p>Sabeel Studio is designed for the creation of authentic Islamic content. Users are responsible for ensuring the accuracy and integrity of the content they produce and publish using our tools.</p>
+        </section>
+        <section class="space-y-3">
+            <h2 class="text-lg font-bold text-primary">2. Intellectual Property</h2>
+            <p>The platform, its design, and proprietary algorithms are the property of Mohammed Hassan. User-generated content remains the property of the creator.</p>
+        </section>
+        <section class="space-y-3">
+            <h2 class="text-lg font-bold text-primary">3. Disclaimer</h2>
+            <p>While we provide tools to reference verified sources, the final responsibility for content accuracy lies with the user. Sabeel Studio is not responsible for any impact resulting from published content.</p>
+        </section>
+    </div>
+    <footer class="pt-12 border-t border-primary/5 text-[10px] font-bold uppercase tracking-widest text-text-muted">
+       &copy; 2026 Mohammed Hassan. Sabeel Studio&trade;
+    </footer>
+  </div>
+</body>
+</html>
+"""
+
 COMING_SOON_HTML = """<!doctype html>
 <html lang="en">
 <head>
@@ -717,63 +805,41 @@ COMING_SOON_HTML = """<!doctype html>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --primary: #0F3D2E;
-      --bg-cream: #F8F6F2;
-      --accent: #C9A96E;
-      --text-main: #1A1A1A;
-      --text-muted: #4A4A4A;
-      --border: rgba(15, 61, 46, 0.1);
-    }
-    body { font-family: 'Inter', sans-serif; background-color: var(--bg-cream); color: var(--text-main); }
-    .btn-primary { 
-      background-color: var(--primary); 
-      color: white; 
-      transition: all 0.3s ease;
-    }
-    .btn-primary:hover { 
-      background-color: #0a2d22; 
-      transform: translateY(-2px);
-    }
+    :root { --primary: #0F3D2E; --bg-cream: #F8F6F2; --accent: #C9A96E; --text-muted: #4A4A4A; }
+    body { font-family: 'Inter', sans-serif; background-color: var(--bg-cream); color: #1A1A1A; }
+    .btn-primary { background-color: var(--primary); color: white; transition: all 0.3s ease; }
+    .btn-primary:hover { background-color: #0a2d22; transform: translateY(-2px); }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-6">
-  <div class="max-w-2xl w-full text-center space-y-12">
-    <!-- Logo -->
+<body class="min-h-screen flex items-center justify-center p-6 text-center">
+  <div class="max-w-2xl w-full space-y-12">
     <div class="flex flex-col items-center">
-      <div class="text-3xl font-extrabold tracking-tighter text-[#0F3D2E]">SABEEL</div>
-      <div class="text-[10px] font-bold text-[#0F3D2E] uppercase tracking-[0.3em] mt-1">Studio</div>
+      <div class="text-3xl font-extrabold tracking-tighter text-primary">SABEEL</div>
+      <div class="text-[10px] font-bold text-primary uppercase tracking-[0.3em] pl-1">Studio</div>
     </div>
-
-    <!-- Content -->
     <div class="space-y-6">
-      <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.1] text-[#0F3D2E]">
-        SOMETHING <span class="text-[#C9A96E]">MEANINGFUL</span> <br/> IS COMING.
-      </h1>
-      <p class="text-[#4A4A4A] text-lg md:text-xl font-medium max-w-lg mx-auto leading-relaxed italic opacity-80">
-        Authentic Islamic content creation, grounded in verified Quran and Hadith collections. We're refining the engine for purposeful strategy.
-      </p>
+      <h1 class="text-5xl md:text-7xl font-black tracking-tight text-primary">Something <span class="text-accent underline decoration-accent/30 underline-offset-8">Meaningful</span> is coming.</h1>
+      <p class="text-text-muted text-lg font-medium italic opacity-80">Authentic Islamic content creation, grounded in truth. We're refining the engine.</p>
     </div>
-
-    <!-- Early Access -->
-    <div class="max-w-md mx-auto w-full space-y-4">
-      <div class="flex flex-col md:flex-row gap-3">
-        <input type="email" placeholder="Enter your email" class="flex-1 bg-white border border-gray-200 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-[#0F3D2E] transition-all">
-        <button class="btn-primary px-8 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl shadow-[#0F3D2E]/10">Notify Me</button>
-      </div>
-      <p class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A]/40">Be the first to experience the future of content</p>
+    <div class="max-w-md mx-auto w-full flex gap-3">
+        <input type="email" placeholder="Enter your email" class="flex-1 bg-white border border-gray-100 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-primary transition-all shadow-sm">
+        <button class="btn-primary px-8 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl shadow-primary/10 transition-all">Notify Me</button>
     </div>
-
-    <!-- Footer -->
-    <div class="pt-12 border-t border-[#0F3D2E]/5 flex flex-col md:flex-row justify-between items-center gap-6 opacity-40">
-        <span class="text-[10px] font-bold uppercase tracking-widest">© 2026 Sabeel Studio</span>
-    </div>
+    <footer class="pt-12 border-t border-primary/5 text-[10px] font-bold uppercase tracking-widest text-text-muted/40">© 2026 Sabeel Studio</footer>
   </div>
 </body>
 </html>
 """
 
 # --- ROUTES ---
+
+@router.get("/privacy", response_class=HTMLResponse)
+def privacy_page():
+    return PRIVACY_HTML
+
+@router.get("/terms", response_class=HTMLResponse)
+def terms_page():
+    return TERMS_HTML
 
 @router.get("/", response_class=HTMLResponse)
 def landing_page(user: Optional[User] = Depends(get_current_user)):
