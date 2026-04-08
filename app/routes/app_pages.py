@@ -3073,7 +3073,11 @@ async def app_automations_page(
         <div class="text-[8px] font-bold text-muted uppercase tracking-widest text-center">
             Click an entry to insert its text and auto-formatted citation.
         </div>
-           let selectedPillars = [];
+      </div>
+    </div>
+
+    <script>
+      let selectedPillars = [];
       let selectedFrequency = 'daily';
       let selectedDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
