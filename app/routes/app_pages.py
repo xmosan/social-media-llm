@@ -649,6 +649,7 @@ APP_LAYOUT_HTML = """<!doctype html>
         <input type="hidden" name="hook_style" id="studioHook" value="inspirational">
         <input type="hidden" name="visual_style" id="studioVisualStyle" value="nature">
         <input type="hidden" name="strictness_mode" id="studioStrictness" value="balanced">
+        <input type="hidden" name="library_item_id" id="studioLibraryItemId" value="">
 
         <div class="flex-1 overflow-y-auto p-6 md:p-12 pb-32">
           
@@ -664,7 +665,7 @@ APP_LAYOUT_HTML = """<!doctype html>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                <div onclick="setStudioIntent('daily_reminder', this)" class="intent-card active p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
                   <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
-                  <div class="text-[11px] font-bold text-brand uppercase tracking-widest relative z-10">Daily Reminder</div>
+                  <div class="text-[11px] font-bold text-brand uppercase tracking-widest relative z-10 group-[.active]:text-brand">Daily Reminder</div>
                   <div class="text-[9px] font-medium text-text-muted mt-1 relative z-10 line-clamp-2">Tazkiyah and general spiritual improvement for busy Muslims.</div>
                </div>
 
@@ -740,7 +741,7 @@ APP_LAYOUT_HTML = """<!doctype html>
                </div>
                <div onclick="setStudioFoundation('reflection', this)" class="foundation-card active p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
                   <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
-                  <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">AI Reflection</div>
+                  <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Reflection</div>
                </div>
             </div>
 
@@ -789,18 +790,23 @@ APP_LAYOUT_HTML = """<!doctype html>
                   <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Primary Emotion (Heart State)</label>
                   <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                      <div onclick="setStudioEmotion('spiritual', this)" class="emotion-card active p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
-                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Faith</div>
+                        <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10 group-[.active]:text-brand">Faith</div>
                      </div>
                      <div onclick="setStudioEmotion('hope', this)" class="emotion-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                        <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
                         <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Hope</div>
                      </div>
                      <div onclick="setStudioEmotion('wisdom', this)" class="emotion-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                        <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
                         <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Wisdom</div>
                      </div>
                      <div onclick="setStudioEmotion('mercy', this)" class="emotion-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                        <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
                         <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Mercy</div>
                      </div>
                      <div onclick="setStudioEmotion('fear', this)" class="emotion-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
+                        <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
                         <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Warning</div>
                      </div>
                   </div>
@@ -810,21 +816,25 @@ APP_LAYOUT_HTML = """<!doctype html>
                <div class="space-y-4">
                   <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Intellectual Depth</label>
                   <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                     <div onclick="setStudioDepth('essence', this)" class="depth-card p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 group">
-                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 group-[.active]:text-accent">Essence</div>
-                        <div class="text-[8px] text-text-muted font-medium">Simple, bite-sized truth.</div>
+                     <div onclick="setStudioDepth('essence', this)" class="depth-card p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 relative z-10 group-[.active]:text-brand">Essence</div>
+                        <div class="text-[8px] text-text-muted font-medium relative z-10">Simple, bite-sized truth.</div>
                      </div>
-                     <div onclick="setStudioDepth('moderate', this)" class="depth-card active p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 group">
-                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 group-[.active]:text-accent">Explorer</div>
-                        <div class="text-[8px] text-text-muted font-medium">Standard reflection.</div>
+                     <div onclick="setStudioDepth('moderate', this)" class="depth-card active p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 relative z-10 group-[.active]:text-brand">Explorer</div>
+                        <div class="text-[8px] text-text-muted font-medium relative z-10">Standard reflection.</div>
                      </div>
-                     <div onclick="setStudioDepth('student', this)" class="depth-card p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 group">
-                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 group-[.active]:text-accent">Student</div>
-                        <div class="text-[8px] text-text-muted font-medium">Academic & Detailed.</div>
+                     <div onclick="setStudioDepth('student', this)" class="depth-card p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 relative z-10 group-[.active]:text-brand">Student</div>
+                        <div class="text-[8px] text-text-muted font-medium relative z-10">Academic & Detailed.</div>
                      </div>
-                     <div onclick="setStudioDepth('scholar', this)" class="depth-card p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 group">
-                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 group-[.active]:text-accent">Scholar</div>
-                        <div class="text-[8px] text-text-muted font-medium">Theological depth.</div>
+                     <div onclick="setStudioDepth('scholar', this)" class="depth-card p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                        <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 relative z-10 group-[.active]:text-brand">Scholar</div>
+                        <div class="text-[8px] text-text-muted font-medium relative z-10">Theological depth.</div>
                      </div>
                   </div>
                </div>
@@ -848,17 +858,21 @@ APP_LAYOUT_HTML = """<!doctype html>
             <div class="space-y-4 max-w-4xl">
                <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Hook Strategy</label>
                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div onclick="setStudioHook('emotional', this)" class="hook-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
-                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Emotional</div>
+                  <div onclick="setStudioHook('emotional', this)" class="hook-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative overflow-hidden group">
+                     <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10 group-[.active]:text-brand">Emotional</div>
                   </div>
-                  <div onclick="setStudioHook('question', this)" class="hook-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
-                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Question</div>
+                  <div onclick="setStudioHook('question', this)" class="hook-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative overflow-hidden group">
+                     <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10 group-[.active]:text-brand">Question</div>
                   </div>
-                  <div onclick="setStudioHook('direct', this)" class="hook-card active p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
-                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Direct</div>
+                  <div onclick="setStudioHook('direct', this)" class="hook-card active p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative overflow-hidden group">
+                     <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10 group-[.active]:text-brand">Direct</div>
                   </div>
-                  <div onclick="setStudioHook('story', this)" class="hook-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
-                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Story</div>
+                  <div onclick="setStudioHook('story', this)" class="hook-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative overflow-hidden group">
+                     <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10 group-[.active]:text-brand">Story</div>
                   </div>
                </div>
             </div>
@@ -867,17 +881,21 @@ APP_LAYOUT_HTML = """<!doctype html>
             <div class="space-y-4 max-w-4xl">
                <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Post Format</label>
                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div onclick="setStudioFormat('caption', this)" class="format-card active p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
-                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Caption</div>
+                  <div onclick="setStudioFormat('caption', this)" class="format-card active p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative overflow-hidden group">
+                     <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10 group-[.active]:text-brand">Caption</div>
                   </div>
-                  <div onclick="setStudioFormat('quote_card', this)" class="format-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
-                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Quote Card</div>
+                  <div onclick="setStudioFormat('quote_card', this)" class="format-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative overflow-hidden group">
+                     <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10 group-[.active]:text-brand">Quote Card</div>
                   </div>
-                  <div onclick="setStudioFormat('carousel', this)" class="format-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
-                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Carousel</div>
+                  <div onclick="setStudioFormat('carousel', this)" class="format-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative overflow-hidden group">
+                     <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10 group-[.active]:text-brand">Carousel</div>
                   </div>
-                  <div onclick="setStudioFormat('story', this)" class="format-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative group">
-                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10">Story</div>
+                  <div onclick="setStudioFormat('story', this)" class="format-card p-4 rounded-2xl border border-brand/10 bg-white cursor-pointer text-center transition-all hover:bg-brand/5 relative overflow-hidden group">
+                     <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                     <div class="text-[10px] font-bold text-brand uppercase tracking-widest relative z-10 group-[.active]:text-brand">Story</div>
                   </div>
                </div>
             </div>
@@ -885,32 +903,32 @@ APP_LAYOUT_HTML = """<!doctype html>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl">
                 <div onclick="setVisualMode('upload')" id="modeUpload" class="visual-card active p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
                   <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
-                  <div class="absolute top-4 right-4 check-icon text-accent opacity-0 group-[.active]:opacity-100 transition-opacity"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
-                  <div class="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center text-brand mb-6 relative z-10 transition-colors group-[.active]:bg-brand group-[.active]:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg></div>
+                  <div class="absolute top-4 right-4 check-icon text-accent opacity-0 group-[.active]:opacity-100 transition-opacity shadow-sm"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
+                  <div class="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center text-brand mb-6 relative z-10 transition-colors group-[.active]:text-accent group-[.active]:bg-brand/10"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg></div>
                   <div class="text-[11px] font-bold text-brand uppercase tracking-widest relative z-10">Upload</div>
                   <div class="text-[9px] font-medium text-text-muted mt-1 relative z-10">From device</div>
                 </div>
 
                 <div onclick="setVisualMode('media_library')" id="modeMedia" class="visual-card p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
                   <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
-                  <div class="absolute top-4 right-4 check-icon text-accent opacity-0 group-[.active]:opacity-100 transition-opacity"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
-                  <div class="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center text-brand mb-6 relative z-10 transition-colors group-[.active]:bg-brand group-[.active]:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>
+                  <div class="absolute top-4 right-4 check-icon text-accent opacity-0 group-[.active]:opacity-100 transition-opacity shadow-sm"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
+                  <div class="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center text-brand mb-6 relative z-10 transition-colors group-[.active]:text-accent group-[.active]:bg-brand/10"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>
                   <div class="text-[11px] font-bold text-brand uppercase tracking-widest relative z-10">Library</div>
                   <div class="text-[9px] font-medium text-text-muted mt-1 relative z-10">Saved assets</div>
                 </div>
 
                 <div onclick="setVisualMode('ai_background')" id="modeAI" class="visual-card p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
                   <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
-                  <div class="absolute top-4 right-4 check-icon text-accent opacity-0 group-[.active]:opacity-100 transition-opacity"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
-                  <div class="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center text-brand mb-6 relative z-10 transition-colors group-[.active]:bg-brand group-[.active]:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg></div>
+                  <div class="absolute top-4 right-4 check-icon text-accent opacity-0 group-[.active]:opacity-100 transition-opacity shadow-sm"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
+                  <div class="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center text-brand mb-6 relative z-10 transition-colors group-[.active]:text-accent group-[.active]:bg-brand/10"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg></div>
                   <div class="text-[11px] font-bold text-brand uppercase tracking-widest relative z-10">Generate</div>
                   <div class="text-[9px] font-medium text-text-muted mt-1 relative z-10">Visual AI</div>
                 </div>
 
                 <div onclick="setVisualMode('quote_card')" id="modeQuote" class="visual-card p-6 rounded-3xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group">
                   <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
-                  <div class="absolute top-4 right-4 check-icon text-accent opacity-0 group-[.active]:opacity-100 transition-opacity"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
-                  <div class="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center text-brand mb-6 relative z-10 transition-colors group-[.active]:bg-brand group-[.active]:text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg></div>
+                  <div class="absolute top-4 right-4 check-icon text-accent opacity-0 group-[.active]:opacity-100 transition-opacity shadow-sm"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></div>
+                  <div class="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center text-brand mb-6 relative z-10 transition-colors group-[.active]:text-accent group-[.active]:bg-brand/10"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg></div>
                   <div class="text-[11px] font-bold text-brand uppercase tracking-widest relative z-10">Quote Card</div>
                   <div class="text-[9px] font-medium text-text-muted mt-1 relative z-10">Typographic</div>
                 </div>
@@ -930,6 +948,21 @@ APP_LAYOUT_HTML = """<!doctype html>
                       </div>
                       <input type="file" name="image" id="studioImageInput" onchange="previewUpload(this)" class="hidden" accept="image/png, image/jpeg, image/webp">
                       <div class="text-xs text-text-muted font-medium max-w-xs leading-relaxed">Supported formats: .jpg, .png. Optimal ratio 4:5.</div>
+                    </div>
+                 </div>
+
+                 <!-- Media Library UI -->
+                 <div id="uiMedia" class="hidden space-y-4 animate-in fade-in">
+                    <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Studio Library</label>
+                    <div class="flex flex-col items-center justify-center p-12 border border-dashed border-brand/20 rounded-3xl bg-cream/50 gap-4">
+                        <div class="w-16 h-16 rounded-full bg-brand/5 flex items-center justify-center text-brand">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        </div>
+                        <div id="selectedMediaPreview" class="hidden w-32 h-32 rounded-2xl overflow-hidden border border-brand/10 mb-2">
+                           <img id="libPreviewImg" class="w-full h-full object-cover">
+                        </div>
+                        <button type="button" onclick="openMediaPicker()" class="px-8 py-4 bg-brand text-white rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-brand/20 hover:scale-[1.02] transition-all">Browse Assets</button>
+                        <p class="text-[9px] text-text-muted font-bold uppercase tracking-widest">Select from your uploaded library</p>
                     </div>
                  </div>
 
@@ -976,27 +1009,31 @@ APP_LAYOUT_HTML = """<!doctype html>
                <div class="bg-brand/5 rounded-[2rem] p-8 space-y-6">
                   <label class="text-[9px] font-bold text-brand uppercase tracking-widest pl-1">Strictness Mode</label>
                   <div class="space-y-3">
-                     <div onclick="setStudioStrictness('strict', this)" class="strict-card p-5 rounded-2xl border border-rose-100 bg-white cursor-pointer transition-all hover:bg-rose-50 group flex items-start gap-4">
-                        <div class="w-2 h-2 rounded-full bg-rose-500 mt-1.5 shrink-0"></div>
-                        <div>
+                     <div onclick="setStudioStrictness('strict', this)" class="strict-card p-5 rounded-2xl border border-rose-100 bg-white cursor-pointer transition-all hover:bg-rose-50 relative overflow-hidden group flex items-start gap-4">
+                        <div class="absolute inset-0 bg-rose-500/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                        <div class="w-2 h-2 rounded-full bg-rose-500 mt-1.5 shrink-0 relative z-10"></div>
+                        <div class="relative z-10">
                            <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 group-[.active]:text-rose-600">Strict</div>
                            <div class="text-[8px] text-text-muted font-medium">Literal, authentic, no creative analogies.</div>
                         </div>
                      </div>
-                     <div onclick="setStudioStrictness('balanced', this)" class="strict-card active p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 group flex items-start gap-4">
-                        <div class="w-2 h-2 rounded-full bg-brand mt-1.5 shrink-0"></div>
-                        <div>
+                     <div onclick="setStudioStrictness('balanced', this)" class="strict-card active p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group flex items-start gap-4">
+                        <div class="absolute inset-0 bg-brand/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                        <div class="w-2 h-2 rounded-full bg-brand mt-1.5 shrink-0 relative z-10"></div>
+                        <div class="relative z-10">
                            <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 group-[.active]:text-brand">Balanced</div>
                            <div class="text-[8px] text-text-muted font-medium">Authentic wisdom for modern life.</div>
                         </div>
                      </div>
-                     <div onclick="setStudioStrictness('creative', this)" class="strict-card p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 group flex items-start gap-4">
-                        <div class="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0"></div>
-                        <div>
+                     <div onclick="setStudioStrictness('creative', this)" class="strict-card p-5 rounded-2xl border border-brand/10 bg-white cursor-pointer transition-all hover:bg-brand/5 relative overflow-hidden group flex items-start gap-4">
+                        <div class="absolute inset-0 bg-amber-500/5 opacity-0 group-[.active]:opacity-100 transition-opacity"></div>
+                        <div class="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0 relative z-10"></div>
+                        <div class="relative z-10">
                            <div class="text-[10px] font-bold text-brand uppercase tracking-widest mb-1 group-[.active]:text-amber-600">Creative</div>
                            <div class="text-[8px] text-text-muted font-medium">Inspired storytelling and analogies.</div>
                         </div>
                      </div>
+ </div>
                   </div>
                </div>
 
@@ -1349,10 +1386,12 @@ APP_LAYOUT_HTML = """<!doctype html>
 
         // Handle UIs
         document.getElementById('uiUpload').classList.add('hidden');
+        document.getElementById('uiMedia').classList.add('hidden');
         document.getElementById('uiAI').classList.add('hidden');
         document.getElementById('uiQuoteMod').classList.add('hidden');
         
         if (mode === 'upload') document.getElementById('uiUpload').classList.remove('hidden');
+        if (mode === 'media_library') document.getElementById('uiMedia').classList.remove('hidden');
         if (mode === 'ai_background' || mode === 'quote_card') {
            document.getElementById('uiAI').classList.remove('hidden');
            if (mode === 'quote_card') {
@@ -1367,6 +1406,23 @@ APP_LAYOUT_HTML = """<!doctype html>
             checkVisual.classList.add('bg-emerald-50', 'text-emerald-600');
             checkVisual.parentElement.classList.remove('opacity-30');
         }
+    }
+
+    // Media Picker for Composer
+    function openMediaPicker() {
+        document.getElementById('libraryPickerModal').classList.remove('hidden');
+        document.getElementById('libraryPickerModal').dataset.context = 'composer';
+        loadPickerEntries();
+    }
+
+    // Knowledge Drawer for Step 2
+    function openLibraryDrawer() {
+        document.getElementById('libraryPickerModal').classList.remove('hidden');
+        // Setting to empty string or 'foundation' context
+        document.getElementById('libraryPickerModal').dataset.context = 'foundation';
+        // For foundation, we map to the source textarea
+        pickerTargetId = 'studioSourceText';
+        loadPickerEntries();
     }
 
     function setAIPreset(promptStr) {
@@ -2446,8 +2502,10 @@ async def app_dashboard_page(
                                    .replace("{org_id}", str(org_id))
     
     # --- GET ACCOUNT OPTIONS FOR STUDIO MODAL ---
-    accs = db.query(IGAccount).filter(IGAccount.org_id == user.active_org_id).all()
+    accs = db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
     account_options = "".join([f'<option value="{a.id}">{a.name} (@{a.ig_user_id})</option>' for a in accs])
+    if not accs:
+        account_options = '<option value="">No accounts connected</option>'
 
     return HTMLResponse(content=APP_LAYOUT_HTML.replace("{content}", content)\
                           .replace("{title}", "Dashboard")\
@@ -3457,13 +3515,38 @@ async def app_automations_page(
           } catch(e) {}
       }
       function selectPickerEntry(entry) {
-          const target = document.getElementById(pickerTargetId);
-          if (target) {
-              const nl = String.fromCharCode(10);
-              let credit = "";
-              if (entry.item_type === 'hadith') credit = nl + nl + "[Ref: " + entry.meta.collection + " #" + entry.meta.hadith_number + "]";
-              else if (entry.item_type === 'quran') credit = nl + nl + "[Quran " + entry.meta.surah_number + ":" + entry.meta.verse_start + "]";
-              target.value = entry.text + credit;
+          const modal = document.getElementById('libraryPickerModal');
+          const context = modal ? modal.dataset.context : '';
+
+          if (context === 'composer') {
+              if (entry.media_url) {
+                  const preview = document.getElementById('selectedMediaPreview');
+                  const img = document.getElementById('libPreviewImg');
+                  const hidden = document.getElementById('studioLibraryItemId');
+                  if (img) img.src = entry.media_url;
+                  if (preview) preview.classList.remove('hidden');
+                  if (hidden) hidden.value = entry.id;
+                  
+                  // Also mark the card as ready in verification
+                  const checkVisual = document.getElementById('checkVisual');
+                  if (checkVisual) {
+                      checkVisual.classList.remove('bg-brand/5', 'text-brand/20');
+                      checkVisual.classList.add('bg-emerald-50', 'text-emerald-600');
+                      checkVisual.parentElement.classList.remove('opacity-30');
+                  }
+              } else {
+                  alert("This library entry has no image. Please select an entry with a visual asset.");
+                  return;
+              }
+          } else {
+              const target = document.getElementById(pickerTargetId);
+              if (target) {
+                  const nl = String.fromCharCode(10);
+                  let credit = "";
+                  if (entry.item_type === 'hadith') credit = nl + nl + "[Ref: " + entry.meta.collection + " #" + entry.meta.hadith_number + "]";
+                  else if (entry.item_type === 'quran') credit = nl + nl + "[Quran " + entry.meta.surah_number + ":" + entry.meta.verse_with_number + "]";
+                  target.value = entry.text + credit;
+              }
           }
           closeLibraryPicker();
       }
@@ -4594,18 +4677,41 @@ async def app_library_page(
       }
 
       function selectPickerEntry(entry) {
-          const target = document.getElementById(pickerTargetId);
-          if (target) {
-              let credit = "";
-              if (entry.item_type === 'hadith') {
-                  credit = `\n\n[Reference: ${entry.meta.collection || 'Hadith'} - #${entry.meta.hadith_number || 'N/A'}]`;
-              } else if (entry.item_type === 'quran') {
-                  credit = `\n\n[Quran ${entry.meta.surah_number}:${entry.meta.verse_with_number || entry.meta.verse_start}]`;
-              } else if (entry.item_type === 'book') {
-                  credit = `\n\n[Source: ${entry.meta.title || 'Book'} by ${entry.meta.author || 'Unknown'}]`;
+          const modal = document.getElementById('libraryPickerModal');
+          const context = modal ? modal.dataset.context : '';
+
+          if (context === 'composer') {
+              if (entry.media_url) {
+                  const preview = document.getElementById('selectedMediaPreview');
+                  const img = document.getElementById('libPreviewImg');
+                  const hidden = document.getElementById('studioLibraryItemId');
+                  if (img) img.src = entry.media_url;
+                  if (preview) preview.classList.remove('hidden');
+                  if (hidden) hidden.value = entry.id;
+                  
+                  const checkVisual = document.getElementById('checkVisual');
+                  if (checkVisual) {
+                      checkVisual.classList.remove('bg-brand/5', 'text-brand/20');
+                      checkVisual.classList.add('bg-emerald-50', 'text-emerald-600');
+                      checkVisual.parentElement.classList.remove('opacity-30');
+                  }
+              } else {
+                  alert("This library entry has no image. Please select an entry with a visual asset.");
+                  return;
               }
-              
-              target.value = entry.text + credit;
+          } else {
+              const target = document.getElementById(pickerTargetId);
+              if (target) {
+                  let credit = "";
+                  if (entry.item_type === 'hadith') {
+                      credit = `\n\n[Reference: ${entry.meta.collection || 'Hadith'} - #${entry.meta.hadith_number || 'N/A'}]`;
+                  } else if (entry.item_type === 'quran') {
+                      credit = `\n\n[Quran ${entry.meta.surah_number}:${entry.meta.verse_with_number || entry.meta.verse_start}]`;
+                  } else if (entry.item_type === 'book') {
+                      credit = `\n\n[Source: ${entry.meta.title || 'Book'} by ${entry.meta.author || 'Unknown'}]`;
+                  }
+                  target.value = entry.text + credit;
+              }
           }
           closeLibraryPicker();
       }
