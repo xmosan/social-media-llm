@@ -146,13 +146,22 @@ STUDIO_SCRIPTS_JS = """
     }
 
     async function generateQuoteCard() {
-        const caption = document.getElementById('studioCaption').value;
-        const visualPrompt = document.getElementById('studioVisualPrompt') ? document.getElementById('studioVisualPrompt').value : '';
-        const style = studioState.style || 'premium';
+        const captionEl = document.getElementById('studioCaption');
+        const visualPromptEl = document.getElementById('studioVisualPrompt');
+        const styleEl = document.getElementById('studioStyle');
+        
+        if (!captionEl || !styleEl) {
+            console.error('Studio critical elements missing');
+            return;
+        }
+
+        const caption = captionEl.value;
+        const visualPrompt = visualPromptEl ? visualPromptEl.value : '';
+        const style = styleEl.value || 'premium';
         
         const btn = document.getElementById('btnGenerateCard');
         const loader = document.getElementById('cardLoader');
-        const loaderText = loader.querySelector('span'); // Target the status span
+        const loaderText = loader ? loader.querySelector('span') : null;
         const preview = document.getElementById('quoteCardPreview');
         const syncBanner = document.getElementById('outOfSyncBanner');
 
@@ -162,11 +171,11 @@ STUDIO_SCRIPTS_JS = """
         }
 
         btn.disabled = true;
-        btn.innerText = 'Rendering Vision...';
-        loader.classList.remove('hidden');
-        preview.classList.add('hidden');
-        syncBanner.classList.add('hidden');
+        btn.innerText = 'Manifesting...';
         
+        if (loader) loader.classList.remove('hidden');
+        if (preview) preview.classList.add('hidden');
+        if (syncBanner) syncBanner.classList.add('hidden');
         if (loaderText) loaderText.innerText = 'Analyzing Style Atmosphere...';
 
         try {
@@ -187,10 +196,13 @@ STUDIO_SCRIPTS_JS = """
                 loader.classList.add('hidden');
                 document.getElementById('cardActions').classList.remove('hidden');
                 isQuoteCardOutOfDate = false;
+            } else {
+                alert('The vision failed to manifest. Please try a different style prompt.');
+                if (loaderText) loaderText.innerText = 'Awaiting Creation';
             }
         } catch (e) {
+            console.error('Studio Error:', e);
             if (loaderText) loaderText.innerText = 'Vision Failed';
-            console.error(e);
         } finally {
             btn.disabled = false;
             btn.innerText = 'Generate Cinematic Visual';
