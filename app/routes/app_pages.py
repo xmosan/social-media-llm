@@ -904,11 +904,12 @@ APP_LAYOUT_HTML = """<!doctype html>
     .nav-link { transition: all 150ms ease; border-bottom: 2px solid transparent; color: var(--text-muted); opacity: 0.8; }
     .nav-link:hover { color: var(--brand); opacity: 1; }
     .studio-tab.active { background: var(--brand); color: white; border-color: var(--brand); }
-    .bg-brand { background-color: var(--brand) !important; }
-    .bg-brand-hover:hover { background-color: var(--brand-hover) !important; }
-    .text-brand { color: var(--brand) !important; }
-    .text-accent { color: var(--accent) !important; }
-    .border-brand { border-color: var(--brand) !important; }
+    .bg-brand { background-color: var(--brand); }
+    .bg-brand-hover:hover { background-color: var(--brand-hover); }
+    .text-brand { color: var(--brand); }
+    .text-accent { color: var(--accent); }
+    .border-brand { border-color: var(--brand); }
+    .refine-ai-btn:hover { color: white !important; background-color: var(--brand); }
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(15, 61, 46, 0.1); border-radius: 10px; }
