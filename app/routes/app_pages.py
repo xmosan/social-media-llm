@@ -614,10 +614,7 @@ STUDIO_COMPONENTS_HTML = """
                 Scanning intelligence archives...
             </div>
         </div>
-    </div>
-</div>
-"""
-
+        </div>
 </div>
 """
 
