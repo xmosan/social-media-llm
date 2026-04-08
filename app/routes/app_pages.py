@@ -337,6 +337,126 @@ STUDIO_SCRIPTS_JS = """
         const card = document.getElementById('activeSourceCard');
         if (card) card.classList.add('hidden');
     }
+    async function disconnectMetaAccount() {
+        if (!confirm("Are you sure you want to disconnect this Instagram account?")) return;
+        const res = await fetch('/auth/instagram/disconnect', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) window.location.reload();
+        else alert(data.error || "Failed to disconnect");
+    }
+
+    // --- ACCOUNT SWITCHER & STATE SYNC ---
+    async function renderAccountSwitcher() {
+        const container = document.getElementById('navbarAccountSwitcher');
+        if (!container) return;
+
+        try {
+            const res = await fetch('/ig-accounts/me');
+            const accounts = await res.json();
+            
+            if (accounts.length === 0) {
+                container.innerHTML = `
+                    <button onclick="openConnectInstagramModal()" class="flex items-center gap-2 px-3 py-1.5 bg-brand text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-brand-hover transition-all">
+                        Link Meta
+                    </button>
+                `;
+                return;
+            }
+
+            const active = accounts.find(a => a.active) || accounts[0];
+            const others = accounts.filter(a => a.id !== active.id);
+
+            container.innerHTML = `
+                <div class="relative inline-block text-left" id="accountSwitcherRoot">
+                    <button onclick="toggleSwitcherDropdown()" class="flex items-center gap-3 px-3 py-2 bg-white border border-brand/10 rounded-xl hover:bg-brand/[0.02] transition-all group">
+                        <img src="${active.profile_picture_url || 'https://ui-avatars.com/api/?name=' + active.username}" class="w-6 h-6 rounded-full ring-2 ring-brand/10 group-hover:ring-brand/20 transition-all">
+                        <div class="text-left hidden lg:block">
+                            <div class="text-[9px] font-black text-brand uppercase tracking-wider">@${active.username}</div>
+                            <div class="text-[7px] font-bold text-text-muted uppercase tracking-widest">Active Studio</div>
+                        </div>
+                        <svg class="w-3 h-3 text-text-muted/40 group-hover:text-brand transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
+                    </button>
+
+                    <div id="switcherDropdown" class="hidden absolute right-0 mt-2 w-64 bg-white border border-brand/5 rounded-2xl shadow-2xl z-[100] p-2 animate-in fade-in zoom-in-95 duration-200">
+                        <div class="px-3 py-2 text-[8px] font-black text-text-muted uppercase tracking-[0.2em] mb-1">Your Workspaces</div>
+                        
+                        <div class="space-y-1">
+                            ${accounts.map(acc => `
+                                <button onclick="setActiveAccount('${acc.id}')" class="w-full flex items-center justify-between p-2 rounded-xl transition-all ${acc.id === active.id ? 'bg-brand/5 border border-brand/5' : 'hover:bg-brand/[0.02]'}">
+                                    <div class="flex items-center gap-3">
+                                        <img src="${acc.profile_picture_url || 'https://ui-avatars.com/api/?name=' + acc.username}" class="w-8 h-8 rounded-lg">
+                                        <div class="text-left">
+                                            <div class="text-[10px] font-bold text-brand">@${acc.username}</div>
+                                            <div class="text-[8px] text-text-muted font-medium">${acc.fb_page_id ? 'Instagram Business' : 'Personal'}</div>
+                                        </div>
+                                    </div>
+                                    ${acc.id === active.id ? '<div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>' : ''}
+                                </button>
+                            `).join('')}
+                        </div>
+
+                        <div class="mt-2 pt-2 border-t border-brand/5">
+                            <button onclick="openConnectInstagramModal()" class="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-brand/5 transition-all text-brand">
+                                <div class="w-8 h-8 rounded-lg bg-brand/5 flex items-center justify-center">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+                                </div>
+                                <div class="text-[10px] font-black uppercase tracking-widest">Connect New</div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } catch (e) {
+            console.error("Account switcher failed", e);
+        }
+    }
+
+    function toggleSwitcherDropdown() {
+        const drop = document.getElementById('switcherDropdown');
+        if (drop) drop.classList.toggle('hidden');
+    }
+
+    async function setActiveAccount(id) {
+        try {
+            const res = await fetch(`/ig-accounts/set-active/${id}`, { method: 'POST' });
+            if (res.ok) {
+                window.location.reload();
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    async function syncAccountState() {
+        try {
+            const res = await fetch('/ig-accounts/me');
+            const accounts = await res.json();
+            const actuallyConnected = accounts.length > 0;
+            
+            if (typeof window.hasConnectedInstagram !== 'undefined' && actuallyConnected !== window.hasConnectedInstagram) {
+                console.log("State mismatch detected, refreshing to sync UI...");
+                window.location.reload();
+            }
+        } catch(e) {
+            console.error("Failed to sync account state", e);
+        }
+    }
+
+    // Close on click outside
+    window.addEventListener('click', function(event) {
+        if (!event.target.closest('#accountSwitcherRoot')) {
+            const drop = document.getElementById('switcherDropdown');
+            if (drop && !drop.classList.contains('hidden')) drop.classList.add('hidden');
+        }
+    });
+
+    // Final Init
+    window.addEventListener('load', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('error')) {
+            alert(urlParams.get('error'));
+        }
+        syncAccountState();
+        renderAccountSwitcher();
+    });
 </script>
 """
 
@@ -1998,123 +2118,9 @@ async def app_dashboard_page(
                           .replace("{studio_modal}", STUDIO_COMPONENTS_HTML)\
                           .replace("{studio_js}", STUDIO_SCRIPTS_JS)\
                           .replace("{account_options}", account_options)\
+                          .replace("{connected_account_info}", connected_account_info)\
                           .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
-                          .replace("{extra_js}", f"""
-<script>
-    window.hasConnectedInstagram = {"true" if is_connected else "false"};
-       async function renderAccountSwitcher() {{
-        const container = document.getElementById('navbarAccountSwitcher');
-        if (!container) return;
-
-        try {{
-            const res = await fetch('/ig-accounts/me');
-            const accounts = await res.json();
-            
-            if (accounts.length === 0) {{
-                container.innerHTML = `
-                    <button onclick="openConnectInstagramModal()" class="flex items-center gap-2 px-3 py-1.5 bg-brand text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-brand-hover transition-all">
-                        Link Meta
-                    </button>
-                `;
-                return;
-            }}
-
-            const active = accounts.find(a => a.active) || accounts[0];
-            const others = accounts.filter(a => a.id !== active.id);
-
-            container.innerHTML = `
-                <div class="relative inline-block text-left" id="accountSwitcherRoot">
-                    <button onclick="toggleSwitcherDropdown()" class="flex items-center gap-3 px-3 py-2 bg-white border border-brand/10 rounded-xl hover:bg-brand/[0.02] transition-all group">
-                        <img src="${{active.profile_picture_url || 'https://ui-avatars.com/api/?name=' + active.username}}" class="w-6 h-6 rounded-full ring-2 ring-brand/10 group-hover:ring-brand/20 transition-all">
-                        <div class="text-left hidden lg:block">
-                            <div class="text-[9px] font-black text-brand uppercase tracking-wider">@${{active.username}}</div>
-                            <div class="text-[7px] font-bold text-text-muted uppercase tracking-widest">Active Studio</div>
-                        </div>
-                        <svg class="w-3 h-3 text-text-muted/40 group-hover:text-brand transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
-                    </button>
-
-                    <div id="switcherDropdown" class="hidden absolute right-0 mt-2 w-64 bg-white border border-brand/5 rounded-2xl shadow-2xl z-[100] p-2 animate-in fade-in zoom-in-95 duration-200">
-                        <div class="px-3 py-2 text-[8px] font-black text-text-muted uppercase tracking-[0.2em] mb-1">Your Workspaces</div>
-                        
-                        <div class="space-y-1">
-                            ${{accounts.map(acc => `
-                                <button onclick="setActiveAccount('${{acc.id}}')" class="w-full flex items-center justify-between p-2 rounded-xl transition-all ${{acc.id === active.id ? 'bg-brand/5 border border-brand/5' : 'hover:bg-brand/[0.02]'}}">
-                                    <div class="flex items-center gap-3">
-                                        <img src="${{acc.profile_picture_url || 'https://ui-avatars.com/api/?name=' + acc.username}}" class="w-8 h-8 rounded-lg">
-                                        <div class="text-left">
-                                            <div class="text-[10px] font-bold text-brand">@${{acc.username}}</div>
-                                            <div class="text-[8px] text-text-muted font-medium">${{acc.fb_page_id ? 'Instagram Business' : 'Personal'}}</div>
-                                        </div>
-                                    </div>
-                                    ${{acc.id === active.id ? '<div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>' : ''}}
-                                </button>
-                            `).join('')}}
-                        </div>
-
-                        <div class="mt-2 pt-2 border-t border-brand/5">
-                            <button onclick="openConnectInstagramModal()" class="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-brand/5 transition-all text-brand">
-                                <div class="w-8 h-8 rounded-lg bg-brand/5 flex items-center justify-center">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-                                </div>
-                                <div class="text-[10px] font-black uppercase tracking-widest">Connect New</div>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }} catch (e) {{
-            console.error("Account switcher failed", e);
-        }}
-    }}
-
-    function toggleSwitcherDropdown() {{
-        const drop = document.getElementById('switcherDropdown');
-        drop.classList.toggle('hidden');
-    }}
-
-    async function setActiveAccount(id) {{
-        try {{
-            const res = await fetch(`/ig-accounts/set-active/${{id}}`, {{ method: 'POST' }});
-            if (res.ok) {{
-                window.location.reload();
-            }}
-        }} catch (e) {{ console.error(e); }}
-    }}
-
-    async function syncAccountState() {{
-        try {{
-            const res = await fetch('/ig-accounts/me');
-            const accounts = await res.json();
-            const actuallyConnected = accounts.length > 0;
-            
-            if (actuallyConnected !== window.hasConnectedInstagram) {{
-                console.log("State mismatch detected, refreshing to sync UI...");
-                window.location.reload();
-            }}
-        }} catch(e) {{
-            console.error("Failed to sync account state", e);
-        }}
-    }}
-
-    // Close on click outside
-    window.onclick = function(event) {{
-        if (!event.target.closest('#accountSwitcherRoot')) {{
-            const drop = document.getElementById('switcherDropdown');
-            if (drop && !drop.classList.contains('hidden')) drop.classList.add('hidden');
-        }}
-    }};
-
-    window.onload = function() {{
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('error')) {{
-            alert(urlParams.get('error'));
-        }}
-        // Run checks
-        syncAccountState();
-        renderAccountSwitcher();
-    }};
-</script>
-"""))
+                          .replace("{extra_js}", f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>'))
 
 @router.get("/app/select-account", response_class=HTMLResponse)
 @router.get("/select-account", response_class=HTMLResponse)
@@ -2245,6 +2251,25 @@ async def app_calendar_page(
     </div>
     """
     
+    # --- COMMON LAYOUT DATA ---
+    org_id = user.active_org_id if user.active_org_id else org.id
+    accs = db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
+    primary_acc = accs[0] if accs else None
+    is_connected = primary_acc is not None
+    
+    account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in accs])
+    if not accs:
+        account_options = '<option value="">No accounts connected</option>'
+        
+    connected_account_info = f"""
+        <div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2">
+            <span class="text-brand font-black text-[10px] tracking-tighter uppercase">@{primary_acc.username if primary_acc else "Account"}</span>
+            <button onclick="disconnectMetaAccount()" class="hover:text-rose-500 transition-colors opacity-60 hover:opacity-100">
+                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+    """ if is_connected else '<div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2 opacity-60 italic"><span>No account linked</span></div>'
+
     return APP_LAYOUT_HTML.replace("{content}", content)\
                           .replace("{title}", "Calendar")\
                           .replace("{user_name}", user.name or user.email)\
@@ -2256,10 +2281,11 @@ async def app_calendar_page(
                           .replace("{active_library}", "")\
                           .replace("{active_media}", "")\
                           .replace("{studio_modal}", STUDIO_COMPONENTS_HTML)\
-                          .replace("{account_options}", "")\
-                          .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
                           .replace("{studio_js}", STUDIO_SCRIPTS_JS)\
-                          .replace("{extra_js}", "")
+                          .replace("{account_options}", account_options)\
+                          .replace("{connected_account_info}", connected_account_info)\
+                          .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
+                          .replace("{extra_js}", f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>')
 
 @router.get("/app/automations", response_class=HTMLResponse)
 async def app_automations_page(
@@ -2376,729 +2402,28 @@ async def app_automations_page(
       <div class="space-y-6">
         {autos_html}
       </div>
-      
-      <!-- Growth Plan Modal (New & Update) -->
-    <div id="newAutoModal" class="fixed inset-0 bg-brand/40 backdrop-blur-2xl z-[100] hidden flex flex-col items-center justify-center p-0 md:p-6">
-      <div class="glass w-full h-[95vh] md:h-auto md:max-w-xl pb-safe rounded-t-[3rem] md:rounded-[3.5rem] p-8 md:p-12 space-y-12 animate-in slide-in-from-bottom md:zoom-in-95 duration-500 border-t md:border border-white/20 bg-white/95 overflow-y-auto custom-scrollbar">
-        <div class="flex justify-between items-start">
-          <div>
-            <h2 id="modalTitle" class="text-3xl font-black text-brand tracking-tighter italic">Automation <span class="text-accent font-normal underline decoration-brand/10 underline-offset-8">Engine</span></h2>
-            <p class="text-[11px] font-bold text-text-muted uppercase tracking-[0.3em] mt-2">Architect your creative stream</p>
-          </div>
-          <button onclick="hideNewAutoModal()" class="w-12 h-12 flex items-center justify-center rounded-2xl bg-brand/5 hover:bg-brand/10 text-text-muted hover:text-brand transition-all group">
-            <svg class="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
-          </button>
-        </div>
-        
-        <input type="hidden" id="autoId">
-        
-        <div class="space-y-14 max-w-xl mx-auto">
-          <!-- Step 1: Core Identity -->
-          <div class="space-y-6">
-            <div class="flex items-center gap-4">
-              <span class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center text-xs font-black">01</span>
-              <div>
-                <h3 class="text-sm font-black text-brand uppercase tracking-widest">Base Identity</h3>
-                <p class="text-[10px] text-text-muted font-bold uppercase tracking-wider">Naming & Destination</p>
-              </div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input type="text" id="newName" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-bold outline-none focus:border-brand/20 focus:bg-white transition-all shadow-sm" placeholder="Plan Name (e.g. Daily Seerah)">
-              <select id="newAccount" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-bold outline-none appearance-none shadow-sm">
-                  {account_options}
-              </select>
-            </div>
-          </div>
-
-          <!-- Step 2: Content Pillars (Selection Grid) -->
-          <div class="space-y-6">
-            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
-              <div class="flex items-center gap-4">
-                <span class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center text-xs font-black">02</span>
-                <div>
-                  <h3 class="text-sm font-black text-brand uppercase tracking-widest">Content Pillars</h3>
-                  <p class="text-[10px] text-text-muted font-bold uppercase tracking-wider">Select themes to rotate</p>
-                </div>
-              </div>
-              <p class="text-[9px] font-black text-accent uppercase tracking-widest bg-accent/5 px-3 py-1.5 rounded-full">Multi-Select Enabled</p>
-            </div>
-            
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-3" id="pillarGrid">
-              <button onclick="togglePillar(this)" data-pillar="Daily Reminder" class="pillar-card p-5 rounded-2xl border border-brand/5 bg-cream/20 text-center space-y-3 transition-all hover:bg-brand/5">
-                <div class="text-xl">✨</div>
-                <div class="text-[10px] font-black text-brand uppercase tracking-tighter">Daily Reminder</div>
-              </button>
-              <button onclick="togglePillar(this)" data-pillar="Quran Reflection" class="pillar-card p-5 rounded-2xl border border-brand/5 bg-cream/20 text-center space-y-3 transition-all hover:bg-brand/5">
-                <div class="text-xl">📖</div>
-                <div class="text-[10px] font-black text-brand uppercase tracking-tighter">Qur’an Reflection</div>
-              </button>
-              <button onclick="togglePillar(this)" data-pillar="Hadith Study" class="pillar-card p-5 rounded-2xl border border-brand/5 bg-cream/20 text-center space-y-3 transition-all hover:bg-brand/5">
-                <div class="text-xl">📜</div>
-                <div class="text-[10px] font-black text-brand uppercase tracking-tighter">Hadith Study</div>
-              </button>
-              <button onclick="togglePillar(this)" data-pillar="Storytelling" class="pillar-card p-5 rounded-2xl border border-brand/5 bg-cream/20 text-center space-y-3 transition-all hover:bg-brand/5">
-                <div class="text-xl">🌙</div>
-                <div class="text-[10px] font-black text-brand uppercase tracking-tighter">Seerah/Sahaba</div>
-              </button>
-              <button onclick="togglePillar(this)" data-pillar="Da’wah" class="pillar-card p-5 rounded-2xl border border-brand/5 bg-cream/20 text-center space-y-3 transition-all hover:bg-brand/5">
-                <div class="text-xl">📢</div>
-                <div class="text-[10px] font-black text-brand uppercase tracking-tighter">Da’wah Call</div>
-              </button>
-              <button onclick="togglePillar(this)" data-pillar="Personal Reflection" class="pillar-card p-5 rounded-2xl border border-brand/5 bg-cream/20 text-center space-y-3 transition-all hover:bg-brand/5">
-                <div class="text-xl">💭</div>
-                <div class="text-[10px] font-black text-brand uppercase tracking-tighter">Reflections</div>
-              </button>
-            </div>
-          </div>
-
-          <!-- Step 3: Distribution Pattern -->
-          <div class="space-y-6">
-            <div class="flex items-center gap-4">
-              <span class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center text-xs font-black">03</span>
-              <div>
-                <h3 class="text-sm font-black text-brand uppercase tracking-widest">Manifestation Cycle</h3>
-                <p class="text-[10px] text-text-muted font-bold uppercase tracking-wider">How often should we publish?</p>
-              </div>
-            </div>
-            
-            <div class="space-y-4">
-              <div class="grid grid-cols-3 gap-3">
-                <button onclick="setFrequency('daily')" id="btnFreqDaily" class="freq-btn py-4 rounded-xl border border-brand/5 bg-cream/20 text-[10px] font-black uppercase tracking-widest transition-all">Daily</button>
-                <button onclick="setFrequency('3x_weekly')" id="btnFreq3x" class="freq-btn py-4 rounded-xl border border-brand/5 bg-cream/20 text-[10px] font-black uppercase tracking-widest transition-all">3x / Week</button>
-                <button onclick="setFrequency('weekly')" id="btnFreqWeekly" class="freq-btn py-4 rounded-xl border border-brand/5 bg-cream/20 text-[10px] font-black uppercase tracking-widest transition-all">Weekly</button>
-              </div>
-              
-              <div id="customDaysGroup" class="hidden animate-in fade-in slide-in-from-top-2 duration-300">
-                <div class="flex flex-wrap gap-2 justify-center py-2">
-                  <button onclick="toggleDay('Mon')" data-day="Mon" class="day-btn w-10 h-10 rounded-full border border-brand/5 bg-cream/10 text-[9px] font-black uppercase">M</button>
-                  <button onclick="toggleDay('Tue')" data-day="Tue" class="day-btn w-10 h-10 rounded-full border border-brand/5 bg-cream/10 text-[9px] font-black uppercase">T</button>
-                  <button onclick="toggleDay('Wed')" data-day="Wed" class="day-btn w-10 h-10 rounded-full border border-brand/5 bg-cream/10 text-[9px] font-black uppercase">W</button>
-                  <button onclick="toggleDay('Thu')" data-day="Thu" class="day-btn w-10 h-10 rounded-full border border-brand/5 bg-cream/10 text-[9px] font-black uppercase">T</button>
-                  <button onclick="toggleDay('Fri')" data-day="Fri" class="day-btn w-10 h-10 rounded-full border border-brand/5 bg-cream/10 text-[9px] font-black uppercase">F</button>
-                  <button onclick="toggleDay('Sat')" data-day="Sat" class="day-btn w-10 h-10 rounded-full border border-brand/5 bg-cream/10 text-[9px] font-black uppercase">S</button>
-                  <button onclick="toggleDay('Sun')" data-day="Sun" class="day-btn w-10 h-10 rounded-full border border-brand/5 bg-cream/10 text-[9px] font-black uppercase">S</button>
-                </div>
-              </div>
-
-              <div class="flex items-center justify-between bg-brand/[0.02] p-5 rounded-2xl border border-brand/5">
-                <label class="text-[10px] font-black text-brand uppercase tracking-widest">Daily Broadcast Time</label>
-                <input type="time" id="newTime" value="09:00" class="bg-transparent text-sm font-black text-brand outline-none">
-              </div>
-            </div>
-          </div>
-
-          <!-- Step 4: Logic & Safety -->
-          <div class="space-y-8">
-            <div class="flex items-center gap-4">
-              <span class="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center text-xs font-black">04</span>
-              <div>
-                <h3 class="text-sm font-black text-brand uppercase tracking-widest">Intelligence Layer</h3>
-                <p class="text-[10px] text-text-muted font-bold uppercase tracking-wider">Source controls & Safety</p>
-              </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div class="space-y-3">
-                <label class="text-[9px] font-black text-text-muted uppercase tracking-widest px-1">Source Mode</label>
-                <select id="newSourceMode" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-4 text-brand text-xs font-bold outline-none shadow-sm">
-                  <option value="strict">Strict (Authenticated Only)</option>
-                  <option value="balanced" selected>Balanced (Broad Research)</option>
-                  <option value="reflection_first">Reflection-First (Adaptive)</option>
-                </select>
-              </div>
-              <div class="space-y-3">
-                <label class="text-[9px] font-black text-text-muted uppercase tracking-widest px-1">Voice & Style</label>
-                <select id="newToneStyle" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-4 text-brand text-xs font-bold outline-none shadow-sm">
-                  <option value="soft">Soft & Gentle Reminder</option>
-                  <option value="deep" selected>Deep & Philosophical</option>
-                  <option value="direct">Direct & Clarifying (Deen)</option>
-                  <option value="emotional">Emotional Storytelling</option>
-                </select>
-              </div>
-              <div class="space-y-3 md:col-span-2">
-                <div class="flex justify-between items-center px-1">
-                  <label class="text-[9px] font-black text-text-muted uppercase tracking-widest">Verification Rigor</label>
-                  <span id="labelSafety" class="text-[9px] font-black text-accent uppercase tracking-widest">Standard Safety</span>
-                </div>
-                <input type="range" id="newSafetyRange" min="1" max="3" step="1" value="2" oninput="updateSafetyLabel(this.value)" class="w-full accent-brand">
-              </div>
-            </div>
-          </div>
-
-          <!-- Step 5: Advanced (Hidden initially) -->
-          <div class="pt-4 border-t border-brand/5">
-             <button onclick="document.getElementById('advancedSettings').classList.toggle('hidden')" class="text-[9px] font-black text-text-muted uppercase tracking-widest hover:text-brand transition-colors flex items-center gap-2">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"></path></svg>
-                Advanced Parameters
-             </button>
-             <div id="advancedSettings" class="hidden pt-6 space-y-6 animate-in slide-in-from-top-2">
-                <div class="space-y-3">
-                  <label class="text-[9px] font-black text-text-muted uppercase tracking-widest">Manual Topic Grounding (Optional)</label>
-                  <textarea id="newTopic" rows="3" class="w-full bg-cream/20 border border-brand/5 rounded-2xl p-5 text-brand text-sm font-medium outline-none focus:bg-white transition-all shadow-inner" placeholder="Add specific guidance or custom topics for this stream..."></textarea>
-                </div>
-                <div class="space-y-3">
-                    <label class="text-[9px] font-black text-text-muted uppercase tracking-widest">Prompt Logic Mode</label>
-                    <select id="newSeedMode" class="w-full bg-cream/30 border border-brand/5 rounded-2xl p-4 text-brand text-xs font-bold outline-none">
-                      <option value="auto_library">Verified Library Context</option>
-                      <option value="none">Creative Autonomy</option>
-                      <option value="manual">Guided Script (Manual Seed)</option>
-                    </select>
-                </div>
-             </div>
-          </div>
-
-          <!-- Step 6: Predictive Preview -->
-          <div class="bg-brand/[0.03] rounded-[2.5rem] border border-brand/5 overflow-hidden">
-             <div class="p-6 border-b border-brand/5 flex justify-between items-center">
-                <div class="flex items-center gap-3">
-                  <div class="w-6 h-6 rounded-lg bg-brand flex items-center justify-center shadow-lg shadow-brand/20">
-                    <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                  </div>
-                  <h3 class="text-xs font-black text-brand uppercase tracking-widest">Strategy Preview</h3>
-                </div>
-                <div class="text-[8px] font-bold text-accent uppercase tracking-widest">Next 5 Manifestations</div>
-             </div>
-             <div id="strategyPreview" class="p-6 space-y-3 bg-white/50">
-                <div class="text-[8px] font-black text-text-muted uppercase text-center py-4">Select pillars to see your rotation pattern</div>
-             </div>
-          </div>
-        </div>
-
-        <div class="flex gap-4 pt-4 border-t border-brand/5 max-w-xl mx-auto w-full">
-          <button onclick="hideNewAutoModal()" class="flex-1 py-5 bg-cream/30 border border-brand/5 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:bg-cream/50 transition-all">Discard</button>
-          <button id="btnSaveAuto" onclick="saveAutomation()" class="flex-[2] py-5 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-2xl shadow-brand/40 hover:scale-[1.01] hover:brightness-110 active:scale-95 transition-all">Establish Plan</button>
-        </div>
-      </div>
     </div>
-    </div>
-
-    <!-- Library Picker Modal -->
-    <div id="libraryPickerModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[150] hidden flex items-end md:items-center justify-center p-0 md:p-6">
-      <div class="glass w-full md:max-w-2xl pb-safe rounded-t-[2.5rem] md:rounded-[2.5rem] p-6 md:p-8 space-y-6 border-t md:border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div class="flex justify-between items-center">
-            <h2 class="text-xl font-black italic text-white tracking-tight">Insert <span class="text-brand">Knowledge</span></h2>
-            <button onclick="closeLibraryPicker()" class="p-2 hover:bg-white/10 rounded-full transition-all text-white/40">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-            </button>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="relative flex-1">
-                <input type="text" id="pickerSearch" oninput="loadPickerEntries()" placeholder="Filter knowledge..." class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-brand/40 transition-all placeholder:text-white/20">
-            </div>
-            <div class="flex gap-2">
-                <select id="pickerTopic" onchange="loadPickerEntries()" class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none appearance-none">
-                    <option value="">All Topics</option>
-                </select>
-                <select id="pickerType" onchange="loadPickerEntries()" class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none appearance-none font-black uppercase">
-                    <option value="">All Types</option>
-                    <option value="quran">Quran</option>
-                    <option value="hadith">Hadith</option>
-                    <option value="quote">Quote</option>
-                </select>
-            </div>
-        </div>
-        
-        <div class="flex justify-end px-2">
-            <button onclick="suggestPickerTopic()" class="text-[9px] font-black uppercase text-brand flex items-center gap-2 hover:text-white transition-all">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-                Suggest from my prompt
-            </button>
-        </div>
-
-        <div id="pickerResults" class="flex-1 overflow-y-auto space-y-3 min-h-[300px] pr-2 custom-scrollbar">
-            <!-- Results via JS -->
-        </div>
-        
-        <div class="text-[8px] font-bold text-muted uppercase tracking-widest text-center">
-            Click an entry to insert its text and auto-formatted citation.
-        </div>
-      </div>
-    </div>
-
-    <script>
-      let selectedPillars = [];
-      let selectedFrequency = 'daily';
-      let selectedDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-      function showNewAutoModal() {
-        // Reset For New
-        document.getElementById('autoId').value = '';
-        document.getElementById('modalTitle').innerHTML = 'Automation <span class="text-accent font-normal underline decoration-brand/10 underline-offset-8">Engine</span>';
-        document.getElementById('newName').value = '';
-        document.getElementById('newTopic').value = '';
-        document.getElementById('newTime').value = '09:00';
-        document.getElementById('btnSaveAuto').textContent = 'Establish Plan';
-        
-        selectedPillars = [];
-        selectedFrequency = 'daily';
-        selectedDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        
-        refreshPillarUI();
-        refreshFreqUI();
-        updatePreview();
-        
-        document.getElementById('newAutoModal').classList.remove('hidden');
-      }
-
-      function hideNewAutoModal() {
-        document.getElementById('newAutoModal').classList.add('hidden');
-      }
-
-      function showEditModal(data) {
-        document.getElementById('autoId').value = data.id;
-        document.getElementById('modalTitle').innerHTML = 'Adjust <span class="text-accent font-normal underline decoration-brand/10 underline-offset-8">Strategy</span>';
-        document.getElementById('newName').value = data.name;
-        document.getElementById('newTopic').value = data.topic;
-        document.getElementById('newTime').value = data.time || '09:00';
-        document.getElementById('newAccount').value = data.ig_account_id;
-        document.getElementById('newSourceMode').value = data.source_mode || 'balanced';
-        document.getElementById('newToneStyle').value = data.tone_style || 'deep';
-        document.getElementById('newSeedMode').value = data.seed_mode || 'auto_library';
-        
-        const safetyMap = { 'strict': 3, 'standard': 2, 'off': 1 };
-        document.getElementById('newSafetyRange').value = safetyMap[data.verification_mode] || 2;
-        updateSafetyLabel(document.getElementById('newSafetyRange').value);
-
-        selectedPillars = Array.isArray(data.pillars) ? data.pillars : [];
-        selectedFrequency = data.frequency || 'daily';
-        selectedDays = Array.isArray(data.custom_days) ? data.custom_days : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-        document.getElementById('btnSaveAuto').textContent = 'Apply Strategy';
-        
-        refreshPillarUI();
-        refreshFreqUI();
-        updatePreview();
-        
-        document.getElementById('newAutoModal').classList.remove('hidden');
-      }
-
-      function togglePillar(el) {
-        const pillar = el.getAttribute('data-pillar');
-        if (selectedPillars.includes(pillar)) {
-          selectedPillars = selectedPillars.filter(p => p !== pillar);
-        } else {
-          selectedPillars.push(pillar);
-        }
-        refreshPillarUI();
-        updatePreview();
-      }
-
-      function refreshPillarUI() {
-        document.querySelectorAll('.pillar-card').forEach(card => {
-          const pillar = card.getAttribute('data-pillar');
-          if (selectedPillars.includes(pillar)) {
-            card.classList.add('bg-brand/10', 'border-brand/40', 'scale-[0.98]', 'shadow-inner');
-            card.classList.remove('bg-cream/20');
-          } else {
-            card.classList.add('bg-cream/20');
-            card.classList.remove('bg-brand/10', 'border-brand/40', 'scale-[0.98]', 'shadow-inner');
-          }
-        });
-      }
-
-      function setFrequency(freq) {
-        selectedFrequency = freq;
-        if (freq === 'daily') selectedDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        else if (freq === '3x_weekly') selectedDays = ['Mon', 'Wed', 'Fri'];
-        else if (freq === 'weekly') selectedDays = ['Fri'];
-        
-        refreshFreqUI();
-        updatePreview();
-      }
-
-      function toggleDay(day) {
-        if (selectedFrequency !== 'custom') {
-            selectedFrequency = 'custom';
-        }
-        
-        if (selectedDays.includes(day)) {
-          selectedDays = selectedDays.filter(d => d !== day);
-        } else {
-          selectedDays.push(day);
-        }
-        refreshFreqUI();
-        updatePreview();
-      }
-
-      function refreshFreqUI() {
-        // Buttons
-        document.querySelectorAll('.freq-btn').forEach(btn => btn.className = btn.className.replace('bg-brand text-white', 'bg-cream/20 text-brand'));
-        if (selectedFrequency === 'daily') document.getElementById('btnFreqDaily').className = document.getElementById('btnFreqDaily').className.replace('bg-cream/20 text-brand', 'bg-brand text-white');
-        if (selectedFrequency === '3x_weekly') document.getElementById('btnFreq3x').className = document.getElementById('btnFreq3x').className.replace('bg-cream/20 text-brand', 'bg-brand text-white');
-        if (selectedFrequency === 'weekly') document.getElementById('btnFreqWeekly').className = document.getElementById('btnFreqWeekly').className.replace('bg-cream/20 text-brand', 'bg-brand text-white');
-
-        // Days
-        document.querySelectorAll('.day-btn').forEach(btn => {
-          const day = btn.getAttribute('data-day');
-          if (selectedDays.includes(day)) {
-            btn.className = btn.className.replace('bg-cream/10 text-brand', 'bg-brand text-white');
-            btn.classList.add('border-brand/40');
-          } else {
-            btn.className = btn.className.replace('bg-brand text-white', 'bg-cream/10 text-brand');
-            btn.classList.remove('border-brand/40');
-          }
-        });
-
-        const dayGroup = document.getElementById('customDaysGroup');
-        if (selectedFrequency === 'custom') dayGroup.classList.remove('hidden');
-        else dayGroup.classList.add('hidden');
-      }
-
-      function updateSafetyLabel(val) {
-        const label = document.getElementById('labelSafety');
-        if (val == 1) { label.innerText = 'Off (Unrestricted)'; label.className = 'text-[9px] font-black text-rose-500 uppercase tracking-widest'; }
-        else if (val == 2) { label.innerText = 'Standard Safety'; label.className = 'text-[9px] font-black text-accent uppercase tracking-widest'; }
-        else { label.innerText = 'Strict (High Precision)'; label.className = 'text-[9px] font-black text-emerald-500 uppercase tracking-widest'; }
-      }
-
-      function updatePreview() {
-        const container = document.getElementById('strategyPreview');
-        if (selectedPillars.length === 0) {
-          container.innerHTML = '<div class="text-[8px] font-black text-text-muted uppercase text-center py-4">Select pillars to see your rotation pattern</div>';
-          return;
-        }
-
-        let html = '';
-        for (let i = 0; i < 5; i++) {
-          const pillar = selectedPillars[i % selectedPillars.length];
-          html += `
-            <div class="flex items-center justify-between py-3 border-b border-brand/5 last:border-0 opacity-${(100 - i*15)}">
-              <div class="flex items-center gap-3">
-                <div class="text-[10px] w-6 h-6 flex items-center justify-center bg-brand/5 rounded-lg border border-brand/10 font-black text-brand">${i+1}</div>
-                <div class="text-[10px] font-black text-brand uppercase tracking-tighter">${pillar}</div>
-              </div>
-              <div class="text-[8px] font-bold text-text-muted uppercase tracking-widest">Automation Draft</div>
-            </div>
-          `;
-        }
-        container.innerHTML = html;
-      }
-
-      async function saveAutomation() {
-        const id = document.getElementById('autoId').value;
-        const btn = document.getElementById('btnSaveAuto');
-        if (!btn) return;
-
-        const safetyMapRev = { '3': 'strict', '2': 'standard', '1': 'off' };
-        
-        const payload = {
-          name: document.getElementById('newName').value,
-          ig_account_id: parseInt(document.getElementById('newAccount').value),
-          topic_prompt: document.getElementById('newTopic').value,
-          pillars: selectedPillars,
-          frequency: selectedFrequency,
-          custom_days: selectedDays,
-          post_time_local: document.getElementById('newTime').value,
-          source_mode: document.getElementById('newSourceMode').value,
-          tone_style: document.getElementById('newToneStyle').value,
-          verification_mode: safetyMapRev[document.getElementById('newSafetyRange').value],
-          content_seed_mode: document.getElementById('newSeedMode').value,
-          enabled: true
-        };
-
-        if (!payload.name || isNaN(payload.ig_account_id)) {
-          alert('Please provide a Name and select a Target Account.');
-          return;
-        }
-        if (selectedPillars.length === 0) {
-            alert('Please select at least one Content Pillar.');
-            return;
-        }
-        
-        btn.disabled = true;
-        const originalText = btn.textContent;
-        btn.innerHTML = '<span class="flex items-center gap-2 font-black"><svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> DEPLOYING ENGINE...</span>';
-
-        try {
-          const method = id ? 'PATCH' : 'POST';
-          const url = id ? `/automations/${id}` : '/automations';
-          
-          const res = await fetch(url, {
-            method: method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          
-          if (res.ok) {
-            btn.innerHTML = 'ENGINE READY!';
-            btn.className = btn.className.replace('bg-brand', 'bg-emerald-500');
-            setTimeout(() => window.location.reload(), 1000);
-          } else {
-            const err = await res.text();
-            alert('Failed to deploy engine: ' + err);
-            btn.disabled = false; 
-            btn.textContent = originalText; 
-          }
-        } catch(e) { 
-          alert('Network disruption. Check connection.'); 
-          btn.disabled = false; 
-          btn.textContent = originalText; 
-        }
-      }
-
-      async function suggestAutomationTopic(inputId, hiddenId) {
-          const prompt = document.getElementById(inputId).value;
-          if (!prompt) return alert("Please enter a topic overview first.");
-          
-          const btn = event.target;
-          const originalText = btn.textContent;
-          btn.textContent = 'SEARCHING...';
-          btn.disabled = true;
-          
-          try {
-              const res = await fetch('/library/topic-suggest', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ text: prompt, max: 1 })
-              });
-              const data = await res.json();
-              if (data.suggestions && data.suggestions.length > 0) {
-                  const s = data.suggestions[0];
-                  if (confirm(`Suggested Library Source: ${s.topic}\n(${s.reason})\\nLink this context for safer drafting?`)) {
-                      document.getElementById(hiddenId).value = s.slug;
-                      btn.textContent = `LINKED: ${s.topic.toUpperCase()}`;
-                      btn.classList.add('text-green-500');
-                  } else { btn.textContent = originalText; }
-              } else {
-                  alert("No direct source matches found. Generator will rely on broader library defaults.");
-                  btn.textContent = originalText;
-              }
-          } catch(e) { btn.textContent = originalText; }
-          finally { btn.disabled = false; }
-      }
-
-      // ---- COMPOSER SMART ASSIST ----
-      let composerSuggestTimer;
-      function debounceComposerSuggest(inputId, containerId) {
-          clearTimeout(composerSuggestTimer);
-          composerSuggestTimer = setTimeout(() => {
-              runComposerSuggest(inputId, containerId);
-          }, 800);
-      }
-
-      async function runComposerSuggest(inputId, containerId) {
-          const text = document.getElementById(inputId).value;
-          const container = document.getElementById(containerId);
-          
-          if (!text || text.length < 3) {
-              container.classList.add('hidden');
-              container.innerHTML = '';
-              return;
-          }
-          
-          try {
-              container.innerHTML = '<span class="text-[8px] font-black uppercase tracking-widest text-muted animate-pulse">Scanning library for context...</span>';
-              container.classList.remove('hidden');
-              container.classList.add('flex');
-              
-              const res = await fetch(`/library/suggest?query=${encodeURIComponent(text)}`);
-              const items = await res.json();
-              
-              if (items.length === 0) {
-                  container.innerHTML = '<span class="text-[8px] font-black uppercase tracking-widest text-muted">No specific grounding found. Sabeel will use verified defaults.</span>';
-                  return;
-              }
-              
-              let html = '<span class="text-[8px] font-black uppercase tracking-widest text-brand mb-1">Recommended Grounding</span>';
-              items.forEach((item, idx) => {
-                  if(idx > 2) return; 
-                  
-                  const safeText = item.text.replace(/"/g, '&quot;').replace(/\\n/g, '\\\n');
-                  const preview = item.text.length > 70 ? item.text.substring(0, 70) + "..." : item.text;
-                  
-                  html += `
-                  <div class="p-3 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between gap-4">
-                      <div class="flex-1 overflow-hidden">
-                          <h5 class="text-[9px] font-black text-white uppercase tracking-tight truncate">${item.title}</h5>
-                          <p class="text-[9px] text-white/50 truncate italic">${preview}</p>
-                      </div>
-                      <button type="button" onclick="insertComposerSuggest('${inputId}', '${safeText}', ${item.id})" class="px-3 py-1.5 bg-brand/20 text-brand rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-brand hover:text-white transition-all shrink-0">Use This</button>
-                  </div>`;
-              });
-              container.innerHTML = html;
-          } catch(e) { container.classList.add('hidden'); }
-      }
-
-      function insertComposerSuggest(inputId, textToInsert, entryId) {
-          const input = document.getElementById(inputId);
-          const nl = String.fromCharCode(10);
-          if (input.tagName === 'TEXTAREA') {
-              if (input.value.trim() !== '') input.value += nl + nl;
-              input.value += textToInsert;
-          } else {
-              if (inputId === 'newTopic') {
-                  document.getElementById('newSeedMode').value = 'manual';
-                  toggleNewSeedText();
-                  document.getElementById('newSeedText').value = textToInsert;
-              }
-          }
-          
-          trackInteraction("used_entry", entryId.toString(), "composer");
-          input.classList.add('ring-2', 'ring-brand');
-          setTimeout(() => input.classList.remove('ring-2', 'ring-brand'), 1000);
-      }
-
-      let pickerTargetId = null;
-      function openLibraryPicker(targetId) {
-          pickerTargetId = targetId;
-          document.getElementById('libraryPickerModal').classList.remove('hidden');
-          loadPickerTopics();
-          loadPickerEntries();
-      }
-      function closeLibraryPicker() {
-          document.getElementById('libraryPickerModal').classList.add('hidden');
-          pickerTargetId = null;
-      }
-      async function loadPickerTopics() {
-          try {
-              const res = await fetch('/library/topics');
-              const topics = await res.json();
-              const select = document.getElementById('pickerTopic');
-              select.innerHTML = '<option value="">All Topics</option>';
-              topics.forEach(t => {
-                  const opt = document.createElement('option');
-                  opt.value = t.slug;
-                  opt.textContent = t.slug.replace(/_/g, ' ').toUpperCase();
-                  select.appendChild(opt);
-              });
-          } catch(e) {}
-      }
-      async function loadPickerEntries() {
-          const query = document.getElementById('pickerSearch').value;
-          const topic = document.getElementById('pickerTopic').value;
-          const type = document.getElementById('pickerType').value;
-          const list = document.getElementById('pickerResults');
-          list.innerHTML = '<div class="text-center py-10 text-[9px] font-black uppercase text-muted animate-pulse">Consulting Library...</div>';
-          try {
-              let url = `/library/entries?query=${encodeURIComponent(query)}`;
-              if (topic) url += `&topic=${encodeURIComponent(topic)}`;
-              if (type) url += `&item_type=${encodeURIComponent(type)}`;
-              const res = await fetch(url);
-              const entries = await res.json();
-              if (entries.length === 0) {
-                  list.innerHTML = '<div class="text-center py-10 text-[9px] font-black uppercase text-muted opacity-40">No entries found</div>';
-                  return;
-              }
-              list.innerHTML = '';
-              entries.forEach(e => {
-                  const div = document.createElement('div');
-                  div.className = "p-4 bg-white/5 border border-white/5 rounded-2xl hover:bg-white/10 hover:border-brand/30 transition-all cursor-pointer space-y-2";
-                  div.onclick = () => selectPickerEntry(e);
-                  div.innerHTML = `
-                      <div class="flex justify-between items-center">
-                        <span class="text-[7px] font-black text-brand uppercase tracking-widest">${e.item_type}</span>
-                        <span class="text-[8px] font-black text-muted">${e.topic || ''}</span>
-                      </div>
-                      <p class="text-[10px] text-white/70 line-clamp-2">${e.text.substring(0, 150)}...</p>
-                  `;
-                  list.appendChild(div);
-              });
-          } catch(e) {}
-      }
-      function selectPickerEntry(entry) {
-          const modal = document.getElementById('libraryPickerModal');
-          const context = modal ? modal.dataset.context : '';
-
-          if (context === 'composer') {
-              if (entry.media_url) {
-                  const preview = document.getElementById('selectedMediaPreview');
-                  const img = document.getElementById('libPreviewImg');
-                  const hidden = document.getElementById('studioLibraryItemId');
-                  if (img) img.src = entry.media_url;
-                  if (preview) preview.classList.remove('hidden');
-                  if (hidden) hidden.value = entry.id;
-                  
-                  // Also mark the card as ready in verification
-                  const checkVisual = document.getElementById('checkVisual');
-                  if (checkVisual) {
-                      checkVisual.classList.remove('bg-brand/5', 'text-brand/20');
-                      checkVisual.classList.add('bg-emerald-50', 'text-emerald-600');
-                      checkVisual.parentElement.classList.remove('opacity-30');
-                  }
-              } else {
-                  alert("This library entry has no image. Please select an entry with a visual asset.");
-                  return;
-              }
-          } else {
-              const target = document.getElementById(pickerTargetId);
-              if (target) {
-                  const nl = String.fromCharCode(10);
-                  let credit = "";
-                  if (entry.item_type === 'hadith') credit = nl + nl + "[Ref: " + entry.meta.collection + " #" + entry.meta.hadith_number + "]";
-                  else if (entry.item_type === 'quran') credit = nl + nl + "[Quran " + entry.meta.surah_number + ":" + entry.meta.verse_with_number + "]";
-                  target.value = entry.text + credit;
-              }
-          }
-          closeLibraryPicker();
-      }
-
-      async function toggleAuto(event, id, enabled) {
-        const btn = event.currentTarget;
-        const originalText = btn.innerText;
-        btn.disabled = true;
-        btn.innerText = 'WAIT...';
-
-        try {
-          const res = await fetch(`/automations/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ enabled: enabled })
-          });
-          if (res.ok) window.location.reload();
-          else alert('Operation failed. Please try again.');
-        } catch(e) { alert('Network error. Check your connection.'); }
-        finally { btn.disabled = false; btn.innerText = originalText; }
-      }
-
-      async function runNow(event, id) {
-        // Safety Sync: Ensure UI matches DB state
-        try {
-            const res = await fetch('/ig-accounts/me');
-            const accounts = await res.json();
-            if (accounts.length > 0 && !window.hasConnectedInstagram) {
-                window.location.reload();
-                return;
-            }
-        } catch(e) {}
-
-        if (!window.hasConnectedInstagram) {
-          openConnectInstagramModal();
-          return;
-        }
-        if (!confirm('Start growth stream now? A new draft will be crafted immediately based on your verified strategy.')) return;
-        const btn = event.target || event.currentTarget;
-        btn.disabled = true;
-        const originalText = btn.textContent;
-        btn.innerHTML = '<span class="flex items-center gap-2"><svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> DRAFTING...</span>';
-        
-        try {
-          const res = await fetch(`/automations/${id}/run-once`, { method: 'POST' });
-          if (res.ok) {
-            btn.innerHTML = 'MANIFESTED!';
-            btn.className = btn.className.replace('bg-brand', 'bg-emerald-500');
-            setTimeout(() => {
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-                btn.className = btn.className.replace('bg-emerald-500', 'bg-brand');
-                // Redirect user to home or notify them
-                if(confirm('Draft generated! Open dashboard to review?')) window.location.href = '/app';
-            }, 2000);
-          } else {
-            const err = await res.json();
-            alert('Manifestation failed: ' + (err.detail || 'Limit reached or technical void.'));
-            btn.disabled = false; 
-            btn.innerHTML = originalText; 
-          }
-        } catch(e) { 
-            alert('Network interruption during drafting.'); 
-            btn.disabled = false; 
-            btn.innerHTML = originalText; 
-        }
-      }
-    </script>
     """
+
+    # --- COMMON LAYOUT DATA ---
+    org_id = user.active_org_id if user.active_org_id else org.id
+    accs = db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
+    primary_acc = accs[0] if accs else None
+    is_connected = primary_acc is not None
     
+    account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in accs])
+    if not accs:
+        account_options = '<option value="">No accounts connected</option>'
+        
+    connected_account_info = f"""
+        <div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2">
+            <span class="text-brand font-black text-[10px] tracking-tighter uppercase">@{primary_acc.username if primary_acc else "Account"}</span>
+            <button onclick="disconnectMetaAccount()" class="hover:text-rose-500 transition-colors opacity-60 hover:opacity-100">
+                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+    """ if is_connected else '<div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2 opacity-60 italic"><span>No account linked</span></div>'
+
     return APP_LAYOUT_HTML.replace("{content}", content.replace("{autos_html}", autos_html or empty_state_html))\
                           .replace("{title}", "Automations")\
                           .replace("{user_name}", user.name or user.email)\
@@ -3110,10 +2435,11 @@ async def app_automations_page(
                           .replace("{active_library}", "")\
                           .replace("{active_media}", "")\
                           .replace("{studio_modal}", STUDIO_COMPONENTS_HTML)\
-                          .replace("{account_options}", account_options)\
-                          .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
                           .replace("{studio_js}", STUDIO_SCRIPTS_JS)\
-                          .replace("{extra_js}", "")
+                          .replace("{account_options}", account_options)\
+                          .replace("{connected_account_info}", connected_account_info)\
+                          .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
+                          .replace("{extra_js}", f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>')
 
 @router.get("/app/media", response_class=HTMLResponse)
 async def app_media_page(
@@ -3150,6 +2476,25 @@ async def app_media_page(
     </div>
     """
     
+    # --- COMMON LAYOUT DATA ---
+    org_id = user.active_org_id if user.active_org_id else org.id
+    accs = db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
+    primary_acc = accs[0] if accs else None
+    is_connected = primary_acc is not None
+    
+    account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in accs])
+    if not accs:
+        account_options = '<option value="">No accounts connected</option>'
+
+    connected_account_info = f"""
+        <div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2">
+            <span class="text-brand font-black text-[10px] tracking-tighter uppercase">@{primary_acc.username if primary_acc else "Account"}</span>
+            <button onclick="disconnectMetaAccount()" class="hover:text-rose-500 transition-colors opacity-60 hover:opacity-100">
+                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+    """ if is_connected else '<div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2 opacity-60 italic"><span>No account linked</span></div>'
+
     return APP_LAYOUT_HTML.replace("{content}", content)\
                           .replace("{title}", "Media Studio")\
                           .replace("{user_name}", user.name or user.email)\
@@ -3161,10 +2506,11 @@ async def app_media_page(
                           .replace("{active_library}", "")\
                           .replace("{active_media}", "active")\
                           .replace("{studio_modal}", STUDIO_COMPONENTS_HTML)\
-                          .replace("{account_options}", "")\
-                          .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
                           .replace("{studio_js}", STUDIO_SCRIPTS_JS)\
-                          .replace("{extra_js}", "")
+                          .replace("{account_options}", account_options)\
+                          .replace("{connected_account_info}", connected_account_info)\
+                          .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
+                          .replace("{extra_js}", f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>')
 
 @router.get("/app/library", response_class=HTMLResponse)
 async def app_library_page(
