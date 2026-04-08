@@ -152,6 +152,7 @@ STUDIO_SCRIPTS_JS = """
         
         const btn = document.getElementById('btnGenerateCard');
         const loader = document.getElementById('cardLoader');
+        const loaderText = loader.querySelector('span'); // Target the status span
         const preview = document.getElementById('quoteCardPreview');
         const syncBanner = document.getElementById('outOfSyncBanner');
 
@@ -165,6 +166,8 @@ STUDIO_SCRIPTS_JS = """
         loader.classList.remove('hidden');
         preview.classList.add('hidden');
         syncBanner.classList.add('hidden');
+        
+        if (loaderText) loaderText.innerText = 'Analyzing Style Atmosphere...';
 
         try {
             const res = await fetch('/generate-quote-card', {
@@ -172,6 +175,9 @@ STUDIO_SCRIPTS_JS = """
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ caption, style, visual_prompt: visualPrompt })
             });
+            
+            if (loaderText) loaderText.innerText = 'Manifesting Cinematic Layers...';
+            
             const data = await res.json();
             if (data.image_url) {
                 currentQuoteCardUrl = data.image_url;
@@ -183,7 +189,8 @@ STUDIO_SCRIPTS_JS = """
                 isQuoteCardOutOfDate = false;
             }
         } catch (e) {
-            loader.innerHTML = `<span class="text-[9px] font-black text-rose-500 uppercase">Vision Failed</span>`;
+            if (loaderText) loaderText.innerText = 'Vision Failed';
+            console.error(e);
         } finally {
             btn.disabled = false;
             btn.innerText = 'Generate Cinematic Visual';

@@ -1,13 +1,68 @@
-# Copyright (c) 2026 Mohammed Hassan. All rights reserved.
-# Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
-
 import os
 import time
 import textwrap
 import math
 import random
+import json
+import re
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from openai import OpenAI
 from app.config import settings
+
+def get_openai_client():
+    if not settings.openai_api_key:
+        return None
+    return OpenAI(api_key=settings.openai_api_key)
+
+def analyze_style_prompt(visual_prompt: str, base_style: str):
+    """
+    Uses AI to convert a natural language visual prompt into a design config.
+    """
+    if not visual_prompt or not visual_prompt.strip():
+        return None
+
+    client = get_openai_client()
+    if not client:
+        return None
+
+    system_prompt = """
+    You are a luxury graphic design engine. Convert a user's visual description for a quote card into a JSON design config.
+    
+    STYLE CONSTRAINTS:
+    - Keep it premium, minimalist, and Islamic.
+    - Colors should be deep and sophisticated (avoid bright neon).
+    - Contrast must be high (Text is always white or white-ish, except for 'scholar' style).
+    
+    JSON SCHEMA:
+    {
+      "bg_start_rgb": [r, g, b],
+      "bg_end_rgb": [r, g, b],
+      "gradient_type": "radial" or "none",
+      "pattern_type": "islamic", "starry", "paper", or "none",
+      "pattern_color_rgba": [r, g, b, a] (0-255 for rgba),
+      "vignette": 0.0 to 1.0,
+      "border": "gold" or "none",
+      "glow_color_rgba": [r, g, b, a]
+    }
+    
+    Example input: "dark forest with gold borders and a soft moonlit glow"
+    Example output: {"bg_start_rgb": [5, 25, 5], "bg_end_rgb": [0, 5, 0], "gradient_type": "radial", "pattern_type": "none", "pattern_color_rgba": [0, 0, 0, 0], "vignette": 0.8, "border": "gold", "glow_color_rgba": [255, 255, 255, 60]}
+    """
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Visual Prompt: {visual_prompt}"}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.4
+        )
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        print(f"❌ Style analysis error: {e}")
+        return None
 
 def render_quote_card(background_local_path: str, quote: str, reference: str, output_dir: str) -> str:
     """
@@ -111,21 +166,16 @@ def render_quote_card(background_local_path: str, quote: str, reference: str, ou
 import random
 
 def draw_paper_texture(draw, size, color=(245, 245, 235)):
-    """Generates a procedural handmade paper/parchment texture."""
-    # Base color
+    """Fast procedural handmade paper/parchment texture."""
     draw.rectangle([0, 0, size[0], size[1]], fill=color)
-    # Add subtle grain/noise
-    for _ in range(25000):
-        x, y = random.randint(0, size[0]-1), random.randint(0, size[1]-1)
-        alpha = random.randint(5, 15)
-        draw.point((x, y), fill=(0, 0, 0, alpha))
-    # Add some fiber-like strokes
-    for _ in range(150):
-        x1, y1 = random.randint(0, size[0]-1), random.randint(0, size[1]-1)
-        length = random.randint(2, 8)
-        angle = random.uniform(0, math.pi * 2)
-        x2, y2 = x1 + math.cos(angle) * length, y1 + math.sin(angle) * length
-        draw.line([x1, y1, x2, y2], fill=(0, 0, 0, random.randint(3, 8)), width=1)
+    # Create a small noise patch and scale it (Fast)
+    ns = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+    nd = ImageDraw.Draw(ns)
+    for _ in range(1500):
+        x, y = random.randint(0, 255), random.randint(0, 255)
+        nd.point((x, y), fill=(0, 0, 0, random.randint(5, 15)))
+    
+    return ns.resize(size, Image.BILINEAR)
 
 def draw_starry_noise(draw, size, density=0.0005):
     """Adds subtle white speckles to simulate a night sky."""
@@ -141,16 +191,16 @@ def draw_starry_noise(draw, size, density=0.0005):
             draw.rectangle([x, y, x+1, y+1], fill=(255, 255, 255, alpha))
 
 def draw_textured_background(draw, size, base_color):
-    """Draws a base color plus subtle procedural noise for a 'dark paper/parchment' texture."""
-    width, height = size
-    draw.rectangle([0, 0, width, height], fill=base_color)
-    for _ in range(40000):
-        x, y = random.randint(0, width - 1), random.randint(0, height - 1)
-        grain = random.randint(-12, 12)
-        r = max(0, min(255, base_color[0] + grain))
-        g = max(0, min(255, base_color[1] + grain))
-        b = max(0, min(255, base_color[2] + grain))
-        draw.point((x, y), fill=(r, g, b))
+    """Fast dark paper/parchment texture using noise patching."""
+    draw.rectangle([0, 0, size[0], size[1]], fill=base_color)
+    noise = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
+    nd = ImageDraw.Draw(noise)
+    for _ in range(1500):
+        x, y = random.randint(0, 127), random.randint(0, 127)
+        v = random.randint(0, 20)
+        nd.point((x, y), fill=(v, v, v, 25))
+    
+    return noise.resize(size, Image.BILINEAR)
 
 def draw_gold_border(draw, size, border_width=30):
     """Draws a frame around the card in Gold with a subtle inner edge."""
@@ -170,15 +220,19 @@ def draw_text_highlight(draw, bbox, bg_color):
                            radius=15, fill=bg_color)
 
 def draw_radial_gradient(draw, size, color_start, color_end):
-    """Draws a smooth radial gradient."""
+    """Fast smooth radial gradient with optimized steps."""
     width, height = size
     center_x, center_y = width / 2, height / 2
     max_dist = math.sqrt(center_x**2 + center_y**2)
-    for radius in range(int(max_dist), 0, -4):
-        ratio = min(1, radius / (max_dist * 0.9))
-        r = int(color_start[0] * (1 - ratio) + color_end[0] * ratio)
-        g = int(color_start[1] * (1 - ratio) + color_end[1] * ratio)
-        b = int(color_start[2] * (1 - ratio) + color_end[2] * ratio)
+    # Using 45 steps instead of high iterations is much faster
+    steps = 45
+    for i in range(steps, 0, -1):
+        ratio = i / steps
+        radius = max_dist * ratio
+        c_ratio = 1 - ratio
+        r = int(color_start[0] * (1 - c_ratio) + color_end[0] * c_ratio)
+        g = int(color_start[1] * (1 - c_ratio) + color_end[1] * c_ratio)
+        b = int(color_start[2] * (1 - c_ratio) + color_end[2] * c_ratio)
         draw.ellipse([center_x - radius, center_y - radius, center_x + radius, center_y + radius], fill=(r, g, b))
 
 def draw_islamic_pattern(draw, size, color):
@@ -193,17 +247,50 @@ def draw_islamic_pattern(draw, size, color):
             draw.polygon([(x-s_diag, y), (x, y-s_diag), (x+s_diag, y), (x, y+s_diag)], outline=color, width=1)
 
 def apply_vignette(image, intensity=0.6):
+    """Fast vignette overlay using gradient mask."""
     width, height = image.size
     overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
     center_x, center_y = width / 2, height / 2
     max_dist = math.sqrt(center_x**2 + center_y**2)
-    for y in range(0, height, 4):
-        for x in range(0, width, 4):
-            dist = math.sqrt((x - center_x)**2 + (y - center_y)**2)
-            alpha = int((dist / max_dist) ** 2.5 * 255 * intensity)
-            draw.rectangle([x, y, x+4, y+4], fill=(0, 0, 0, alpha))
+    
+    # Fast concentric circles for vignette
+    steps = 30
+    for i in range(steps):
+        dist_ratio = i / steps
+        alpha = int((dist_ratio ** 2.5) * 255 * intensity)
+        radius = max_dist * (1 - dist_ratio)
+        draw.ellipse([center_x - radius, center_y - radius, center_x + radius, center_y + radius], fill=(0, 0, 0, alpha))
+    
     return Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
+
+def apply_cinematic_layers(image):
+    """Adds ultra-premium cinematic overlays: grain and optical bloom."""
+    w, h = image.size
+    
+    # 1. Subtle Film Grain Overlay
+    grain_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    gd = ImageDraw.Draw(grain_layer)
+    for _ in range(4000):
+        x, y = random.randint(0, w-1), random.randint(0, h-1)
+        r = random.randint(220, 255)
+        gd.point((x, y), fill=(r, r, r, 12))
+        
+    # 2. Corner Light Blooms (Optical Flares)
+    bloom_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    bd = ImageDraw.Draw(bloom_layer)
+    # Warm warm glow Top-Left
+    bd.ellipse([-300, -300, 500, 500], fill=(255, 210, 160, 22)) 
+    # Soft cool glow Bottom-Right
+    bd.ellipse([w-500, h-500, w+300, h+300], fill=(160, 210, 255, 18))
+    
+    bloom_layer = bloom_layer.filter(ImageFilter.GaussianBlur(110))
+    
+    # Composite
+    res = image.convert("RGBA")
+    res = Image.alpha_composite(res, grain_layer)
+    res = Image.alpha_composite(res, bloom_layer)
+    return res.convert("RGB")
 
 def draw_text_with_shadow(draw, position, text, font, fill, shadow_fill=(0, 0, 0, 100), offset=(3, 3)):
     """Draws text with character-level fallback support for Islamic symbols."""
@@ -246,12 +333,16 @@ def draw_text_spaced(draw, position, text, font, fill, spacing=2):
         char_w = bbox[2] - bbox[0]
         x += char_w + spacing
 
-def render_minimal_quote_card(segments: list, output_dir: str, style: str = "classic") -> str:
+def render_minimal_quote_card(segments: list, output_dir: str, style: str = "classic", visual_prompt: str = None) -> str:
     """
     Final Designer Engine: 3 Emotionally Powerful styles.
+    Supports visual_prompt to influence aesthetics.
     """
     target_size = (1080, 1080)
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    
+    # 1. Background Logic & Palette Overrides
+    overrides = analyze_style_prompt(visual_prompt, style)
     
     # Selection of Font based on style
     font_file = "Inter.ttf"
@@ -259,53 +350,81 @@ def render_minimal_quote_card(segments: list, output_dir: str, style: str = "cla
         font_file = "Amiri-Regular.ttf"
     font_path = os.path.join(base_dir, "assets", "fonts", font_file)
 
-    # 1. Background Logic
-    if style == "classic":
-        bg = Image.new("RGB", target_size, (15, 20, 15))
+    # Initial Palette from Override or Style
+    if overrides:
+        bg_start = tuple(overrides.get("bg_start_rgb", [15, 20, 15]))
+        bg_end = tuple(overrides.get("bg_end_rgb", [5, 10, 5]))
+        v_intensity = overrides.get("vignette", 0.5)
+        border_type = overrides.get("border", "none")
+        p_type = overrides.get("pattern_type", "none")
+        p_rgba = tuple(overrides.get("pattern_color_rgba", [255, 255, 255, 30]))
+        g_type = overrides.get("gradient_type", "radial")
+        glow_rgba = tuple(overrides.get("glow_color_rgba", [255, 255, 255, 80]))
+        
+        bg = Image.new("RGB", target_size, bg_end)
         draw = ImageDraw.Draw(bg)
-        draw_textured_background(draw, target_size, (12, 18, 12))
-        draw_islamic_pattern(draw, target_size, (180, 140, 50, 45)) # Visible gold
-        bg = apply_vignette(bg, intensity=0.45)
-        # Apply border after vignette to keep gold sharp
-        draw = ImageDraw.Draw(bg)
-        draw_gold_border(draw, target_size, border_width=40)
-    elif style == "modern":
-        bg = Image.new("RGB", target_size, (5, 5, 5))
-        draw = ImageDraw.Draw(bg)
-        draw_radial_gradient(draw, target_size, (15, 45, 15), (2, 5, 2))
-    elif style == "premium":
-        bg = Image.new("RGB", target_size, (0, 0, 0))
-        draw = ImageDraw.Draw(bg)
-        # Deep green cinematic center (#0F2A1D)
-        draw_radial_gradient(draw, target_size, (15, 42, 29), (0, 0, 0))
-        bg = apply_vignette(bg, intensity=0.9)
-    elif style == "ethereal":
-        bg = Image.new("RGB", target_size, (255, 255, 255))
-        draw = ImageDraw.Draw(bg)
-        # Soft warmth for peace
-        draw_radial_gradient(draw, target_size, (255, 255, 255), (245, 245, 235))
-        bg = apply_vignette(bg, intensity=0.1) # Very subtle
-    elif style == "scholar":
-        bg = Image.new("RGB", target_size, (245, 245, 235))
-        draw = ImageDraw.Draw(bg)
-        draw_paper_texture(draw, target_size)
-    elif style == "celestial":
-        bg = Image.new("RGB", target_size, (0, 0, 0))
-        draw = ImageDraw.Draw(bg)
-        # Deep spiritual midnight
-        draw_radial_gradient(draw, target_size, (10, 25, 60), (0, 0, 0))
-        draw_starry_noise(draw, target_size, density=0.0006)
-        bg = apply_vignette(bg, intensity=0.4)
+        
+        if g_type == "radial":
+            draw_radial_gradient(draw, target_size, bg_start, bg_end)
+        
+        if p_type == "islamic":
+            draw_islamic_pattern(draw, target_size, p_rgba)
+        elif p_type == "starry":
+            draw_starry_noise(draw, target_size)
+        elif p_type == "paper":
+            draw_paper_texture(draw, target_size)
+            
+        bg = apply_vignette(bg, intensity=v_intensity)
+        if border_type == "gold":
+            draw = ImageDraw.Draw(bg)
+            draw_gold_border(draw, target_size)
+    else:
+        # Standard Style Presets
+        glow_rgba = None
+        if style == "classic":
+            bg = Image.new("RGB", target_size, (15, 20, 15))
+            draw = ImageDraw.Draw(bg)
+            draw_textured_background(draw, target_size, (12, 18, 12))
+            draw_islamic_pattern(draw, target_size, (180, 140, 50, 45))
+            bg = apply_vignette(bg, intensity=0.45)
+            draw = ImageDraw.Draw(bg)
+            draw_gold_border(draw, target_size, border_width=40)
+        elif style == "modern":
+            bg = Image.new("RGB", target_size, (5, 5, 5))
+            draw = ImageDraw.Draw(bg)
+            draw_radial_gradient(draw, target_size, (15, 45, 15), (2, 5, 2))
+        elif style == "premium":
+            bg = Image.new("RGB", target_size, (0, 0, 0))
+            draw = ImageDraw.Draw(bg)
+            draw_radial_gradient(draw, target_size, (15, 42, 29), (0, 0, 0))
+            bg = apply_vignette(bg, intensity=0.9)
+        elif style == "ethereal":
+            bg = Image.new("RGB", target_size, (255, 255, 255))
+            draw = ImageDraw.Draw(bg)
+            draw_radial_gradient(draw, target_size, (255, 255, 255), (245, 245, 235))
+            bg = apply_vignette(bg, intensity=0.1) 
+        elif style == "scholar":
+            bg = Image.new("RGB", target_size, (245, 245, 235))
+            draw = ImageDraw.Draw(bg)
+            draw_paper_texture(draw, target_size)
+        elif style == "celestial":
+            bg = Image.new("RGB", target_size, (0, 0, 0))
+            draw = ImageDraw.Draw(bg)
+            draw_radial_gradient(draw, target_size, (10, 25, 60), (0, 0, 0))
+            draw_starry_noise(draw, target_size, density=0.0006)
+            bg = apply_vignette(bg, intensity=0.4)
+        else:
+            bg = Image.new("RGB", target_size, (20, 20, 20))
     
     draw = ImageDraw.Draw(bg)
 
-    # 2. Text Calculation
-    padding = 180 if style in ["modern", "ethereal"] else 100
+    # 2. Text Calculation (Improved Alignment & Balancing)
+    padding = 180 if style in ["modern", "ethereal"] else 120
     line_spacing = 40 if style in ["premium", "celestial"] else 30
-    segment_spacing = 120 if style in ["premium", "celestial"] else 110
+    segment_spacing = 100 
     
     prepared_segments = []
-    total_height = 0
+    total_content_height = 0
 
     for i, seg in enumerate(segments):
         try:
@@ -314,50 +433,55 @@ def render_minimal_quote_card(segments: list, output_dir: str, style: str = "cla
             curr_font = ImageFont.load_default()
 
         wrap_max = 1080 - 2 * padding
-        wrapped_lines = textwrap.wrap(seg["text"], width=int(wrap_max / (seg["size"] * 0.5)))
+        if i == 0:
+            wrap_max = int(wrap_max * 0.85)
+        
+        wrapped_lines = textwrap.wrap(seg["text"], width=int(wrap_max / (seg["size"] * 0.48)))
         
         line_data = []
         seg_h = 0
         for line in wrapped_lines:
             bbox = draw.textbbox((0, 0), line, font=curr_font)
-            h = bbox[3] - bbox[1]
-            line_data.append({"line": line, "height": h, "width": bbox[2] - bbox[0], "bbox": bbox})
+            h = (bbox[3] - bbox[1])
+            line_data.append({"line": line, "height": h, "width": bbox[2] - bbox[0]})
             seg_h += h + line_spacing
         
         seg_h -= line_spacing
+        
+        current_gap = segment_spacing
+        if i == 0:
+            current_gap = int(segment_spacing * 0.55)
+
         prepared_segments.append({
             "font": curr_font,
             "lines": line_data,
             "height": seg_h,
+            "spacing": current_gap,
             "color": seg["color"],
-            "glow": i == 1 and (style in ["modern", "premium", "celestial"])
+            "glow": i == 1 and (style in ["modern", "premium", "celestial"] or visual_prompt)
         })
-        total_height += seg_h + (segment_spacing if i < len(segments)-1 else 0)
+        
+        total_content_height += seg_h
+        if i < len(segments)-1:
+            total_content_height += current_gap
 
-    # 3. Y Starting Position
-    y = (1080 - total_height) // 2
-    # Removed premium offset for Perfect Center Alignment
-
-    # 4. Draw Content
+    # 3. Drawing Cycle (Optical Centering)
+    y = (1080 - total_content_height) // 2
     bg_rgba = bg.convert("RGBA")
     
     for i, seg in enumerate(prepared_segments):
-        # 1. Soft Glow Layer (Behind Text)
+        # 1. Soft Glow Layer
         if seg.get("glow"):
             glow_layer = Image.new("RGBA", target_size, (0, 0, 0, 0))
             gd = ImageDraw.Draw(glow_layer)
             ty = y
             
-            # Select Glow profile
-            if style == "premium":
-                g_col = (255, 255, 255, 80) # Subtle white halo
-                g_blur = 35 
-            elif style == "celestial":
-                g_col = (255, 255, 255, 100) # Bright celestial halo
-                g_blur = 40
-            else: # modern
-                g_col = (20, 100, 20, 150) # Subtle green
-                g_blur = 18
+            # Select Glow Color
+            g_col = glow_rgba if glow_rgba else ((255, 255, 255, 70) if style == "premium" else (255, 255, 255, 90))
+            g_blur = 30
+            if style == "modern" and not glow_rgba:
+                g_col = (20, 100, 20, 140)
+                g_blur = 15
                 
             for ln in seg["lines"]:
                 tx = (1080 - ln["width"]) // 2
@@ -367,37 +491,30 @@ def render_minimal_quote_card(segments: list, output_dir: str, style: str = "cla
             glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(g_blur))
             bg_rgba = Image.alpha_composite(bg_rgba, glow_layer)
 
-        # 2. Cinematic Text Drawing
+        # 2. Hero Text Rendering
         draw_rgba = ImageDraw.Draw(bg_rgba)
         ty = y
         for ln in seg["lines"]:
             tx = (1080 - ln["width"]) // 2
             
-            # Application of Cinematic Effects
             if i == 0 and style in ["premium", "celestial"]:
-                # Letter-spaced reference with 70% opacity and fallback support
-                ref_color = (seg["color"][0], seg["color"][1], seg["color"][2], 180)
+                # Elegant gold reference with light opacity
+                sc = seg["color"]
+                ref_color = (sc[0], sc[1], sc[2], 160)
                 draw_text_spaced(draw_rgba, (tx, ty), ln["line"], seg["font"], fill=ref_color, spacing=4)
             elif i == 1 and style in ["premium", "celestial"]:
-                # Shadowed hero text with semi-bold simulation and fallback support
-                shadow_col = (0, 0, 0, 150) if style == "premium" else (0, 5, 20, 180)
-                draw_text_with_shadow(draw_rgba, (tx, ty), ln["line"], seg["font"], fill=seg["color"], shadow_fill=shadow_col)
+                # Bold hero line with soft shadow
+                draw_text_with_shadow(draw_rgba, (tx, ty), ln["line"], seg["font"], fill=seg["color"])
             else:
-                # Standard drawing for Scholar, Ethereal, and others
                 draw_text_with_fallback(draw_rgba, (tx, ty), ln["line"], seg["font"], fill=seg["color"])
                 
             ty += ln["height"] + line_spacing
             
-        # Adjust spacing for cinematic grouping (Tighter reference)
-        current_spacing = segment_spacing
-        if i == 0 and style in ["premium", "celestial"]:
-            current_spacing = int(segment_spacing * 0.65) # 35% reduction
-            
-        y = ty + (current_spacing if i < len(prepared_segments)-1 else 0)
+        y = ty - line_spacing + seg["spacing"]
 
-    # 5. Save Final Cinematic Image
-    final_img = bg_rgba.convert("RGB")
-    filename = f"quote_v7_{style}_{int(time.time() * 1000)}.jpg"
+    # 4. Final Cinematic Post-Processing
+    final_img = apply_cinematic_layers(bg_rgba)
+    filename = f"qcard_{int(time.time() * 1000)}.jpg"
     final_path = os.path.join(output_dir, filename)
     os.makedirs(output_dir, exist_ok=True)
     final_img.save(final_path, quality=95)
