@@ -3,9 +3,9 @@ import os
 # Add current directory to path
 sys.path.append(os.getcwd())
 
-from app.db import SessionLocal
+from app.db import SessionLocal, engine
 from app.services.sources.sunnah import pick_hadith_for_topic
-from app.models import Base, engine
+from app.models import Base
 
 def test_fetch():
     print("Starting Hadith Fetch Test...")
@@ -33,3 +33,4 @@ def test_fetch():
 
 if __name__ == "__main__":
     test_fetch()
+    

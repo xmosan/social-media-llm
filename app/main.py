@@ -73,7 +73,12 @@ if "JWT_SECRET" not in missing_vars and settings.secret_key == "change-me-in-pro
 if missing_vars:
     logger.warning(f"CRITICAL STARTUP WARNING: Missing or unsafe required variables: {', '.join(missing_vars)}")
 
-app = FastAPI(title="Sabeel - Multi-tenant SaaS")
+app = FastAPI(
+    title="Sabeel - Multi-tenant SaaS",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
+)
 
 @app.get("/api-test")
 def api_test():
@@ -121,7 +126,8 @@ class ComingSoonMiddleware(BaseHTTPMiddleware):
         
         # 1. ALLOWED PATHS (Always accessible)
         allowed_prefixes = [
-            "/login", "/register", "/auth", "/static", "/api/contact", "/health", "/api-test", "/demo", "/contact", "/privacy", "/terms"
+            "/login", "/register", "/auth", "/static", "/api/contact", "/health", "/api-test", "/demo", 
+            "/contact", "/privacy", "/terms", "/docs", "/redoc", "/openapi.json", "/generate-caption", "/generate-quote-card"
         ]
         if path == "/" or any(path.startswith(p) for p in allowed_prefixes):
             # If authenticated and visiting root, redirect to /app
@@ -180,7 +186,6 @@ def api_debug_env():
         "database_url_scheme": settings.database_url.split(":")[0] if settings.database_url else None
     }
 
-
 @app.get("/health")
 def health_check():
     return {
@@ -189,6 +194,37 @@ def health_check():
         "scheduler": "running",
         "version": "debug-v1"
     }
+
+from app.services.caption_engine import generate_islamic_caption
+from app.services.image_card import generate_quote_card
+
+@app.post("/generate-caption")
+async def generate_caption(data: dict):
+    print("🔥 Incoming request:", data)
+
+    caption = generate_islamic_caption(
+        data.get("intention"),
+        data.get("topic"),
+        data.get("tone", "calm")
+    )
+
+    print("🔥 Generated caption:", caption)
+
+    return {"caption": caption}
+
+@app.post("/generate-quote-card", summary="Generate a Cinematic Quote Card", description="Creates an Islamic quote card image from a caption. Available styles: 'classic', 'modern', 'premium', 'scholar', 'ethereal', 'celestial'.")
+async def api_generate_quote_card(data: dict):
+    caption = data.get("caption")
+    style = data.get("style", "premium") # Default to premium (Cinematic)
+    
+    print(f"🎨 Generating quote card (style: {style}) for: {caption[:50]}...")
+    
+    if not caption:
+        return JSONResponse(status_code=400, content={"error": "Caption is required"})
+        
+    image_url = generate_quote_card(caption, style=style)
+    
+    return {"image_url": image_url}
 
 @app.get("/ready")
 def readiness_check():
@@ -363,7 +399,6 @@ def on_startup():
 async def global_exception_handler(request: Request, exc: Exception):
     log_startup(f"GLOBAL ERROR: {exc}")
     import traceback
-    log_startup(traceback.format_exc())
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal Server Error", "diagnostic": str(exc)}

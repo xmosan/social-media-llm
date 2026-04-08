@@ -22,7 +22,10 @@ router = APIRouter()
 
 STUDIO_SCRIPTS_JS = """
 <script>
-    // --- REMINDER STUDIO CORE LOGIC ---
+    // --- REMINDER STUDIO CORE LOGIC (v3.0) ---
+    let currentQuoteCardUrl = null;
+    let isQuoteCardOutOfDate = false;
+
     function openNewPostModal() {
         document.getElementById('newPostModal').classList.remove('hidden');
         switchStudioSection(1);
@@ -33,8 +36,8 @@ STUDIO_SCRIPTS_JS = """
     }
 
     function switchStudioSection(stepIndex) {
-        // Hide all sections
-        for(let i=1; i<=6; i++) {
+        // Hide all sections (4 steps)
+        for(let i=1; i<=4; i++) {
            const el = document.getElementById('studioSection' + i);
            if(el) el.classList.add('hidden');
            
@@ -79,13 +82,8 @@ STUDIO_SCRIPTS_JS = """
         }
 
         // Section Specific Hooks
-        if (stepIndex === 6) {
-            const intentVal = document.getElementById('studioIntent').value;
-            const strictVal = document.getElementById('studioStrictness').value;
-            const summaryIntent = document.getElementById('summaryIntent');
-            const summaryStrict = document.getElementById('summaryStrict');
-            if (summaryIntent) summaryIntent.innerText = intentVal.replace('_', ' ').toUpperCase();
-            if (summaryStrict) summaryStrict.innerText = strictVal.toUpperCase();
+        if (stepIndex === 4) {
+            prepareManifest();
         }
     }
 
@@ -96,277 +94,169 @@ STUDIO_SCRIPTS_JS = """
         el.closest('.intent-card').classList.add('active');
     }
 
-    function setStudioFoundation(foundation, el) {
-        document.getElementById('studioFoundation').value = foundation;
-        document.querySelectorAll('.foundation-card').forEach(c => c.classList.remove('active'));
-        el.closest('.foundation-card').classList.add('active');
-        
-        const label = document.getElementById('seedLabel');
-        if (foundation === 'quran' || foundation === 'hadith') {
-            label.innerText = "Paste excerpt or enter direct instructions:";
-        } else {
-            label.innerText = "Key message or creative directives:";
+    function setStudioTone(tone, el) {
+        document.getElementById('studioTone').value = tone;
+        document.querySelectorAll('.tone-card').forEach(c => c.classList.remove('active'));
+        el.closest('.tone-card').classList.add('active');
+    }
+
+    function setStudioStyle(style, el) {
+        document.getElementById('studioStyle').value = style;
+        document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
+        el.closest('.style-card').classList.add('active');
+    }
+
+    // --- AI GENERATION LOGIC ---
+    async function generateAICaption() {
+        const topic = document.getElementById('studioTopic').value;
+        const intention = document.getElementById('studioIntent').value;
+        const tone = document.getElementById('studioTone').value;
+        const btn = document.getElementById('btnCraftCaption');
+        const icon = document.getElementById('craftIcon');
+        const text = document.getElementById('craftText');
+
+        if (!topic) {
+            alert('Please define a topic to spark the reminder.');
+            return;
         }
-    }
 
-    function setStudioEmotion(emotion, el) {
-        document.getElementById('studioEmotion').value = emotion;
-        document.querySelectorAll('.emotion-card').forEach(c => c.classList.remove('active'));
-        el.closest('.emotion-card').classList.add('active');
-    }
+        btn.disabled = true;
+        icon.classList.add('animate-spin');
+        text.innerText = 'Crafting Spiritual Essence...';
 
-    function setStudioDepth(depth, el) {
-        document.getElementById('studioDepth').value = depth;
-        document.querySelectorAll('.depth-card').forEach(c => c.classList.remove('active'));
-        el.closest('.depth-card').classList.add('active');
-    }
-
-    function setStudioHook(hook, el) {
-        document.getElementById('studioHook').value = hook;
-        document.querySelectorAll('.hook-card').forEach(c => c.classList.remove('active'));
-        el.closest('.hook-card').classList.add('active');
-    }
-
-    function setStudioFormat(format, el) {
-        document.getElementById('studioFormat').value = format;
-        document.querySelectorAll('.format-card').forEach(c => c.classList.remove('active'));
-        el.closest('.format-card').classList.add('active');
-    }
-
-    function setStudioStrictness(strict, el) {
-        document.getElementById('studioStrictness').value = strict;
-        document.querySelectorAll('.strict-card').forEach(c => c.classList.remove('active'));
-        el.closest('.strict-card').classList.add('active');
-    }
-
-    // --- VISUAL & MEDIA ---
-    function setVisualMode(mode) {
-        document.getElementById('studioVisualMode').value = mode;
-        document.querySelectorAll('.visual-card').forEach(c => c.classList.remove('active'));
-        
-        const targetId = {
-            'upload': 'modeUpload',
-            'media_library': 'modeMedia',
-            'ai_background': 'modeAI',
-            'quote_card': 'modeQuote'
-        }[mode];
-        
-        const targetEl = document.getElementById(targetId);
-        if (targetEl) targetEl.classList.add('active');
-
-        ['uiUpload', 'uiMedia', 'uiAI', 'uiQuoteMod'].forEach(id => {
-            const el = document.getElementById(id);
-            if(el) el.classList.add('hidden');
-        });
-
-        if (mode === 'upload') document.getElementById('uiUpload').classList.remove('hidden');
-        else if (mode === 'media_library') document.getElementById('uiMedia').classList.remove('hidden');
-        else if (mode === 'ai_background' || mode === 'quote_card') {
-            document.getElementById('uiAI').classList.remove('hidden');
-            if (mode === 'quote_card') document.getElementById('uiQuoteMod').classList.remove('hidden');
-        }
-    }
-
-    function openMediaPicker() {
-        const picker = document.getElementById('libraryPickerModal');
-        if (picker) {
-            picker.classList.remove('hidden');
-            picker.dataset.context = 'composer';
-            loadPickerEntries();
-        }
-    }
-
-    function openLibraryDrawer() {
-        const picker = document.getElementById('libraryPickerModal');
-        if (picker) {
-            picker.classList.remove('hidden');
-            picker.dataset.context = 'foundation';
-            pickerTargetId = 'studioSourceText';
-            loadPickerEntries();
-        }
-    }
-
-    function previewUpload(input) {
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = document.getElementById('uploadPreview');
-                if(img) {
-                    img.src = e.target.result;
-                    img.classList.remove('hidden');
-                }
-                const check = document.getElementById('checkVisual');
-                if(check) {
-                    check.classList.add('bg-emerald-50', 'text-emerald-600');
-                    check.parentElement.classList.remove('opacity-30');
-                }
-            };
-            reader.readAsDataURL(input.files[0]);
-        }
-    }
-
-    async function launchLivePreview() {
-        const img = document.getElementById('previewImage');
-        const loader = document.getElementById('previewLoader');
-        if(!img || !loader) return;
-
-        img.classList.add('hidden');
-        loader.classList.remove('hidden');
-
-        const formData = new FormData(document.getElementById('composerForm'));
         try {
-            const res = await fetch('/posts/preview_render', { method: 'POST', body: formData });
+            const res = await fetch('/generate-caption', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ topic, intention, tone })
+            });
             const data = await res.json();
-            if (res.ok) {
-                img.src = data.preview_url;
-                img.classList.remove('hidden');
-                loader.classList.add('hidden');
-            } else {
-                loader.innerHTML = `<span class="text-[9px] font-black text-rose-500 uppercase">Analysis Failed</span>`;
+            if (data.caption) {
+                document.getElementById('studioCaption').value = data.caption;
+                document.getElementById('captionResultArea').classList.remove('hidden');
+                invalidateQuoteCard(); // New caption = card out of date
             }
         } catch (e) {
-            loader.innerHTML = `<span class="text-[9px] font-black text-rose-500 uppercase">Preview Error</span>`;
+            alert('The Spark failed to ignite. Check your connection.');
+        } finally {
+            btn.disabled = false;
+            icon.classList.remove('animate-spin');
+            text.innerText = 'Craft Cinematic Caption';
+        }
+    }
+
+    async function generateQuoteCard() {
+        const caption = document.getElementById('studioCaption').value;
+        const style = document.getElementById('studioStyle').value;
+        const btn = document.getElementById('btnGenerateCard');
+        const loader = document.getElementById('cardLoader');
+        const preview = document.getElementById('quoteCardPreview');
+        const syncBanner = document.getElementById('outOfSyncBanner');
+
+        if (!caption) {
+            alert('A message is required to visualize the wisdom.');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerText = 'Rendering Vision...';
+        loader.classList.remove('hidden');
+        preview.classList.add('hidden');
+        syncBanner.classList.add('hidden');
+
+        try {
+            const res = await fetch('/generate-quote-card', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ caption, style })
+            });
+            const data = await res.json();
+            if (data.image_url) {
+                currentQuoteCardUrl = data.image_url;
+                document.getElementById('finalMediaUrl').value = data.image_url;
+                preview.src = data.image_url;
+                preview.classList.remove('hidden');
+                loader.classList.add('hidden');
+                document.getElementById('cardActions').classList.remove('hidden');
+                isQuoteCardOutOfDate = false;
+            }
+        } catch (e) {
+            loader.innerHTML = `<span class="text-[9px] font-black text-rose-500 uppercase">Vision Failed</span>`;
+        } finally {
+            btn.disabled = false;
+            btn.innerText = 'Generate Cinematic Visual';
+        }
+    }
+
+    function invalidateQuoteCard() {
+        if (currentQuoteCardUrl) {
+            isQuoteCardOutOfDate = true;
+            document.getElementById('outOfSyncBanner').classList.remove('hidden');
+        }
+    }
+
+    function prepareManifest() {
+        const caption = document.getElementById('studioCaption').value;
+        const account = document.getElementById('studioAccount').options[document.getElementById('studioAccount').selectedIndex]?.text || "No Account";
+        const timeVal = document.getElementById('studioSchedule').value;
+        const timeStr = timeVal ? new Date(timeVal).toLocaleString() : "Next Available Slot";
+        const previewImg = document.getElementById('finalPreviewImage');
+
+        document.getElementById('manifestCaption').innerText = caption;
+        document.getElementById('manifestAccount').innerText = account;
+        document.getElementById('manifestTime').innerText = timeStr;
+        
+        if (currentQuoteCardUrl) {
+            previewImg.src = currentQuoteCardUrl;
         }
     }
 
     async function submitNewPost(event) {
         event.preventDefault();
         const btn = document.getElementById('studioSubmitBtn');
-        const original = btn.innerHTML;
-        btn.innerHTML = 'PREPARING... <span class="animate-pulse">✨</span>';
+        const original = btn.innerText;
+
+        if (isQuoteCardOutOfDate && !confirm("Your quote card no longer matches your latest caption. Manifest anyway?")) {
+            return;
+        }
+
         btn.disabled = true;
+        btn.innerHTML = 'MANIFESTING... <span class="animate-pulse">✨</span>';
 
         const formData = new FormData(event.target);
+        
+        // Add library item ID if needed (compatibility)
+        formData.append('visual_mode', 'quote_card');
+        formData.append('source_text', document.getElementById('studioTopic').value);
+
         try {
             const res = await fetch('/posts/intake', { method: 'POST', body: formData });
-            if (res.ok) window.location.reload();
-            else {
+            if (res.ok) {
+                window.location.reload();
+            } else {
                 const data = await res.json().catch(() => ({detail: 'System timeout'}));
-                alert('Guidance Error: ' + (data.detail || 'Unknown error'));
+                alert('Manifestation Error: ' + (data.detail || 'Unknown error'));
             }
         } catch (e) {
-            alert('Connection failure: ' + e);
+            alert('Manifestation Connection failure: ' + e);
         } finally {
-            btn.innerHTML = original;
+            btn.innerText = original;
             btn.disabled = false;
         }
     }
-    
-    function setAIPreset(p) {
-        const prompts = {
-            'nature': 'Minimalist nature photography, warm golden hour, plenty of negative space',
-            'islamic_geo': 'Elegant Islamic geometric patterns, dark emerald and gold, cinematic macro',
-            'minimal': 'Smooth abstract gradients, premium silk texture, minimalist aesthetic',
-            'mosque_sil': 'Cinematic silhouette of a mosque dome against a starry night sky'
-        };
-        const el = document.getElementById('studioVisualPrompt');
-        if (el) el.value = prompts[p] || "";
-    }
 
-    // --- LIBRARY SEARCH & SUGGEST ---
-    let suggestTimer;
-    function debounceComposerSuggest(inputId) {
-        clearTimeout(suggestTimer);
-        suggestTimer = setTimeout(() => {
-            const val = document.getElementById(inputId).value;
-            if (val.length > 5) fetchComposerSuggestions(val);
-        }, 800);
-    }
-
-    async function fetchComposerSuggestions(text) {
-        const wrap = document.getElementById('topicSuggestionsArea');
-        const cont = document.getElementById('topicSuggestionsList');
-        if (!wrap || !cont) return;
-
-        wrap.classList.remove('hidden');
-        cont.innerHTML = '<div class="text-[10px] text-brand/60 uppercase font-black tracking-widest animate-pulse">Scanning Library...</div>';
-        
-        try {
-            const res = await fetch('/library/suggest-entries', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({text: text, max: 3})
-            });
-            const data = await res.json();
-            
-            cont.innerHTML = '';
-            if (data.length === 0) {
-                cont.innerHTML = '<div class="text-[10px] text-text-muted font-bold">No exact matches.</div>';
-            } else {
-                data.forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = "flex justify-between items-center p-4 bg-cream/20 hover:bg-brand/5 border border-brand/5 rounded-xl transition-all group cursor-pointer";
-                    let ref = item.meta.title || item.item_type;
-                    div.innerHTML = `
-                        <div class="flex-1 pr-4">
-                            <div class="text-[9px] font-black text-accent uppercase tracking-widest mb-1">${ref}</div>
-                            <div class="text-xs text-brand font-medium line-clamp-2">${item.text}</div>
-                        </div>
-                        <button class="px-4 py-2 border border-brand/20 text-brand rounded-lg text-[9px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-all shrink-0">Use</button>
-                    `;
-                    div.onclick = () => applySuggestedSource(item, ref);
-                    cont.appendChild(div);
-                });
-            }
-        } catch(e) {
-            cont.innerHTML = '<div class="text-[10px] text-rose-500 font-bold uppercase">Search Failed</div>';
-        }
-    }
-
-    function applySuggestedSource(item, refText) {
-        const textEl = document.getElementById('studioSourceText');
-        const refEl = document.getElementById('studioReference');
-        if (textEl) textEl.value = item.text || "";
-        if (refEl) refEl.value = refText || "";
-        
-        const card = document.getElementById('activeSourceCard');
-        if (card) {
-            card.classList.remove('hidden');
-            const at = document.getElementById('activeSourceText');
-            const ar = document.getElementById('activeSourceRef');
-            if (at) at.innerText = item.text || "";
-            if (ar) ar.innerText = refText || "";
-        }
-    }
-
-    function clearSelectedSource() {
-        const textEl = document.getElementById('studioSourceText');
-        const refEl = document.getElementById('studioReference');
-        if (textEl) textEl.value = "";
-        if (refEl) refEl.value = "";
-        
-        const card = document.getElementById('activeSourceCard');
-        if (card) card.classList.add('hidden');
-    }
-    async function disconnectMetaAccount() {
-        if (!confirm("Are you sure you want to disconnect this Instagram account?")) return;
-        const res = await fetch('/auth/instagram/disconnect', { method: 'POST' });
-        const data = await res.json();
-        if (data.ok) window.location.reload();
-        else alert(data.error || "Failed to disconnect");
-    }
-
-    // --- ACCOUNT SWITCHER & STATE SYNC ---
+    // --- ACCOUNT SWITCHER & STATE SYNC (LEGACY SUPPORT) ---
     async function renderAccountSwitcher() {
         const container = document.getElementById('navbarAccountSwitcher');
         if (!container) return;
-
         try {
             const res = await fetch('/ig-accounts/me');
             const accounts = await res.json();
-            
             if (accounts.length === 0) {
-                container.innerHTML = `
-                    <button onclick="openConnectInstagramModal()" class="flex items-center gap-2 px-3 py-1.5 bg-brand text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-brand-hover transition-all">
-                        Link Meta
-                    </button>
-                `;
+                container.innerHTML = `<button onclick="openConnectInstagramModal()" class="flex items-center gap-2 px-3 py-1.5 bg-brand text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-brand-hover transition-all">Link Meta</button>`;
                 return;
             }
-
             const active = accounts.find(a => a.active) || accounts[0];
-            const others = accounts.filter(a => a.id !== active.id);
-
             container.innerHTML = `
                 <div class="relative inline-block text-left" id="accountSwitcherRoot">
                     <button onclick="toggleSwitcherDropdown()" class="flex items-center gap-3 px-3 py-2 bg-white border border-brand/10 rounded-xl hover:bg-brand/[0.02] transition-all group">
@@ -377,13 +267,11 @@ STUDIO_SCRIPTS_JS = """
                         </div>
                         <svg class="w-3 h-3 text-text-muted/40 group-hover:text-brand transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
                     </button>
-
                     <div id="switcherDropdown" class="hidden absolute right-0 mt-2 w-64 bg-white border border-brand/5 rounded-2xl shadow-2xl z-[100] p-2 animate-in fade-in zoom-in-95 duration-200">
                         <div class="px-3 py-2 text-[8px] font-black text-text-muted uppercase tracking-[0.2em] mb-1">Your Workspaces</div>
-                        
                         <div class="space-y-1">
                             ${accounts.map(acc => `
-                                <button onclick="setActiveAccount('${acc.id}')" class="w-full flex items-center justify-between p-2 rounded-xl transition-all ${acc.id === active.id ? 'bg-brand/5 border border-brand/5' : 'hover:bg-brand/[0.02]'}">
+                                <button type="button" onclick="setActiveAccount('${acc.id}')" class="w-full flex items-center justify-between p-2 rounded-xl transition-all ${acc.id === active.id ? 'bg-brand/5 border border-brand/5' : 'hover:bg-brand/[0.02]'}">
                                     <div class="flex items-center gap-3">
                                         <img src="${acc.profile_picture_url || 'https://ui-avatars.com/api/?name=' + acc.username}" class="w-8 h-8 rounded-lg">
                                         <div class="text-left">
@@ -391,25 +279,13 @@ STUDIO_SCRIPTS_JS = """
                                             <div class="text-[8px] text-text-muted font-medium">${acc.fb_page_id ? 'Instagram Business' : 'Personal'}</div>
                                         </div>
                                     </div>
-                                    ${acc.id === active.id ? '<div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>' : ''}
+                                    ${acc.id === active.id ? '<div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>' : ''}
                                 </button>
                             `).join('')}
                         </div>
-
-                        <div class="mt-2 pt-2 border-t border-brand/5">
-                            <button onclick="openConnectInstagramModal()" class="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-brand/5 transition-all text-brand">
-                                <div class="w-8 h-8 rounded-lg bg-brand/5 flex items-center justify-center">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-                                </div>
-                                <div class="text-[10px] font-black uppercase tracking-widest">Connect New</div>
-                            </button>
-                        </div>
                     </div>
-                </div>
-            `;
-        } catch (e) {
-            console.error("Account switcher failed", e);
-        }
+                </div>`;
+        } catch (e) { console.error("Account switcher failed", e); }
     }
 
     function toggleSwitcherDropdown() {
@@ -419,29 +295,11 @@ STUDIO_SCRIPTS_JS = """
 
     async function setActiveAccount(id) {
         try {
-            const res = await fetch(`/ig-accounts/set-active/${id}`, { method: 'POST' });
-            if (res.ok) {
-                window.location.reload();
-            }
+            const res = await fetch('/ig-accounts/set-active/' + id, { method: 'POST' });
+            if (res.ok) window.location.reload();
         } catch (e) { console.error(e); }
     }
 
-    async function syncAccountState() {
-        try {
-            const res = await fetch('/ig-accounts/me');
-            const accounts = await res.json();
-            const actuallyConnected = accounts.length > 0;
-            
-            if (typeof window.hasConnectedInstagram !== 'undefined' && actuallyConnected !== window.hasConnectedInstagram) {
-                console.log("State mismatch detected, refreshing to sync UI...");
-                window.location.reload();
-            }
-        } catch(e) {
-            console.error("Failed to sync account state", e);
-        }
-    }
-
-    // Close on click outside
     window.addEventListener('click', function(event) {
         if (!event.target.closest('#accountSwitcherRoot')) {
             const drop = document.getElementById('switcherDropdown');
@@ -449,13 +307,7 @@ STUDIO_SCRIPTS_JS = """
         }
     });
 
-    // Final Init
     window.addEventListener('load', function() {
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('error')) {
-            alert(urlParams.get('error'));
-        }
-        syncAccountState();
         renderAccountSwitcher();
     });
 </script>
@@ -470,33 +322,25 @@ STUDIO_COMPONENTS_HTML = """
       <div class="w-full md:w-80 bg-brand/5 border-b md:border-b-0 md:border-r border-brand/5 flex flex-col pt-10 md:pt-12 px-8 z-50 shrink-0">
         <div>
           <h3 class="text-3xl font-bold text-brand tracking-tighter italic">Reminder<br><span class="text-accent">Creator</span></h3>
-          <p class="text-[9px] font-bold text-text-muted uppercase tracking-[0.3em] mt-2">Guidance Studio v2.0</p>
+          <p class="text-[9px] font-bold text-text-muted uppercase tracking-[0.3em] mt-2">Guidance Studio v3.0</p>
         </div>
         
         <div class="flex-1 mt-12 space-y-6">
           <div id="navStep1" class="studio-nav-step active flex items-center gap-4 cursor-pointer" onclick="switchStudioSection(1)">
              <div class="w-8 h-8 rounded-full border-2 border-brand flex items-center justify-center text-[10px] font-bold text-white bg-brand shadow-lg shadow-brand/20 nav-num">1</div>
-             <div class="text-xs font-bold uppercase text-brand tracking-widest nav-text">Intent</div>
+             <div class="text-xs font-bold uppercase text-brand tracking-widest nav-text">The Spark</div>
           </div>
           <div id="navStep2" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(2)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">2</div>
-             <div class="text-xs font-bold uppercase tracking-widest nav-text">Source</div>
+             <div class="text-xs font-bold uppercase tracking-widest nav-text">The Vision</div>
           </div>
           <div id="navStep3" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(3)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">3</div>
-             <div class="text-xs font-bold uppercase tracking-widest nav-text">Improve</div>
+             <div class="text-xs font-bold uppercase tracking-widest nav-text">The Presence</div>
           </div>
           <div id="navStep4" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(4)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">4</div>
-             <div class="text-xs font-bold uppercase tracking-widest nav-text">Visuals</div>
-          </div>
-          <div id="navStep5" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(5)">
-             <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">5</div>
-             <div class="text-xs font-bold uppercase tracking-widest nav-text">Quality</div>
-          </div>
-          <div id="navStep6" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(6)">
-             <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">6</div>
-             <div class="text-xs font-bold uppercase tracking-widest nav-text">Share</div>
+             <div class="text-xs font-bold uppercase tracking-widest nav-text">The Manifest</div>
           </div>
         </div>
       </div>
@@ -506,304 +350,231 @@ STUDIO_COMPONENTS_HTML = """
       </button>
 
       <form id="composerForm" onsubmit="submitNewPost(event)" class="flex-1 overflow-hidden flex flex-col relative bg-white">
-        <input type="hidden" name="visual_mode" id="studioVisualMode" value="upload">
-        <input type="hidden" name="library_item_id" id="studioLibraryItemId">
-        <input type="hidden" name="intent_type" id="studioIntent" value="daily_reminder">
-        <input type="hidden" name="source_foundation" id="studioFoundation" value="reflection">
-        <input type="hidden" name="emotion" id="studioEmotion" value="spiritual">
-        <input type="hidden" name="depth" id="studioDepth" value="moderate">
-        <input type="hidden" name="post_format" id="studioFormat" value="caption">
-        <input type="hidden" name="hook_style" id="studioHook" value="direct">
-        <input type="hidden" name="strictness_mode" id="studioStrictness" value="balanced">
+        <input type="hidden" name="visual_mode" id="studioVisualMode" value="quote_card">
+        <input type="hidden" name="intent_type" id="studioIntent" value="wisdom">
+        <input type="hidden" name="emotion" id="studioTone" value="calm">
+        <input type="hidden" name="visual_style" id="studioStyle" value="premium">
+        <input type="hidden" name="media_url" id="finalMediaUrl">
 
         <div class="flex-1 overflow-y-auto p-6 md:p-12 pb-32 custom-scrollbar">
           
-          <!-- STEP 1: INTENT -->
-          <div id="studioSection1" class="studio-section space-y-12 animate-in slide-in-from-right-8 duration-500">
+          <!-- PHASE 1: THE SPARK (Caption Generation) -->
+          <div id="studioSection1" class="studio-section space-y-10 animate-in slide-in-from-right-8 duration-500">
             <div>
               <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 01</label>
-              <h4 class="text-2xl font-bold text-brand italic">Define your intention</h4>
-              <p class="text-xs text-text-muted mt-2 font-medium">What spiritual effect should this content have on the reader?</p>
+              <h4 class="text-3xl font-bold text-brand italic">Ignite the Spark</h4>
+              <p class="text-xs text-text-muted mt-2 font-medium">Define your topic and spiritual intention to craft a powerful message.</p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-               <div onclick="setStudioIntent('daily_reminder', this)" class="intent-card active p-6 rounded-3xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] relative group">
-                  <div class="text-[11px] font-black text-brand uppercase tracking-widest transition-colors">Daily Reminder</div>
-                  <div class="text-[9px] font-medium text-text-muted mt-1">Spiritual improvement and tazkiyah.</div>
-               </div>
-               <div onclick="setStudioIntent('dawah', this)" class="intent-card p-6 rounded-3xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] relative group">
-                  <div class="text-[11px] font-black text-brand uppercase tracking-widest transition-colors">Da’wah Outreach</div>
-                  <div class="text-[9px] font-medium text-text-muted mt-1">Clarifying Islam for seekers.</div>
-               </div>
-               <div onclick="setStudioIntent('educational', this)" class="intent-card p-6 rounded-3xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] relative group">
-                  <div class="text-[11px] font-black text-brand uppercase tracking-widest transition-colors">Knowledge Deep-Dive</div>
-                  <div class="text-[9px] font-medium text-text-muted mt-1">Exploring Quran, Hadith, and History.</div>
-               </div>
-               <div onclick="setStudioIntent('storytelling', this)" class="intent-card p-6 rounded-3xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] relative group">
-                  <div class="text-[11px] font-black text-brand uppercase tracking-widest transition-colors">Prophetic Stories</div>
-                  <div class="text-[9px] font-medium text-text-muted mt-1">Lessons from Seerah and Sahabah.</div>
-               </div>
-            </div>
-
-            <div class="pt-8 border-t border-brand/5 flex justify-end">
-               <button type="button" onclick="switchStudioSection(2)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/20">Set Foundation &rarr;</button>
-            </div>
-          </div>
-
-          <!-- STEP 2: SOURCE -->
-          <div id="studioSection2" class="studio-section hidden space-y-12 animate-in slide-in-from-right-8 duration-500">
-            <div class="flex justify-between items-end">
-              <div>
-                <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 02</label>
-                <h4 class="text-2xl font-bold text-brand italic">Select your core source</h4>
-                <p class="text-xs text-text-muted mt-2 font-medium">Ground your content in verified authentic sources.</p>
-              </div>
-              <button type="button" onclick="openLibraryDrawer()" class="px-5 py-3 bg-brand/5 text-brand border border-brand/10 rounded-xl text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-brand/10 transition-all">
-                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-                 Explore Workspace Library
-              </button>
-            </div>
-
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-               <div onclick="setStudioFoundation('quran', this)" class="foundation-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[10px] font-black uppercase tracking-widest">Qur’an</div>
-               <div onclick="setStudioFoundation('hadith', this)" class="foundation-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[10px] font-black uppercase tracking-widest">Hadith</div>
-               <div onclick="setStudioFoundation('combined', this)" class="foundation-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[10px] font-black uppercase tracking-widest">Authentic Pack</div>
-               <div onclick="setStudioFoundation('reflection', this)" class="foundation-card active p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[10px] font-black uppercase tracking-widest">Manual Reflect</div>
-            </div>
-
-            <div class="space-y-4">
-               <label id="seedLabel" class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Key message or creative directives:</label>
-               <textarea id="studioSourceText" name="source_text" required placeholder="Type the core message or specific directives..." class="w-full bg-cream/20 border border-brand/5 rounded-[2rem] p-8 text-sm font-medium text-brand min-h-[160px] outline-none focus:border-brand/20 transition-all shadow-inner custom-scrollbar"></textarea>
-               <input type="text" id="studioReference" name="source_reference" placeholder="Reference (Optional, e.g. Bukhari 123)" class="w-full bg-cream/20 border border-brand/5 rounded-2xl px-6 py-4 text-xs font-bold text-brand outline-none focus:border-brand/20 shadow-sm">
-            </div>
-
-            <div class="pt-8 border-t border-brand/5 flex justify-between">
-               <button type="button" onclick="switchStudioSection(1)" class="px-8 py-4 text-text-muted hover:text-brand font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Intention</button>
-               <button type="button" onclick="switchStudioSection(3)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/20">Refine Logic &rarr;</button>
-            </div>
-          </div>
-
-          <!-- STEP 3: REFINEMENT -->
-          <div id="studioSection3" class="studio-section hidden space-y-12 animate-in slide-in-from-right-8 duration-500">
-            <div>
-              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 03</label>
-              <h4 class="text-2xl font-bold text-brand italic">Refine the heart</h4>
-              <p class="text-xs text-text-muted mt-2 font-medium">Select the emotional resonance and intellectual depth of this piece.</p>
-            </div>
-
-            <div class="space-y-10">
-               <div class="space-y-4">
-                  <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Dominant Emotion</label>
-                  <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-                     <div onclick="setStudioEmotion('spiritual', this)" class="emotion-card active p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Faith</div>
-                     <div onclick="setStudioEmotion('hope', this)" class="emotion-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Hope</div>
-                     <div onclick="setStudioEmotion('wisdom', this)" class="emotion-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Wisdom</div>
-                     <div onclick="setStudioEmotion('mercy', this)" class="emotion-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Mercy</div>
-                     <div onclick="setStudioEmotion('warning', this)" class="emotion-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Warning</div>
-                  </div>
-               </div>
-
-               <div class="space-y-4">
-                  <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Intellectual Complexity</label>
-                  <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                     <div onclick="setStudioDepth('essence', this)" class="depth-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Essence (Simple)</div>
-                     <div onclick="setStudioDepth('moderate', this)" class="depth-card active p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Explorer</div>
-                     <div onclick="setStudioDepth('student', this)" class="depth-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Student</div>
-                     <div onclick="setStudioDepth('scholar', this)" class="depth-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Theology</div>
-                  </div>
-               </div>
-            </div>
-
-            <div class="pt-8 border-t border-brand/5 flex justify-between">
-               <button type="button" onclick="switchStudioSection(2)" class="px-8 py-4 text-text-muted hover:text-brand font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Back</button>
-               <button type="button" onclick="switchStudioSection(4)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/20">Style & Visuals &rarr;</button>
-            </div>
-          </div>
-
-          <!-- STEP 4: VISUALS -->
-          <div id="studioSection4" class="studio-section hidden space-y-10 animate-in slide-in-from-right-8 duration-500">
-            <div>
-              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 04</label>
-              <h4 class="text-2xl font-bold text-brand italic">Visual Presence</h4>
-              <p class="text-xs text-text-muted mt-2 font-medium">Choose how your reminder will be presented visually.</p>
-            </div>
-
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div onclick="setVisualMode('upload')" id="modeUpload" class="visual-card active p-6 rounded-3xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-4 group">
-                  <div class="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
-                  <div class="text-[10px] font-black text-brand uppercase tracking-widest">Upload</div>
-                </div>
-                <div onclick="setVisualMode('media_library')" id="modeMedia" class="visual-card p-6 rounded-3xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-4 group">
-                  <div class="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
-                  <div class="text-[10px] font-black text-brand uppercase tracking-widest">Library</div>
-                </div>
-                <div onclick="setVisualMode('ai_background')" id="modeAI" class="visual-card p-6 rounded-3xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-4 group">
-                  <div class="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
-                  <div class="text-[10px] font-black text-brand uppercase tracking-widest">Visual AI</div>
-                </div>
-                <div onclick="setVisualMode('quote_card')" id="modeQuote" class="visual-card p-6 rounded-3xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-4 group">
-                  <div class="w-12 h-12 rounded-2xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
-                  <div class="text-[10px] font-black text-brand uppercase tracking-widest">Quote Card</div>
-                </div>
-            </div>
-
-            <!-- Visual Controls -->
-            <div id="visualControls" class="bg-brand/[0.03] border border-brand/10 p-10 rounded-[2.5rem] space-y-8">
-                <div id="uiUpload" class="animate-in fade-in">
-                    <div class="flex items-center gap-8">
-                       <div class="w-40 h-40 rounded-3xl bg-white border-2 border-dashed border-brand/20 flex flex-col items-center justify-center text-brand/30 hover:bg-brand/5 hover:border-brand/40 transition-all cursor-pointer relative overflow-hidden group" onclick="document.getElementById('studioImageInput').click()">
-                          <svg class="w-10 h-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-                          <span class="text-[9px] font-black uppercase tracking-widest">Select Image</span>
-                          <img id="uploadPreview" class="hidden absolute inset-0 w-full h-full object-cover">
-                       </div>
-                       <input type="file" name="image" id="studioImageInput" class="hidden" onchange="previewUpload(this)" accept="image/*">
-                       <p class="text-[10px] font-medium text-text-muted italic max-w-xs leading-relaxed">Ensure minimal surroundings. Sabeel works best with aesthetic, clean imagery.</p>
-                    </div>
+            <div class="space-y-8">
+                <!-- Topic Input -->
+                <div class="space-y-3">
+                   <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Reminder Topic</label>
+                   <input type="text" id="studioTopic" name="topic" placeholder="e.g. Patience during trials, Gratitude for small blessings..." class="w-full bg-cream/20 border border-brand/5 rounded-2xl px-8 py-6 text-sm font-medium text-brand outline-none focus:border-brand/20 transition-all shadow-inner">
                 </div>
 
-                <div id="uiMedia" class="hidden animate-in fade-in">
-                    <div class="w-full flex flex-col items-center justify-center py-20 border-2 border-dashed border-brand/20 rounded-3xl bg-white group hover:bg-brand/[0.02] transition-all cursor-pointer" onclick="openMediaPicker()">
-                        <div class="w-16 h-16 rounded-full bg-brand/5 flex items-center justify-center text-brand mb-6 transition-transform group-hover:scale-110">
-                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
+                <!-- Intention & Tone Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-4">
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Spiritual Intention</label>
+                        <div class="grid grid-cols-2 gap-2">
+                           <div onclick="setStudioIntent('wisdom', this)" class="intent-card active p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Wisdom</div>
+                           <div onclick="setStudioIntent('reminder', this)" class="intent-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Reminder</div>
+                           <div onclick="setStudioIntent('outreach', this)" class="intent-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Outreach</div>
+                           <div onclick="setStudioIntent('reflection', this)" class="intent-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Reflect</div>
                         </div>
-                        <span class="px-8 py-3 bg-brand text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20">Browse Studio Assets</span>
+                    </div>
+                    <div class="space-y-4">
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Guidance Tone</label>
+                        <div class="grid grid-cols-2 gap-2">
+                           <div onclick="setStudioTone('calm', this)" class="tone-card active p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Calm</div>
+                           <div onclick="setStudioTone('direct', this)" class="tone-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Direct</div>
+                           <div onclick="setStudioTone('poetic', this)" class="tone-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Poetic</div>
+                           <div onclick="setStudioTone('scholarly', this)" class="tone-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Scholarly</div>
+                        </div>
                     </div>
                 </div>
 
-                <div id="uiAI" class="hidden animate-in fade-in space-y-6">
-                    <div class="space-y-3">
-                       <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Visual Inspiration Prompt</label>
-                       <textarea name="visual_prompt" id="studioVisualPrompt" placeholder="Describe the scene... e.g. Abstract textures, cinematic dawn over mountains" class="w-full bg-white border border-brand/10 rounded-2xl p-6 text-sm font-medium text-brand min-h-[100px] outline-none focus:border-brand/30 shadow-sm"></textarea>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                       <button type="button" onclick="setAIPreset('nature')" class="px-5 py-2.5 bg-white border border-brand/10 rounded-xl text-[9px] font-bold uppercase text-brand hover:bg-brand hover:text-white transition-all">Nature</button>
-                       <button type="button" onclick="setAIPreset('islamic_geo')" class="px-5 py-2.5 bg-white border border-brand/10 rounded-xl text-[9px] font-bold uppercase text-brand hover:bg-brand hover:text-white transition-all">Geometric</button>
-                       <button type="button" onclick="setAIPreset('minimal')" class="px-5 py-2.5 bg-white border border-brand/10 rounded-xl text-[9px] font-bold uppercase text-brand hover:bg-brand hover:text-white transition-all">Minimal</button>
-                    </div>
+                <!-- Craft Action -->
+                <div class="pt-4">
+                    <button type="button" id="btnCraftCaption" onclick="generateAICaption()" class="w-full py-6 bg-brand text-white rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all flex items-center justify-center gap-3 group">
+                        <span id="craftIcon">✨</span>
+                        <span id="craftText">Craft Cinematic Caption</span>
+                    </button>
                 </div>
 
-                <div id="uiQuoteMod" class="hidden animate-in fade-in border-t border-brand/5 pt-6">
-                    <div class="flex items-center gap-4 py-4 px-6 bg-brand/5 rounded-2xl text-brand">
-                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-                        <p class="text-[10px] font-bold uppercase tracking-widest">Quote card styling will dynamically use your chosen source text.</p>
+                <!-- Caption Result area -->
+                <div id="captionResultArea" class="hidden animate-in fade-in slide-in-from-top-4 duration-500 space-y-4">
+                    <div class="flex justify-between items-center ml-1">
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest">Generated Message</label>
+                        <button type="button" onclick="generateAICaption()" class="text-[8px] font-bold text-accent uppercase tracking-widest hover:underline">Regenerate</button>
+                    </div>
+                    <textarea id="studioCaption" name="caption" class="w-full bg-white border border-brand/10 rounded-[2.5rem] p-10 text-sm font-medium text-brand min-h-[220px] outline-none focus:border-brand/30 transition-all shadow-xl leading-relaxed custom-scrollbar" oninput="invalidateQuoteCard()"></textarea>
+                    
+                    <div class="flex justify-end pt-4">
+                       <button type="button" onclick="switchStudioSection(2)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/20">The Vision &rarr;</button>
                     </div>
                 </div>
-            </div>
-
-            <div class="pt-8 border-t border-brand/5 flex justify-between">
-               <button type="button" onclick="switchStudioSection(3)" class="px-8 py-4 text-text-muted hover:text-brand font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Back</button>
-               <button type="button" onclick="switchStudioSection(5)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/20">Final Verification &rarr;</button>
             </div>
           </div>
 
-          <!-- STEP 5: QUALITY -->
-          <div id="studioSection5" class="studio-section hidden space-y-12 animate-in slide-in-from-right-8 duration-500">
+          <!-- PHASE 2: THE VISION (Quote Card) -->
+          <div id="studioSection2" class="studio-section hidden space-y-10 animate-in slide-in-from-right-8 duration-500">
             <div>
-              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 05</label>
-              <h4 class="text-2xl font-bold text-brand italic">Integrity Checks</h4>
-              <p class="text-xs text-text-muted mt-2 font-medium">Configure authentication strictness and final safety parameters.</p>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <!-- Strictness -->
-                <div class="bg-brand/[0.03] p-10 rounded-[2.5rem] space-y-6">
-                   <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Strictness Mode</label>
-                   <div class="space-y-3">
-                      <div onclick="setStudioStrictness('strict', this)" class="strict-card p-5 rounded-2xl border-2 border-brand/5 bg-white cursor-pointer transition-all group">
-                         <div class="text-[11px] font-black text-brand group-[.active]:text-rose-600 uppercase tracking-widest">Literal Mode</div>
-                         <div class="text-[8px] font-bold text-text-muted mt-1 uppercase">No creative analogies. Pure source.</div>
-                      </div>
-                      <div onclick="setStudioStrictness('balanced', this)" class="strict-card active p-5 rounded-2xl border-2 border-brand/5 bg-white cursor-pointer transition-all group">
-                         <div class="text-[11px] font-black text-brand group-[.active]:text-brand uppercase tracking-widest">Balanced</div>
-                         <div class="text-[8px] font-bold text-text-muted mt-1 uppercase">Authentic wisdom for modern life.</div>
-                      </div>
-                      <div onclick="setStudioStrictness('creative', this)" class="strict-card p-5 rounded-2xl border-2 border-brand/5 bg-white cursor-pointer transition-all group">
-                         <div class="text-[11px] font-black text-brand group-[.active]:text-amber-600 uppercase tracking-widest">Creative Inspiration</div>
-                         <div class="text-[8px] font-bold text-text-muted mt-1 uppercase">Poetic and contemporary reflection.</div>
-                      </div>
-                   </div>
-                </div>
-
-                <!-- Live Integrity -->
-                <div class="space-y-6">
-                   <div class="p-8 bg-white border border-brand/5 rounded-3xl space-y-4">
-                      <div class="flex items-center justify-between">
-                         <span class="text-[10px] font-black uppercase tracking-widest text-brand">Foundation Status</span>
-                         <span class="px-2 py-1 bg-emerald-50 text-emerald-600 text-[8px] font-black rounded uppercase">Verified</span>
-                      </div>
-                      <div class="flex items-center justify-between group opacity-30">
-                         <span class="text-[10px] font-black uppercase tracking-widest text-brand">Visual Alignment</span>
-                         <div id="checkVisual" class="w-4 h-4 rounded-full border-2 border-brand/20 flex items-center justify-center"><svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg></div>
-                      </div>
-                   </div>
-                </div>
-            </div>
-
-            <div class="pt-8 border-t border-brand/5 flex justify-between">
-               <button type="button" onclick="switchStudioSection(4)" class="px-8 py-4 text-text-muted hover:text-brand font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Back</button>
-               <button type="button" onclick="switchStudioSection(6)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/20">Final Review &rarr;</button>
-            </div>
-          </div>
-
-          <!-- STEP 6: MANIFEST -->
-          <div id="studioSection6" class="studio-section hidden space-y-12 animate-in slide-in-from-right-8 duration-500">
-            <div class="flex justify-between items-end">
-              <div>
-                <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 06</label>
-                <h4 class="text-2xl font-bold text-brand italic">Final Review</h4>
-                <p class="text-xs text-text-muted mt-2 font-medium">Review your intelligence architecture before manifestation.</p>
-              </div>
-              <button type="button" onclick="launchLivePreview()" class="px-6 py-4 bg-brand/5 text-brand rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-brand/10 transition-all flex items-center gap-3">
-                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-                 View Reminder Preview
-              </button>
+              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 02</label>
+              <h4 class="text-3xl font-bold text-brand italic">Visualize the Wisdom</h4>
+              <p class="text-xs text-text-muted mt-2 font-medium">Transform your message into a high-impact cinematic visual.</p>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-               <!-- Left: Preview -->
+                <!-- Style Selector -->
+                <div class="space-y-6">
+                    <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Cinematic Styles</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div onclick="setStudioStyle('premium', this)" class="style-card active p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                           <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+                           <div class="text-[9px] font-black text-brand uppercase tracking-widest">Premium</div>
+                        </div>
+                        <div onclick="setStudioStyle('celestial', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                           <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.539-1.118l1.519-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.381-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+                           <div class="text-[9px] font-black text-brand uppercase tracking-widest">Celestial</div>
+                        </div>
+                        <div onclick="setStudioStyle('scholar', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                           <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+                           <div class="text-[9px] font-black text-brand uppercase tracking-widest">Scholar</div>
+                        </div>
+                        <div onclick="setStudioStyle('ethereal', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                           <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+                           <div class="text-[9px] font-black text-brand uppercase tracking-widest">Ethereal</div>
+                        </div>
+                        <div onclick="setStudioStyle('classic', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                           <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+                           <div class="text-[9px] font-black text-brand uppercase tracking-widest">Classic</div>
+                        </div>
+                        <div onclick="setStudioStyle('modern', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                           <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+                           <div class="text-[9px] font-black text-brand uppercase tracking-widest">Modern</div>
+                        </div>
+                    </div>
+
+                    <button type="button" id="btnGenerateCard" onclick="generateQuoteCard()" class="w-full py-5 bg-brand/5 text-brand border-2 border-brand/20 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-brand hover:text-white transition-all shadow-sm">
+                        Generate Cinematic Visual
+                    </button>
+                </div>
+
+                <!-- Card Preview -->
+                <div class="flex flex-col items-center gap-6">
+                    <div id="cardPreviewContainer" class="w-full max-w-[340px] aspect-square bg-cream rounded-[3rem] border-8 border-brand/5 overflow-hidden relative shadow-2xl flex items-center justify-center transition-all">
+                        <img id="quoteCardPreview" class="hidden w-full h-full object-cover">
+                        <div id="cardLoader" class="flex flex-col items-center gap-4 text-brand/20">
+                            <div class="w-12 h-12 rounded-full border-4 border-t-brand animate-spin"></div>
+                            <span class="text-[9px] font-black uppercase tracking-widest">Awaiting Creation</span>
+                        </div>
+                        <!-- Out of sync warning -->
+                        <div id="outOfSyncBanner" class="hidden absolute top-0 inset-x-0 bg-amber-500/90 backdrop-blur-md p-4 flex flex-col items-center gap-1 text-white animate-in slide-in-from-top-full">
+                           <span class="text-[8px] font-black uppercase tracking-widest">Caption out of sync</span>
+                           <span class="text-[7px] font-bold text-white/80 text-center leading-tight">Your card no longer matches the latest caption.</span>
+                        </div>
+                    </div>
+
+                    <div id="cardActions" class="hidden flex gap-3 text-brand">
+                        <button type="button" onclick="generateQuoteCard()" class="px-5 py-3 border border-brand/10 rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-brand/5 transition-all">Refine Visual</button>
+                        <button type="button" onclick="switchStudioSection(3)" class="px-8 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all">Use This Visual</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-8 border-t border-brand/5 flex justify-between">
+               <button type="button" onclick="switchStudioSection(1)" class="px-8 py-4 text-text-muted hover:text-brand font-bold text-[10px] uppercase tracking-widest transition-all">&larr; The Spark</button>
+            </div>
+          </div>
+
+          <!-- PHASE 3: THE PRESENCE (Configuration) -->
+          <div id="studioSection3" class="studio-section hidden space-y-12 animate-in slide-in-from-right-8 duration-500">
+            <div>
+              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 03</label>
+              <h4 class="text-3xl font-bold text-brand italic">Define the Presence</h4>
+              <p class="text-xs text-text-muted mt-2 font-medium">Configure your target workspace and activation parameters.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+                <div class="space-y-6 bg-brand/[0.02] p-10 rounded-[2.5rem] border border-brand/5">
+                    <div class="space-y-4">
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Target Account</label>
+                        <div class="relative group">
+                            <select name="ig_account_id" id="studioAccount" class="w-full bg-white border border-brand/10 rounded-2xl px-6 py-5 text-sm font-bold text-brand outline-none shadow-sm transition-all hover:bg-brand/5 appearance-none focus:border-brand/30">
+                                {account_options}
+                            </select>
+                            <div class="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-brand/20 group-hover:text-brand transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Activation Time</label>
+                        <input type="datetime-local" id="studioSchedule" name="scheduled_time" class="w-full bg-white border border-brand/10 rounded-2xl px-6 py-5 text-sm font-bold text-brand outline-none shadow-sm focus:border-brand/30">
+                    </div>
+                </div>
+
+                <div class="flex flex-col justify-center gap-4 p-8 bg-cream/30 rounded-3xl border border-brand/5">
+                    <div class="flex items-center gap-4 text-emerald-600">
+                        <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg></div>
+                        <span class="text-[10px] font-black uppercase tracking-widest">Message Integrity Valid</span>
+                    </div>
+                    <div class="flex items-center gap-4 text-emerald-600">
+                        <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg></div>
+                        <span class="text-[10px] font-black uppercase tracking-widest">Visual Asset Ready</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-8 border-t border-brand/5 flex justify-between">
+               <button type="button" onclick="switchStudioSection(2)" class="px-8 py-4 text-text-muted hover:text-brand font-bold text-[10px] uppercase tracking-widest transition-all">&larr; The Vision</button>
+               <button type="button" onclick="switchStudioSection(4)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/20">Final Review &rarr;</button>
+            </div>
+          </div>
+
+          <!-- PHASE 4: THE MANIFEST (Final Review) -->
+          <div id="studioSection4" class="studio-section hidden space-y-12 animate-in slide-in-from-right-8 duration-500">
+            <div class="flex justify-between items-end">
+              <div>
+                <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 04</label>
+                <h4 class="text-3xl font-bold text-brand italic">The Manifest</h4>
+                <p class="text-xs text-text-muted mt-2 font-medium">Review your spiritual architecture before manifestation.</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+               <!-- Left: Final Preview -->
                <div class="flex justify-center">
-                  <div class="w-full max-w-[320px] aspect-[4/5] bg-cream rounded-[3rem] border-8 border-brand/5 overflow-hidden relative shadow-2xl flex items-center justify-center">
-                     <img id="previewImage" class="hidden w-full h-full object-cover">
-                     <div id="previewLoader" class="flex flex-col items-center gap-4 text-brand/20">
-                        <div class="w-12 h-12 rounded-full border-4 border-t-brand animate-spin"></div>
-                        <span class="text-[9px] font-black uppercase tracking-widest">Awaiting Render</span>
-                     </div>
+                  <div class="w-full max-w-[320px] aspect-square bg-cream rounded-[3rem] border-8 border-brand/5 overflow-hidden relative shadow-2xl">
+                     <img id="finalPreviewImage" class="w-full h-full object-cover">
                   </div>
                </div>
 
-               <!-- Right: Final Setup -->
-               <div class="space-y-8 bg-brand/[0.02] p-10 rounded-[2.5rem] border border-brand/5">
-                  <div class="space-y-4">
-                     <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Target Account</label>
-                     <div class="relative group">
-                        <select name="ig_account_id" class="w-full bg-white border border-brand/10 rounded-2xl px-6 py-5 text-sm font-bold text-brand outline-none shadow-sm transition-all hover:bg-brand/5 appearance-none focus:border-brand/30">
-                            {account_options}
-                        </select>
-                        <div class="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-brand/20 group-hover:text-brand transition-colors">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-                        </div>
-                     </div>
-                  </div>
-                  <div class="space-y-2">
-                     <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Activation Time</label>
-                     <input type="datetime-local" name="scheduled_time" class="w-full bg-white border border-brand/10 rounded-2xl px-6 py-5 text-sm font-bold text-brand outline-none shadow-sm focus:border-brand/30">
-                  </div>
-
-                  <div class="pt-4 space-y-3">
-                     <div class="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-text-muted">
-                        <span>Strategy</span>
-                        <span id="summaryIntent" class="text-brand">--</span>
-                     </div>
-                     <div class="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-text-muted">
-                        <span>Integrity</span>
-                        <span id="summaryStrict" class="text-brand">--</span>
-                     </div>
+               <!-- Right: Final Actions -->
+               <div class="space-y-8 bg-brand/[0.02] p-10 rounded-[2.5rem] border border-brand/5 flex flex-col justify-between">
+                  <div class="space-y-6">
+                      <div class="space-y-1">
+                          <label class="text-[8px] font-black text-brand uppercase tracking-widest opacity-60">Manifesting to</label>
+                          <div id="manifestAccount" class="text-xs font-bold text-brand uppercase">@username</div>
+                      </div>
+                      <div class="space-y-1">
+                          <label class="text-[8px] font-black text-brand uppercase tracking-widest opacity-60">Activation</label>
+                          <div id="manifestTime" class="text-xs font-bold text-brand uppercase">Tomorrow, 09:00 AM</div>
+                      </div>
+                      <div class="pt-4 space-y-2">
+                        <label class="text-[8px] font-black text-brand uppercase tracking-widest opacity-60">Message Summary</label>
+                        <p id="manifestCaption" class="text-[11px] text-text-muted font-medium italic line-clamp-4 leading-relaxed"></p>
+                      </div>
                   </div>
 
-                  <button type="submit" id="studioSubmitBtn" class="w-full py-6 bg-brand text-white rounded-3xl font-black text-[12px] uppercase tracking-[0.3em] shadow-2xl shadow-brand/20 hover:bg-brand-hover active:scale-[0.98] transition-all">
-                     Share Your Reminder
-                  </button>
-                  <button type="button" onclick="switchStudioSection(5)" class="w-full text-center py-2 text-[9px] font-bold text-text-muted uppercase tracking-widest hover:text-brand transition-colors">&larr; Back to integrity</button>
+                  <div class="space-y-4 pt-6">
+                      <button type="submit" id="studioSubmitBtn" class="w-full py-6 bg-brand text-white rounded-3xl font-black text-[12px] uppercase tracking-[0.3em] shadow-2xl shadow-brand/20 hover:bg-brand-hover active:scale-[0.98] transition-all">
+                         Schedule Manifestation
+                      </button>
+                      <button type="button" onclick="switchStudioSection(3)" class="w-full text-center py-2 text-[9px] font-bold text-text-muted uppercase tracking-widest hover:text-brand transition-colors">&larr; Adjust Details</button>
+                  </div>
                </div>
             </div>
           </div>
@@ -844,6 +615,9 @@ STUDIO_COMPONENTS_HTML = """
             </div>
         </div>
     </div>
+</div>
+"""
+
 </div>
 """
 
