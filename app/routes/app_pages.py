@@ -147,7 +147,9 @@ STUDIO_SCRIPTS_JS = """
 
     async function generateQuoteCard() {
         const caption = document.getElementById('studioCaption').value;
-        const style = document.getElementById('studioStyle').value;
+        const visualPrompt = document.getElementById('studioVisualPrompt') ? document.getElementById('studioVisualPrompt').value : '';
+        const style = studioState.style || 'premium';
+        
         const btn = document.getElementById('btnGenerateCard');
         const loader = document.getElementById('cardLoader');
         const preview = document.getElementById('quoteCardPreview');
@@ -168,7 +170,7 @@ STUDIO_SCRIPTS_JS = """
             const res = await fetch('/generate-quote-card', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ caption, style })
+                body: JSON.stringify({ caption, style, visual_prompt: visualPrompt })
             });
             const data = await res.json();
             if (data.image_url) {
@@ -455,6 +457,17 @@ STUDIO_COMPONENTS_HTML = """
                            <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
                            <div class="text-[9px] font-black text-brand uppercase tracking-widest">Modern</div>
                         </div>
+                    </div>
+
+                    <!-- CUSTOM VISUAL PROMPT -->
+                    <div class="mt-8 space-y-3">
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Describe your card style (Optional)</label>
+                        <textarea id="studioVisualPrompt" 
+                            placeholder="e.g. Deep forest background with gold borders...&#10;e.g. Black marble with a calm moonlit glow...&#10;e.g. Beige parchment with elegant dark ink..."
+                            class="w-full bg-white border border-brand/10 rounded-3xl p-6 text-sm font-medium text-brand outline-none focus:border-brand/30 placeholder:text-brand/20 transition-all resize-none h-28 shadow-sm custom-scrollbar"></textarea>
+                        <p class="text-[8px] font-bold text-text-muted/40 uppercase tracking-widest leading-loose ml-1">
+                            Your description guides the atmosphere, colors, and accents.
+                        </p>
                     </div>
 
                     <button type="button" id="btnGenerateCard" onclick="generateQuoteCard()" class="w-full py-5 bg-brand/5 text-brand border-2 border-brand/20 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-brand hover:text-white transition-all shadow-sm">
