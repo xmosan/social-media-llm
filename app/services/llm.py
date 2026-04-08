@@ -395,3 +395,40 @@ def generate_ai_image(prompt_text: str) -> str | None:
     except Exception as e:
         print(f"[LLM] Error generating AI image: {e}")
         return None
+
+def refine_caption(text: str, refinement_type: str) -> str:
+    """Refines an existing caption based on a specific goal."""
+    client = get_client()
+    
+    prompts = {
+        "emotional": "Rewrite this Islamic social media post to be more emotionally resonant, heart-felt, and spiritually moving. Maintain sincerity and avoid exaggeration.",
+        "shorter": "Make this post significantly shorter and more concise (max 2-3 sentences) while keeping the core spiritual message intact.",
+        "ayah": "Find a relevant and authentic Quran ayah (verse) in English that complements this message. Add it at the beginning with proper citation (Surah:Verse).",
+        "hadith": "Find a relevant and authentic Hadith in English that supports this message. Add it with proper citation.",
+        "clarity": "Improve the clarity, flow, and professional tone of this post. Use bullet points if helpful for legibility."
+    }
+    
+    directive = prompts.get(refinement_type, "Improve this social media post.")
+    
+    if not client:
+        # Mock responses for UX testing
+        if refinement_type == "shorter":
+            return "Trusting Allah's plan is the essence of Sabr. Even in silence, He is working for your good."
+        elif refinement_type == "emotional":
+            return "Let your heart find rest in the remembrance of the Most Merciful. Every tear and every prayer is seen by Him. ❤️"
+        return text + f"\n\n[Refined for {refinement_type.upper()}: This is a mock response because the OpenAI client is currently disabled in this environment.]"
+
+    prompt = f"{directive}\n\nOriginal Text: {text}\n\nRefined Text:"
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a professional social media editor specializing in Islamic content."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"[LLM] Refinement failed: {e}")
+        return text # Return original if failed

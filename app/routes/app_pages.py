@@ -12,6 +12,7 @@ from app.services.prebuilt_loader import load_prebuilt_packs
 from app.services.automation_runner import run_automation_once
 from app.security.rbac import get_current_org_id
 from typing import Optional
+from pydantic import BaseModel
 import json, calendar, html
 from datetime import datetime, timedelta, timezone
 
@@ -21,7 +22,7 @@ router = APIRouter()
 
 STUDIO_SCRIPTS_JS = """
 <script>
-    // --- CONTENT STUDIO CORE LOGIC ---
+    // --- REMINDER STUDIO CORE LOGIC ---
     function openNewPostModal() {
         document.getElementById('newPostModal').classList.remove('hidden');
         switchStudioSection(1);
@@ -232,7 +233,7 @@ STUDIO_SCRIPTS_JS = """
         event.preventDefault();
         const btn = document.getElementById('studioSubmitBtn');
         const original = btn.innerHTML;
-        btn.innerHTML = 'ACTIVATING... <span class="animate-pulse">✨</span>';
+        btn.innerHTML = 'PREPARING... <span class="animate-pulse">✨</span>';
         btn.disabled = true;
 
         const formData = new FormData(event.target);
@@ -241,10 +242,10 @@ STUDIO_SCRIPTS_JS = """
             if (res.ok) window.location.reload();
             else {
                 const data = await res.json().catch(() => ({detail: 'System timeout'}));
-                alert('Manifestation Error: ' + (data.detail || 'Unknown error'));
+                alert('Guidance Error: ' + (data.detail || 'Unknown error'));
             }
         } catch (e) {
-            alert('Transmission failure: ' + e);
+            alert('Connection failure: ' + e);
         } finally {
             btn.innerHTML = original;
             btn.disabled = false;
@@ -468,8 +469,8 @@ STUDIO_COMPONENTS_HTML = """
       <!-- Studio Sidebar -->
       <div class="w-full md:w-80 bg-brand/5 border-b md:border-b-0 md:border-r border-brand/5 flex flex-col pt-10 md:pt-12 px-8 z-50 shrink-0">
         <div>
-          <h3 class="text-3xl font-bold text-brand tracking-tighter italic">Content<br><span class="text-accent">Creator</span></h3>
-          <p class="text-[9px] font-bold text-text-muted uppercase tracking-[0.3em] mt-2">Intelligence Studio v2.0</p>
+          <h3 class="text-3xl font-bold text-brand tracking-tighter italic">Reminder<br><span class="text-accent">Creator</span></h3>
+          <p class="text-[9px] font-bold text-text-muted uppercase tracking-[0.3em] mt-2">Guidance Studio v2.0</p>
         </div>
         
         <div class="flex-1 mt-12 space-y-6">
@@ -483,7 +484,7 @@ STUDIO_COMPONENTS_HTML = """
           </div>
           <div id="navStep3" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(3)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">3</div>
-             <div class="text-xs font-bold uppercase tracking-widest nav-text">Refine</div>
+             <div class="text-xs font-bold uppercase tracking-widest nav-text">Improve</div>
           </div>
           <div id="navStep4" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(4)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">4</div>
@@ -495,7 +496,7 @@ STUDIO_COMPONENTS_HTML = """
           </div>
           <div id="navStep6" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(6)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">6</div>
-             <div class="text-xs font-bold uppercase tracking-widest nav-text">Manifest</div>
+             <div class="text-xs font-bold uppercase tracking-widest nav-text">Share</div>
           </div>
         </div>
       </div>
@@ -623,8 +624,8 @@ STUDIO_COMPONENTS_HTML = """
           <div id="studioSection4" class="studio-section hidden space-y-10 animate-in slide-in-from-right-8 duration-500">
             <div>
               <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 04</label>
-              <h4 class="text-2xl font-bold text-brand italic">Visual Manifestation</h4>
-              <p class="text-xs text-text-muted mt-2 font-medium">Choose how your content will be presented visually.</p>
+              <h4 class="text-2xl font-bold text-brand italic">Visual Presence</h4>
+              <p class="text-xs text-text-muted mt-2 font-medium">Choose how your reminder will be presented visually.</p>
             </div>
 
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -754,7 +755,7 @@ STUDIO_COMPONENTS_HTML = """
               </div>
               <button type="button" onclick="launchLivePreview()" class="px-6 py-4 bg-brand/5 text-brand rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-brand/10 transition-all flex items-center gap-3">
                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-                 Render Intelligence Preview
+                 View Reminder Preview
               </button>
             </div>
 
@@ -800,7 +801,7 @@ STUDIO_COMPONENTS_HTML = """
                   </div>
 
                   <button type="submit" id="studioSubmitBtn" class="w-full py-6 bg-brand text-white rounded-3xl font-black text-[12px] uppercase tracking-[0.3em] shadow-2xl shadow-brand/20 hover:bg-brand-hover active:scale-[0.98] transition-all">
-                     Manifest Content Intelligence
+                     Share Your Reminder
                   </button>
                   <button type="button" onclick="switchStudioSection(5)" class="w-full text-center py-2 text-[9px] font-bold text-text-muted uppercase tracking-widest hover:text-brand transition-colors">&larr; Back to integrity</button>
                </div>
@@ -941,10 +942,10 @@ APP_LAYOUT_HTML = """<!doctype html>
         </div>
         <div class="hidden md:flex gap-6">
           <a href="/app" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_dashboard}">Home</a>
-          <a href="/app/calendar" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_calendar} text-text-muted hover:text-brand transition-colors">Schedule</a>
-          <a href="/app/automations" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_automations} text-text-muted hover:text-brand transition-colors">Content Plans</a>
-          <a href="/app/library" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_library} text-text-muted hover:text-brand transition-colors">Content Library</a>
-          <a href="/app/media" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_media} text-text-muted hover:text-brand transition-colors">Media Library</a>
+          <a href="/app/calendar" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_calendar} text-text-muted hover:text-brand transition-colors">Plan</a>
+          <a href="/app/automations" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_automations} text-text-muted hover:text-brand transition-colors">Growth Plans</a>
+          <a href="/app/library" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_library} text-text-muted hover:text-brand transition-colors">Knowledge Library</a>
+          <a href="/app/media" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_media} text-text-muted hover:text-brand transition-colors">Visual Library</a>
           {admin_link}
         </div>
       </div>
@@ -1069,18 +1070,42 @@ APP_LAYOUT_HTML = """<!doctype html>
         }
         document.getElementById('editPostId').value = id;
         document.getElementById('editPostCaption').value = caption;
-        // Format time for datetime-local
-        if (time) {
-            const d = new Date(time);
-            const iso = d.toISOString().slice(0, 16);
-            document.getElementById('editPostTime').value = iso;
-        }
         document.getElementById('editPostModal').classList.remove('hidden');
     }
 
     function closeEditPostModal() {
-        hideDeleteConfirm();
+        if (typeof hideDeleteConfirm === 'function') hideDeleteConfirm();
         document.getElementById('editPostModal').classList.add('hidden');
+    }
+
+    async function refinePostAI(type) {
+        const text = document.getElementById('editPostCaption').value;
+        const btn = event.currentTarget;
+        const originalContent = btn.innerHTML;
+        
+        // Disable all refine buttons
+        const allBtns = document.querySelectorAll('.refine-ai-btn');
+        allBtns.forEach(b => b.disabled = true);
+        btn.innerHTML = '<span class="animate-spin text-xs">🌀</span>';
+
+        try {
+            const res = await fetch('/api/ai/refine', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, type })
+            });
+            const data = await res.json();
+            if (data.refined) {
+                document.getElementById('editPostCaption').value = data.refined;
+            } else {
+                alert('Refinement failed. Try again.');
+            }
+        } catch(e) {
+            alert('Error connecting to AI service.');
+        } finally {
+            allBtns.forEach(b => b.disabled = false);
+            btn.innerHTML = originalContent;
+        }
     }
 
     async function savePostEdit() {
@@ -1125,13 +1150,13 @@ APP_LAYOUT_HTML = """<!doctype html>
                 window.location.reload();
             } else {
                 const data = await res.json().catch(() => ({}));
-                alert(`Error [${res.status}]: ${data.detail || 'The system could not remove this content. It might have been already removed or access was restricted.'}`);
+                alert(`Error [${res.status}]: ${data.detail || 'The system could not remove this reminder. It might have been already removed or access was restricted.'}`);
             }
         } catch(e) { 
             alert('The interface could not reach the server: ' + e.message); 
         } finally { 
             btn.disabled = false; 
-            btn.innerText = 'Yes, Delete Content'; 
+            btn.innerText = 'Yes, Remove Reminder'; 
         }
     }
 
@@ -1171,7 +1196,7 @@ GET_STARTED_CARD_HTML = """<div id="gettingStartedCard" class="card p-8 md:p-10 
   <div class="flex justify-between items-start mb-6">
     <div>
       <h3 class="text-2xl md:text-3xl font-bold text-brand tracking-tight">Assalamu Alaykum, <span class="text-accent">{user_name}</span></h3>
-      <p class="text-xs text-text-muted mt-1 font-medium">Your content workspace is ready.</p>
+      <p class="text-xs text-text-muted mt-1 font-medium">Your space for meaningful reminders is ready.</p>
     </div>
     <button onclick="dismissGettingStarted()" class="text-[9px] font-bold uppercase tracking-widest text-text-muted hover:text-brand transition-colors px-4 py-2 bg-brand/5 rounded-lg border border-brand/10">Dismiss</button>
   </div>
@@ -1184,12 +1209,12 @@ GET_STARTED_CARD_HTML = """<div id="gettingStartedCard" class="card p-8 md:p-10 
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
         </div>
         <div>
-          <h4 class="text-xl font-bold text-brand">Create your next post</h4>
+          <h4 class="text-xl font-bold text-brand">Craft your next reminder</h4>
           <p class="text-sm text-text-muted mt-1 font-medium italic">"The best of people are those who are most beneficial to others."</p>
         </div>
       </div>
       <div class="mt-8 flex items-center gap-2 text-xs font-bold text-brand uppercase tracking-widest group-hover:translate-x-2 transition-transform">
-        Start Drafting <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
+        Begin Your Reminder <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
       </div>
     </div>
 
@@ -1235,7 +1260,7 @@ CONNECT_INSTAGRAM_MODAL_HTML = """
         <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
       </div>
       <div>
-        <h3 class="text-2xl font-bold text-brand tracking-tighter">Instagram Connection</h3>
+        <h3 class="text-2xl font-bold text-brand tracking-tighter">Meta Connection</h3>
         <p class="text-[10px] text-text-muted mt-2 font-bold uppercase tracking-widest leading-relaxed italic">To connect your Instagram, Meta requires a secure login. This may appear as a Facebook login screen. This is a standard security procedure to verify your Professional account.</p>
       </div>
       <div class="flex flex-col gap-3 pt-2">
@@ -1254,7 +1279,7 @@ APP_DASHBOARD_CONTENT = """
     <!-- Header -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
       <div>
-        <h1 class="text-4xl font-bold text-brand tracking-tighter">Studio <span class="text-accent underline decoration-accent/20 decoration-4 underline-offset-8">Intelligence</span></h1>
+        <h1 class="text-4xl font-bold text-brand tracking-tighter">Studio <span class="text-accent underline decoration-accent/20 decoration-4 underline-offset-8">Guidance</span></h1>
         <div class="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em] mt-3 flex items-center gap-4">
             <div class="flex items-center gap-2">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -1266,7 +1291,7 @@ APP_DASHBOARD_CONTENT = """
       <div class="flex items-center gap-4">
         <button onclick="openNewPostModal()" class="px-8 py-4 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-2xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center gap-3 group">
             <svg class="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-            Create Post
+            Create Reminder
         </button>
         <button onclick="syncAccounts()" class="w-12 h-12 flex items-center justify-center bg-white border border-brand/10 text-brand rounded-2xl font-bold hover:border-brand/30 transition-all shadow-sm" title="Sync Status">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
@@ -1298,22 +1323,22 @@ APP_DASHBOARD_CONTENT = """
       </div>
       <div class="card p-6 border-brand/5 bg-white flex flex-col justify-between min-h-[120px]">
         <div class="flex justify-between items-start">
-            <div class="text-[9px] font-bold text-text-muted uppercase tracking-widest">AI Status</div>
+            <div class="text-[9px] font-bold text-text-muted uppercase tracking-widest">Assistant</div>
             <div class="p-1.5 bg-brand/5 rounded-lg text-brand"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9l-.505.505a4.125 4.125 0 005.758 5.758l.505-.505m9.393-9.393l.505-.505a4.125 4.125 0 10-5.758-5.758l-.505.505" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
         </div>
         <div>
             <div class="text-2xl font-bold text-brand tracking-tight underline decoration-emerald-500/30 decoration-2">Ready</div>
-            <div class="text-[8px] font-bold text-text-muted uppercase tracking-widest mt-1">Creation Engine</div>
+            <div class="text-[8px] font-bold text-text-muted uppercase tracking-widest mt-1">Guidance Engine</div>
         </div>
       </div>
       <div class="card p-6 border-brand/5 bg-white flex flex-col justify-between min-h-[120px]">
         <div class="flex justify-between items-start">
-            <div class="text-[9px] font-bold text-text-muted uppercase tracking-widest">Intelligence</div>
+            <div class="text-[9px] font-bold text-text-muted uppercase tracking-widest">Guidance</div>
             <div class="p-1.5 bg-accent/10 rounded-lg text-accent"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
         </div>
         <div>
             <div class="text-2xl font-bold text-accent tracking-tighter">{next_post_countdown}</div>
-            <div class="text-[8px] font-bold text-accent uppercase tracking-widest mt-1">Until Next Pulse</div>
+            <div class="text-[8px] font-bold text-accent uppercase tracking-widest mt-1">Until Next Reminder</div>
         </div>
       </div>
     </div>
@@ -1327,7 +1352,7 @@ APP_DASHBOARD_CONTENT = """
       <!-- Growth Feed -->
       <div class="lg:col-span-1 space-y-6">
         <h2 class="text-[10px] font-bold uppercase tracking-[0.4em] text-text-muted flex items-center gap-2">
-            Growth Preview
+            Today's Content
         </h2>
         <div class="card bg-white p-8 space-y-8 border-brand/5 shadow-xl shadow-brand/[0.02] group relative overflow-hidden">
           <div class="absolute top-0 right-0 w-32 h-32 bg-brand/[0.02] rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700"></div>
@@ -1345,7 +1370,7 @@ APP_DASHBOARD_CONTENT = """
 
           <div class="space-y-6 relative">
             <div>
-                <label class="text-[8px] font-bold text-accent uppercase tracking-widest">Scheduled Logic</label>
+                <label class="text-[8px] font-bold text-accent uppercase tracking-widest">Planned Guidance</label>
                 <p class="text-[13px] text-text-main leading-relaxed font-medium line-clamp-3 mt-1 italic opacity-80 group-hover:opacity-100 transition-opacity">
                   "{next_post_caption}"
                 </p>
@@ -1362,9 +1387,9 @@ APP_DASHBOARD_CONTENT = """
       <div class="lg:col-span-2 space-y-10">
         <div class="space-y-6">
             <div class="flex justify-between items-center">
-              <h2 class="text-[10px] font-bold uppercase tracking-[0.4em] text-text-muted">Content Pulse</h2>
+              <h2 class="text-[10px] font-bold uppercase tracking-[0.4em] text-text-muted">Guidance Plan</h2>
               <a href="/app/calendar" class="text-[8px] font-bold uppercase tracking-widest text-brand hover:text-accent transition-colors flex items-center gap-2 px-3 py-1.5 bg-brand/5 rounded-lg border border-brand/5">
-                Full Strategy 
+                Full Plan 
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 8l4 4m0 0l-4 4m4-4H3"></path></svg>
               </a>
             </div>
@@ -1379,47 +1404,88 @@ APP_DASHBOARD_CONTENT = """
               <div class="mt-8 flex items-center justify-center gap-8 border-t border-brand/5 pt-6">
                   <div class="flex items-center gap-2">
                       <div class="w-2 h-2 rounded-full bg-brand"></div>
-                      <span class="text-[8px] font-bold uppercase tracking-widest text-text-muted">Operations Scheduled</span>
+                      <span class="text-[8px] font-bold uppercase tracking-widest text-text-muted">Reminders Planned</span>
                   </div>
                   <div class="flex items-center gap-2 opacity-30">
                       <div class="w-2 h-2 rounded-full bg-brand/10"></div>
-                      <span class="text-[8px] font-bold uppercase tracking-widest text-text-muted">System Idle</span>
+                      <span class="text-[8px] font-bold uppercase tracking-widest text-text-muted">Studio Idle</span>
                   </div>
               </div>
             </div>
         </div>
 
-        <!-- Intelligence Feed -->
+        <!-- Reflection Feed -->
         <div class="space-y-6">
-          <h2 class="text-[10px] font-bold uppercase tracking-[0.4em] text-text-muted">Intelligence Feed</h2>
-          <div class="space-y-3">
-            {recent_posts}
-          </div>
+          <h2 class="text-[10px] font-bold uppercase tracking-[0.4em] text-text-muted">Reflection Feed</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {recent_posts}
+            </div>
         </div>
       </div>
     </div>
 
-    <!-- Edit Post Modal -->
-    <div id="editPostModal" class="fixed inset-0 bg-brand/20 backdrop-blur-xl z-[100] hidden flex flex-col items-center justify-center p-0 md:p-6">
-      <div class="glass w-full h-[90vh] md:h-auto md:max-w-xl pb-safe rounded-t-[2.5rem] md:rounded-[3rem] p-6 md:p-10 space-y-8 animate-in slide-in-from-bottom md:zoom-in-95 duration-300 border-t md:border border-brand/10 bg-white overflow-y-auto">
-        <div class="flex justify-between items-center">
-          <div>
-            <h2 class="text-2xl font-bold text-brand tracking-tight">Refine <span class="text-accent">Post</span></h2>
-            <p class="text-[10px] font-bold text-text-muted uppercase tracking-widest">Thoughtfully adjust your content</p>
-          </div>
-          <button onclick="closeEditPostModal()" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-brand/5 text-text-muted hover:text-brand transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+    <!-- Edit Post Modal (Refinement) -->
+    <div id="editPostModal" class="fixed inset-0 bg-brand/40 backdrop-blur-xl z-[200] hidden flex items-center justify-center p-6 animate-in fade-in duration-300">
+      <div class="glass max-w-2xl w-full p-8 md:p-12 rounded-[3rem] border border-brand/10 shadow-2xl space-y-8 bg-white max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-start">
+            <div>
+                <h2 class="text-3xl font-bold text-brand tracking-tight">Improve Your <span class="text-accent">Message</span></h2>
+                <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.2em] mt-1">Polish your message before it goes live</p>
+            </div>
+            <button onclick="closeEditPostModal()" class="w-10 h-10 rounded-2xl bg-brand/5 flex items-center justify-center text-text-muted hover:bg-brand/10 hover:text-brand transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+            </button>
         </div>
 
         <input type="hidden" id="editPostId">
         
         <div class="space-y-6">
-          <div class="space-y-2">
-            <label class="text-[10px] font-bold text-brand uppercase tracking-widest ml-1">Content Caption</label>
-            <textarea id="editPostCaption" rows="6" class="w-full bg-cream/40 border border-brand/10 rounded-2xl p-6 text-brand text-sm focus:border-brand/30 focus:bg-white transition-all font-medium italic outline-none leading-relaxed"></textarea>
-        </div>
-        <div class="flex flex-col gap-4">
-            <button onclick="updatePost()" class="w-full py-4 bg-brand rounded-2xl font-bold text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Apply Refinement</button>
-            <button onclick="closeEditPostModal()" class="w-full py-4 bg-white border border-brand/10 rounded-2xl font-bold text-xs uppercase tracking-widest text-text-muted hover:text-brand transition-all">Cancel</button>
+            <div class="space-y-3">
+                <label class="text-[10px] font-bold uppercase tracking-[0.3em] text-brand ml-1">Your Message</label>
+                <textarea id="editPostCaption" rows="8" class="w-full bg-cream/50 border border-brand/10 rounded-[2rem] px-8 py-8 text-sm text-brand outline-none focus:ring-2 focus:ring-brand leading-relaxed font-medium italic"></textarea>
+            </div>
+
+            <!-- AI Assist Toolbar -->
+            <div class="space-y-3">
+                <label class="text-[9px] font-bold uppercase tracking-[0.2em] text-text-muted ml-1 italic">AI Enhancements</label>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="refinePostAI('emotional')" class="refine-ai-btn px-4 py-2.5 bg-brand/5 border border-brand/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-brand hover:bg-brand hover:text-white transition-all transition-colors flex items-center gap-2">
+                        ✨ Emotional
+                    </button>
+                    <button onclick="refinePostAI('shorter')" class="refine-ai-btn px-4 py-2.5 bg-brand/5 border border-brand/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-brand hover:bg-brand hover:text-white transition-all transition-colors flex items-center gap-2">
+                        📏 Shorter
+                    </button>
+                    <button onclick="refinePostAI('ayah')" class="refine-ai-btn px-4 py-2.5 bg-brand/5 border border-brand/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-brand hover:bg-brand hover:text-white transition-all transition-colors flex items-center gap-2">
+                        📖 Add Ayah
+                    </button>
+                    <button onclick="refinePostAI('hadith')" class="refine-ai-btn px-4 py-2.5 bg-brand/5 border border-brand/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-brand hover:bg-brand hover:text-white transition-all transition-colors flex items-center gap-2">
+                        📜 Add Hadith
+                    </button>
+                    <button onclick="refinePostAI('clarity')" class="refine-ai-btn px-4 py-2.5 bg-brand/5 border border-brand/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-brand hover:bg-brand hover:text-white transition-all transition-colors flex items-center gap-2">
+                        ⚖️ Clarity
+                    </button>
+                </div>
+            </div>
+
+            <div id="editPostActions" class="flex gap-4 pt-6">
+                <button onclick="closeEditPostModal()" class="flex-1 py-5 bg-white border border-brand/10 rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] text-brand hover:bg-brand/5 transition-all">Cancel</button>
+                <button id="savePostBtn" onclick="savePostEdit()" class="flex-[2] py-5 bg-brand rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] text-white shadow-2xl shadow-brand/40 hover:bg-brand-hover transition-all">Apply Changes</button>
+            </div>
+
+            <!-- Delete Confirmation Area (Hidden by default) -->
+            <div id="deleteConfirmActions" class="hidden flex flex-col gap-4 pt-6 animate-in slide-in-from-top-2">
+                <div class="p-6 bg-rose-50 border border-rose-100 rounded-3xl text-center">
+                    <p class="text-[10px] font-bold text-rose-600 uppercase tracking-widest">Are you absolutely sure?</p>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="hideDeleteConfirm()" class="flex-1 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-brand">No, Keep it</button>
+                    <button id="confirmDeleteBtn" onclick="deletePost()" class="flex-1 py-4 bg-rose-600 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-xl shadow-rose-200">Yes, Delete</button>
+                </div>
+            </div>
+            
+            <div class="flex justify-center pt-2">
+                <button onclick="showDeleteConfirm()" class="text-[9px] font-bold uppercase tracking-widest text-rose-500/50 hover:text-rose-500 transition-colors">Discard this piece of reminder</button>
+            </div>
         </div>
       </div>
     </div>
@@ -1976,39 +2042,68 @@ async def app_dashboard_page(
         """
 
     # Intelligence Feed (Recent Content)
-    posts = db.query(Post).filter(Post.org_id == org_id).order_by(Post.created_at.desc()).limit(5).all()
+    posts = db.query(Post).filter(Post.org_id == org_id).order_by(Post.created_at.desc()).limit(6).all()
     recent_posts_html = ""
     for p in posts:
+        # Determine Type
+        cap = p.caption or ""
+        p_type = "REFLECTION"
+        if any(x in cap for x in ["Surah", "Verse", "Ayah", "Quran"]): p_type = "QURAN"
+        elif any(x in cap for x in ["Hadith", "Prophet", "Sahih", "Bukhari", "Muslim"]): p_type = "HADITH"
+        
         status_color = "text-text-muted"
         status_bg = "bg-brand/5"
+        status_label = "Reflection Draft" if p.status == "draft" else p.status.capitalize()
+        
         if p.status == "published": 
             status_color = "text-emerald-600"
             status_bg = "bg-emerald-50"
+            status_label = "Shared"
         elif p.status == "scheduled": 
             status_color = "text-brand"
-            status_bg = "bg-brand/5"
+            status_bg = "bg-brand/10 shadow-sm"
+            status_label = "Planned"
+        elif p.status == "ready":
+            status_color = "text-accent"
+            status_bg = "bg-accent/10"
+            status_label = "Review Ready"
         
         caption_json = html.escape(json.dumps(p.caption or ""), quote=True)
+        date_str = p.created_at.strftime("%b %d")
         
+        approve_btn = ""
+        if p.status in ["draft", "ready"]:
+            approve_btn = f"""
+                <button onclick="approvePost('{p.id}')" class="px-4 py-2 bg-brand/5 text-brand rounded-xl font-bold text-[8px] uppercase tracking-widest hover:bg-brand hover:text-white transition-all">Share Now</button>
+            """
+
         recent_posts_html += f"""
-        <div class="card p-4 bg-white flex justify-between items-center hover:shadow-lg hover:shadow-brand/[0.02] transition-all border-brand/5">
-          <div class="flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-cream overflow-hidden border border-brand/5 shrink-0 shadow-inner">
-                {f'<img src="{p.media_url}" class="w-full h-full object-cover">' if p.media_url else '<div class="w-full h-full flex items-center justify-center text-[7px] font-bold text-text-muted/40 uppercase">Null</div>'}
+        <div class="card p-5 bg-white border-brand/5 flex flex-col gap-5 hover:shadow-xl hover:shadow-brand/[0.03] transition-all group">
+          <div class="flex items-start justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 rounded-xl bg-cream overflow-hidden border border-brand/5 shrink-0 shadow-inner">
+                    {f'<img src="{p.media_url}" class="w-full h-full object-cover">' if p.media_url else '<div class="w-full h-full flex items-center justify-center text-[7px] font-bold text-text-muted/40 uppercase">Null</div>'}
+                </div>
+                <div>
+                   <div class="text-[7px] font-black text-accent uppercase tracking-[0.2em] mb-1">{p_type}</div>
+                   <div class="px-2 py-0.5 {status_bg} {status_color} rounded-md text-[6px] font-black uppercase tracking-widest inline-block">{status_label}</div>
+                </div>
             </div>
-            <div class="min-w-0">
-              <div class="text-[11px] font-bold text-brand uppercase tracking-wider truncate max-w-[140px] md:max-w-[200px]">{p.caption[:50] if p.caption else "System Draft"}</div>
-              <div class="flex items-center gap-2 mt-1">
-                <div class="text-[8px] font-bold text-text-muted uppercase tracking-widest">{p.created_at.strftime("%b %d")}</div>
-                <div class="w-1 h-1 rounded-full bg-text-muted/20"></div>
-                <div class="px-2 py-0.5 {status_bg} {status_color} rounded-md text-[7px] font-black uppercase tracking-widest">{p.status}</div>
-              </div>
-            </div>
+            <div class="text-[8px] font-bold text-text-muted/40 uppercase tracking-widest">{date_str}</div>
           </div>
-          <div class="flex items-center">
-            <button onclick="openEditPostModal('{p.id}', {caption_json}, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}')" class="p-3 text-text-muted hover:text-brand hover:bg-brand/5 rounded-xl transition-all">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-            </button>
+
+          <div class="space-y-3">
+              <p class="text-[11px] font-bold text-brand leading-relaxed line-clamp-3 italic opacity-80 group-hover:opacity-100 transition-opacity">
+                "{p.caption[:120] if p.caption else "Suggested Reminder"}"
+              </p>
+          </div>
+
+          <div class="flex items-center gap-2 pt-2 border-t border-brand/[0.03]">
+             <button onclick="openEditPostModal('{p.id}', {caption_json}, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}')" class="flex-1 py-2.5 bg-white border border-brand/5 rounded-xl text-[8px] font-black uppercase tracking-widest text-text-muted hover:text-brand hover:border-brand/20 transition-all">Edit</button>
+             {approve_btn}
+             <button onclick="document.getElementById('editPostId').value='{p.id}'; showDeleteConfirm(); openEditPostModal('{p.id}', {caption_json})" class="p-2.5 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+             </button>
           </div>
         </div>
         """
@@ -2182,19 +2277,49 @@ async def app_calendar_page(
                 calendar_html += '<div class="aspect-square glass/5 border border-white/5 opacity-20"></div>'
             else:
                 day_posts = post_map.get(day, [])
-                indicators = ""
-                for dp in day_posts[:3]:
-                    color = "bg-brand" if dp.status == "scheduled" else "bg-emerald-400"
-                    indicators += f'<div class="w-1.5 h-1.5 rounded-full {color}"></div>'
+                posts_html = ""
+                for dp in day_posts[:2]: # Show max 2 to keep it clean
+                    # Determine type
+                    cap = dp.caption or ""
+                    p_type = "REFLECTION"
+                    if any(x in cap for x in ["Surah", "Verse", "Ayah", "Quran"]): p_type = "QURAN"
+                    elif any(x in cap for x in ["Hadith", "Prophet", "Sahih", "Bukhari", "Muslim"]): p_type = "HADITH"
+                    elif "Story" in cap: p_type = "STORY"
+                    
+                    # Status logic
+                    status_class = "bg-brand/5 text-brand"
+                    if dp.status == "published": status_class = "bg-emerald-50 text-emerald-600 border border-emerald-100"
+                    elif dp.status == "draft": status_class = "bg-amber-50 text-amber-600 border border-amber-100"
+                    else: status_class = "bg-brand/5 text-brand border border-brand/10"
+                    
+                    # Preview (approx 8-12 words in 40-50 chars)
+                    preview = (cap[:45] + "...") if len(cap) > 45 else (cap if cap else "Suggested Reminder")
+                    display_status = dp.status.capitalize()
+                    if dp.status == "published": display_status = "Shared"
+                    elif dp.status == "scheduled": display_status = "Planned"
+                    elif dp.status == "draft": display_status = "Reflection Draft"
+                    
+                    posts_html += f"""
+                    <div class="p-2 rounded-xl border border-brand/5 bg-white/40 space-y-1.5 overflow-hidden group/post cursor-pointer hover:bg-white transition-colors" onclick="openEditPostModal('{dp.id}', `{dp.caption}`, '{dp.scheduled_time.isoformat()}')">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[6px] font-black uppercase tracking-widest text-accent/60 group-hover/post:text-accent">{p_type}</span>
+                            <span class="px-1 py-0.5 rounded-md {status_class} text-[5px] font-black uppercase tracking-tighter">{display_status}</span>
+                        </div>
+                        <p class="text-[8px] font-bold text-brand/60 group-hover/post:text-brand leading-snug line-clamp-2 italic">"{preview}"</p>
+                    </div>
+                    """
                 
-                is_today = (day == today.day)
-                today_class = "border-brand/40 bg-brand/5 shadow-[0_0_20px_rgba(15,61,46,0.05)]" if is_today else "border-brand/5 hover:border-brand/20 bg-white"
+                is_today = (day == today.day and month == today.month and year == today.year)
+                today_class = "border-brand/40 bg-brand/[0.02] shadow-[inner_0_0_20px_rgba(15,61,46,0.02)]" if is_today else "border-brand/5 hover:border-brand/10 bg-white"
                 
                 calendar_html += f"""
-                <div class="aspect-square glass border rounded-3xl p-4 flex flex-col justify-between transition-all {today_class}">
-                    <span class="text-xs font-bold { 'text-brand' if is_today else 'text-text-muted' }">{day}</span>
-                    <div class="flex gap-1 flex-wrap">
-                        {indicators}
+                <div class="min-h-[140px] glass border rounded-3xl p-3 flex flex-col gap-2 transition-all {today_class}">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-[10px] font-black { 'text-brand' if is_today else 'text-text-muted/30' }">{day}</span>
+                        { '<span class="text-[7px] font-black bg-brand text-white px-2 py-0.5 rounded-full uppercase tracking-widest">Today</span>' if is_today else '' }
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        {posts_html or '<div class="py-4 text-center opacity-10"><div class="text-[10px] font-black tracking-widest uppercase">Empty</div></div>'}
                     </div>
                 </div>
                 """
@@ -2368,7 +2493,7 @@ async def app_automations_page(
 
           <div class="flex items-center gap-3 w-full md:w-auto relative border-t md:border-t-0 border-brand/5 pt-6 md:pt-0">
             <button onclick="showEditModal({edit_data_json})" class="flex-1 md:flex-none px-6 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand hover:border-brand/30 hover:bg-brand/[0.02] transition-all shadow-sm">Configure</button>
-            <button onclick="runNow(event, {a.id})" class="flex-1 md:flex-none px-6 py-4 bg-brand rounded-2xl text-white font-bold text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.02] transition-all">Manifest Now</button>
+            <button onclick="runNow(event, {a.id})" class="flex-1 md:flex-none px-6 py-4 bg-brand rounded-2xl text-white font-bold text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.02] transition-all">Prepare Now</button>
           </div>
         </div>
         """
@@ -2379,10 +2504,10 @@ async def app_automations_page(
               <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
             </div>
             <div class="space-y-3">
-              <h3 class="text-2xl font-bold text-brand tracking-tight italic">Establish your first Growth Plan</h3>
-              <p class="text-text-muted text-sm max-w-sm font-medium">Set up how and when your creative vision comes to life.</p>
+              <h3 class="text-2xl font-bold text-brand tracking-tight italic">Start your first Growth Plan</h3>
+              <p class="text-text-muted text-sm max-w-sm font-medium">Set up how and when your reminders come to life.</p>
             </div>
-            <button onclick="showNewAutoModal()" class="px-10 py-4 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Establish Plan</button>
+            <button onclick="showNewAutoModal()" class="px-10 py-4 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Start Plan</button>
         </div>
     """
     
@@ -2390,12 +2515,12 @@ async def app_automations_page(
     <div class="space-y-10">
       <div class="flex justify-between items-end">
         <div>
-        <h1 class="text-3xl font-bold text-brand tracking-tight italic">Studio</h1>
-        <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em]">Content Growth Plans</p>
+        <h1 class="text-3xl font-bold text-brand tracking-tight italic">Growth</h1>
+        <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em]">Reminder Growth Plans</p>
       </div>
       <button onclick="showNewAutoModal()" class="hidden md:flex px-8 py-4 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] text-white shadow-2xl shadow-brand/30 hover:translate-y-[-2px] transition-all items-center gap-3">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-          Establish New Plan
+          Start New Plan
       </button>
       </div>
 
@@ -2425,7 +2550,7 @@ async def app_automations_page(
     """ if is_connected else '<div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2 opacity-60 italic"><span>No account linked</span></div>'
 
     return APP_LAYOUT_HTML.replace("{content}", content.replace("{autos_html}", autos_html or empty_state_html))\
-                          .replace("{title}", "Automations")\
+                          .replace("{title}", "Growth Plans")\
                           .replace("{user_name}", user.name or user.email)\
                           .replace("{org_name}", org.name if org else "Personal Workspace")\
                           .replace("{admin_link}", admin_link)\
@@ -2454,13 +2579,13 @@ async def app_media_page(
     <div class="space-y-8">
       <div class="flex justify-between items-end">
         <div>
-          <h1 class="text-3xl font-bold text-brand tracking-tight">Assets</h1>
-          <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Creative Media Studio</p>
+          <h1 class="text-3xl font-bold text-brand tracking-tight">Visuals</h1>
+          <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Visual Presence Studio</p>
         </div>
         <div class="flex gap-4">
             <button onclick="document.getElementById('mediaUploadInput').click()" class="px-8 py-4 bg-brand text-white rounded-xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center gap-3">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-                Upload Assets
+                Add Visuals
             </button>
         </div>
       </div>
@@ -2469,8 +2594,8 @@ async def app_media_page(
               <svg class="w-10 h-10 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
             </div>
             <div>
-              <h3 class="text-[11px] font-bold uppercase tracking-[0.3em] text-brand">Media Library</h3>
-              <p class="text-xs text-text-muted mt-2">Your media will appear here after you create posts</p>
+              <h3 class="text-[11px] font-bold uppercase tracking-[0.3em] text-brand">Visual Library</h3>
+              <p class="text-xs text-text-muted mt-2">Your visuals will appear here after you share reminders</p>
             </div>
         </div>
     </div>
@@ -2496,7 +2621,7 @@ async def app_media_page(
     """ if is_connected else '<div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2 opacity-60 italic"><span>No account linked</span></div>'
 
     return APP_LAYOUT_HTML.replace("{content}", content)\
-                          .replace("{title}", "Media Studio")\
+                          .replace("{title}", "Visual Library")\
                           .replace("{user_name}", user.name or user.email)\
                           .replace("{org_name}", org.name if org else "Personal Workspace")\
                           .replace("{admin_link}", admin_link)\
@@ -2599,13 +2724,13 @@ async def app_library_page(
     <div class="space-y-8">
       <div class="flex justify-between items-end">
         <div>
-          <h1 class="text-3xl font-bold text-brand tracking-tight">Knowledge</h1>
-          <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Structured Library</p>
+          <h1 class="text-3xl font-bold text-brand tracking-tight">Library</h1>
+          <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Knowledge Foundation</p>
         </div>
         <div class="flex gap-4">
           <button onclick="openEntryModal()" class="px-8 py-4 bg-brand rounded-xl font-bold text-[11px] uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center gap-3">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-            Add Knowledge
+            Add Wisdom
           </button>
         </div>
       </div>
@@ -2620,7 +2745,7 @@ async def app_library_page(
                     <h3 class="text-xs font-bold uppercase tracking-widest text-text-muted">Collections</h3>
                     <span id="sourceCount" class="text-[9px] font-bold text-brand bg-brand/10 px-2 py-0.5 rounded-full">0</span>
                 </div>
-                <span id="sabeelDefaultsLabel" class="hidden text-[8px] font-bold text-accent uppercase tracking-widest mt-1">Sabeel Recommendations</span>
+                <span id="sabeelDefaultsLabel" class="hidden text-[8px] font-bold text-accent uppercase tracking-widest mt-1">Sabeel Foundation</span>
             </div>
             
             {library_controls}
@@ -2634,9 +2759,9 @@ async def app_library_page(
         <div class="flex-1 glass rounded-[2.5rem] bg-white flex flex-col overflow-hidden border border-brand/5">
           <div class="p-6 border-b border-brand/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0">
             <div class="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 w-full md:flex-1">
-              <h3 class="hidden md:block text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted shrink-0">Intelligence Engine</h3>
+              <h3 class="hidden md:block text-[10px] font-bold uppercase tracking-[0.2em] text-text-muted shrink-0">Guidance Library</h3>
               <div class="relative w-full md:max-w-md group">
-                <input type="text" id="entrySearch" oninput="debounceEntryQuery()" placeholder="Search your knowledge base..." class="w-full bg-cream/50 border border-brand/10 rounded-2xl px-6 py-3.5 text-[11px] font-bold text-brand outline-none focus:border-brand/30 focus:bg-white focus:shadow-lg focus:shadow-brand/5 transition-all placeholder:text-brand/20">
+                <input type="text" id="entrySearch" oninput="debounceEntryQuery()" placeholder="Search your wisdom base..." class="w-full bg-cream/50 border border-brand/10 rounded-2xl px-6 py-3.5 text-[11px] font-bold text-brand outline-none focus:border-brand/30 focus:bg-white focus:shadow-lg focus:shadow-brand/5 transition-all placeholder:text-brand/20">
                 <svg class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-brand/20 group-focus-within:text-brand transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
               </div>
             </div>
@@ -3706,4 +3831,15 @@ async def finalize_onboarding(
 
     return {"status": "success"}
 
-    return {"status": "success"}
+class RefineRequest(BaseModel):
+    text: str
+    type: str
+
+@router.post("/api/ai/refine")
+async def api_refine_content(
+    payload: RefineRequest,
+    user: User = Depends(require_user)
+):
+    from app.services.llm import refine_caption
+    refined = refine_caption(payload.text, payload.type)
+    return {"refined": refined}
