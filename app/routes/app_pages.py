@@ -724,6 +724,7 @@ STUDIO_COMPONENTS_HTML = """
         </div>
     </div>
 </div>
+"""
 
 APP_LAYOUT_HTML = """<!doctype html>
 <html lang="en">
