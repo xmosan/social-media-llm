@@ -464,7 +464,7 @@ STUDIO_SCRIPTS_JS = """
 STUDIO_COMPONENTS_HTML = """
 <!-- CONTENT STUDIO MODAL -->
 <div id="newPostModal" class="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[100] flex items-end md:items-center justify-center p-0 md:p-10 hidden">
-    <div class="glass w-full h-[100vh] md:h-full md:max-w-7xl rounded-none md:rounded-[3rem] overflow-hidden flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in duration-500 border-0 border-t md:border border-brand/5 shadow-2xl bg-white/5">
+    <div class="w-full h-[100vh] md:h-full md:max-w-7xl rounded-none md:rounded-[3rem] overflow-hidden flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in duration-500 border-0 border-t md:border border-brand/5 shadow-2xl bg-white">
       
       <!-- Studio Sidebar -->
       <div class="w-full md:w-80 bg-brand/5 border-b md:border-b-0 md:border-r border-brand/5 flex flex-col pt-10 md:pt-12 px-8 z-50 shrink-0">
@@ -918,6 +918,20 @@ APP_LAYOUT_HTML = """<!doctype html>
     .mobile-tab.active svg { color: var(--brand); stroke-width: 2.5; }
 
     /* Content Studio Styles */
+    .refine-ai-btn.loading-ai {
+        background-color: var(--brand-color, #0f3d2e) !important;
+        color: white !important;
+    }
+    .refine-ai-btn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+    .studio-nav-step.active .nav-text {
+        color: #0f3d2e !important;
+    }
+    .studio-nav-step .nav-text {
+        color: rgba(15, 61, 46, 0.4);
+    }
     .studio-nav-step.active .nav-num { background: var(--brand); color: white; border-color: var(--brand); }
     .intent-card.active, .foundation-card.active, .emotion-card.active, 
     .depth-card.active, .hook-card.active, .strict-card.active { 
@@ -1086,7 +1100,8 @@ APP_LAYOUT_HTML = """<!doctype html>
         // Disable all refine buttons
         const allBtns = document.querySelectorAll('.refine-ai-btn');
         allBtns.forEach(b => b.disabled = true);
-        btn.innerHTML = '<span class="animate-spin text-xs">🌀</span>';
+        btn.classList.add('loading-ai');
+        btn.innerHTML = '<svg class="animate-spin -ml-1 mr-2 h-3 w-3 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Crafting...';
 
         try {
             const res = await fetch('/api/ai/refine', {
@@ -1104,14 +1119,42 @@ APP_LAYOUT_HTML = """<!doctype html>
             alert('Error connecting to AI service.');
         } finally {
             allBtns.forEach(b => b.disabled = false);
+            btn.classList.remove('loading-ai');
             btn.innerHTML = originalContent;
         }
     }
 
-    async function savePostEdit() {
+    async function publishPostNow() {
+        const id = document.getElementById('editPostId').value;
+        const postBtn = document.getElementById('postNowBtn');
+        if(!id) return;
+        
+        postBtn.disabled = true;
+        postBtn.innerHTML = 'SHARING...';
+
+        try {
+            // 1. Save changes first
+            await savePostEdit(false); // pass false to avoid double reload
+
+            // 2. Publish immediately
+            const res = await fetch(`/posts/${id}/publish`, { method: 'POST' });
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                const data = await res.json();
+                alert('Connection to Platform failed: ' + (data.detail || 'check connection.'));
+            }
+        } catch(e) {
+            alert('Error updating reminder');
+        } finally {
+            postBtn.disabled = false;
+            postBtn.innerHTML = 'Share Now';
+        }
+    }
+
+    async function savePostEdit(reload = true) {
         const id = document.getElementById('editPostId').value;
         const caption = document.getElementById('editPostCaption').value;
-        const time = document.getElementById('editPostTime').value;
         const btn = document.getElementById('savePostBtn');
 
         btn.disabled = true;
@@ -1121,12 +1164,13 @@ APP_LAYOUT_HTML = """<!doctype html>
             const res = await fetch(`/posts/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ caption: caption, scheduled_time: time })
+                body: JSON.stringify({ caption: caption })
             });
-            if (res.ok) window.location.reload();
-            else alert('Failed to update post');
-        } catch(e) { alert('Error updating post'); }
-        finally { btn.disabled = false; btn.innerText = 'Apply Changes'; }
+            if (res.ok) {
+                if(reload) window.location.reload();
+            } else alert('Failed to update reminder');
+        } catch(e) { alert('Error updating reminder'); }
+        finally { btn.disabled = false; btn.innerText = 'Save Changes'; }
     }
 
     async function deletePost() {
@@ -1467,9 +1511,13 @@ APP_DASHBOARD_CONTENT = """
                 </div>
             </div>
 
-            <div id="editPostActions" class="flex gap-4 pt-6">
-                <button onclick="closeEditPostModal()" class="flex-1 py-5 bg-white border border-brand/10 rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] text-brand hover:bg-brand/5 transition-all">Cancel</button>
-                <button id="savePostBtn" onclick="savePostEdit()" class="flex-[2] py-5 bg-brand rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] text-white shadow-2xl shadow-brand/40 hover:bg-brand-hover transition-all">Apply Changes</button>
+            <div id="editPostActions" class="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-6">
+                <button onclick="closeEditPostModal()" class="py-5 bg-white border border-brand/10 rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] text-brand hover:bg-brand/5 transition-all">Cancel</button>
+                <button id="savePostBtn" onclick="savePostEdit()" class="py-5 bg-brand/5 border border-brand/10 rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] text-brand hover:bg-brand hover:text-white transition-all">Save Changes</button>
+                <button id="postNowBtn" onclick="publishPostNow()" class="col-span-2 py-5 bg-brand rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] text-white shadow-2xl shadow-brand/40 hover:bg-brand-hover transition-all flex items-center justify-center gap-3">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                    Share Now
+                </button>
             </div>
 
             <!-- Delete Confirmation Area (Hidden by default) -->
