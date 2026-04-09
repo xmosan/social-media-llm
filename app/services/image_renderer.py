@@ -1473,6 +1473,7 @@ def render_minimal_quote_card(
 
     for i, zd in enumerate(zone_data):
         col = zd["color"]
+        is_light_text = (col[0] + col[1] + col[2]) > 440
 
         # ── Adaptive shadow for this zone ────────────────────────────────────
         # Use TypographySpec shadow when available; else compute from text luminance
@@ -1480,7 +1481,6 @@ def render_minimal_quote_card(
             shadow_fill = typo_spec.shadow_fill
             shd_dx, shd_dy = typo_spec.shadow_dx, typo_spec.shadow_dy
         else:
-            is_light_text = (col[0] + col[1] + col[2]) > 440
             if is_light_text:
                 shadow_fill = (0, 0, 0, 130)
                 shd_dx, shd_dy = 2, 2
