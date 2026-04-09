@@ -213,15 +213,19 @@ def draw_textured_background(draw, size, base_color):
     return noise.resize(size, Image.BILINEAR)
 
 def draw_gold_border(draw, size, border_width=30):
-    """Draws a frame around the card in Gold with a subtle inner edge."""
-    gold_color = (190, 150, 40) # Aged gold
+    """Draws an elegant layered gold frame with inner accent line."""
     w, h = size
-    # Outer frame
-    draw.rectangle([border_width, border_width, w - border_width, h - border_width], 
-                   outline=gold_color, width=3)
-    # Inner rim
-    draw.rectangle([border_width + 10, border_width + 10, w - border_width - 10, h - border_width - 10], 
-                   outline=gold_color, width=1)
+    gold     = (200, 162, 42)   # warm aged gold
+    gold_dim = (150, 118, 30)   # darker inner accent
+    m = border_width
+    # Outer border
+    draw.rectangle([m, m, w - m, h - m], outline=gold, width=3)
+    # Inner trim
+    draw.rectangle([m + 12, m + 12, w - m - 12, h - m - 12], outline=gold_dim, width=1)
+    # Corner accent dots
+    dot_r = 5
+    for cx, cy in [(m+3, m+3), (w-m-3, m+3), (m+3, h-m-3), (w-m-3, h-m-3)]:
+        draw.ellipse([cx - dot_r, cy - dot_r, cx + dot_r, cy + dot_r], fill=gold)
 
 def draw_text_highlight(draw, bbox, bg_color):
     """Draws a rounded rectangle background behind a text bbox."""
@@ -246,15 +250,44 @@ def draw_radial_gradient(draw, size, color_start, color_end):
         draw.ellipse([center_x - radius, center_y - radius, center_x + radius, center_y + radius], fill=(r, g, b))
 
 def draw_islamic_pattern(draw, size, color):
-    """Draws a visible but subtle Rub el Hizb tile pattern."""
+    """Draws large, elegant, sparse Islamic geometry at card corners/center."""
     w, h = size
-    step = 140
-    for y in range(0, h + step, step):
-        for x in range(0, w + step, step):
-            s = 25
-            draw.polygon([(x-s, y-s), (x+s, y-s), (x+s, y+s), (x-s, y+s)], outline=color, width=1)
-            s_diag = int(s * 1.414)
-            draw.polygon([(x-s_diag, y), (x, y-s_diag), (x+s_diag, y), (x, y+s_diag)], outline=color, width=1)
+    # Unpack color — support 3 or 4 channels
+    if len(color) == 4:
+        r, g, b, a = color
+        # For PIL RGB draws we use the rgb part only; alpha is handled via compositing
+        col = (r, g, b)
+        # Simulate alpha by blending toward background (approx)
+        blend = a / 255.0
+        col = tuple(int(c * blend) for c in col)
+    else:
+        col = color
+
+    # Draw large 8-pointed star shapes at corners and center
+    positions = [
+        (w // 2, h // 2),         # Center
+        (180, 180),                # Top-left
+        (w - 180, 180),            # Top-right
+        (180, h - 180),            # Bottom-left
+        (w - 180, h - 180),        # Bottom-right
+    ]
+    sizes = [280, 120, 120, 120, 120]  # Center larger
+
+    for (cx, cy), s in zip(positions, sizes):
+        # Outer square rotated 45° (diamond)
+        d = s
+        draw.polygon([
+            (cx, cy - d),
+            (cx + d, cy),
+            (cx, cy + d),
+            (cx - d, cy)
+        ], outline=col, width=2)
+        # Inner square (axis-aligned)
+        sq = int(s * 0.7)
+        draw.rectangle([cx - sq, cy - sq, cx + sq, cy + sq], outline=col, width=1)
+        # Small center dot
+        dot = int(s * 0.15)
+        draw.ellipse([cx - dot, cy - dot, cx + dot, cy + dot], outline=col, width=1)
 
 def apply_vignette(image, intensity=0.6):
     """Fast vignette overlay using gradient mask."""
@@ -275,29 +308,34 @@ def apply_vignette(image, intensity=0.6):
     return Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
 
 def apply_cinematic_layers(image):
-    """Adds ultra-premium cinematic overlays: grain and optical bloom."""
+    """Adds ultra-premium cinematic overlays: grain, optical bloom, and center glow."""
     w, h = image.size
-    
-    # 1. Subtle Film Grain Overlay
+
+    # 1. Subtle Film Grain
     grain_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     gd = ImageDraw.Draw(grain_layer)
-    for _ in range(4000):
+    for _ in range(3500):
         x, y = random.randint(0, w-1), random.randint(0, h-1)
-        r = random.randint(220, 255)
-        gd.point((x, y), fill=(r, r, r, 12))
-        
-    # 2. Corner Light Blooms (Optical Flares)
+        r = random.randint(215, 255)
+        gd.point((x, y), fill=(r, r, r, 10))
+
+    # 2. Center Glow (warm ambient light at card center)
+    center_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    cd = ImageDraw.Draw(center_layer)
+    cx, cy = w // 2, h // 2
+    cd.ellipse([cx - 500, cy - 500, cx + 500, cy + 500], fill=(255, 245, 220, 14))
+    center_layer = center_layer.filter(ImageFilter.GaussianBlur(180))
+
+    # 3. Corner Light Blooms (Optical Flares)
     bloom_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     bd = ImageDraw.Draw(bloom_layer)
-    # Warm warm glow Top-Left
-    bd.ellipse([-300, -300, 500, 500], fill=(255, 210, 160, 22)) 
-    # Soft cool glow Bottom-Right
-    bd.ellipse([w-500, h-500, w+300, h+300], fill=(160, 210, 255, 18))
-    
-    bloom_layer = bloom_layer.filter(ImageFilter.GaussianBlur(110))
-    
-    # Composite
+    bd.ellipse([-280, -280, 460, 460], fill=(255, 215, 160, 18))
+    bd.ellipse([w-460, h-460, w+280, h+280], fill=(160, 210, 255, 14))
+    bloom_layer = bloom_layer.filter(ImageFilter.GaussianBlur(120))
+
+    # Composite all layers
     res = image.convert("RGBA")
+    res = Image.alpha_composite(res, center_layer)
     res = Image.alpha_composite(res, grain_layer)
     res = Image.alpha_composite(res, bloom_layer)
     return res.convert("RGB")

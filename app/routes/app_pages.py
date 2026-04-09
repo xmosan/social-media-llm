@@ -822,16 +822,25 @@ APP_LAYOUT_HTML = """<!doctype html>
     }
     .studio-nav-step.active .nav-num { background: var(--brand); color: white; border-color: var(--brand); }
     .intent-card.active, .foundation-card.active, .emotion-card.active, 
-    .depth-card.active, .hook-card.active, .strict-card.active { 
+    .depth-card.active, .hook-card.active, .strict-card.active,
+    .tone-card.active, .style-card.active { 
       border-color: var(--brand) !important; 
-      background-color: rgba(15, 61, 46, 0.05) !important;
+      background-color: rgba(15, 61, 46, 0.06) !important;
       transform: translateY(-2px);
-      box-shadow: 0 10px 20px -5px rgba(15, 61, 46, 0.1);
+      box-shadow: 0 10px 20px -5px rgba(15, 61, 46, 0.12);
+    }
+    .tone-card.active, .style-card.active {
+      color: var(--brand) !important;
+      font-weight: 900;
     }
     .intent-card.active .text-brand, .foundation-card.active .text-brand { color: var(--brand); }
     .strict-card.active { border-color: var(--brand) !important; background-color: rgba(15, 61, 46, 0.03) !important; }
     .strict-card.active[onclick*="strict"] { border-color: #EF4444 !important; background-color: rgba(239, 68, 68, 0.03) !important; }
     .strict-card.active[onclick*="strict"] .nav-num { background-color: #EF4444 !important; }
+    /* Style card icon fill on active */
+    .style-card.active .group-\[\.active\]\:bg-brand,
+    .style-card.active [class*="group-[.active]:bg-brand"] { background-color: var(--brand) !important; }
+    .style-card.active [class*="group-[.active]:text-white"] { color: white !important; }
   </style>
 </head>
 <body class="min-h-screen">

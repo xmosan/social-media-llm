@@ -17,6 +17,16 @@ def generate_quote_card(caption: str, style: str = "classic", visual_prompt: str
     clean_caption = caption.replace("**", "").replace("_", "")
     parts = [p.strip() for p in clean_caption.split("\n\n") if p.strip()]
     
+    # Clean individual part formatting artifacts
+    cleaned_parts = []
+    for i, part in enumerate(parts):
+        p = part.strip()
+        if i == 0:
+            # Reference line: strip surrounding quotes
+            p = p.strip('"').strip("'").strip("\u201c").strip("\u201d").strip()
+        cleaned_parts.append(p)
+    parts = cleaned_parts
+    
     segments = []
     
     # Text color & size hierarchy per style
