@@ -1162,15 +1162,24 @@ def render_minimal_quote_card(
                 analysis  = vs_analyze(bg, target_size)
                 typo_spec = vs_adapt(analysis, vs_spec)
                 if typo_spec.dim_layer:
+                    # Soft radial protection behind text zone — NEVER a box
+                    # Radius scales with the readability_risk level
+                    pr    = {"low": 340, "medium": 400, "high": 440}.get(
+                            typo_spec.readability_risk, 380)
                     d_lay = Image.new("RGBA", target_size, (0, 0, 0, 0))
                     dd    = ImageDraw.Draw(d_lay)
-                    dd.ellipse([cx - 360, cy - 360, cx + 360, cy + 360],
+                    dd.ellipse([cx - pr, cy - pr, cx + pr, cy + pr],
                                fill=typo_spec.dim_color)
-                    d_lay = d_lay.filter(
-                        ImageFilter.GaussianBlur(typo_spec.dim_radius))
+                    blur  = typo_spec.dim_radius
+                    d_lay = d_lay.filter(ImageFilter.GaussianBlur(blur))
+                    # Composite twice for medium/high risk (smoother fade)
                     bg    = Image.alpha_composite(
                         bg.convert("RGBA"), d_lay).convert("RGB")
+                    if typo_spec.readability_risk == "high":
+                        bg = Image.alpha_composite(
+                            bg.convert("RGBA"), d_lay).convert("RGB")
                     draw  = ImageDraw.Draw(bg)
+                print(f"   🎨 Mode={typo_spec.typography_mode}  risk={typo_spec.readability_risk}  glow={typo_spec.has_glow}")
                 palette   = [typo_spec.ref_color, typo_spec.quote_color, typo_spec.support_color]
                 sep_color = typo_spec.sep_color
             else:
@@ -1406,7 +1415,8 @@ def render_minimal_quote_card(
 
     # ── GLOW HALO UNDER ZONE B ────────────────────────────────────────────────
     bg_rgba = bg.convert("RGBA")
-    if len(zone_data) > 1 and g_rgba:
+    _use_glow = (typo_spec is not None and typo_spec.has_glow) or typo_spec is None
+    if len(zone_data) > 1 and g_rgba and _use_glow:
         g_layer = Image.new("RGBA", target_size, (0, 0, 0, 0))
         gd      = ImageDraw.Draw(g_layer)
         ty_g    = start_y + zone_data[0]["block_h"] + gap_ab

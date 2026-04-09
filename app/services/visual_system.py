@@ -65,39 +65,133 @@ class AnalysisResult:
     """
     Result of analyzing a generated background image.
     Produced by analyze_background() directly from pixel data.
+
+    palette_mode: "light" | "dark" | "warm" | "cool" | "green" | "mixed"
+    readability_risk: "low" | "medium" | "high"
+    typography_mode: "LIGHT" | "DARK" | "MID_LIGHT" | "MID_DARK"
     """
     overall_brightness: float = 128.0
     center_brightness:  float = 128.0
     edge_brightness:    float = 128.0
     center_detail:      float = 0.0    # 0-1, higher = busier center
+    center_contrast:    float = 0.5    # 0-1, higher = more contrast headroom
     readability_score:  float = 0.5    # 0-1, higher = more readable
     is_light:           bool  = False
     zone_a_brightness:  float = 128.0  # reference row (top 8-25%)
     zone_b_brightness:  float = 128.0  # main quote row (30-70%)
     zone_c_brightness:  float = 128.0  # support row (72-88%)
+    zone_a_detail:      float = 0.0
+    zone_b_detail:      float = 0.0
+    zone_c_detail:      float = 0.0
     needs_protection:   bool  = False  # center needs dim layer
+    palette_mode:       str   = "dark"  # dominant color character
+    readability_risk:   str   = "low"   # low | medium | high
+    typography_mode:    str   = "DARK"  # LIGHT | DARK | MID_LIGHT | MID_DARK
+    dominant_hue:       str   = "neutral"  # warm | cool | green | neutral
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STYLE TOKENS — Named palettes for each typography mode
+# ─────────────────────────────────────────────────────────────────────────────
+
+# LIGHT_MODE: bright/parchment backgrounds → dark grounded text
+_LIGHT_MODE = {
+    "main":       (47,  36,  25),    # #2F2419 — deep warm brown
+    "support":    (90,  71,  50),    # #5A4732 — medium warm brown
+    "reference":  (140, 106, 47),    # #8C6A2F — bronze/muted gold
+    "shadow":     (255, 255, 255, 70),
+    "shadow_dx":  -1, "shadow_dy": -1,
+    "glow_rgba":  None,
+    "orn_color":  (108, 82, 40),
+    "sep_color":  (88,  62, 18),
+    "ref_alpha":  158,
+}
+
+# DARK_MODE: dark/space backgrounds → warm luminous text
+_DARK_MODE = {
+    "main":       (245, 241, 232),   # #F5F1E8 — warm off-white
+    "support":    (221, 214, 200),   # #DDD6C8 — dimmer off-white
+    "reference":  (212, 175, 55),    # #D4AF37 — classic sacred gold
+    "shadow":     (0,   0,   0,  148),
+    "shadow_dx":  2,  "shadow_dy": 2,
+    "glow_rgba":  (212, 175, 55, 75),
+    "orn_color":  (195, 162, 48),
+    "sep_color":  (188, 152, 50),
+    "ref_alpha":  205,
+}
+
+# MID_LIGHT_MODE: medium-bright → lean dark (sky, golden hour)
+_MID_LIGHT_MODE = {
+    "main":       (34,  26,  15),    # near-black warm
+    "support":    (72,  58,  38),    # medium warm brown
+    "reference":  (110, 82,  30),    # muted gold-bronze
+    "shadow":     (0,   0,   0,  110),
+    "shadow_dx":  1,  "shadow_dy": 1,
+    "glow_rgba":  None,
+    "orn_color":  (120, 92, 38),
+    "sep_color":  (100, 78, 30),
+    "ref_alpha":  168,
+}
+
+# MID_DARK_MODE: medium-dark → lean light (marble, charcoal, deep forest)
+_MID_DARK_MODE = {
+    "main":       (248, 244, 236),   # near-white warm
+    "support":    (228, 222, 210),   # soft warm grey
+    "reference":  (205, 168, 52),    # warm gold medium
+    "shadow":     (0,   0,   0,  130),
+    "shadow_dx":  2,  "shadow_dy": 2,
+    "glow_rgba":  (205, 168, 52, 60),
+    "orn_color":  (195, 162, 48),
+    "sep_color":  (182, 148, 46),
+    "ref_alpha":  192,
+}
+
+# Theme-specific accent overrides (applied on top of mode colors for orn/glow)
+_THEME_ACCENT_OVERRIDES = {
+    "sacred_black":   {"reference": (228, 185, 58),  "glow_rgba": (228, 185, 58, 90),  "orn_color": (210, 168, 42)},
+    "marble":         {"reference": (218, 210, 238),  "glow_rgba": (228, 222, 245, 62), "orn_color": (205, 198, 228)},
+    "obsidian":       {"reference": (195, 162, 238),  "glow_rgba": (185, 150, 232, 72), "orn_color": (178, 148, 232)},
+    "parchment":      {"reference": (140, 106, 47),   "glow_rgba": None,                "orn_color": (108,  82,  40)},
+    "velvet":         {"reference": (210, 175, 255),  "glow_rgba": (205, 168, 255, 72), "orn_color": (192, 158, 252)},
+    "emerald_forest": {"reference": (138, 218, 165),  "glow_rgba": (110, 202, 148, 58), "orn_color": (95,  192, 138)},
+    "cosmic":         {"reference": (185, 208, 255),  "glow_rgba": (172, 198, 255, 74), "orn_color": (158, 188, 252)},
+    "celestial":      {"reference": (228, 198, 88),   "glow_rgba": (255, 248, 215, 80), "orn_color": (228, 198, 88)},
+    "moonlit":        {"reference": (178, 202, 250),  "glow_rgba": (182, 212, 255, 62), "orn_color": (170, 200, 248)},
+    "starry":         {"reference": (188, 205, 255),  "glow_rgba": (200, 218, 255, 68), "orn_color": (188, 205, 252)},
+    "desert":         {"reference": (228, 185, 78),   "glow_rgba": (235, 192, 88,  72), "orn_color": (222, 180, 76)},
+    "navy":           {"reference": (215, 178, 68),   "glow_rgba": (215, 178, 68,  68), "orn_color": (202, 168, 58)},
+    "charcoal":       {"reference": (220, 215, 205),  "glow_rgba": (238, 232, 218, 55), "orn_color": (215, 208, 198)},
+}
 
 
 @dataclass
 class TypographySpec:
     """
-    Typography choices derived from background analysis + VisualSpec theme.
-    Produced by adapt_typography() from an AnalysisResult (+ optional spec).
+    Complete text styling specification.
+    Produced by adapt_typography(analysis, spec).
+
+    typography_mode drives the base palette:
+      LIGHT     → dark grounded text (parchment, bright sky)
+      DARK      → warm luminous text (sacred black, deep space)
+      MID_LIGHT → lean dark (golden hour, medium-bright)
+      MID_DARK  → lean light (marble, charcoal, deep forest)
     """
-    ref_color:     tuple = (220, 178, 58)   # Zone A — reference/accent
-    quote_color:   tuple = (252, 252, 250)  # Zone B — main quote
-    support_color: tuple = (228, 226, 222)  # Zone C — support
-    shadow_fill:   tuple = (0, 0, 0, 130)
-    shadow_dx:     int   = 2
-    shadow_dy:     int   = 2
-    dim_layer:     bool  = False
-    dim_color:     tuple = (0, 0, 0, 55)
-    dim_radius:    int   = 90
-    sep_color:     tuple = (188, 152, 50)   # zone separator ornament
-    # Theme-aware extras — drive the glow halo color and orn_col in renderer
-    glow_rgba:     tuple = (210, 175, 62, 65)  # halo behind Zone B (RGBA)
-    orn_color:     tuple = (195, 162, 48)       # separator/ornament RGB
-    ref_alpha:     int   = 185                  # Zone A text opacity (0–255)
+    ref_color:       tuple = (212, 175, 55)   # Zone A — reference/accent
+    quote_color:     tuple = (245, 241, 232)  # Zone B — main quote
+    support_color:   tuple = (221, 214, 200)  # Zone C — support
+    shadow_fill:     tuple = (0, 0, 0, 148)
+    shadow_dx:       int   = 2
+    shadow_dy:       int   = 2
+    dim_layer:       bool  = False
+    dim_color:       tuple = (0, 0, 0, 48)
+    dim_radius:      int   = 110
+    sep_color:       tuple = (188, 152, 50)
+    glow_rgba:       tuple = (212, 175, 55, 70)
+    orn_color:       tuple = (195, 162, 48)
+    ref_alpha:       int   = 192
+    typography_mode: str   = "DARK"
+    readability_risk: str  = "low"
+    has_glow:        bool  = True
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -492,89 +586,190 @@ def compose_dalle_prompt(spec: VisualSpec, raw_prompt: str = "") -> str:
 # BACKGROUND ANALYZER
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _zone_brightness(image, size: tuple,
-                     y1f: float, y2f: float,
-                     x1f: float = 0.10, x2f: float = 0.90) -> float:
-    """Average grayscale brightness of a rectangular image zone (0-255)."""
-    W, H = size
-    x1, y1 = int(W * x1f), int(H * y1f)
-    x2, y2 = int(W * x2f), int(H * y2f)
-    # Downsample significantly before computing — avoids O(n) over a megapixel
-    crop = image.crop((x1, y1, x2, y2)).resize((32, 32))
-    pixels = list(crop.convert("L").getdata())
-    return sum(pixels) / len(pixels) if pixels else 128.0
-
-
-def _detail_score(image, size: tuple,
-                  y1f: float, y2f: float,
-                  x1f: float = 0.15, x2f: float = 0.85) -> float:
+def _sample_zone(image, size: tuple,
+                 y1f: float, y2f: float,
+                 x1f: float = 0.10, x2f: float = 0.90) -> dict:
     """
-    Detail complexity score 0-1 for a zone. Uses std-dev of brightness.
-    0 = perfectly flat/smooth.  1 = highly detailed / complex.
+    Sample brightness, std-dev detail, and dominant hue of a rectangular zone.
+
+    Returns:
+        brightness  (float 0-255)
+        detail      (float 0-1)  std-dev normalized
+        avg_r, avg_g, avg_b  (float)
     """
     W, H = size
     x1, y1 = int(W * x1f), int(H * y1f)
     x2, y2 = int(W * x2f), int(H * y2f)
-    # 48×48 downsample is enough to capture std-dev without megapixel cost
     crop = image.crop((x1, y1, x2, y2)).resize((48, 48))
-    pixels = list(crop.convert("L").getdata())
-    n = len(pixels)
-    if n == 0:
-        return 0.0
-    mean = sum(pixels) / n
-    variance = sum((px - mean) ** 2 for px in pixels) / n
-    std_dev = variance ** 0.5
-    # Normalize: std≈10 → flat (0.18),  std≈55 → very detailed (1.0)
-    return min(1.0, std_dev / 55.0)
+
+    gray = list(crop.convert("L").getdata())
+    n    = len(gray)
+    brightness = sum(gray) / n if n else 128.0
+
+    mean    = brightness
+    std_dev = (sum((p - mean) ** 2 for p in gray) / n) ** 0.5 if n else 0.0
+    detail  = min(1.0, std_dev / 52.0)
+
+    rgb   = crop.convert("RGB").getdata()
+    avg_r = sum(p[0] for p in rgb) / n if n else 128.0
+    avg_g = sum(p[1] for p in rgb) / n if n else 128.0
+    avg_b = sum(p[2] for p in rgb) / n if n else 128.0
+
+    return {
+        "brightness": brightness,
+        "detail":     detail,
+        "r": avg_r, "g": avg_g, "b": avg_b,
+    }
 
 
-def analyze_background(image, size: tuple) -> AnalysisResult:
+def _classify_palette(r: float, g: float, b: float,
+                       brightness: float) -> tuple:
     """
-    Analyze a rendered background image and return an AnalysisResult.
+    Return (palette_mode, dominant_hue) from average RGB and brightness.
 
-    All sampling uses small downsampled crops for speed.
-    A 1080×1080 image is analyzed in < 50ms with this approach.
-
-    Center detail > 0.35 or medium-brightness center → needs_protection = True,
-    meaning a soft dim/brighten layer should be applied before text is drawn.
+    palette_mode: "light" | "dark" | "warm" | "cool" | "green" | "mixed"
+    dominant_hue: "warm" | "cool" | "green" | "neutral"
     """
-    # Overall + zone brightnesses
-    overall    = _zone_brightness(image, size, 0.0, 1.0)
-    center_brt = _zone_brightness(image, size, 0.25, 0.75, 0.25, 0.75)
-    edge_brt   = _zone_brightness(image, size, 0.0, 0.15)   # top strip
+    # Dominant hue based on channel imbalance
+    warm_score  = r - (g + b) / 2
+    cool_score  = b - (r + g) / 2
+    green_score = g - (r + b) / 2
 
-    zone_a = _zone_brightness(image, size, 0.08, 0.25)
-    zone_b = _zone_brightness(image, size, 0.30, 0.70)
-    zone_c = _zone_brightness(image, size, 0.72, 0.88)
+    if green_score > 18:
+        dominant_hue = "green"
+    elif warm_score > 15:
+        dominant_hue = "warm"
+    elif cool_score > 12:
+        dominant_hue = "cool"
+    else:
+        dominant_hue = "neutral"
 
-    # Detail score of main quote zone
-    center_detail = _detail_score(image, size, 0.30, 0.70)
+    if brightness > 175:
+        palette_mode = "light"
+    elif brightness > 135 and dominant_hue == "warm":
+        palette_mode = "warm"
+    elif brightness < 70:
+        palette_mode = "dark"
+    elif dominant_hue == "cool":
+        palette_mode = "cool"
+    elif dominant_hue == "green":
+        palette_mode = "green"
+    elif brightness > 115:
+        palette_mode = "mixed"
+    else:
+        palette_mode = "dark"
 
-    # Readability: low detail + clear brightness contrast = good readability
-    brightness_contrast = abs(center_brt - 128) / 128.0
-    readability = max(0.0, min(1.0, brightness_contrast * 1.4 - center_detail * 0.6))
+    return palette_mode, dominant_hue
 
-    # Protection needed if center is busy OR mid-brightness (worst for readability)
-    needs_protection = (
-        center_detail > 0.32
-        or (80 < center_brt < 172 and center_detail > 0.18)
-    )
+
+def _readability_risk(center_brightness: float,
+                      center_detail: float) -> str:
+    """
+    Classify readability risk for the center text zone.
+
+    High risk:
+      - Detail is high (busy texture behind text)
+      - Brightness is in the "grey zone" 85-168 (neither dark nor light enough)
+    Medium risk:
+      - Moderate detail OR borderline brightness
+    Low risk:
+      - Very dark or very bright with low detail
+    """
+    grey_zone   = 85 < center_brightness < 168
+    very_busy   = center_detail > 0.40
+    busy        = center_detail > 0.25
+    borderline  = 100 < center_brightness < 148
+
+    if very_busy or (grey_zone and busy):
+        return "high"
+    elif busy or borderline:
+        return "medium"
+    else:
+        return "low"
+
+
+def _typography_mode(center_brightness: float, palette_mode: str,
+                     dominant_hue: str) -> str:
+    """
+    Choose the base typography mode from center brightness and palette.
+
+    LIGHT     → text must be dark   (bg is bright)
+    DARK      → text must be light  (bg is dark / space-like)
+    MID_LIGHT → borderline bright   (lean dark text)
+    MID_DARK  → borderline dark     (lean light text)
+    """
+    if center_brightness >= 168:
+        return "LIGHT"
+    elif center_brightness >= 128:
+        # Warm mid-bright (golden hour, dawn sky) → dark text
+        if palette_mode in ("light", "warm"):
+            return "MID_LIGHT"
+        else:
+            return "MID_DARK"
+    elif center_brightness >= 88:
+        # Medium-dark — lean light text
+        return "MID_DARK"
+    else:
+        return "DARK"
+
+
+def analyze_background(image, size: tuple) -> "AnalysisResult":
+    """
+    Analyze a rendered background image and return a rich AnalysisResult.
+
+    Zones:
+      A (reference row):   top 8-25%  of image height
+      B (main quote row):  30-70%
+      C (support row):     72-88%
+
+    All sampling uses 48×48 downsamples for speed (<30ms on 1080×1080).
+    """
+    # Full-image overview
+    full  = _sample_zone(image, size, 0.0, 1.0)
+    # Center of image (where text lives)
+    cen   = _sample_zone(image, size, 0.25, 0.75, 0.20, 0.80)
+    edge  = _sample_zone(image, size, 0.0, 0.12)
+
+    # Per text-zone sampling
+    zA = _sample_zone(image, size, 0.08, 0.25)
+    zB = _sample_zone(image, size, 0.30, 0.70)
+    zC = _sample_zone(image, size, 0.72, 0.88)
+
+    # Center contrast headroom — how far from 128 (more = easier to contrast)
+    center_contrast = abs(cen["brightness"] - 128.0) / 128.0
+
+    palette_mode, dominant_hue = _classify_palette(
+        full["r"], full["g"], full["b"], full["brightness"])
+
+    risk     = _readability_risk(zB["brightness"], zB["detail"])
+    typo_mode = _typography_mode(zB["brightness"], palette_mode, dominant_hue)
+
+    needs_protection = (risk in ("medium", "high"))
 
     result = AnalysisResult(
-        overall_brightness=overall,
-        center_brightness=center_brt,
-        edge_brightness=edge_brt,
-        center_detail=center_detail,
-        readability_score=readability,
-        is_light=(overall > 145),
-        zone_a_brightness=zone_a,
-        zone_b_brightness=zone_b,
-        zone_c_brightness=zone_c,
-        needs_protection=needs_protection,
+        overall_brightness  = full["brightness"],
+        center_brightness   = cen["brightness"],
+        edge_brightness     = edge["brightness"],
+        center_detail       = zB["detail"],
+        center_contrast     = center_contrast,
+        readability_score   = max(0.0, center_contrast * 1.5 - zB["detail"] * 0.8),
+        is_light            = (full["brightness"] > 145),
+        zone_a_brightness   = zA["brightness"],
+        zone_b_brightness   = zB["brightness"],
+        zone_c_brightness   = zC["brightness"],
+        zone_a_detail       = zA["detail"],
+        zone_b_detail       = zB["detail"],
+        zone_c_detail       = zC["detail"],
+        needs_protection    = needs_protection,
+        palette_mode        = palette_mode,
+        readability_risk    = risk,
+        typography_mode     = typo_mode,
+        dominant_hue        = dominant_hue,
     )
-    print(f"\n📊 [Analyzer] overall={overall:.0f}  center={center_brt:.0f}  "
-          f"detail={center_detail:.2f}  readable={readability:.2f}  "
-          f"protect={needs_protection}")
+    print(f"\n📊 [Analyzer]"
+          f"  mode={typo_mode}  palette={palette_mode}/{dominant_hue}"
+          f"  B-brt={zB['brightness']:.0f}  detail={zB['detail']:.2f}"
+          f"  risk={risk}  protect={needs_protection}")
     return result
 
 
@@ -582,177 +777,130 @@ def analyze_background(image, size: tuple) -> AnalysisResult:
 # TYPOGRAPHY ADAPTATION ENGINE
 # ─────────────────────────────────────────────────────────────────────────────
 
-
-# Per-theme text style presets — defines the glow halo, ornament color, and
-# reference-line opacity for each visual theme. These create VISIBLE differences
-# in how text looks across sacred_black vs parchment vs cosmic vs emerald etc.
-_THEME_TEXT = {
-    "sacred_black":   {"glow_rgba": (225, 182, 55, 95),  "orn_color": (210, 168, 42), "ref_alpha": 215},
-    "marble":         {"glow_rgba": (228, 222, 248, 65),  "orn_color": (205, 198, 228), "ref_alpha": 190},
-    "obsidian":       {"glow_rgba": (185, 152, 238, 78),  "orn_color": (178, 148, 232), "ref_alpha": 195},
-    "parchment":      {"glow_rgba": (158, 124, 72, 32),   "orn_color": (108, 82, 40),   "ref_alpha": 160},
-    "velvet":         {"glow_rgba": (205, 168, 255, 74),  "orn_color": (192, 158, 252), "ref_alpha": 192},
-    "emerald_forest": {"glow_rgba": (108, 202, 148, 60),  "orn_color": (95, 192, 138),  "ref_alpha": 178},
-    "cosmic":         {"glow_rgba": (172, 198, 255, 76),  "orn_color": (158, 188, 252), "ref_alpha": 192},
-    "celestial":      {"glow_rgba": (255, 248, 215, 82),  "orn_color": (228, 198, 88),  "ref_alpha": 205},
-    "moonlit":        {"glow_rgba": (182, 212, 255, 64),  "orn_color": (170, 200, 248), "ref_alpha": 180},
-    "starry":         {"glow_rgba": (202, 218, 255, 70),  "orn_color": (188, 205, 252), "ref_alpha": 185},
-    "desert":         {"glow_rgba": (235, 192, 88, 74),   "orn_color": (222, 180, 76),  "ref_alpha": 198},
-    "navy":           {"glow_rgba": (215, 178, 68, 70),   "orn_color": (202, 168, 58),  "ref_alpha": 192},
-    "charcoal":       {"glow_rgba": (238, 232, 218, 58),  "orn_color": (215, 208, 198), "ref_alpha": 182},
-    "custom":         {"glow_rgba": (215, 178, 64, 68),   "orn_color": (198, 165, 50),  "ref_alpha": 182},
-}
-
-def _pick_text(brightness: float, accent: bool = False,
-               theme: str = "custom") -> tuple:
+def adapt_typography(analysis: "AnalysisResult",
+                     spec: "VisualSpec" = None) -> "TypographySpec":
     """
-    Returns an RGB tuple that contrasts with the given background brightness.
-    Also accounts for theme to produce warm/cool variants that feel on-brand.
+    Build a TypographySpec from a background AnalysisResult.
 
-    accent=True  → accent/reference line (gold on dark, mahogany on light)
-    accent=False → body text
-
-    Brightness ranges (0-255):
-      <  90  → very dark       → white / warm gold accent
-      90-145 → medium dark     → off-white / gold accent
-     145-185 → medium bright   → dark brown / amber accent
-      > 185  → very light      → near-black / deep mahogany
+    Pipeline:
+      1.  Select base style mode (LIGHT / DARK / MID_LIGHT / MID_DARK)
+      2.  Apply per-zone brightness fine-tuning to each color slot
+      3.  Apply theme accent overrides (orn_color, glow_rgba, ref_color)
+      4.  Set protection-layer parameters based on readability_risk
     """
-    if brightness < 90:
-        if accent:
-            # Theme-tinted gold accent on very dark bg
-            if theme in ("sacred_black", "desert", "celestial", "navy"):
-                return (228, 185, 58)
-            elif theme in ("marble", "charcoal", "obsidian"):
-                return (218, 210, 235)   # platinum-silver
-            elif theme in ("emerald_forest",):
-                return (138, 218, 165)   # jade
-            elif theme in ("cosmic", "moonlit", "starry"):
-                return (185, 208, 255)   # stellar silver-blue
-            elif theme == "velvet":
-                return (210, 175, 255)   # soft violet
-            return (225, 182, 58)        # default warm gold
-        return (255, 255, 255)           # pure white body
+    mode_map = {
+        "LIGHT":     _LIGHT_MODE,
+        "DARK":      _DARK_MODE,
+        "MID_LIGHT": _MID_LIGHT_MODE,
+        "MID_DARK":  _MID_DARK_MODE,
+    }
+    mode_key = analysis.typography_mode
+    M       = mode_map.get(mode_key, _DARK_MODE)
+    theme   = getattr(spec, "theme", "custom") if spec else "custom"
 
-    elif brightness < 145:
-        if accent:
-            if theme in ("sacred_black", "desert", "navy", "celestial"):
-                return (218, 178, 52)
-            elif theme in ("marble", "charcoal"):
-                return (210, 205, 228)
-            elif theme in ("emerald_forest",):
-                return (128, 208, 158)
-            elif theme in ("cosmic", "moonlit", "starry"):
-                return (178, 200, 252)
-            return (215, 172, 50)
-        return (248, 248, 245)           # off-white body
+    # ── Per-zone brightness fine-tuning ──────────────────────────────────────
+    # Each zone can shift slightly if its own local brightness differs
+    # from what the global mode assumed.  We adjust only the opacity/shade,
+    # not the fundamental color family (that would kill consistency).
 
-    elif brightness < 185:
-        # Medium-bright — dark text needed, but tinted to the theme
-        if accent:
-            if theme == "parchment":
-                return (88, 62, 22)      # deep amber mahogany
-            elif theme in ("desert",):
-                return (95, 58, 12)
-            elif theme in ("celestial", "moonlit"):
-                return (42, 48, 95)      # deep indigo
-            elif theme in ("emerald_forest",):
-                return (18, 75, 42)      # deep forest green
-            return (62, 42, 10)          # default dark amber
-        # Body text: dark but tinted warm/cool per theme
-        if theme == "parchment":
-            return (28, 22, 12)          # warm near-black
-        elif theme in ("marble", "charcoal"):
-            return (18, 16, 22)          # cold near-black
-        elif theme in ("celestial", "moonlit"):
-            return (22, 20, 42)          # deep blue-black
-        elif theme in ("emerald_forest",):
-            return (12, 28, 18)          # forest dark
-        return (22, 18, 12)              # neutral near-black
+    def _tune(base_color: tuple, local_brightness: float,
+               mode_is_dark: bool) -> tuple:
+        """
+        Nudge a color toward full contrast if the local zone is extreme.
+        mode_is_dark = True means we're in DARK/MID_DARK (light text expected).
+        """
+        r, g, b = base_color
+        if mode_is_dark:
+            # Brighten further if zone is extremely dark (< 55)
+            if local_brightness < 55:
+                factor = 1.08
+                return (min(255, int(r * factor)),
+                        min(255, int(g * factor)),
+                        min(255, int(b * factor)))
+            # Slightly dim if zone is lighter than expected (>= 118)
+            elif local_brightness >= 118:
+                factor = 0.92
+                return (int(r * factor), int(g * factor), int(b * factor))
+        else:
+            # Darken further if zone is extremely bright (> 205)
+            if local_brightness > 205:
+                factor = 0.88
+                return (int(r * factor), int(g * factor), int(b * factor))
+            # Slightly brighten if zone is medium (< 145)
+            elif local_brightness < 145:
+                factor = 1.10
+                return (min(255, int(r * factor)),
+                        min(255, int(g * factor)),
+                        min(255, int(b * factor)))
+        return base_color
 
+    is_dark_mode = mode_key in ("DARK", "MID_DARK")
+
+    ref_color     = _tune(M["reference"], analysis.zone_a_brightness, is_dark_mode)
+    quote_color   = _tune(M["main"],      analysis.zone_b_brightness, is_dark_mode)
+    support_color = _tune(M["support"],   analysis.zone_c_brightness, is_dark_mode)
+
+    # ── Shadow specs ─────────────────────────────────────────────────────────
+    shadow_fill   = M["shadow"]
+    shadow_dx     = M["shadow_dx"]
+    shadow_dy     = M["shadow_dy"]
+
+    # ── Glow ─────────────────────────────────────────────────────────────────
+    has_glow  = is_dark_mode
+    glow_rgba = M.get("glow_rgba") or (195, 162, 48, 55)
+    orn_color = M["orn_color"]
+    sep_color = M["sep_color"]
+    ref_alpha = M["ref_alpha"]
+
+    # ── Theme accent overrides ────────────────────────────────────────────────
+    overrides = _THEME_ACCENT_OVERRIDES.get(theme, {})
+    if overrides:
+        if "reference" in overrides:
+            ref_color = overrides["reference"]
+        if "glow_rgba" in overrides and overrides["glow_rgba"] is not None:
+            glow_rgba = overrides["glow_rgba"]
+        elif overrides.get("glow_rgba") is None:
+            has_glow  = False
+            glow_rgba = (0, 0, 0, 0)
+        if "orn_color" in overrides:
+            orn_color = overrides["orn_color"]
+            sep_color = overrides["orn_color"]
+
+    # ── Protection layer ─────────────────────────────────────────────────────
+    dim_layer  = analysis.needs_protection
+    risk       = analysis.readability_risk
+
+    if risk == "high":
+        # Strong but still invisible soft radial veil
+        dim_color  = (0, 0, 0, 72) if is_dark_mode else (0, 0, 0, 55)
+        dim_radius = 135
+    elif risk == "medium":
+        dim_color  = (0, 0, 0, 50) if is_dark_mode else (0, 0, 0, 38)
+        dim_radius = 110
     else:
-        # Very bright (parchment, bright sky)
-        if accent:
-            if theme == "parchment":
-                return (75, 50, 12)      # rich mahogany
-            elif theme in ("desert", "celestial"):
-                return (85, 55, 8)
-            return (52, 32, 6)
-        if theme == "parchment":
-            return (18, 14, 8)           # warm black on parchment
-        return (12, 10, 8)               # neutral near-black
-
-
-def adapt_typography(analysis: AnalysisResult, spec: 'VisualSpec' = None) -> TypographySpec:
-    """
-    Produce a TypographySpec from a background AnalysisResult.
-
-    Rules:
-    - Each zone gets its own color independently sampled → true zone adaptation
-    - Gold accent avoided when Zone A is golden/medium-bright (would clash)
-    - Dim layer activated when center is busy / mid-brightness
-    - Shadow direction based on whether text is light or dark
-    - Separator uses gold on dark, mahogany on light
-    """
-    theme_str  = getattr(spec, 'theme', 'custom') if spec else 'custom'
-    ref_c      = _pick_text(analysis.zone_a_brightness, accent=True,  theme=theme_str)
-    quote_c    = _pick_text(analysis.zone_b_brightness, accent=False, theme=theme_str)
-    support_c  = _pick_text(analysis.zone_c_brightness, accent=False, theme=theme_str)
-
-    # If accent color would clash with a medium-light bg, deepen it
-    if 145 < analysis.zone_a_brightness < 195:
-        ref_c = _pick_text(analysis.zone_a_brightness, accent=True, theme=theme_str)
-
-    # Shadow: dark offset for light text, white halo for dark text
-    is_light_text = (quote_c[0] + quote_c[1] + quote_c[2]) > 440
-    if is_light_text:
-        shadow_fill = (0, 0, 0, 140)
-        shd_dx, shd_dy = 2, 2
-    else:
-        shadow_fill = (255, 255, 255, 100)
-        shd_dx, shd_dy = -1, -1
-
-    # Dim/protect layer
-    # For dark bg (light text): darken center slightly to help white text pop.
-    # For light bg (dark text): also darken slightly so dark text pops against
-    #   a uniform, controlled tone rather than busy texture.
-    dim_layer = analysis.needs_protection
-    if analysis.is_light:
-        dim_color = (0, 0, 0, 38)   # gentle darkening on bright bg for dark text
-    else:
-        dim_color = (0, 0, 0, 58)   # stronger darkening on dark bg for light text
-
-    # Zone separator ornament color — theme-tinted
-    if analysis.is_light:
-        sep_color = (88, 62, 18)  # dark mahogany on light bgs
-    else:
-        # Use orn_color from t_style but as a 3-tuple
-        sep_color = (188, 152, 50)  # will be overridden by orn_color below
-
-    # Theme-aware glow + ornament colors
-    theme_key  = getattr(spec, "theme", "custom") if spec else "custom"
-    t_style    = _THEME_TEXT.get(theme_key, _THEME_TEXT["custom"])
-    glow_rgba  = t_style["glow_rgba"]
-    orn_color  = t_style["orn_color"]
-    ref_alpha  = t_style["ref_alpha"]
+        dim_color  = (0, 0, 0, 38)
+        dim_radius = 90
 
     typo = TypographySpec(
-        ref_color=ref_c,
-        quote_color=quote_c,
-        support_color=support_c,
-        shadow_fill=shadow_fill,
-        shadow_dx=shd_dx,
-        shadow_dy=shd_dy,
-        dim_layer=dim_layer,
-        dim_color=dim_color,
-        dim_radius=90,
-        sep_color=sep_color,
-        glow_rgba=glow_rgba,
-        orn_color=orn_color,
-        ref_alpha=ref_alpha,
+        ref_color       = ref_color,
+        quote_color     = quote_color,
+        support_color   = support_color,
+        shadow_fill     = shadow_fill,
+        shadow_dx       = shadow_dx,
+        shadow_dy       = shadow_dy,
+        dim_layer       = dim_layer,
+        dim_color       = dim_color,
+        dim_radius      = dim_radius,
+        sep_color       = sep_color,
+        glow_rgba       = glow_rgba,
+        orn_color       = orn_color,
+        ref_alpha       = ref_alpha,
+        typography_mode = mode_key,
+        readability_risk= risk,
+        has_glow        = has_glow,
     )
-    print(f"✏️  [Typography] theme={theme_key}  ref={ref_c}  quote={quote_c}  "
-          f"glow={glow_rgba[:3]}α={glow_rgba[3]}  dim={dim_layer}")
+    print(f"✏️  [Typography]  mode={mode_key}  theme={theme}"
+          f"  ref={ref_color}  quote={quote_color}  glow={has_glow}")
     return typo
 
 
