@@ -413,7 +413,7 @@ STUDIO_COMPONENTS_HTML = """
         <input type="hidden" name="visual_mode" id="studioVisualMode" value="quote_card">
         <input type="hidden" name="intent_type" id="studioIntent" value="wisdom">
         <input type="hidden" name="emotion" id="studioTone" value="calm">
-        <input type="hidden" name="visual_style" id="studioStyle" value="premium">
+        <input type="hidden" name="visual_style" id="studioStyle" value="quran">
         <input type="hidden" name="media_url" id="finalMediaUrl">
 
         <div class="flex-1 overflow-y-auto p-6 md:p-12 pb-32 custom-scrollbar">
@@ -496,32 +496,63 @@ STUDIO_COMPONENTS_HTML = """
                     </div>
 
                     <div id="presetModeContainer" class="space-y-6 animate-in fade-in duration-300">
-                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Choose a Cinematic Atmosphere</label>
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Choose Your Spiritual Atmosphere</label>
                         <div class="grid grid-cols-2 gap-3">
-                            <div onclick="setStudioStyle('premium', this)" class="style-card active p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
-                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
-                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Premium</div>
+
+                            <!-- Qur'an -->
+                            <div onclick="setStudioStyle('quran', this)" class="style-card active p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all">
+                                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                               </div>
+                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Qur'an</div>
+                               <div class="text-[7px] text-brand/40 font-medium">Sacred Emerald</div>
                             </div>
-                            <div onclick="setStudioStyle('celestial', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
-                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.539-1.118l1.519-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.381-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
-                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Celestial</div>
+
+                            <!-- Fajr -->
+                            <div onclick="setStudioStyle('fajr', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all">
+                                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1M4.22 4.22l.707.707M18.364 18.364l.707.707M1 12h1m20 0h1M4.22 19.78l.707-.707M18.364 5.636l.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
+                               </div>
+                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Fajr</div>
+                               <div class="text-[7px] text-brand/40 font-medium">Pre-Dawn Navy</div>
                             </div>
+
+                            <!-- Scholar -->
                             <div onclick="setStudioStyle('scholar', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
-                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all">
+                                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                               </div>
                                <div class="text-[9px] font-black text-brand uppercase tracking-widest">Scholar</div>
+                               <div class="text-[7px] text-brand/40 font-medium">Old Parchment</div>
                             </div>
-                            <div onclick="setStudioStyle('ethereal', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
-                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
-                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Ethereal</div>
+
+                            <!-- Madinah -->
+                            <div onclick="setStudioStyle('madinah', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all">
+                                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></svg>
+                               </div>
+                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Madinah</div>
+                               <div class="text-[7px] text-brand/40 font-medium">Warm Amber Gold</div>
                             </div>
-                            <div onclick="setStudioStyle('classic', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
-                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
-                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Classic</div>
+
+                            <!-- Kaaba -->
+                            <div onclick="setStudioStyle('kaaba', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all">
+                                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 9h18" stroke-width="1.5" stroke-linecap="round"/></svg>
+                               </div>
+                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Kaaba</div>
+                               <div class="text-[7px] text-brand/40 font-medium">Sacred Black</div>
                             </div>
-                            <div onclick="setStudioStyle('modern', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
-                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
-                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Modern</div>
+
+                            <!-- Laylul Qadr -->
+                            <div onclick="setStudioStyle('laylulqadr', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all">
+                                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/><path d="M12 3l1 2m-1-2l-1 2M17 6l-1 2m1-2l1 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
+                               </div>
+                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Laylul Qadr</div>
+                               <div class="text-[7px] text-brand/40 font-medium">Night of Power</div>
                             </div>
+
                         </div>
                     </div>
 

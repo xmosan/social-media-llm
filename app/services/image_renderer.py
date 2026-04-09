@@ -360,10 +360,10 @@ def render_minimal_quote_card(segments: list, output_dir: str, style: str = "cla
         overrides = analyze_style_prompt(visual_prompt, style)
     
     # Resolve effective style (for font/text decisions)
-    effective_style = style if style != "custom" else "premium"
+    effective_style = style if style not in ("custom", "") else "quran"
 
-    # Font selection based on style family
-    font_file = "Amiri-Regular.ttf" if effective_style in ["classic", "scholar", "ethereal"] else "Inter.ttf"
+    # Font selection: Amiri for parchment/manuscript styles, Inter for modern/dark
+    font_file = "Amiri-Regular.ttf" if effective_style in ["scholar", "madinah"] else "Inter.ttf"
     font_path = os.path.join(base_dir, "assets", "fonts", font_file)
 
     glow_rgba = (255, 255, 255, 70)  # default glow
@@ -394,44 +394,67 @@ def render_minimal_quote_card(segments: list, output_dir: str, style: str = "cla
             draw = ImageDraw.Draw(bg)
             draw_gold_border(draw, target_size)
     else:
-        # Preset style backgrounds
-        if effective_style == "classic":
-            bg   = Image.new("RGB", target_size, (15, 20, 15))
+        # ── Preset style backgrounds ───────────────────────────────────────────
+        if effective_style == "quran":
+            # Sacred emerald — the color of Islamic tradition
+            bg   = Image.new("RGB", target_size, (0, 10, 5))
             draw = ImageDraw.Draw(bg)
-            draw_textured_background(draw, target_size, (12, 18, 12))
-            draw_islamic_pattern(draw, target_size, (180, 140, 50, 45))
-            bg   = apply_vignette(bg, intensity=0.45)
+            draw_radial_gradient(draw, target_size, (0, 55, 28), (0, 8, 4))
+            draw_islamic_pattern(draw, target_size, (190, 150, 40, 30))
+            bg   = apply_vignette(bg, intensity=0.75)
             draw = ImageDraw.Draw(bg)
-            draw_gold_border(draw, target_size, border_width=40)
-        elif effective_style == "modern":
-            bg   = Image.new("RGB", target_size, (5, 5, 5))
+            draw_gold_border(draw, target_size, border_width=32)
+            glow_rgba = (180, 230, 180, 55)
+
+        elif effective_style == "fajr":
+            # Pre-dawn navy — the blessed hour before sunrise
+            bg   = Image.new("RGB", target_size, (5, 8, 28))
             draw = ImageDraw.Draw(bg)
-            draw_radial_gradient(draw, target_size, (15, 45, 15), (2, 5, 2))
-            glow_rgba = (20, 200, 80, 90)
-        elif effective_style == "premium":
-            bg   = Image.new("RGB", target_size, (0, 0, 0))
-            draw = ImageDraw.Draw(bg)
-            draw_radial_gradient(draw, target_size, (15, 42, 29), (0, 0, 0))
-            bg   = apply_vignette(bg, intensity=0.9)
-        elif effective_style == "ethereal":
-            bg   = Image.new("RGB", target_size, (255, 255, 255))
-            draw = ImageDraw.Draw(bg)
-            draw_radial_gradient(draw, target_size, (255, 255, 255), (245, 245, 235))
-            bg   = apply_vignette(bg, intensity=0.1)
-            glow_rgba = (80, 80, 80, 40)
+            draw_radial_gradient(draw, target_size, (14, 22, 72), (3, 5, 20))
+            draw_starry_noise(draw, target_size, density=0.0005)
+            bg   = apply_vignette(bg, intensity=0.55)
+            glow_rgba = (120, 160, 255, 65)
+
         elif effective_style == "scholar":
-            bg   = Image.new("RGB", target_size, (245, 245, 235))
+            # Warm parchment — ink on aged manuscript paper
+            bg   = Image.new("RGB", target_size, (245, 240, 225))
             draw = ImageDraw.Draw(bg)
             draw_paper_texture(draw, target_size)
             glow_rgba = None
-        elif effective_style == "celestial":
+
+        elif effective_style == "madinah":
+            # Warm amber — the golden light of the Prophet's city ﷺ
+            bg   = Image.new("RGB", target_size, (14, 8, 2))
+            draw = ImageDraw.Draw(bg)
+            draw_radial_gradient(draw, target_size, (48, 26, 5), (12, 7, 1))
+            draw_islamic_pattern(draw, target_size, (195, 152, 60, 38))
+            bg   = apply_vignette(bg, intensity=0.65)
+            draw = ImageDraw.Draw(bg)
+            draw_gold_border(draw, target_size, border_width=28)
+            glow_rgba = (220, 180, 80, 50)
+
+        elif effective_style == "kaaba":
+            # Sacred black — the minimalism of the Kiswah
             bg   = Image.new("RGB", target_size, (0, 0, 0))
             draw = ImageDraw.Draw(bg)
-            draw_radial_gradient(draw, target_size, (10, 25, 60), (0, 0, 0))
-            draw_starry_noise(draw, target_size, density=0.0006)
+            draw_radial_gradient(draw, target_size, (14, 14, 14), (0, 0, 0))
+            draw_islamic_pattern(draw, target_size, (180, 148, 50, 18))  # barely visible like embroidery
             bg   = apply_vignette(bg, intensity=0.4)
-            glow_rgba = (180, 200, 255, 80)
+            draw = ImageDraw.Draw(bg)
+            draw_gold_border(draw, target_size, border_width=24)
+            glow_rgba = (200, 165, 45, 40)
+
+        elif effective_style == "laylulqadr":
+            # Deep violet — a night better than a thousand months
+            bg   = Image.new("RGB", target_size, (8, 0, 22))
+            draw = ImageDraw.Draw(bg)
+            draw_radial_gradient(draw, target_size, (34, 10, 80), (6, 0, 20))
+            draw_starry_noise(draw, target_size, density=0.0007)
+            bg   = apply_vignette(bg, intensity=0.5)
+            glow_rgba = (165, 105, 255, 70)
+
         else:
+            # Fallback dark canvas
             bg   = Image.new("RGB", target_size, (20, 20, 20))
             draw = ImageDraw.Draw(bg)
 
