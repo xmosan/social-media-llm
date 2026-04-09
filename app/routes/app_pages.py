@@ -181,70 +181,83 @@ STUDIO_SCRIPTS_JS = """
         const captionEl = document.getElementById('studioCaption');
         const visualPromptEl = document.getElementById('studioVisualPrompt');
         const styleEl = document.getElementById('studioStyle');
-        
-        if (!captionEl || !styleEl) {
-            console.error('Studio critical elements missing');
-            return;
-        }
-
-        const caption = captionEl.value;
-        const visualPrompt = visualPromptEl ? visualPromptEl.value : '';
-        const useBaseStyle = document.getElementById('usePresetAsBase')?.checked;
-        
-        let style = 'premium';
-        if (studioCreationMode === 'preset' || useBaseStyle) {
-            style = styleEl.value || 'premium';
-        } else {
-            style = 'custom'; // Signal to backend to prioritize prompt eyes-only
-        }
-        
         const btn = document.getElementById('btnGenerateCard');
         const loader = document.getElementById('cardLoader');
         const loaderText = loader ? loader.querySelector('span') : null;
         const preview = document.getElementById('quoteCardPreview');
         const syncBanner = document.getElementById('outOfSyncBanner');
 
-        if (!caption) {
-            alert('A message is required to visualize the wisdom.');
+        if (!captionEl || !styleEl || !btn) {
+            console.error('Studio critical elements missing');
             return;
         }
 
+        const caption = captionEl.value.trim();
+        const visualPrompt = visualPromptEl ? visualPromptEl.value.trim() : '';
+        const useBaseStyle = document.getElementById('usePresetAsBase')?.checked;
+
+        // Determine style & mode
+        let style;
+        if (studioCreationMode === 'custom' && !useBaseStyle) {
+            style = 'custom';
+        } else {
+            style = styleEl.value || 'quran';
+        }
+
+        // Caption required unless in custom mode with a visual prompt
+        if (!caption) {
+            if (studioCreationMode === 'custom' && visualPrompt) {
+                // Allow generate with fallback text for custom-only mode
+                console.warn('No caption set — generating visual with prompt only');
+            } else {
+                alert('A message is required. Please generate a caption in Step 1 first.');
+                return;
+            }
+        }
+
+        const payload = { caption: caption || 'Bismillah', style, visual_prompt: visualPrompt };
+        console.log('🎨 Studio Generate Payload:', payload);
+
         btn.disabled = true;
         btn.innerText = 'Manifesting...';
-        
         if (loader) loader.classList.remove('hidden');
         if (preview) preview.classList.add('hidden');
         if (syncBanner) syncBanner.classList.add('hidden');
-        if (loaderText) loaderText.innerText = 'Analyzing Style Atmosphere...';
+        if (loaderText) loaderText.innerText = 'Building Visual Atmosphere...';
 
         try {
             const res = await fetch('/generate-quote-card', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ caption, style, visual_prompt: visualPrompt })
+                body: JSON.stringify(payload)
             });
-            
-            if (loaderText) loaderText.innerText = 'Manifesting Cinematic Layers...';
-            
+
+            if (loaderText) loaderText.innerText = 'Composing Cinematic Layers...';
+
             const data = await res.json();
+            console.log('🖼️ Studio Response:', data);
+
             if (data.image_url) {
                 currentQuoteCardUrl = data.image_url;
                 document.getElementById('finalMediaUrl').value = data.image_url;
-                preview.src = data.image_url;
+                preview.src = data.image_url + '?t=' + Date.now(); // cache-bust
                 preview.classList.remove('hidden');
-                loader.classList.add('hidden');
+                if (loader) loader.classList.add('hidden');
                 document.getElementById('cardActions').classList.remove('hidden');
                 isQuoteCardOutOfDate = false;
             } else {
-                alert('The vision failed to manifest. Please try a different style prompt.');
+                alert('The vision failed to manifest. Error: ' + (data.error || 'Unknown'));
                 if (loaderText) loaderText.innerText = 'Awaiting Creation';
+                if (loader) loader.classList.remove('hidden');
+                if (preview) preview.classList.add('hidden');
             }
         } catch (e) {
             console.error('Studio Error:', e);
             if (loaderText) loaderText.innerText = 'Vision Failed';
         } finally {
             btn.disabled = false;
-            btn.innerText = 'Generate Cinematic Visual';
+            // Restore button label based on current mode
+            btn.innerText = studioCreationMode === 'custom' ? 'Generate From Description' : 'Generate Visual';
         }
     }
 

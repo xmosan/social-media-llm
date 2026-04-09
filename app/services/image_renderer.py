@@ -668,37 +668,40 @@ def render_minimal_quote_card(segments: list, output_dir: str, style: str = "cla
         if i == 1 and glow_rgba:
             glow_layer = Image.new("RGBA", target_size, (0, 0, 0, 0))
             gd = ImageDraw.Draw(glow_layer)
-            ty = y
+            ty_g = y
+            cx = W // 2
             for ln in zd["lines"]:
-                tx = (W - ln["w"]) // 2
-                draw_text_with_fallback(gd, (tx, ty), ln["text"], zd["font"], fill=glow_rgba)
-                ty += ln["h"] + zd["ls"]
+                gd.text((cx, ty_g), ln["text"], font=zd["font"], fill=glow_rgba, anchor="mt")
+                ty_g += ln["h"] + zd["ls"]
             glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(28))
             bg_rgba = Image.alpha_composite(bg_rgba, glow_layer)
 
         # === Text Drawing ===
         draw_rgba = ImageDraw.Draw(bg_rgba)
         ty = y
+        center_x = W // 2  # horizontal center for anchor-based drawing
+
         for ln in zd["lines"]:
-            tx = (W - ln["w"]) // 2  # center-align each line
-
-            if i == 0:  # Zone A — Reference
+            if i == 0:  # Zone A — Reference (smaller, elegant, slightly dimmed)
                 sc = zd["color"]
-                # Elegant spaced reference text, slightly transparent
-                ref_alpha_color = (sc[0], sc[1], sc[2], 170)
-                draw_text_spaced(draw_rgba, (tx, ty), ln["text"], zd["font"], fill=ref_alpha_color, spacing=3)
+                col = (sc[0], sc[1], sc[2], 175)
+                draw_rgba.text((center_x, ty), ln["text"], font=zd["font"], fill=col, anchor="mt")
 
-            elif i == 1:  # Zone B — Main Quote (hero)
-                draw_text_with_shadow(draw_rgba, (tx, ty), ln["text"], zd["font"], fill=zd["color"])
+            elif i == 1:  # Zone B — Main Quote (hero, with shadow)
+                # 1. Shadow layer
+                shadow_col = (0, 0, 0, 90)
+                draw_rgba.text((center_x + 2, ty + 2), ln["text"], font=zd["font"], fill=shadow_col, anchor="mt")
+                # 2. Main text
+                draw_rgba.text((center_x, ty), ln["text"], font=zd["font"], fill=zd["color"], anchor="mt")
 
-            else:  # Zone C — Supporting
-                draw_text_with_fallback(draw_rgba, (tx, ty), ln["text"], zd["font"], fill=zd["color"])
+            else:  # Zone C — Supporting line
+                draw_rgba.text((center_x, ty), ln["text"], font=zd["font"], fill=zd["color"], anchor="mt")
 
             ty += ln["h"] + zd["ls"]
 
-        y = ty - zd["ls"]  # remove last trailing space
+        y = ty - zd["ls"]  # remove trailing spacing
 
-        # Add zone gaps
+        # Add inter-zone gaps
         if i == 0:
             y += gap_ref_to_quote
         elif i == 1:
