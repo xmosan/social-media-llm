@@ -302,102 +302,156 @@ _MOOD = {
 # They never mention 'Islamic', 'Arabic', 'Qur'an', 'mosque', or 'quote card'.
 # ─────────────────────────────────────────────────────────────────────────────
 
-_POLICIES = {
-    "sacred_black": (
-        "Deep matte black surface with very subtle fabric-like weave texture, "
-        "like dense woven cloth in near-total darkness. "
-        "Profound silence and power — almost no detail, purely tonal. "
-        "One extremely faint, thin gold geometric line at a single corner only. "
-        "Center completely empty and dark. No pattern, no noise. "
-        "Absolute sacred stillness."
-    ),
-    "marble": (
-        "Dark sophisticated marble stone surface with clearly visible sinuous "
-        "natural veins branching organically. "
-        "Veins concentrated toward edges and corners, center zone smooth and calm. "
-        "Polished surface with subtle specular highlight at center. "
-        "Very thin delicate geometric gold filigree lines at corners only. "
-        "Cinematic lighting from slightly above center."
-    ),
-    "obsidian": (
-        "Deep obsidian volcanic glass surface, near-perfect darkness. "
-        "Subtle iridescent light reflection visible only at extreme edges. "
-        "Faint blue-purple edge glow suggesting depth and mystery. "
-        "Absolutely no pattern, no veins — pure geological darkness. "
-        "Center held in deep shadow, no detail."
-    ),
-    "parchment": (
-        "Aged manuscript parchment surface, warm ivory-amber tones, "
-        "naturally non-uniform surface with subtle grain. "
-        "Slightly darker at corners and edges suggesting age. "
-        "Center smooth and uniformly warm, lighter than edges. "
-        "Thin elegant gold geometric border lines at outer edge only. "
-        "Warm overhead amber light illuminating the surface."
-    ),
-    "velvet": (
-        "Rich deep-colored velvet-like matte surface, "
-        "smooth soft-focus with deep color saturation. "
-        "Heavy vignette from center outward — edges darker. "
-        "Minimal surface detail, tactile cloth quality. "
-        "Very slight light reflection at center only."
-    ),
-    "emerald_forest": (
-        "Deep emerald-green forest atmosphere, dense dark tree canopy above. "
-        "Soft shafts of light piercing from above through mist. "
-        "Dark organic green textures concentrated at edges. "
-        "Center region bathed in diffused soft green light — clear and usable. "
-        "No defined leaf or tree objects, purely atmospheric depth and mist. "
-        "Serene, still, contemplative natural mood."
-    ),
-    "cosmic": (
-        "Vast deep space atmosphere, scattered distant stars at outer regions only. "
-        "Rich indigo-black void with very soft nebula haze at edges. "
-        "Calm, not chaotic — absolutely no bright star clusters in center. "
-        "Center region intentionally dark and serene. "
-        "Infinite atmospheric depth. Contemplative scale."
-    ),
-    "celestial": (
-        "Radiant warm light descending from above-center, "
-        "divine light source creating soft circular glow. "
-        "Light diffuses and falls off gently toward edges. "
-        "Deep background color behind the light source. "
-        "Center region gently illuminated but not overexposed. "
-        "Peaceful, heavenly, lifting mood."
-    ),
-    "moonlit": (
-        "Moonlit nocturnal scene bathed in cool silver-blue ambient light "
-        "entering from upper-left corner. "
-        "Deep dark background with soft moonlight casting atmosphere. "
-        "Center visible in calm ambient moonlight. "
-        "Serene, quiet, reflective nocturnal mood."
-    ),
-    "starry": (
-        "Soft star field background, stars of varying brightness. "
-        "Stars concentrated at outer regions — fewer near center intentionally. "
-        "Deep dark void background. Calm, not chaotic, not a busy nebula. "
-        "Center region darker and cleaner for readability. "
-        "Atmospheric depth, no foreground objects."
-    ),
-    "desert": (
-        "Warm expansive desert environment with rich golden amber tones. "
-        "Subtle dune textures visible at bottom edge only. "
-        "Open warm sky above, light source high and warm. "
-        "Center flooded with ethereal warm desert light. "
-        "Timeless, vast, contemplative atmosphere."
-    ),
-    "navy": (
-        "Deep dignified navy blue atmosphere, rich oceanic depth. "
-        "Subtle tonal variation from slightly lighter center to darker edges. "
-        "Very faint warm glow from above-center — not a spotlight, just a presence. "
-        "No patterns, purely tonal depth."
-    ),
-    "charcoal": (
-        "Deep charcoal grey surface with very fine grain texture throughout. "
-        "Slight tonal variation — not flat, has dimensional depth. "
-        "Slightly lighter at center, naturally darker at edges. "
-        "Clean, modern, dignified material presence."
-    ),
+
+import random
+
+_STYLE_FAMILIES = {
+    "parchment_manuscript": {
+        "core": (
+            "Aged parchment manuscript, warm antique tones, elegant Islamic geometric influence, "
+            "clean empty center for typography overlay. No modern elements."
+        ),
+        "traits": {
+            "lighting": ["warm top-down light", "soft ambient glow", "subtle rim lighting", "faded directional sunbeam"],
+            "frame_style": ["subtle corner ornaments", "faded border frame", "centered empty manuscript window", "clean edges with minimal grain"],
+            "texture": ["heavy distressed aging", "smooth refined parchment grain", "soft fibrous paper texture", "cracked ancient edges"],
+            "ornament": ["faint gold geometry hints", "floral arabesque whispers", "minimal elegant lines", "no ornaments, purely textural"],
+            "glow": ["soft center warmth", "even flat illumination", "vignetted dark edges", "faint golden aura"]
+        }
+    },
+    "emerald_forest": {
+        "core": (
+            "Deep emerald forest background, atmospheric depth, calm spiritual mood, "
+            "natural textures and realistic lighting, empty central space."
+        ),
+        "traits": {
+            "lighting": ["soft diffused light rays", "dappled sunlight filtering down", "mystical twilight glow", "moonlit silver rim light"],
+            "fog_density": ["heavy low-hanging mist", "subtle volumetric haze", "clear crisp air", "dense mystical fog around edges"],
+            "foliage": ["dense framing trees", "minimal distant silhouettes", "soft out-of-focus foreground leaves", "ancient mossy textures"],
+            "pathway": ["faint disappearing trail", "dark smooth stone floor", "soft overgrown moss bed", "pure atmospheric emptiness"],
+            "highlights": ["faint gold dust particles", "soft jade reflections", "luminous firefly sparks", "deep emerald gradients"]
+        }
+    },
+    "sacred_black": {
+        "core": (
+            "Deep matte black surface, fabric or stone inspired, restrained elegance, "
+            "minimal composition, strong spiritual presence, empty center for text."
+        ),
+        "traits": {
+            "lighting": ["soft gold edge light", "faint silver rim glow", "pure pitch black shadow focus", "subtle warm amber under-lighting"],
+            "glow": ["faint radial center glow", "pitch dark center with edge gradients", "soft halo effect", "completely matte flat absorption"],
+            "texture": ["subtle fabric weave visibility", "smooth obsidian stone", "dark velvet softness", "slight brushed metal micro-texture"],
+            "framing": ["geometric framing minimalism", "invisible soft fade edges", "single thin gold line at bottom", "barely visible top cornice shadow"]
+        }
+    },
+    "luxury_marble": {
+        "core": (
+            "Dark charcoal or obsidian stone marble, elegant lighting, premium feel, "
+            "clean central area, very high quality."
+        ),
+        "traits": {
+            "vein_direction": ["organic diagonal sweeping veins", "subtle horizontal stratification", "fractured chaotic gold veins", "minimal smooth pooling patterns"],
+            "border": ["dark vignette corners", "gold inlay hints at edge", "clean modern borderless", "classic architectural bevel frame"],
+            "reflection": ["high polished specular reflection", "soft matte honing", "wet-stone deep gloss", "diffused frosted surface"],
+            "accents": ["heavy gold flake deposits", "platinum silver traces", "pure charcoal monotone", "copper oxidization warmth"],
+            "illumination": ["strong top-down spotlight", "soft ambient wash", "dramatic side-lighting", "center-illuminated depth"]
+        }
+    },
+    "celestial_night": {
+        "core": (
+            "Deep night palette, peaceful stars, subtle cosmic mood, empty space in the center, "
+            "clean minimalist celestial abstraction."
+        ),
+        "traits": {
+            "nebula": ["faint blue nebula dust", "warm emerald cosmic clouds", "dark purple void ripples", "no nebula, purely stark night"],
+            "stars": ["dense varied starfield", "sparse distant pinpricks", "soft glowing clusters", "minimalist single bright anchor star"],
+            "lighting": ["silver moonlight top-down", "dark gradient abyss", "soft turquoise horizon glow", "ethereal halo effect"],
+            "haze": ["thick atmospheric optical haze", "crisp vacuum clarity", "soft floating light particles", "gossamer thin cloud wisp"]
+        }
+    }
 }
+
+_VARIATION_HISTORY = {}
+
+class VariationEngine:
+    @staticmethod
+    def generate(theme: str, user_prompt: str) -> dict:
+        """
+        Selects a pseudo-random rotation of traits for the given theme,
+        guaranteeing anti-repetition from the last cached call.
+        """
+        # Fallback if theme isn't mapped directly
+        family_map = {
+            "sacred_black": "sacred_black",
+            "parchment": "parchment_manuscript",
+            "marble": "luxury_marble",
+            "emerald_forest": "emerald_forest",
+            "cosmic": "celestial_night",
+            "dawn_sky": "celestial_night" # Alias mapping
+        }
+        family_key = family_map.get(theme, "sacred_black")
+        if family_key not in _STYLE_FAMILIES:
+            family_key = "sacred_black"
+
+        fam = _STYLE_FAMILIES[family_key]
+        traits_available = list(fam["traits"].keys())
+        
+        # Pick 3 to 4 trait keys randomly
+        num_traits = random.randint(3, 4)
+        selected_keys = random.sample(traits_available, num_traits)
+
+        last_chosen = _VARIATION_HISTORY.get(family_key, {})
+        
+        chosen_traits_dict = {}
+        for k in selected_keys:
+            options = fam["traits"][k]
+            # Anti-repetition: if we used a value last time, temporarily remove it
+            last_val = last_chosen.get(k)
+            valid_options = [o for o in options if o != last_val]
+            if not valid_options: 
+                valid_options = options
+            
+            choice = random.choice(valid_options)
+            chosen_traits_dict[k] = choice
+        
+        _VARIATION_HISTORY[family_key] = chosen_traits_dict
+
+        return {
+            "family": family_key,
+            "core_traits": fam["core"],
+            "variation_traits": chosen_traits_dict
+        }
+
+def compose_dalle_prompt(spec: VisualSpec, raw_prompt: str = "") -> str:
+    """
+    Converts a VisualSpec into a safe, structured DALL-E background prompt
+    using the Auto-Variation Engine.
+    """
+    v_data = VariationEngine.generate(spec.theme, raw_prompt)
+    
+    # 1. Hard constraints MUST dominate prompt
+    hard_constraints = (
+        "BACKGROUND PLATE ONLY. NO TEXT. NO CALLIGRAPHY. NO ARABIC. "
+        "NO LETTERS. NO WORDS. NO ICONS. Center must be absolutely bare and flat."
+    )
+    
+    # 2. Extract variations into string
+    var_list = [f"{k.replace('_', ' ')}: {v}" for k, v in v_data["variation_traits"].items()]
+    variations_str = ", ".join(var_list)
+    
+    final_prompt = (
+        f"{hard_constraints} "
+        f"Design family: {v_data['family']}. "
+        f"Core: {v_data['core_traits']} "
+        f"Specific variations for this generation: {variations_str}. "
+        f"Mood: {spec.mood}. "
+        f"Photorealistic, premium cinematic rendering."
+    )
+    
+    # We can attach the debug v_data dictionary directly to the spec or log it
+    print(f"\n🌪️ AUTO-VARIATION TRIGGERED [{v_data['family']}]: {v_data['variation_traits']}")
+    
+    return final_prompt
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -545,46 +599,6 @@ _LIGHTING_CLAUSES = {
 }
 
 
-def compose_dalle_prompt(spec: VisualSpec, raw_prompt: str = "") -> str:
-    """
-    Converts a VisualSpec into a safe, structured DALL-E background prompt.
-
-    Token order strategy (DALL-E weights first tokens most heavily):
-      1. Hard constraints     — NO CALLIGRAPHY / NO TEXT (must dominate)
-      2. Frame descriptor     — 'Abstract texture background plate'
-      3. Theme policy         — what specifically to render
-      4. Lighting clause      — direction and quality of light
-      5. Composition rule     — center must stay clear
-      6. Quality directives   — premium, photorealistic, cinematic
-
-    Nothing in this prompt may reference: Islamic, Arabic, mosque, Qur'an,
-    calligraphy, quote card, or any religious text system.
-    """
-    policy = _POLICIES.get(spec.theme)
-    if not policy:
-        # For custom/unknown themes, describe the raw material directly
-        policy = (
-            f"{raw_prompt}. "
-            "Premium material texture and atmospheric depth. "
-            "Subtle geometric ornament at edges and corners only."
-        )
-
-    lighting_clause = _LIGHTING_CLAUSES.get(spec.lighting,
-                                            "Soft diffused ambient lighting.")
-
-    return (
-        f"{_HARD_CONSTRAINTS} "
-        "Abstract texture background plate for digital photo compositing. "
-        f"{policy} "
-        f"Lighting: {lighting_clause} "
-        f"{_COMPOSITION} "
-        f"{_QUALITY}"
-    )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# BACKGROUND ANALYZER
-# ─────────────────────────────────────────────────────────────────────────────
 
 def _sample_zone(image, size: tuple,
                  y1f: float, y2f: float,
