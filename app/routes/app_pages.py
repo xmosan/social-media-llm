@@ -25,6 +25,7 @@ STUDIO_SCRIPTS_JS = """
     // --- REMINDER STUDIO CORE LOGIC (v3.0) ---
     let currentQuoteCardUrl = null;
     let isQuoteCardOutOfDate = false;
+    let studioCreationMode = 'preset'; // 'preset' or 'custom'
 
     function openNewPostModal() {
         document.getElementById('newPostModal').classList.remove('hidden');
@@ -104,6 +105,37 @@ STUDIO_SCRIPTS_JS = """
         document.getElementById('studioStyle').value = style;
         document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
         el.closest('.style-card').classList.add('active');
+        invalidateQuoteCard();
+    }
+
+    function switchStudioMode(mode) {
+        studioCreationMode = mode;
+        const presetBtn = document.getElementById('btnModePreset');
+        const customBtn = document.getElementById('btnModeCustom');
+        const presetContainer = document.getElementById('presetModeContainer');
+        const customContainer = document.getElementById('customModeContainer');
+        const generateBtn = document.getElementById('btnGenerateCard');
+
+        if (mode === 'preset') {
+            presetBtn.classList.add('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
+            presetBtn.classList.remove('bg-brand/5', 'text-brand');
+            customBtn.classList.remove('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
+            customBtn.classList.add('bg-brand/5', 'text-brand');
+            
+            presetContainer.classList.remove('hidden');
+            customContainer.classList.add('hidden');
+            generateBtn.innerText = 'Generate Visual';
+        } else {
+            customBtn.classList.add('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
+            customBtn.classList.remove('bg-brand/5', 'text-brand');
+            presetBtn.classList.remove('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
+            presetBtn.classList.add('bg-brand/5', 'text-brand');
+            
+            customContainer.classList.remove('hidden');
+            presetContainer.classList.add('hidden');
+            generateBtn.innerText = 'Generate From Description';
+        }
+        invalidateQuoteCard();
     }
 
     // --- AI GENERATION LOGIC ---
@@ -157,7 +189,14 @@ STUDIO_SCRIPTS_JS = """
 
         const caption = captionEl.value;
         const visualPrompt = visualPromptEl ? visualPromptEl.value : '';
-        const style = styleEl.value || 'premium';
+        const useBaseStyle = document.getElementById('usePresetAsBase')?.checked;
+        
+        let style = 'premium';
+        if (studioCreationMode === 'preset' || useBaseStyle) {
+            style = styleEl.value || 'premium';
+        } else {
+            style = 'custom'; // Signal to backend to prioritize prompt eyes-only
+        }
         
         const btn = document.getElementById('btnGenerateCard');
         const loader = document.getElementById('cardLoader');
@@ -449,48 +488,62 @@ STUDIO_COMPONENTS_HTML = """
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <!-- Style Selector -->
-                <div class="space-y-6">
-                    <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Cinematic Styles</label>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div onclick="setStudioStyle('premium', this)" class="style-card active p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
-                           <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
-                           <div class="text-[9px] font-black text-brand uppercase tracking-widest">Premium</div>
-                        </div>
-                        <div onclick="setStudioStyle('celestial', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
-                           <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.539-1.118l1.519-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.381-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
-                           <div class="text-[9px] font-black text-brand uppercase tracking-widest">Celestial</div>
-                        </div>
-                        <div onclick="setStudioStyle('scholar', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
-                           <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
-                           <div class="text-[9px] font-black text-brand uppercase tracking-widest">Scholar</div>
-                        </div>
-                        <div onclick="setStudioStyle('ethereal', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
-                           <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
-                           <div class="text-[9px] font-black text-brand uppercase tracking-widest">Ethereal</div>
-                        </div>
-                        <div onclick="setStudioStyle('classic', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
-                           <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
-                           <div class="text-[9px] font-black text-brand uppercase tracking-widest">Classic</div>
-                        </div>
-                        <div onclick="setStudioStyle('modern', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
-                           <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
-                           <div class="text-[9px] font-black text-brand uppercase tracking-widest">Modern</div>
+                <div class="space-y-8">
+                    <!-- MODE TOGGLE -->
+                    <div class="flex p-1.5 bg-brand/[0.03] rounded-2xl border border-brand/5 gap-1">
+                        <button type="button" id="btnModePreset" onclick="switchStudioMode('preset')" class="flex-1 py-3 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-brand text-white shadow-lg shadow-brand/20">Sabeel Presets</button>
+                        <button type="button" id="btnModeCustom" onclick="switchStudioMode('custom')" class="flex-1 py-3 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-brand/5 text-brand">Prophetic Vision</button>
+                    </div>
+
+                    <div id="presetModeContainer" class="space-y-6 animate-in fade-in duration-300">
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Choose a Cinematic Atmosphere</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div onclick="setStudioStyle('premium', this)" class="style-card active p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Premium</div>
+                            </div>
+                            <div onclick="setStudioStyle('celestial', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.539-1.118l1.519-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.381-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Celestial</div>
+                            </div>
+                            <div onclick="setStudioStyle('scholar', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Scholar</div>
+                            </div>
+                            <div onclick="setStudioStyle('ethereal', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Ethereal</div>
+                            </div>
+                            <div onclick="setStudioStyle('classic', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Classic</div>
+                            </div>
+                            <div onclick="setStudioStyle('modern', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
+                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 5a1 1 0 011-1h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Modern</div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- CUSTOM VISUAL PROMPT -->
-                    <div class="mt-8 space-y-3">
-                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Describe your card style (Optional)</label>
-                        <textarea id="studioVisualPrompt" 
-                            placeholder="e.g. Deep forest background with gold borders...&#10;e.g. Black marble with a calm moonlit glow...&#10;e.g. Beige parchment with elegant dark ink..."
-                            class="w-full bg-white border border-brand/10 rounded-3xl p-6 text-sm font-medium text-brand outline-none focus:border-brand/30 placeholder:text-brand/20 transition-all resize-none h-28 shadow-sm custom-scrollbar"></textarea>
-                        <p class="text-[8px] font-bold text-text-muted/40 uppercase tracking-widest leading-loose ml-1">
-                            Your description guides the atmosphere, colors, and accents.
-                        </p>
+                    <div id="customModeContainer" class="hidden space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div class="space-y-3">
+                            <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Describe Your Card</label>
+                            <textarea id="studioVisualPrompt" 
+                                placeholder="Describe the atmosphere, colors, textures, or mood you want..."
+                                class="w-full bg-white border border-brand/10 rounded-3xl p-8 text-sm font-medium text-brand outline-none focus:border-brand/30 placeholder:text-brand/20 transition-all resize-none h-40 shadow-sm custom-scrollbar" oninput="invalidateQuoteCard()"></textarea>
+                            <p class="text-[8px] font-bold text-text-muted/40 uppercase tracking-widest leading-loose ml-1">
+                                Your vision defines the heart of the visual asset.
+                            </p>
+                        </div>
+                        
+                        <div class="flex items-center gap-3 p-4 bg-brand/5 rounded-2xl border border-brand/10">
+                            <input type="checkbox" id="usePresetAsBase" class="w-4 h-4 accent-brand rounded border-brand/20" onchange="invalidateQuoteCard()">
+                            <label for="usePresetAsBase" class="text-[8px] font-black text-brand uppercase tracking-widest cursor-pointer">Use selected preset as base style</label>
+                        </div>
                     </div>
 
-                    <button type="button" id="btnGenerateCard" onclick="generateQuoteCard()" class="w-full py-5 bg-brand/5 text-brand border-2 border-brand/20 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-brand hover:text-white transition-all shadow-sm">
-                        Generate Cinematic Visual
+                    <button type="button" id="btnGenerateCard" onclick="generateQuoteCard()" class="w-full py-6 bg-brand text-white rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all">
+                        Generate Visual
                     </button>
                 </div>
 

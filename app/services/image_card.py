@@ -7,10 +7,11 @@ from PIL import Image, ImageDraw, ImageFont
 from app.config import settings
 from .image_renderer import render_minimal_quote_card
 
-def generate_quote_card(caption: str, style: str = "classic") -> str:
+def generate_quote_card(caption: str, style: str = "classic", visual_prompt: str = None) -> str:
     """
     Parses an Islamic caption and generates an upgraded quote card image.
-    Supports styles: 'classic', 'modern', 'premium'
+    Supports styles: 'classic', 'modern', 'premium', etc.
+    Influenced by optional visual_prompt.
     """
     # 1. Clean and Split
     clean_caption = caption.replace("**", "").replace("_", "")
@@ -18,49 +19,48 @@ def generate_quote_card(caption: str, style: str = "classic") -> str:
     
     segments = []
     
-    # Text scaling rule: Line 2 (Reflection) must be 2x Line 1 (Reference)
-    # and Line 3 should be roughly 1.5x Line 1
+    # Text scaling rules based on style presets
     if style == "premium":
-        base_size = 48 # Cinematic Hero
+        base_size = 48
         styles = [
-            {"size": base_size, "color": (212, 175, 55)}, # Gold Reference
-            {"size": int(base_size * 1.8), "color": (255, 255, 255)}, # Main (Dominant Hero)
-            {"size": int(base_size * 1.3), "color": (190, 190, 190)}, # Takeaway
+            {"size": base_size, "color": (212, 175, 55)},
+            {"size": int(base_size * 1.8), "color": (255, 255, 255)},
+            {"size": int(base_size * 1.3), "color": (190, 190, 190)},
         ]
     elif style == "scholar":
-        base_size = 42 # Historical ink
+        base_size = 42
         styles = [
-            {"size": base_size, "color": (40, 40, 40)}, # Dark Ink
-            {"size": int(base_size * 1.85), "color": (20, 20, 20)}, # Dominant
-            {"size": int(base_size * 1.4), "color": (60, 60, 60)}, # Supporting
+            {"size": base_size, "color": (40, 40, 40)},
+            {"size": int(base_size * 1.85), "color": (20, 20, 20)},
+            {"size": int(base_size * 1.4), "color": (60, 60, 60)},
         ]
     elif style == "ethereal":
-        base_size = 44 # Soft morning
+        base_size = 44
         styles = [
-            {"size": base_size, "color": (100, 100, 110)}, # Soft Gray
-            {"size": int(base_size * 1.9), "color": (40, 40, 50)}, # Deep Slate
-            {"size": int(base_size * 1.5), "color": (120, 120, 130)}, # Dimmed
+            {"size": base_size, "color": (100, 100, 110)},
+            {"size": int(base_size * 1.9), "color": (40, 40, 50)},
+            {"size": int(base_size * 1.5), "color": (120, 120, 130)},
         ]
     elif style == "celestial":
-        base_size = 48 # Midnight star
+        base_size = 48
         styles = [
-            {"size": base_size, "color": (212, 175, 55)}, # Gold Ref
-            {"size": int(base_size * 1.8), "color": (255, 255, 255)}, # White Hero
-            {"size": int(base_size * 1.3), "color": (200, 210, 255)}, # Ice Blue
+            {"size": base_size, "color": (212, 175, 55)},
+            {"size": int(base_size * 1.8), "color": (255, 255, 255)},
+            {"size": int(base_size * 1.3), "color": (200, 210, 255)},
         ]
     elif style == "modern":
-        base_size = 34
+        base_size = 38
         styles = [
-            {"size": base_size, "color": (220, 220, 220)}, # Reference
-            {"size": base_size * 2, "color": (255, 255, 255)}, # Main (2x)
-            {"size": int(base_size * 1.5), "color": (240, 240, 240)}, # Takeaway
+            {"size": base_size, "color": (220, 220, 220)},
+            {"size": base_size * 2, "color": (255, 255, 255)},
+            {"size": int(base_size * 1.5), "color": (240, 240, 240)},
         ]
     else: # classic
         base_size = 36
         styles = [
-            {"size": base_size, "color": (212, 175, 55)}, # Reference
-            {"size": base_size * 2, "color": (255, 255, 255)}, # Main (2x)
-            {"size": int(base_size * 1.5), "color": (230, 230, 230)}, # Takeaway
+            {"size": base_size, "color": (212, 175, 55)},
+            {"size": base_size * 2, "color": (255, 255, 255)},
+            {"size": int(base_size * 1.5), "color": (230, 230, 230)},
         ]
     
     for i, text in enumerate(parts):
@@ -71,9 +71,9 @@ def generate_quote_card(caption: str, style: str = "classic") -> str:
             "color": styles[i]["color"]
         })
 
-    # 2. Render with Style
+    # 2. Render with Style & Prompt
     output_dir = settings.uploads_dir
-    public_url = render_minimal_quote_card(segments, output_dir, style=style)
+    public_url = render_minimal_quote_card(segments, output_dir, style=style, visual_prompt=visual_prompt)
     
     return public_url
 
