@@ -1158,7 +1158,7 @@ def render_minimal_quote_card(
             # Analyze + adapt typography per zone
             if _VS_OK:
                 analysis  = vs_analyze(bg, target_size)
-                typo      = vs_adapt(analysis)
+                typo      = vs_adapt(analysis, vs_spec)
                 if typo.dim_layer:
                     d_lay = Image.new("RGBA", target_size, (0, 0, 0, 0))
                     dd    = ImageDraw.Draw(d_lay)
@@ -1390,12 +1390,17 @@ def render_minimal_quote_card(
     start_y = max(v_pad, (H // 2) - (total_h // 2) - int(H * 0.03))
     print(f"📐 total_h={total_h}  start_y={start_y}")
 
-    # Ornament colors
-    g_rgba     = glow_rgba
-    orn_col    = list(g_rgba[:3]) if g_rgba else [200, 162, 42]
-    sep_col    = (min(255, int(orn_col[0] * 0.9)),
-                  min(255, int(orn_col[1] * 0.9)),
-                  min(255, int(orn_col[2] * 0.75)))
+    # Ornament / glow colors — driven by TypographySpec theme when available
+    if _VS_OK and 'typo' in dir() and typo is not None:
+        g_rgba  = typo.glow_rgba
+        orn_col = list(typo.orn_color)
+        sep_col = tuple(typo.orn_color)
+    else:
+        g_rgba  = glow_rgba
+        orn_col = list(g_rgba[:3]) if g_rgba else [200, 162, 42]
+        sep_col = (min(255, int(orn_col[0] * 0.9)),
+                   min(255, int(orn_col[1] * 0.9)),
+                   min(255, int(orn_col[2] * 0.75)))
 
     # ── GLOW HALO UNDER ZONE B ────────────────────────────────────────────────
     bg_rgba = bg.convert("RGBA")
@@ -1426,15 +1431,18 @@ def render_minimal_quote_card(
         col = zd["color"]
 
         # ── Adaptive shadow for this zone ────────────────────────────────────
-        # Light text (white/gold) → dark drop-shadow
-        # Dark text (black/brown) → subtle white halo
-        is_light_text = (col[0] + col[1] + col[2]) > 440
-        if is_light_text:
-            shadow_fill = (0, 0, 0, 130)           # dark shadow behind light text
-            shd_dx, shd_dy = 2, 2
+        # Use TypographySpec shadow when available; else compute from text luminance
+        if _VS_OK and 'typo' in dir() and typo is not None:
+            shadow_fill = typo.shadow_fill
+            shd_dx, shd_dy = typo.shadow_dx, typo.shadow_dy
         else:
-            shadow_fill = (255, 255, 255, 100)      # soft white halo behind dark text
-            shd_dx, shd_dy = -1, -1
+            is_light_text = (col[0] + col[1] + col[2]) > 440
+            if is_light_text:
+                shadow_fill = (0, 0, 0, 130)
+                shd_dx, shd_dy = 2, 2
+            else:
+                shadow_fill = (255, 255, 255, 100)
+                shd_dx, shd_dy = -1, -1
 
         if i == 0:
             # ── Zone A: Reference — honored, calm, elevated ───────────────
@@ -1453,7 +1461,8 @@ def render_minimal_quote_card(
             for ln in zd["lines"]:
                 draw_out.text((cx + shd_dx, ty + shd_dy), ln["text"],
                               font=zd["font"], fill=shadow_fill, anchor="mt")
-                fc = (int(col[0]), int(col[1]), int(col[2]), 188)
+                _ref_alpha = typo.ref_alpha if (_VS_OK and 'typo' in dir() and typo is not None) else 188
+                fc = (int(col[0]), int(col[1]), int(col[2]), _ref_alpha)
                 draw_out.text((cx, ty), ln["text"], font=zd["font"],
                               fill=fc, anchor="mt")
                 ty += ln["h"] + zd["ls"]

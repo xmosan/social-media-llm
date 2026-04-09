@@ -81,8 +81,8 @@ class AnalysisResult:
 @dataclass
 class TypographySpec:
     """
-    Typography choices derived from background analysis.
-    Produced by adapt_typography() from an AnalysisResult.
+    Typography choices derived from background analysis + VisualSpec theme.
+    Produced by adapt_typography() from an AnalysisResult (+ optional spec).
     """
     ref_color:     tuple = (220, 178, 58)   # Zone A — reference/accent
     quote_color:   tuple = (252, 252, 250)  # Zone B — main quote
@@ -94,6 +94,10 @@ class TypographySpec:
     dim_color:     tuple = (0, 0, 0, 55)
     dim_radius:    int   = 90
     sep_color:     tuple = (188, 152, 50)   # zone separator ornament
+    # Theme-aware extras — drive the glow halo color and orn_col in renderer
+    glow_rgba:     tuple = (210, 175, 62, 65)  # halo behind Zone B (RGBA)
+    orn_color:     tuple = (195, 162, 48)       # separator/ornament RGB
+    ref_alpha:     int   = 185                  # Zone A text opacity (0–255)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -578,6 +582,27 @@ def analyze_background(image, size: tuple) -> AnalysisResult:
 # TYPOGRAPHY ADAPTATION ENGINE
 # ─────────────────────────────────────────────────────────────────────────────
 
+
+# Per-theme text style presets — defines the glow halo, ornament color, and
+# reference-line opacity for each visual theme. These create VISIBLE differences
+# in how text looks across sacred_black vs parchment vs cosmic vs emerald etc.
+_THEME_TEXT = {
+    "sacred_black":   {"glow_rgba": (225, 182, 55, 95),  "orn_color": (210, 168, 42), "ref_alpha": 215},
+    "marble":         {"glow_rgba": (228, 222, 248, 65),  "orn_color": (205, 198, 228), "ref_alpha": 190},
+    "obsidian":       {"glow_rgba": (185, 152, 238, 78),  "orn_color": (178, 148, 232), "ref_alpha": 195},
+    "parchment":      {"glow_rgba": (158, 124, 72, 32),   "orn_color": (108, 82, 40),   "ref_alpha": 160},
+    "velvet":         {"glow_rgba": (205, 168, 255, 74),  "orn_color": (192, 158, 252), "ref_alpha": 192},
+    "emerald_forest": {"glow_rgba": (108, 202, 148, 60),  "orn_color": (95, 192, 138),  "ref_alpha": 178},
+    "cosmic":         {"glow_rgba": (172, 198, 255, 76),  "orn_color": (158, 188, 252), "ref_alpha": 192},
+    "celestial":      {"glow_rgba": (255, 248, 215, 82),  "orn_color": (228, 198, 88),  "ref_alpha": 205},
+    "moonlit":        {"glow_rgba": (182, 212, 255, 64),  "orn_color": (170, 200, 248), "ref_alpha": 180},
+    "starry":         {"glow_rgba": (202, 218, 255, 70),  "orn_color": (188, 205, 252), "ref_alpha": 185},
+    "desert":         {"glow_rgba": (235, 192, 88, 74),   "orn_color": (222, 180, 76),  "ref_alpha": 198},
+    "navy":           {"glow_rgba": (215, 178, 68, 70),   "orn_color": (202, 168, 58),  "ref_alpha": 192},
+    "charcoal":       {"glow_rgba": (238, 232, 218, 58),  "orn_color": (215, 208, 198), "ref_alpha": 182},
+    "custom":         {"glow_rgba": (215, 178, 64, 68),   "orn_color": (198, 165, 50),  "ref_alpha": 182},
+}
+
 def _pick_text(brightness: float, accent: bool = False) -> tuple:
     """
     Returns an RGB tuple that maximally contrasts with a background brightness.
@@ -599,7 +624,7 @@ def _pick_text(brightness: float, accent: bool = False) -> tuple:
         return (52, 32, 6)   if accent else (12, 10, 8)
 
 
-def adapt_typography(analysis: AnalysisResult) -> TypographySpec:
+def adapt_typography(analysis: AnalysisResult, spec: 'VisualSpec' = None) -> TypographySpec:
     """
     Produce a TypographySpec from a background AnalysisResult.
 
@@ -638,7 +663,14 @@ def adapt_typography(analysis: AnalysisResult) -> TypographySpec:
     # Zone separator ornament color
     sep_color = (92, 62, 14) if analysis.is_light else (188, 152, 50)
 
-    spec = TypographySpec(
+    # Theme-aware glow + ornament colors
+    theme_key  = getattr(spec, "theme", "custom") if spec else "custom"
+    t_style    = _THEME_TEXT.get(theme_key, _THEME_TEXT["custom"])
+    glow_rgba  = t_style["glow_rgba"]
+    orn_color  = t_style["orn_color"]
+    ref_alpha  = t_style["ref_alpha"]
+
+    typo = TypographySpec(
         ref_color=ref_c,
         quote_color=quote_c,
         support_color=support_c,
@@ -649,10 +681,13 @@ def adapt_typography(analysis: AnalysisResult) -> TypographySpec:
         dim_color=dim_color,
         dim_radius=90,
         sep_color=sep_color,
+        glow_rgba=glow_rgba,
+        orn_color=orn_color,
+        ref_alpha=ref_alpha,
     )
-    print(f"✏️  [Typography] ref={ref_c}  quote={quote_c}  "
-          f"dim={dim_layer}")
-    return spec
+    print(f"✏️  [Typography] theme={theme_key}  ref={ref_c}  quote={quote_c}  "
+          f"glow={glow_rgba[:3]}α={glow_rgba[3]}  dim={dim_layer}")
+    return typo
 
 
 # ─────────────────────────────────────────────────────────────────────────────
