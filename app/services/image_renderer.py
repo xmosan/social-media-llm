@@ -379,56 +379,60 @@ def _is_fast_path(prompt: str) -> bool:
 
 def _build_bg_prompt(visual_prompt: str) -> str:
     """
-    Converts a user's visual description into a background-plate DALL-E prompt
-    optimised for Islamic quote cards.
+    Converts a user's visual description into a background-plate DALL-E prompt.
 
-    Design goals:
-    - Reframe as an unoccupied background plate (not a finished design)
-    - Expand vague material words to richer visual descriptors
-    - Add strict composition guidance: clear, uncluttered center area
-    - Use five separate constraint clauses to prevent any fake Arabic /
-      pseudo-calligraphy / readable lettering from appearing
-    - End with quality and format directives
+    KEY RULE: the words 'Islamic', 'Arabic', 'Qur\'an', 'mosque', and
+    'quote card' must NEVER appear in the DALL-E prompt.  DALL-E's
+    training strongly links those words to Arabic calligraphy and will
+    render script regardless of later negative constraints.
+
+    Instead we describe a 'pure abstract material texture plate for
+    photo compositing' — neutral art-direction that keeps DALL-E
+    focused on material, light, and atmosphere.
+
+    The NO-CALLIGRAPHY directive is placed as the very first tokens
+    so it receives maximum positional weight.
     """
     p = visual_prompt.lower()
 
-    # Insert richer descriptions for known material/atmosphere keywords
+    # Expand known material/atmosphere keywords into richer visual language
     expanded = visual_prompt
     for kw, expansion in _BG_EXPANSIONS.items():
         if kw in p:
-            # Append expansion only if not already detailed
             if expansion.split(",")[0] not in visual_prompt.lower():
                 expanded = f"{expanded}, {expansion}"
-            break  # one material expansion is sufficient
+            break
 
-    # Composition: golden-ratio guidance so center stays uncluttered
+    # Composition: keep center clear so overlaid text is always readable
     composition = (
-        "Clean composition: highly detailed texture and atmosphere concentrated "
-        "at edges and corners, leaving the central 50% calm and uncluttered "
-        "as an open plate for text placement"
+        "Composition rule: richly detailed texture, lighting, and ornament "
+        "concentrated at edges and corners only. "
+        "The central 50% of the image must be calm, smooth, and unoccupied "
+        "for digital text to be placed on top."
     )
 
-    # Five-tier text-free constraint (belt and suspenders approach)
-    no_text = (
-        "CRITICAL CONSTRAINTS — strictly enforce: "
-        "(1) absolutely no text of any language anywhere in the image; "
-        "(2) no Arabic script, no pseudo-Arabic shapes, no calligraphy-style strokes; "
-        "(3) no decorative lettering, no fake glyphs, no character-like ornaments; "
-        "(4) no Qur'anic ayah, no hadith text, no written verse of any kind; "
-        "(5) purely abstract and atmospheric — texture, light, and ornamental geometry only"
+    # Anti-script directive — placed FIRST for maximum attention weight
+    # Uses ALL CAPS and multiple synonyms to reinforce through DALL-E's tokenizer
+    no_script = (
+        "NO CALLIGRAPHY. NO SCRIPT. NO LETTERS. NO TEXT OF ANY KIND. "
+        "This image must contain zero writing, zero lettering, "
+        "zero glyphs, zero characters, zero text in any language. "
+        "No brush-stroke calligraphy, no decorative script, "
+        "no pseudo-letters, no symbol-like shapes resembling writing. "
+        "Only pure material texture, abstract light, and geometric ornament."
     )
 
     return (
-        f"Background plate only — Islamic quote card atmosphere. "
+        f"{no_script} "
+        "Pure abstract material texture plate for digital photo compositing. "
         f"{expanded}. "
-        f"{composition}. "
-        "Cinematic photorealistic quality, premium spiritual aesthetic, "
-        "warm or cool light source suited to the material, "
-        "subtle ornamental geometric patterns in non-central areas only. "
-        f"{no_text}. "
-        "Square format 1:1. Fine digital art, 4K detail, tasteful and dignified."
+        f"{composition} "
+        "Cinematic photorealistic quality, premium fine digital art, "
+        "deep atmospheric lighting suited to the material, "
+        "subtle abstract geometric shapes at corners and edges only, "
+        "no representational imagery, no figures, no faces, no readable marks. "
+        "Square format 1:1. 4K ultra-detail, tasteful and dignified."
     )
-
 
 def _load_bg_cache(prompt_key: str, cache_dir: str) -> Optional[Image.Image]:
     """Load a previously saved background from the file cache."""
@@ -509,9 +513,9 @@ def generate_dalle_background(
         return None
 
     dalle_prompt = _build_bg_prompt(visual_prompt)
-    print(f"\n🎨 [DALL-E] Generating background plate...")
-    print(f"   Raw:  '{visual_prompt[:70]}'")
-    print(f"   Built: {dalle_prompt[:120]}...")
+    print(f"\n🎨 [DALL-E] Background plate (no calligraphy mode)...")
+    print(f"   User: '{visual_prompt[:70]}'")
+    print(f"   Sent: {dalle_prompt[:110]}...")
 
     try:
         response = client.images.generate(
