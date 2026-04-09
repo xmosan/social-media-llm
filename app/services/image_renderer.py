@@ -322,6 +322,72 @@ def analyze_style_prompt(visual_prompt: str, base_style: str) -> Optional[dict]:
     return config
 
 
+import urllib.request
+import io as _io
+
+
+def _detect_center_brightness(image_rgb, size) -> float:
+    """
+    Returns average pixel brightness (0-255) of the center 50% of the image.
+    Used to choose white vs dark text when overlaying on a DALL-E background.
+    """
+    W, H  = size
+    pad_x, pad_y = W // 4, H // 4
+    center = image_rgb.crop((pad_x, pad_y, W - pad_x, H - pad_y))
+    gray   = center.convert("L")
+    pixels = list(gray.getdata())
+    return sum(pixels) / len(pixels) if pixels else 128.0
+
+
+def generate_dalle_background(visual_prompt: str,
+                              target_size=(1080, 1080)) -> Optional[Image.Image]:
+    """
+    Generates a rich, photo-realistic background using DALL-E 3.
+
+    This is the PRIMARY visual engine for custom mode. The background-focused
+    prompt explicitly forbids any text in the image so only the material,
+    texture, lighting, and atmosphere are rendered — the quote text is then
+    overlaid by our PIL text system.
+
+    Returns an RGB PIL Image (1080x1080), or None if unavailable / failed.
+    """
+    client = get_openai_client()
+    if not client:
+        print("📌 [DALL-E] No OpenAI key — using PIL fallback")
+        return None
+
+    dalle_prompt = (
+        "Premium Islamic quote card background artwork. "
+        f"{visual_prompt}. "
+        "Cinematic quality, photorealistic texture and lighting, fine digital art. "
+        "NO text, NO words, NO letters, NO Arabic calligraphy, NO script of any kind. "
+        "Leave generous open space in the center for text overlay. "
+        "Square format. Spiritually serene, calm, and dignified aesthetic."
+    )
+    print(f"\n🎨 [DALL-E] Generating background...")
+    print(f"   Prompt: {dalle_prompt[:130]}...")
+
+    try:
+        response = client.images.generate(
+            model="dall-e-3",
+            prompt=dalle_prompt,
+            size="1024x1024",
+            quality="standard",
+            n=1,
+        )
+        img_url = response.data[0].url
+        with urllib.request.urlopen(img_url, timeout=35) as resp:
+            img_data = resp.read()
+        img = Image.open(_io.BytesIO(img_data)).convert("RGB")
+        if img.size != target_size:
+            img = img.resize(target_size, Image.LANCZOS)
+        print("✅ [DALL-E] Background ready")
+        return img
+    except Exception as e:
+        print(f"⚠️  [DALL-E] Failed ({type(e).__name__}: {e}) — using PIL fallback")
+        return None
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # PRIMITIVES — BACKGROUNDS
 # ─────────────────────────────────────────────────────────────────────────────
@@ -813,11 +879,67 @@ def render_minimal_quote_card(
 
     # ── MODE: CUSTOM ──────────────────────────────────────────────────────────
     if mode == "custom":
-        overrides  = analyze_style_prompt(visual_prompt or "", style)
-        if not overrides:
-            # Fallback to quran preset if prompt somehow empty after all
-            mode = "preset"; style = "quran"
+        overrides = interpret_visual_prompt(visual_prompt or "")
+        if not visual_prompt or not visual_prompt.strip():
+            mode = "preset"; style = "quran"  # empty prompt fallback
+
+    if mode == "custom":
+        # ── Route A: DALL-E Background (primary) ──────────────────────────
+        dalle_bg = generate_dalle_background(visual_prompt, target_size)
+
+        if dalle_bg is not None:
+            # DALL-E succeeded — use photo-quality background
+            bg = dalle_bg
+
+            # Detect brightness to auto-choose text palette
+            brightness = _detect_center_brightness(bg, target_size)
+            is_light   = brightness > 148
+            palette    = CUSTOM_TEXT_LIGHT if is_light else CUSTOM_TEXT_DARK
+            print(f"   DALL-E bg brightness={brightness:.1f}  is_light={is_light}")
+
+            # Keyword config (for glow, border, intensity — NOT bg color)
+            overrides  = interpret_visual_prompt(visual_prompt)
+            intensity  = float(overrides.get("intensity", 0.80))
+            border_sty = overrides.get("border_style", "none")
+            glow_rgba  = tuple(int(v) for v in overrides.get("glow_color_rgba",
+                                                              [255, 245, 220, 60]))
+
+            # Readability overlay: soft gradient that pushes center towards
+            # whichever direction helps text contrast
+            r_layer = Image.new("RGBA", target_size, (0, 0, 0, 0))
+            rd       = ImageDraw.Draw(r_layer)
+            cx, cy   = W // 2, H // 2
+            if is_light:
+                rd.ellipse([cx-380, cy-380, cx+380, cy+380],
+                           fill=(255, 255, 255, 50))
+            else:
+                rd.ellipse([cx-380, cy-380, cx+380, cy+380],
+                           fill=(0, 0, 0, 65))
+            r_layer = r_layer.filter(ImageFilter.GaussianBlur(110))
+            bg = Image.alpha_composite(bg.convert("RGBA"), r_layer).convert("RGB")
+            draw = ImageDraw.Draw(bg)
+
+            # Light vignette (frame the subject, don't crush the DALL-E bg)
+            bg   = apply_vignette(bg, intensity=min(0.50, intensity * 0.55))
+            draw = ImageDraw.Draw(bg)
+
+            # Border / ornaments on top of DALL-E background
+            gold_c = (205, 165, 45)
+            if border_sty == "corner_filigree":
+                draw_corner_filigree(draw, target_size, gold_c, length=85)
+            elif border_sty == "manuscript":
+                draw_manuscript_frame(draw, target_size,
+                                      tuple(max(0, v - 28) for v in gold_c))
+            elif border_sty == "gold_block":
+                draw_gold_border(draw, target_size)
+            elif any(k in (visual_prompt or "").lower() for k in
+                     ["gold", "golden", "border", "corner", "ornament", "frame",
+                      "filigree", "gilded"]):
+                draw_corner_filigree(draw, target_size, gold_c, length=85)
+
         else:
+            # ── Route B: PIL Fallback ──────────────────────────────────────
+            overrides  = overrides  # already computed above
             is_light   = overrides.get("is_light_bg", False)
             palette    = CUSTOM_TEXT_LIGHT if is_light else CUSTOM_TEXT_DARK
             material   = overrides.get("material",   "none")
@@ -825,15 +947,17 @@ def render_minimal_quote_card(
             border_sty = overrides.get("border_style", "none")
             p_type     = overrides.get("pattern_type", "none")
             g_type     = overrides.get("gradient_type", "radial")
-            intensity  = float(overrides.get("intensity", 0.72))
+            intensity  = float(overrides.get("intensity", 0.80))
             accent     = [int(v) for v in overrides.get("accent_rgb", [200, 196, 216])]
             bg_start   = tuple(int(v) for v in overrides["bg_start_rgb"])
             bg_end     = tuple(int(v) for v in overrides["bg_end_rgb"])
-            p_rgba     = tuple(int(v) for v in overrides.get("pattern_color_rgba", [255,255,255,0]))
-            glow_rgba  = tuple(int(v) for v in overrides.get("glow_color_rgba", [255,245,220,50]))
+            p_rgba     = tuple(int(v) for v in overrides.get("pattern_color_rgba",
+                                                             [255, 255, 255, 0]))
+            glow_rgba  = tuple(int(v) for v in overrides.get("glow_color_rgba",
+                                                             [255, 245, 220, 50]))
             v_int      = float(overrides.get("vignette", 0.70))
 
-            print(f"🏗️  Custom:  mat={material}  atm={atmosphere}  bdr={border_sty}")
+            print(f"🏗️  PIL Fallback:  mat={material}  atm={atmosphere}  bdr={border_sty}")
             print(f"   bg: {bg_start}→{bg_end}  p={p_type}  glow_a={glow_rgba[3]}")
 
             # Layer 1: Base gradient
@@ -852,12 +976,11 @@ def render_minimal_quote_card(
                                    base_color=tuple(int(v) for v in bg_start))
                 bg   = apply_parchment_depth(bg, target_size, intensity)
                 draw = ImageDraw.Draw(bg)
+
             # Patterns
             if p_type == "starry":
                 draw_starry_noise(draw, target_size,
                                   density=max(0.0003, 0.0006 * intensity))
-            elif p_type == "paper":
-                pass  # parchment already has paper texture
             elif p_type == "islamic":
                 draw_islamic_pattern(draw, target_size, p_rgba)
 
