@@ -39,13 +39,17 @@ def get_openai_client() -> Optional[OpenAI]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _extract_intensity(p: str) -> float:
+    """Effect strength. Floor is 0.65 so 'subtle X' modifiers on individual
+    elements don't collapse the whole card to invisible.
+    subtle/minimal = 0.65  balanced = 0.80  dramatic = 1.0
+    """
     if any(k in p for k in ["dramatic", "bold", "intense", "powerful",
                               "vivid", "rich", "strong", "heavy", "deep"]):
         return 1.0
     if any(k in p for k in ["subtle", "soft", "gentle", "light",
                               "quiet", "faint", "delicate", "minimal"]):
-        return 0.42
-    return 0.72
+        return 0.65   # floor — keeps ALL effects clearly visible
+    return 0.80
 
 
 def _extract_material(p: str) -> str:
@@ -87,13 +91,27 @@ def _extract_border(p: str) -> str:
 
 
 def _extract_palette(p: str):
-    """Returns (bg_start, bg_end, is_light, accent_rgb) — all plain ints."""
+    """
+    Returns (bg_start, bg_end, is_light, accent_rgb) — all plain ints.
+
+    Priority:
+      1. LIGHT materials/moods (parchment, white)   → light bg
+      2. DARK MATERIAL keywords (obsidian, charcoal, marble, black) → dark bg
+         These must check BEFORE generic color words like 'emerald' or 'celestial'
+         so compound prompts like 'charcoal marble with emerald aura' get the
+         correct dark grey base, not a green one.
+      3. COLOR/ATMOSPHERE keywords (emerald, navy, celestial, etc)
+      4. Default: premium near-black
+    """
+    # ── 1. Light materials ──────────────────────────────────────────────────
     if any(k in p for k in ["parchment", "papyrus", "vellum", "ivory", "cream"]):
         return [248, 238, 212], [230, 218, 190], True,  [130, 92, 38]
     if any(k in p for k in ["tan", "warm paper", "aged paper"]):
         return [242, 230, 208], [224, 212, 188], True,  [125, 90, 40]
-    if any(k in p for k in ["white", "pearl", "bright"]):
+    if any(k in p for k in ["white", "pearl"]):
         return [245, 244, 240], [228, 226, 220], True,  [120, 100, 58]
+
+    # ── 2. Dark material keywords (checked FIRST before color words) ────────
     if "obsidian" in p or "onyx" in p:
         return [14, 10, 18],   [3, 2, 6],        False, [160, 125, 225]
     if "charcoal" in p:
@@ -102,8 +120,12 @@ def _extract_palette(p: str):
         return [44, 41, 50],   [17, 15, 21],     False, [212, 205, 225]
     if any(k in p for k in ["slate", "gunmetal"]):
         return [36, 40, 45],   [12, 14, 18],     False, [178, 185, 202]
-    if any(k in p for k in ["black", "jet", "pitch"]):
+    if any(k in p for k in ["jet black", "pitch black", "pure black"]):
         return [22, 20, 25],   [2, 2, 4],         False, [200, 195, 215]
+    if "velvet" in p:
+        return [28, 10, 52],   [8, 3, 22],       False, [190, 145, 255]
+
+    # ── 3. Color / atmosphere keywords ─────────────────────────────────────
     if any(k in p for k in ["emerald", "jade"]):
         return [0, 72, 38],    [0, 24, 14],      False, [115, 222, 148]
     if any(k in p for k in ["forest", "deep green", "dark green"]):
@@ -120,15 +142,18 @@ def _extract_palette(p: str):
         return [8, 12, 38],    [2, 4, 14],       False, [158, 182, 245]
     if any(k in p for k in ["celestial", "cosmic", "galaxy"]):
         return [14, 22, 75],   [3, 5, 24],       False, [198, 212, 255]
+    if any(k in p for k in ["black", "dark"]):
+        return [22, 20, 25],   [2, 2, 4],         False, [200, 195, 215]
     if any(k in p for k in ["burgundy", "crimson", "wine", "maroon"]):
         return [66, 10, 15],   [28, 3, 5],       False, [222, 138, 138]
     if any(k in p for k in ["violet", "purple", "plum", "amethyst"]):
         return [44, 12, 90],   [17, 3, 36],      False, [202, 155, 255]
     if any(k in p for k in ["desert", "amber", "warm gold"]):
         return [56, 32, 5],    [22, 13, 2],      False, [222, 182, 88]
-    if "velvet" in p:
-        return [28, 10, 52],   [8, 3, 22],       False, [190, 145, 255]
+
+    # ── 4. Default ──────────────────────────────────────────────────────────
     return [22, 20, 26], [5, 4, 8], False, [200, 195, 215]
+
 
 
 def _extract_glow(p: str, accent: list, is_light: bool, intensity: float) -> list:
@@ -249,15 +274,21 @@ def _normalize_config(cfg: dict) -> dict:
 
 def analyze_style_prompt(visual_prompt: str, base_style: str) -> Optional[dict]:
     """
-    Keyword interpreter is PRIMARY. OpenAI may only refine color values.
-    Structural decisions (material, atmosphere, border_style) are always
-    controlled by keyword extraction to ensure pipeline integrity.
+    Returns a full design config for a visual prompt.
+    Keyword interpreter is SOLE authority on bg_start_rgb, bg_end_rgb, and all
+    structural fields (material, atmosphere, border_style). This prevents
+    OpenAI from confusing modifier words (e.g. 'emerald AURA') with base
+    material/palette keywords and assigning the wrong background color.
+
+    OpenAI may only optionally refine glow_color_rgba.
     """
     if not visual_prompt or not visual_prompt.strip():
         return None
 
+    # Primary: always use keyword config for bg + structure
     config = interpret_visual_prompt(visual_prompt)
 
+    # Optional: AI may only update glow color (not bg)
     client = get_openai_client()
     if not client:
         return config
@@ -267,23 +298,24 @@ def analyze_style_prompt(visual_prompt: str, base_style: str) -> Optional[dict]:
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": (
-                    "You are a color palette engine. Return ONLY a JSON object "
-                    "with these keys (all integer values 0-255): "
-                    '{"bg_start_rgb":[r,g,b],"bg_end_rgb":[r,g,b],'
-                    '"glow_color_rgba":[r,g,b,a]}. '
-                    "marble=dark grey, obsidian=near-black, emerald=deep green, "
-                    "parchment=warm tan. Dark backgrounds unless user says light."
+                    "You are a glow color engine for Islamic quote cards. "
+                    "Return ONLY a JSON object with ONE key: "
+                    '{"glow_color_rgba":[r,g,b,a]} where all values are integers 0-255. '
+                    "Choose a glow color that fits the mood: "
+                    "golden glow = warm gold, emerald aura = soft green, "
+                    "celestial = cool pale blue-white, moonlit = silver-blue. "
+                    "Alpha between 60 and 120."
                 )},
                 {"role": "user", "content": f"Visual: {visual_prompt}"}
             ],
             response_format={"type": "json_object"},
-            temperature=0.3, timeout=7
+            temperature=0.3, timeout=6
         )
         ai = _normalize_config(json.loads(r.choices[0].message.content))
-        for key in ("bg_start_rgb", "bg_end_rgb", "glow_color_rgba"):
-            if key in ai:
-                config[key] = ai[key]
-        print("🤖 [StyleAnalyzer] AI color applied")
+        # Only update glow — NEVER touch bg_start_rgb or bg_end_rgb
+        if "glow_color_rgba" in ai:
+            config["glow_color_rgba"] = ai["glow_color_rgba"]
+            print(f"🤖 [StyleAnalyzer] AI glow: {ai['glow_color_rgba']}")
     except Exception as e:
         print(f"⚠️  [StyleAnalyzer] AI skipped ({e})")
 
@@ -295,17 +327,18 @@ def analyze_style_prompt(visual_prompt: str, base_style: str) -> Optional[dict]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def draw_radial_gradient(draw, size, color_start, color_end):
+    """Smooth radial gradient. Extra steps + post-blur to prevent banding."""
     W, H  = size
     cx, cy = W // 2, H // 2
     md    = int(math.sqrt(cx * cx + cy * cy)) + 1
-    steps = 64
+    steps = 80   # more steps = smoother color transition
     for i in range(steps, 0, -1):
         t  = i / steps
         r2 = int(md * t)
         u  = 1 - t
-        r  = int(color_start[0] * t + color_end[0] * u)
-        g  = int(color_start[1] * t + color_end[1] * u)
-        b  = int(color_start[2] * t + color_end[2] * u)
+        r  = int(round(color_start[0] * t + color_end[0] * u))
+        g  = int(round(color_start[1] * t + color_end[1] * u))
+        b  = int(round(color_start[2] * t + color_end[2] * u))
         draw.ellipse([cx - r2, cy - r2, cx + r2, cy + r2], fill=(r, g, b))
 
 
@@ -409,16 +442,13 @@ def apply_marble_depth(image_rgb, size, bg_start, intensity=0.72) -> Image.Image
     layer  = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     ld     = ImageDraw.Draw(layer)
 
-    # Vein color: lighter than background
-    vc     = (min(255, bg_start[0] + 62),
-               min(255, bg_start[1] + 58),
-               min(255, bg_start[2] + 68))
-    vc2    = (min(255, bg_start[0] + 38),
-               min(255, bg_start[1] + 35),
-               min(255, bg_start[2] + 42))
+    # Vein color: significantly lighter than background so veins are visible
+    vc  = (min(255, bg_start[0] + 75), min(255, bg_start[1] + 70), min(255, bg_start[2] + 80))
+    vc2 = (min(255, bg_start[0] + 48), min(255, bg_start[1] + 45), min(255, bg_start[2] + 52))
 
-    primary_a   = min(255, int(58 * intensity))
-    secondary_a = min(255, int(30 * intensity))
+    # Minimum alpha 85 — veins must be clearly visible regardless of intensity
+    primary_a   = max(85,  min(255, int(90 * intensity)))
+    secondary_a = max(45,  min(255, int(50 * intensity)))
 
     random.seed(7331)
     # Primary veins
