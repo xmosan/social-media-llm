@@ -162,13 +162,28 @@ Return ONLY valid JSON matching this schema:
             timeout=8
         )
         ai_config = json.loads(response.choices[0].message.content)
-        # Merge AI config over keyword config (AI is more nuanced)
-        config.update(ai_config)
+        # Merge AI config but ensure all RGB values are ints (OpenAI may return floats)
+        config.update(_normalize_config(ai_config))
         print(f"🤖 [StyleAnalyzer] AI enhanced config: {config}")
     except Exception as e:
         print(f"⚠️  [StyleAnalyzer] OpenAI failed ({e}) — using keyword config only")
 
     return config
+
+
+def _normalize_config(cfg: dict) -> dict:
+    """
+    Ensures all color values in a design config are plain Python ints.
+    OpenAI (and other sources) sometimes returns floats for RGB components,
+    which causes PIL to raise 'float object cannot be interpreted as an integer'.
+    """
+    result = dict(cfg)
+    for key in ("bg_start_rgb", "bg_end_rgb", "pattern_color_rgba", "glow_color_rgba"):
+        if key in result and isinstance(result[key], (list, tuple)):
+            result[key] = [int(round(v)) for v in result[key]]
+    if "vignette" in result:
+        result["vignette"] = float(result["vignette"])
+    return result
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -515,14 +530,15 @@ def render_minimal_quote_card(
 
     if mode == "custom" and overrides:
         # ── CUSTOM BACKGROUND ──────────────────────────────────────────────
-        bg_start   = tuple(overrides.get("bg_start_rgb", [18, 18, 18]))
-        bg_end     = tuple(overrides.get("bg_end_rgb",   [4,  4,  4]))
-        v_intensity = overrides.get("vignette", 0.65)
-        border_type = overrides.get("border", "none")
-        p_type      = overrides.get("pattern_type", "none")
-        p_rgba      = tuple(overrides.get("pattern_color_rgba", [255, 255, 255, 0]))
-        g_type      = overrides.get("gradient_type", "radial")
-        glow_rgba   = tuple(overrides.get("glow_color_rgba", [255, 245, 220, 50]))
+        # Cast all values to safe Python types (guard against float-int PIL crash)
+        bg_start    = tuple(int(v) for v in overrides.get("bg_start_rgb", [18, 18, 18]))
+        bg_end      = tuple(int(v) for v in overrides.get("bg_end_rgb",   [4,  4,  4]))
+        v_intensity = float(overrides.get("vignette", 0.65))
+        border_type = str(overrides.get("border", "none"))
+        p_type      = str(overrides.get("pattern_type", "none"))
+        p_rgba      = tuple(int(v) for v in overrides.get("pattern_color_rgba", [255, 255, 255, 0]))
+        g_type      = str(overrides.get("gradient_type", "radial"))
+        glow_rgba   = tuple(int(v) for v in overrides.get("glow_color_rgba", [255, 245, 220, 50]))
 
         print(f"🎨 [Renderer] Custom bg: start={bg_start} end={bg_end} border={border_type} pattern={p_type}")
 
