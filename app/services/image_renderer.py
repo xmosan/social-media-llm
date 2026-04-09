@@ -23,6 +23,27 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from openai import OpenAI
 from app.config import settings
 
+# ── Visual System Layer ───────────────────────────────────────────────────────
+# Pre-declare as safe defaults so NameError is impossible if import fails
+_VS_OK = False
+vs_interpret = vs_compose = vs_analyze = vs_adapt = vs_load_cache = vs_save_cache = None
+
+try:
+    from app.services.visual_system import (
+        interpret_prompt     as vs_interpret,
+        compose_dalle_prompt as vs_compose,
+        analyze_background   as vs_analyze,
+        adapt_typography     as vs_adapt,
+        load_bg_cache        as vs_load_cache,
+        save_bg_cache        as vs_save_cache,
+    )
+    _VS_OK = True
+    print("✅ visual_system loaded OK")
+except Exception as _vs_err:
+    print(f"⚠️  visual_system unavailable: {_vs_err}")
+    _VS_OK = False
+
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # OPENAI
