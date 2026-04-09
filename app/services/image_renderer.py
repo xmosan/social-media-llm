@@ -1089,67 +1089,85 @@ def render_minimal_quote_card(
     font_path = os.path.join(base_dir, "assets", "fonts", font_file)
 
     # ── MODE: CUSTOM ──────────────────────────────────────────────────────────
-    if mode == "custom":
-        overrides = interpret_visual_prompt(visual_prompt or "")
-        if not visual_prompt or not visual_prompt.strip():
-            mode = "preset"; style = "quran"  # empty prompt fallback
+    if mode == "custom" and (not visual_prompt or not visual_prompt.strip()):
+        mode = "preset"; style = "quran"
 
     if mode == "custom":
-        # ── Route A: DALL-E Background (primary) ──────────────────────────
-        dalle_bg = generate_dalle_background(visual_prompt, target_size,
-                                              cache_dir=output_dir)
+        # Interpret prompt → VisualSpec, compose safe DALL-E prompt
+        vs_spec = None
+        if _VS_OK:
+            vs_spec      = vs_interpret(visual_prompt)
+            dalle_prompt = vs_compose(vs_spec, raw_prompt=visual_prompt)
+            dalle_bg     = vs_load_cache(vs_spec, output_dir)
+            if dalle_bg is None:
+                dalle_bg = generate_dalle_background(
+                    visual_prompt, target_size,
+                    cache_dir=output_dir,
+                    dalle_prompt_override=dalle_prompt,
+                )
+                if dalle_bg is not None:
+                    vs_save_cache(dalle_bg, vs_spec, output_dir)
+        else:
+            dalle_bg = generate_dalle_background(
+                visual_prompt, target_size, cache_dir=output_dir)
+
+        kw_ov     = interpret_visual_prompt(visual_prompt or "")
+        glow_rgba = tuple(int(v) for v in kw_ov.get("glow_color_rgba",
+                                                      [255, 245, 220, 60]))
 
         if dalle_bg is not None:
-            # DALL-E succeeded — use photo-quality background
             bg = dalle_bg
 
-            # Keyword config (for glow, border, intensity — NOT bg color)
-            overrides  = interpret_visual_prompt(visual_prompt)
-            intensity  = float(overrides.get("intensity", 0.80))
-            border_sty = overrides.get("border_style", "none")
-            glow_rgba  = tuple(int(v) for v in overrides.get("glow_color_rgba",
-                                                              [255, 245, 220, 60]))
-
-            # Readability overlay: soft centre darkening or brightening
-            # to make the text zone more uniform before sampling colors
+            # Readability softening overlay (before analysis)
             center_brt = _detect_center_brightness(bg, target_size)
             is_light   = center_brt > 148
-            cx, cy   = W // 2, H // 2
-            r_layer  = Image.new("RGBA", target_size, (0, 0, 0, 0))
-            rd       = ImageDraw.Draw(r_layer)
-            if is_light:
-                rd.ellipse([cx-380, cy-380, cx+380, cy+380],
-                           fill=(255, 255, 255, 50))
-            else:
-                rd.ellipse([cx-380, cy-380, cx+380, cy+380],
-                           fill=(0, 0, 0, 65))
-            r_layer = r_layer.filter(ImageFilter.GaussianBlur(110))
+            cx, cy     = W // 2, H // 2
+            r_layer    = Image.new("RGBA", target_size, (0, 0, 0, 0))
+            rd         = ImageDraw.Draw(r_layer)
+            rd.ellipse([cx - 400, cy - 400, cx + 400, cy + 400],
+                       fill=(255, 255, 255, 42) if is_light else (0, 0, 0, 58))
+            r_layer = r_layer.filter(ImageFilter.GaussianBlur(120))
             bg = Image.alpha_composite(bg.convert("RGBA"), r_layer).convert("RGB")
+
+            # Gentle vignette (preserves DALL-E detail)
+            bg   = apply_vignette(bg, intensity=0.38)
             draw = ImageDraw.Draw(bg)
 
-            # Light vignette (frame the subject, don’t crush the DALL-E bg)
-            bg   = apply_vignette(bg, intensity=min(0.50, intensity * 0.55))
-            draw = ImageDraw.Draw(bg)
+            # Analyze + adapt typography per zone
+            if _VS_OK:
+                analysis  = vs_analyze(bg, target_size)
+                typo      = vs_adapt(analysis)
+                if typo.dim_layer:
+                    d_lay = Image.new("RGBA", target_size, (0, 0, 0, 0))
+                    dd    = ImageDraw.Draw(d_lay)
+                    dd.ellipse([cx - 360, cy - 360, cx + 360, cy + 360],
+                               fill=typo.dim_color)
+                    d_lay = d_lay.filter(
+                        ImageFilter.GaussianBlur(typo.dim_radius))
+                    bg    = Image.alpha_composite(
+                        bg.convert("RGBA"), d_lay).convert("RGB")
+                    draw  = ImageDraw.Draw(bg)
+                palette   = [typo.ref_color, typo.quote_color, typo.support_color]
+                sep_color = typo.sep_color
+            else:
+                palette   = _build_adaptive_palette(bg, target_size)
+                sep_color = None
 
-            # ━━ Zone-adaptive text palette ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-            # Sample each text zone of the FINAL background independently.
-            # This replaces the single global brightness check and ensures
-            # each piece of text contrasts with the exact pixels behind it.
-            palette = _build_adaptive_palette(bg, target_size)
-
-            # Border / ornaments on top of DALL-E background
-            gold_c = (205, 165, 45)
-            if border_sty == "corner_filigree":
-                draw_corner_filigree(draw, target_size, gold_c, length=85)
-            elif border_sty == "manuscript":
+            # Ornaments driven by spec.ornament_level
+            gold_c    = (205, 165, 45)
+            orn_level = getattr(vs_spec, "ornament_level", "corner") if vs_spec else "corner"
+            if orn_level == "ornate":
                 draw_manuscript_frame(draw, target_size,
-                                      tuple(max(0, v - 28) for v in gold_c))
-            elif border_sty == "gold_block":
-                draw_gold_border(draw, target_size)
-            elif any(k in (visual_prompt or "").lower() for k in
-                     ["gold", "golden", "border", "corner", "ornament", "frame",
-                      "filigree", "gilded"]):
-                draw_corner_filigree(draw, target_size, gold_c, length=85)
+                                      tuple(max(0, v - 20) for v in gold_c))
+                draw_corner_filigree(draw, target_size, gold_c, length=90)
+            elif orn_level in ("corner", "moderate"):
+                draw_corner_filigree(draw, target_size, gold_c, length=82)
+            elif orn_level == "minimal":
+                draw_corner_filigree(draw, target_size, gold_c, length=48)
+            elif orn_level != "none" and any(
+                    k in (visual_prompt or "").lower() for k in
+                    ["gold", "golden", "border", "corner", "filigree"]):
+                draw_corner_filigree(draw, target_size, gold_c, length=82)
 
         else:
             # ── Route B: PIL Fallback ──────────────────────────────────────
