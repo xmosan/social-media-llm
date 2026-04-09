@@ -603,25 +603,84 @@ _THEME_TEXT = {
     "custom":         {"glow_rgba": (215, 178, 64, 68),   "orn_color": (198, 165, 50),  "ref_alpha": 182},
 }
 
-def _pick_text(brightness: float, accent: bool = False) -> tuple:
+def _pick_text(brightness: float, accent: bool = False,
+               theme: str = "custom") -> tuple:
     """
-    Returns an RGB tuple that maximally contrasts with a background brightness.
+    Returns an RGB tuple that contrasts with the given background brightness.
+    Also accounts for theme to produce warm/cool variants that feel on-brand.
 
-    accent=True  → accent/reference color (warm gold vs deep mahogany)
-    accent=False → body text color (near-white vs near-black)
+    accent=True  → accent/reference line (gold on dark, mahogany on light)
+    accent=False → body text
+
+    Brightness ranges (0-255):
+      <  90  → very dark       → white / warm gold accent
+      90-145 → medium dark     → off-white / gold accent
+     145-185 → medium bright   → dark brown / amber accent
+      > 185  → very light      → near-black / deep mahogany
     """
-    if brightness < 95:
-        # Very dark background
-        return (222, 180, 62) if accent else (255, 255, 255)
-    elif brightness < 148:
-        # Medium-dark
-        return (212, 168, 52) if accent else (248, 248, 245)
-    elif brightness < 195:
-        # Medium-light: reverse — need dark text
-        return (62, 42, 10)  if accent else (22, 18, 12)
+    if brightness < 90:
+        if accent:
+            # Theme-tinted gold accent on very dark bg
+            if theme in ("sacred_black", "desert", "celestial", "navy"):
+                return (228, 185, 58)
+            elif theme in ("marble", "charcoal", "obsidian"):
+                return (218, 210, 235)   # platinum-silver
+            elif theme in ("emerald_forest",):
+                return (138, 218, 165)   # jade
+            elif theme in ("cosmic", "moonlit", "starry"):
+                return (185, 208, 255)   # stellar silver-blue
+            elif theme == "velvet":
+                return (210, 175, 255)   # soft violet
+            return (225, 182, 58)        # default warm gold
+        return (255, 255, 255)           # pure white body
+
+    elif brightness < 145:
+        if accent:
+            if theme in ("sacred_black", "desert", "navy", "celestial"):
+                return (218, 178, 52)
+            elif theme in ("marble", "charcoal"):
+                return (210, 205, 228)
+            elif theme in ("emerald_forest",):
+                return (128, 208, 158)
+            elif theme in ("cosmic", "moonlit", "starry"):
+                return (178, 200, 252)
+            return (215, 172, 50)
+        return (248, 248, 245)           # off-white body
+
+    elif brightness < 185:
+        # Medium-bright — dark text needed, but tinted to the theme
+        if accent:
+            if theme == "parchment":
+                return (88, 62, 22)      # deep amber mahogany
+            elif theme in ("desert",):
+                return (95, 58, 12)
+            elif theme in ("celestial", "moonlit"):
+                return (42, 48, 95)      # deep indigo
+            elif theme in ("emerald_forest",):
+                return (18, 75, 42)      # deep forest green
+            return (62, 42, 10)          # default dark amber
+        # Body text: dark but tinted warm/cool per theme
+        if theme == "parchment":
+            return (28, 22, 12)          # warm near-black
+        elif theme in ("marble", "charcoal"):
+            return (18, 16, 22)          # cold near-black
+        elif theme in ("celestial", "moonlit"):
+            return (22, 20, 42)          # deep blue-black
+        elif theme in ("emerald_forest",):
+            return (12, 28, 18)          # forest dark
+        return (22, 18, 12)              # neutral near-black
+
     else:
-        # Very light (parchment, bright backgrounds)
-        return (52, 32, 6)   if accent else (12, 10, 8)
+        # Very bright (parchment, bright sky)
+        if accent:
+            if theme == "parchment":
+                return (75, 50, 12)      # rich mahogany
+            elif theme in ("desert", "celestial"):
+                return (85, 55, 8)
+            return (52, 32, 6)
+        if theme == "parchment":
+            return (18, 14, 8)           # warm black on parchment
+        return (12, 10, 8)               # neutral near-black
 
 
 def adapt_typography(analysis: AnalysisResult, spec: 'VisualSpec' = None) -> TypographySpec:
@@ -635,14 +694,14 @@ def adapt_typography(analysis: AnalysisResult, spec: 'VisualSpec' = None) -> Typ
     - Shadow direction based on whether text is light or dark
     - Separator uses gold on dark, mahogany on light
     """
-    ref_c     = _pick_text(analysis.zone_a_brightness, accent=True)
-    quote_c   = _pick_text(analysis.zone_b_brightness, accent=False)
-    support_c = _pick_text(analysis.zone_c_brightness, accent=False)
+    theme_str  = getattr(spec, 'theme', 'custom') if spec else 'custom'
+    ref_c      = _pick_text(analysis.zone_a_brightness, accent=True,  theme=theme_str)
+    quote_c    = _pick_text(analysis.zone_b_brightness, accent=False, theme=theme_str)
+    support_c  = _pick_text(analysis.zone_c_brightness, accent=False, theme=theme_str)
 
-    # If Zone A is medium-light and accent is gold — switch to deep mahogany
-    # (gold on gold-toned bg = low contrast)
-    if 145 < analysis.zone_a_brightness < 205:
-        ref_c = (52, 32, 6)
+    # If accent color would clash with a medium-light bg, deepen it
+    if 145 < analysis.zone_a_brightness < 195:
+        ref_c = _pick_text(analysis.zone_a_brightness, accent=True, theme=theme_str)
 
     # Shadow: dark offset for light text, white halo for dark text
     is_light_text = (quote_c[0] + quote_c[1] + quote_c[2]) > 440
@@ -654,14 +713,21 @@ def adapt_typography(analysis: AnalysisResult, spec: 'VisualSpec' = None) -> Typ
         shd_dx, shd_dy = -1, -1
 
     # Dim/protect layer
+    # For dark bg (light text): darken center slightly to help white text pop.
+    # For light bg (dark text): also darken slightly so dark text pops against
+    #   a uniform, controlled tone rather than busy texture.
     dim_layer = analysis.needs_protection
     if analysis.is_light:
-        dim_color  = (255, 255, 255, 50)  # lighten center on dark-text backgrounds
+        dim_color = (0, 0, 0, 38)   # gentle darkening on bright bg for dark text
     else:
-        dim_color  = (0, 0, 0, 62)        # darken center on light-text backgrounds
+        dim_color = (0, 0, 0, 58)   # stronger darkening on dark bg for light text
 
-    # Zone separator ornament color
-    sep_color = (92, 62, 14) if analysis.is_light else (188, 152, 50)
+    # Zone separator ornament color — theme-tinted
+    if analysis.is_light:
+        sep_color = (88, 62, 18)  # dark mahogany on light bgs
+    else:
+        # Use orn_color from t_style but as a 3-tuple
+        sep_color = (188, 152, 50)  # will be overridden by orn_color below
 
     # Theme-aware glow + ornament colors
     theme_key  = getattr(spec, "theme", "custom") if spec else "custom"

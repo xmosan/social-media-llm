@@ -1114,6 +1114,8 @@ def render_minimal_quote_card(
     if mode == "custom" and (not visual_prompt or not visual_prompt.strip()):
         mode = "preset"; style = "quran"
 
+    typo_spec = None   # will be populated by visual system if available
+
     if mode == "custom":
         # Interpret prompt → VisualSpec, compose safe DALL-E prompt
         vs_spec = None
@@ -1158,19 +1160,19 @@ def render_minimal_quote_card(
             # Analyze + adapt typography per zone
             if _VS_OK:
                 analysis  = vs_analyze(bg, target_size)
-                typo      = vs_adapt(analysis, vs_spec)
-                if typo.dim_layer:
+                typo_spec = vs_adapt(analysis, vs_spec)
+                if typo_spec.dim_layer:
                     d_lay = Image.new("RGBA", target_size, (0, 0, 0, 0))
                     dd    = ImageDraw.Draw(d_lay)
                     dd.ellipse([cx - 360, cy - 360, cx + 360, cy + 360],
-                               fill=typo.dim_color)
+                               fill=typo_spec.dim_color)
                     d_lay = d_lay.filter(
-                        ImageFilter.GaussianBlur(typo.dim_radius))
+                        ImageFilter.GaussianBlur(typo_spec.dim_radius))
                     bg    = Image.alpha_composite(
                         bg.convert("RGBA"), d_lay).convert("RGB")
                     draw  = ImageDraw.Draw(bg)
-                palette   = [typo.ref_color, typo.quote_color, typo.support_color]
-                sep_color = typo.sep_color
+                palette   = [typo_spec.ref_color, typo_spec.quote_color, typo_spec.support_color]
+                sep_color = typo_spec.sep_color
             else:
                 palette   = _build_adaptive_palette(bg, target_size)
                 sep_color = None
@@ -1391,10 +1393,10 @@ def render_minimal_quote_card(
     print(f"📐 total_h={total_h}  start_y={start_y}")
 
     # Ornament / glow colors — driven by TypographySpec theme when available
-    if _VS_OK and 'typo' in dir() and typo is not None:
-        g_rgba  = typo.glow_rgba
-        orn_col = list(typo.orn_color)
-        sep_col = tuple(typo.orn_color)
+    if typo_spec is not None:
+        g_rgba  = typo_spec.glow_rgba
+        orn_col = list(typo_spec.orn_color)
+        sep_col = tuple(typo_spec.orn_color)
     else:
         g_rgba  = glow_rgba
         orn_col = list(g_rgba[:3]) if g_rgba else [200, 162, 42]
@@ -1432,9 +1434,9 @@ def render_minimal_quote_card(
 
         # ── Adaptive shadow for this zone ────────────────────────────────────
         # Use TypographySpec shadow when available; else compute from text luminance
-        if _VS_OK and 'typo' in dir() and typo is not None:
-            shadow_fill = typo.shadow_fill
-            shd_dx, shd_dy = typo.shadow_dx, typo.shadow_dy
+        if typo_spec is not None:
+            shadow_fill = typo_spec.shadow_fill
+            shd_dx, shd_dy = typo_spec.shadow_dx, typo_spec.shadow_dy
         else:
             is_light_text = (col[0] + col[1] + col[2]) > 440
             if is_light_text:
@@ -1461,7 +1463,7 @@ def render_minimal_quote_card(
             for ln in zd["lines"]:
                 draw_out.text((cx + shd_dx, ty + shd_dy), ln["text"],
                               font=zd["font"], fill=shadow_fill, anchor="mt")
-                _ref_alpha = typo.ref_alpha if (_VS_OK and 'typo' in dir() and typo is not None) else 188
+                _ref_alpha = typo_spec.ref_alpha if typo_spec is not None else 188
                 fc = (int(col[0]), int(col[1]), int(col[2]), _ref_alpha)
                 draw_out.text((cx, ty), ln["text"], font=zd["font"],
                               fill=fc, anchor="mt")
