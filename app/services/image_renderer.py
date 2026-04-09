@@ -498,6 +498,7 @@ def generate_dalle_background(
     visual_prompt: str,
     target_size: tuple = (1080, 1080),
     cache_dir: Optional[str] = None,
+    dalle_prompt_override: Optional[str] = None,
 ) -> Optional[Image.Image]:
     """
     Three-tier background generation for custom mode:
@@ -533,8 +534,8 @@ def generate_dalle_background(
         print("📌 [DALL-E] No OpenAI key — PIL fallback")
         return None
 
-    dalle_prompt = _build_bg_prompt(visual_prompt)
-    print(f"\n🎨 [DALL-E] Background plate (no calligraphy mode)...")
+    dalle_prompt = dalle_prompt_override or _build_bg_prompt(visual_prompt)
+    print(f"\n🎨 [DALL-E] Generating background plate...")
     print(f"   User: '{visual_prompt[:70]}'")
     print(f"   Sent: {dalle_prompt[:110]}...")
 
