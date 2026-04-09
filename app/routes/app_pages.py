@@ -178,86 +178,97 @@ STUDIO_SCRIPTS_JS = """
     }
 
     async function generateQuoteCard() {
-        const captionEl = document.getElementById('studioCaption');
+        const captionEl      = document.getElementById('studioCaption');
         const visualPromptEl = document.getElementById('studioVisualPrompt');
-        const styleEl = document.getElementById('studioStyle');
-        const btn = document.getElementById('btnGenerateCard');
-        const loader = document.getElementById('cardLoader');
-        const loaderText = loader ? loader.querySelector('span') : null;
-        const preview = document.getElementById('quoteCardPreview');
-        const syncBanner = document.getElementById('outOfSyncBanner');
+        const styleEl        = document.getElementById('studioStyle');
+        const btn            = document.getElementById('btnGenerateCard');
+        const loader         = document.getElementById('cardLoader');
+        const loaderText     = loader ? loader.querySelector('span') : null;
+        const preview        = document.getElementById('quoteCardPreview');
+        const syncBanner     = document.getElementById('outOfSyncBanner');
+        const promptErrEl    = document.getElementById('visualPromptError');
 
         if (!captionEl || !styleEl || !btn) {
-            console.error('Studio critical elements missing');
+            console.error('[Studio] Critical element missing');
             return;
         }
 
-        const caption = captionEl.value.trim();
+        const caption      = captionEl.value.trim();
         const visualPrompt = visualPromptEl ? visualPromptEl.value.trim() : '';
-        const useBaseStyle = document.getElementById('usePresetAsBase')?.checked;
+        const isCustomMode = (studioCreationMode === 'custom');
 
-        // Determine style & mode
-        let style;
-        if (studioCreationMode === 'custom' && !useBaseStyle) {
-            style = 'custom';
-        } else {
-            style = styleEl.value || 'quran';
-        }
-
-        // Caption required unless in custom mode with a visual prompt
+        // --- Validation ---
         if (!caption) {
-            if (studioCreationMode === 'custom' && visualPrompt) {
-                // Allow generate with fallback text for custom-only mode
-                console.warn('No caption set — generating visual with prompt only');
-            } else {
-                alert('A message is required. Please generate a caption in Step 1 first.');
-                return;
-            }
+            alert('A caption is required. Please complete Step 1 first.');
+            return;
         }
 
-        const payload = { caption: caption || 'Bismillah', style, visual_prompt: visualPrompt };
-        console.log('🎨 Studio Generate Payload:', payload);
+        if (isCustomMode && !visualPrompt) {
+            if (promptErrEl) {
+                promptErrEl.classList.remove('hidden');
+                promptErrEl.textContent = 'Please describe your card atmosphere before generating.';
+            }
+            if (visualPromptEl) visualPromptEl.focus();
+            return;
+        }
+        if (promptErrEl) promptErrEl.classList.add('hidden');
 
-        btn.disabled = true;
-        btn.innerText = 'Manifesting...';
-        if (loader) loader.classList.remove('hidden');
-        if (preview) preview.classList.add('hidden');
+        // --- Build payload ---
+        const style   = isCustomMode ? 'custom' : (styleEl.value || 'quran');
+        const payload = {
+            caption,
+            style,
+            visual_prompt: isCustomMode ? visualPrompt : '',
+            mode:          isCustomMode ? 'custom' : 'preset',
+        };
+        console.log('🎨 [Studio] Generate payload:', payload);
+
+        // --- UI State: Loading ---
+        btn.disabled    = true;
+        btn.innerText   = 'Manifesting...';
+        if (loader)     loader.classList.remove('hidden');
+        if (preview)    preview.classList.add('hidden');
         if (syncBanner) syncBanner.classList.add('hidden');
-        if (loaderText) loaderText.innerText = 'Building Visual Atmosphere...';
+        if (loaderText) loaderText.innerText = isCustomMode
+            ? 'Interpreting Your Vision...'
+            : 'Building Atmosphere...';
 
         try {
-            const res = await fetch('/generate-quote-card', {
-                method: 'POST',
+            const res  = await fetch('/generate-quote-card', {
+                method:  'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body:    JSON.stringify(payload),
             });
-
-            if (loaderText) loaderText.innerText = 'Composing Cinematic Layers...';
-
             const data = await res.json();
-            console.log('🖼️ Studio Response:', data);
+            console.log('🖼️ [Studio] Response:', data);
 
             if (data.image_url) {
                 currentQuoteCardUrl = data.image_url;
                 document.getElementById('finalMediaUrl').value = data.image_url;
-                preview.src = data.image_url + '?t=' + Date.now(); // cache-bust
+                preview.src = data.image_url + '?t=' + Date.now();
                 preview.classList.remove('hidden');
-                if (loader) loader.classList.add('hidden');
+                if (loader)  loader.classList.add('hidden');
                 document.getElementById('cardActions').classList.remove('hidden');
                 isQuoteCardOutOfDate = false;
+
+                // Show badge if custom prompt was applied
+                const badge = document.getElementById('customPromptBadge');
+                if (badge) {
+                    badge.classList.toggle('hidden', !data.prompt_applied);
+                }
             } else {
-                alert('The vision failed to manifest. Error: ' + (data.error || 'Unknown'));
-                if (loaderText) loaderText.innerText = 'Awaiting Creation';
-                if (loader) loader.classList.remove('hidden');
+                const errMsg = data.error || data.hint || 'Generation failed.';
+                if (loaderText) loaderText.innerText = 'Failed';
+                alert('⚠️ ' + errMsg);
+                if (loader)  loader.classList.remove('hidden');
                 if (preview) preview.classList.add('hidden');
             }
         } catch (e) {
-            console.error('Studio Error:', e);
-            if (loaderText) loaderText.innerText = 'Vision Failed';
+            console.error('[Studio] Fetch error:', e);
+            if (loaderText) loaderText.innerText = 'Connection Error';
         } finally {
-            btn.disabled = false;
-            // Restore button label based on current mode
-            btn.innerText = studioCreationMode === 'custom' ? 'Generate From Description' : 'Generate Visual';
+            btn.disabled  = false;
+            btn.innerText = isCustomMode ? 'Generate From Description' : 'Generate Cinematic Visual';
         }
     }
 
@@ -569,20 +580,19 @@ STUDIO_COMPONENTS_HTML = """
                         </div>
                     </div>
 
-                    <div id="customModeContainer" class="hidden space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div class="space-y-3">
+                    <div id="customModeContainer" class="hidden space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div class="space-y-2">
                             <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Describe Your Card</label>
-                            <textarea id="studioVisualPrompt" 
-                                placeholder="Describe the atmosphere, colors, textures, or mood you want..."
-                                class="w-full bg-white border border-brand/10 rounded-3xl p-8 text-sm font-medium text-brand outline-none focus:border-brand/30 placeholder:text-brand/20 transition-all resize-none h-40 shadow-sm custom-scrollbar" oninput="invalidateQuoteCard()"></textarea>
-                            <p class="text-[8px] font-bold text-text-muted/40 uppercase tracking-widest leading-loose ml-1">
-                                Your vision defines the heart of the visual asset.
+                            <textarea id="studioVisualPrompt"
+                                placeholder="e.g. black marble with gold borders and a cinematic center light..."
+                                class="w-full bg-white border border-brand/10 rounded-3xl p-6 text-sm font-medium text-brand outline-none focus:border-brand/40 placeholder:text-brand/20 transition-all resize-none h-36 shadow-sm custom-scrollbar" oninput="invalidateQuoteCard()"></textarea>
+                            <!-- Inline validation error -->
+                            <p id="visualPromptError" class="hidden text-[9px] font-black text-red-500 uppercase tracking-widest ml-1">
+                                Please describe your card before generating.
                             </p>
-                        </div>
-                        
-                        <div class="flex items-center gap-3 p-4 bg-brand/5 rounded-2xl border border-brand/10">
-                            <input type="checkbox" id="usePresetAsBase" class="w-4 h-4 accent-brand rounded border-brand/20" onchange="invalidateQuoteCard()">
-                            <label for="usePresetAsBase" class="text-[8px] font-black text-brand uppercase tracking-widest cursor-pointer">Use selected preset as base style</label>
+                            <p class="text-[8px] font-bold text-text-muted/40 uppercase tracking-widest leading-loose ml-1">
+                                Try: marble &bull; emerald forest &bull; navy sky &bull; parchment &bull; moonlit &bull; gold corners
+                            </p>
                         </div>
                     </div>
 
@@ -609,6 +619,11 @@ STUDIO_COMPONENTS_HTML = """
                     <div id="cardActions" class="hidden flex gap-3 text-brand">
                         <button type="button" onclick="generateQuoteCard()" class="px-5 py-3 border border-brand/10 rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-brand/5 transition-all">Refine Visual</button>
                         <button type="button" onclick="switchStudioSection(3)" class="px-8 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all">Use This Visual</button>
+                    </div>
+                    <!-- Custom prompt applied badge -->
+                    <div id="customPromptBadge" class="hidden flex items-center gap-2 px-4 py-2 bg-brand/8 border border-brand/15 rounded-full">
+                        <span class="text-brand text-[9px]">✦</span>
+                        <span class="text-[8px] font-black text-brand uppercase tracking-widest">Generated from your description</span>
                     </div>
                 </div>
             </div>

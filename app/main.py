@@ -212,19 +212,49 @@ async def generate_caption(data: dict):
 
     return {"caption": caption}
 
-@app.post("/generate-quote-card", summary="Generate a Cinematic Quote Card", description="Creates an Islamic quote card image from a caption. Available styles: 'classic', 'modern', 'premium', 'scholar', 'ethereal', 'celestial'.")
+@app.post("/generate-quote-card", summary="Generate a Cinematic Quote Card")
 async def api_generate_quote_card(data: dict):
-    caption = data.get("caption")
-    style = data.get("style", "premium") # Default to premium (Cinematic)
-    
-    print(f"🎨 Generating quote card (style: {style}) for: {caption[:50]}...")
-    
+    caption      = data.get("caption", "").strip()
+    style        = data.get("style", "quran")
+    visual_prompt = (data.get("visual_prompt") or "").strip()
+    mode         = data.get("mode", "preset")
+
+    # Auto-detect mode if not explicitly sent
+    if style == "custom":
+        mode = "custom"
+    elif visual_prompt and mode == "preset":
+        mode = "custom"  # visual_prompt always means custom
+
+    print(f"\n{'*'*60}")
+    print(f"🚀 [API] /generate-quote-card")
+    print(f"   mode:         {mode}")
+    print(f"   style:        {style}")
+    print(f"   visual_prompt:{repr(visual_prompt)[:80]}")
+    print(f"   caption[:60]: {repr(caption[:60])}")
+    print(f"{'*'*60}")
+
     if not caption:
         return JSONResponse(status_code=400, content={"error": "Caption is required"})
-        
-    image_url = generate_quote_card(caption, style=style)
-    
-    return {"image_url": image_url}
+
+    if mode == "custom" and not visual_prompt:
+        return JSONResponse(status_code=400, content={
+            "error": "A visual description is required in Prophetic Vision mode.",
+            "hint": "Describe the atmosphere using keywords like: marble, navy, emerald, gold borders, starry..."
+        })
+
+    image_url = generate_quote_card(
+        caption,
+        style=style,
+        visual_prompt=visual_prompt or None,
+        mode=mode
+    )
+
+    return {
+        "image_url":     image_url,
+        "mode_used":     mode,
+        "style_used":    style,
+        "prompt_applied": bool(visual_prompt),
+    }
 
 @app.get("/ready")
 def readiness_check():
