@@ -1002,6 +1002,62 @@ CUSTOM_TEXT_DARK  = [(212, 175, 55), (255, 255, 255), (210, 210, 210)]
 CUSTOM_TEXT_LIGHT = [(95, 78, 48),   (28, 22, 16),   (88, 75, 58)]
 
 
+def _build_adaptive_palette(
+    bg_image: "Image.Image",
+    size: tuple,
+    shadow_boost: int = 0,
+) -> list:
+    """
+    Builds a 3-element text palette by independently sampling the average
+    brightness of each text zone in the rendered background image.
+
+    Returns [reference_rgb, quote_rgb, support_rgb].
+
+    Zone layout (fractions of 1080x1080):
+      Zone A (reference / top ornament): rows 8–25%
+      Zone B (main quote):               rows 30–70%
+      Zone C (support / bottom):         rows 72–88%
+    """
+    W, H = size
+
+    def zone_brightness(y1f: float, y2f: float,
+                        x1f: float = 0.12, x2f: float = 0.88) -> float:
+        x1, y1, x2, y2 = int(W*x1f), int(H*y1f), int(W*x2f), int(H*y2f)
+        crop   = bg_image.crop((x1, y1, x2, y2))
+        pixels = list(crop.convert("L").getdata())
+        return sum(pixels) / len(pixels) if pixels else 128.0
+
+    bA = zone_brightness(0.08, 0.25)   # reference row
+    bB = zone_brightness(0.30, 0.70)   # main quote row
+    bC = zone_brightness(0.72, 0.88)   # support row
+
+    def pick_text(brightness: float, accent: bool = False):
+        """Return RGB that maximally contrasts with the sampled brightness."""
+        if brightness < 100:
+            # Very dark bg: bright white or warm gold for accent
+            return (220, 178, 58) if accent else (255, 255, 255)
+        elif brightness < 155:
+            # Medium-dark: off-white or slightly muted gold
+            return (210, 168, 52) if accent else (248, 248, 245)
+        elif brightness < 200:
+            # Medium-light: dark brown-gold or near-black
+            return (60, 40, 8)   if accent else (22, 18, 12)
+        else:
+            # Very light: deep mahogany or near-black
+            return (50, 30, 5)   if accent else (12, 10, 8)
+
+    ref_c     = pick_text(bA, accent=True)
+    quote_c   = pick_text(bB, accent=False)
+    support_c = pick_text(bC, accent=False)
+
+    print(f"   🎨 Adaptive palette:  "
+          f"A-brt={bA:.0f} ref={ref_c}  "
+          f"B-brt={bB:.0f} qte={quote_c}  "
+          f"C-brt={bC:.0f} sup={support_c}")
+
+    return [ref_c, quote_c, support_c]
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # MAIN RENDER ENGINE v7.0
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1047,12 +1103,6 @@ def render_minimal_quote_card(
             # DALL-E succeeded — use photo-quality background
             bg = dalle_bg
 
-            # Detect brightness to auto-choose text palette
-            brightness = _detect_center_brightness(bg, target_size)
-            is_light   = brightness > 148
-            palette    = CUSTOM_TEXT_LIGHT if is_light else CUSTOM_TEXT_DARK
-            print(f"   DALL-E bg brightness={brightness:.1f}  is_light={is_light}")
-
             # Keyword config (for glow, border, intensity — NOT bg color)
             overrides  = interpret_visual_prompt(visual_prompt)
             intensity  = float(overrides.get("intensity", 0.80))
@@ -1060,11 +1110,13 @@ def render_minimal_quote_card(
             glow_rgba  = tuple(int(v) for v in overrides.get("glow_color_rgba",
                                                               [255, 245, 220, 60]))
 
-            # Readability overlay: soft gradient that pushes center towards
-            # whichever direction helps text contrast
-            r_layer = Image.new("RGBA", target_size, (0, 0, 0, 0))
-            rd       = ImageDraw.Draw(r_layer)
+            # Readability overlay: soft centre darkening or brightening
+            # to make the text zone more uniform before sampling colors
+            center_brt = _detect_center_brightness(bg, target_size)
+            is_light   = center_brt > 148
             cx, cy   = W // 2, H // 2
+            r_layer  = Image.new("RGBA", target_size, (0, 0, 0, 0))
+            rd       = ImageDraw.Draw(r_layer)
             if is_light:
                 rd.ellipse([cx-380, cy-380, cx+380, cy+380],
                            fill=(255, 255, 255, 50))
@@ -1075,9 +1127,15 @@ def render_minimal_quote_card(
             bg = Image.alpha_composite(bg.convert("RGBA"), r_layer).convert("RGB")
             draw = ImageDraw.Draw(bg)
 
-            # Light vignette (frame the subject, don't crush the DALL-E bg)
+            # Light vignette (frame the subject, don’t crush the DALL-E bg)
             bg   = apply_vignette(bg, intensity=min(0.50, intensity * 0.55))
             draw = ImageDraw.Draw(bg)
+
+            # ━━ Zone-adaptive text palette ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            # Sample each text zone of the FINAL background independently.
+            # This replaces the single global brightness check and ensures
+            # each piece of text contrasts with the exact pixels behind it.
+            palette = _build_adaptive_palette(bg, target_size)
 
             # Border / ornaments on top of DALL-E background
             gold_c = (205, 165, 45)
@@ -1327,11 +1385,21 @@ def render_minimal_quote_card(
     for i, zd in enumerate(zone_data):
         col = zd["color"]
 
+        # ── Adaptive shadow for this zone ────────────────────────────────────
+        # Light text (white/gold) → dark drop-shadow
+        # Dark text (black/brown) → subtle white halo
+        is_light_text = (col[0] + col[1] + col[2]) > 440
+        if is_light_text:
+            shadow_fill = (0, 0, 0, 130)           # dark shadow behind light text
+            shd_dx, shd_dy = 2, 2
+        else:
+            shadow_fill = (255, 255, 255, 100)      # soft white halo behind dark text
+            shd_dx, shd_dy = -1, -1
+
         if i == 0:
             # ── Zone A: Reference — honored, calm, elevated ───────────────
-            # Top ornament
             draw_top_ornament(draw_out, cx, y - 22, sep_col)
-            # Soft glow behind reference text (subtle)
+            # Soft glow layer (optional)
             if g_rgba and len(g_rgba) >= 4:
                 soft_ref_col = (int(orn_col[0]), int(orn_col[1]),
                                 int(orn_col[2]), min(255, int(g_rgba[3] * 0.30)))
@@ -1339,17 +1407,17 @@ def render_minimal_quote_card(
                     draw_out.text((cx, y), ln["text"], font=zd["font"],
                                   fill=soft_ref_col, anchor="mt")
                     y += ln["h"] + zd["ls"]
-                y = start_y   # reset y, draw actual text over glow
-            # Actual reference text
+                y = start_y
+            # Shadow pass then actual reference text
             ty = start_y
             for ln in zd["lines"]:
-                fc = (int(col[0]), int(col[1]), int(col[2]), 182)
+                draw_out.text((cx + shd_dx, ty + shd_dy), ln["text"],
+                              font=zd["font"], fill=shadow_fill, anchor="mt")
+                fc = (int(col[0]), int(col[1]), int(col[2]), 188)
                 draw_out.text((cx, ty), ln["text"], font=zd["font"],
                               fill=fc, anchor="mt")
                 ty += ln["h"] + zd["ls"]
             y = ty - zd["ls"] + gap_ab
-
-            # Zone separator (mid-gap)
             sep_y = (start_y + zd["block_h"]) + gap_ab // 2
             draw_zone_separator(draw_out, cx, sep_y, sep_col)
 
@@ -1357,8 +1425,10 @@ def render_minimal_quote_card(
             # ── Zone B: Main Quote — prominent, readable ──────────────────
             ty = y
             for ln in zd["lines"]:
-                draw_out.text((cx + 2, ty + 2), ln["text"], font=zd["font"],
-                              fill=(0, 0, 0, 90), anchor="mt")
+                # Shadow pass
+                draw_out.text((cx + shd_dx, ty + shd_dy), ln["text"],
+                              font=zd["font"], fill=shadow_fill, anchor="mt")
+                # Main text
                 draw_out.text((cx, ty), ln["text"], font=zd["font"],
                               fill=col, anchor="mt")
                 ty += ln["h"] + zd["ls"]
@@ -1368,6 +1438,8 @@ def render_minimal_quote_card(
             # ── Zone C: Supporting — quiet, readable ─────────────────────
             ty = y
             for ln in zd["lines"]:
+                draw_out.text((cx + shd_dx, ty + shd_dy), ln["text"],
+                              font=zd["font"], fill=shadow_fill, anchor="mt")
                 fc = (int(col[0]), int(col[1]), int(col[2]), 215)
                 draw_out.text((cx, ty), ln["text"], font=zd["font"],
                               fill=fc, anchor="mt")
