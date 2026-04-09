@@ -26,27 +26,35 @@ def analyze_style_prompt(visual_prompt: str, base_style: str):
         return None
 
     system_prompt = """
-    You are a luxury graphic design engine. Convert a user's visual description for a quote card into a JSON design config.
-    
-    STYLE CONSTRAINTS:
-    - Keep it premium, minimalist, and Islamic.
-    - Colors should be deep and sophisticated (avoid bright neon).
-    - Contrast must be high (Text is always white or white-ish, except for 'scholar' style).
-    
-    JSON SCHEMA:
+    You are a luxury Islamic quote card design engine. Your ONLY job is to translate a user's visual
+    description into a precise JSON color config. You must be LITERAL and CREATIVE with colors.
+
+    COLOR TRANSLATION RULES (follow these exactly):
+    - "marble" or "stone" → bg_start: [35, 35, 38], bg_end: [15, 15, 18], gradient: radial
+    - "charcoal" → bg_start: [42, 42, 42], bg_end: [18, 18, 18], gradient: radial
+    - "deep green" or "forest" → bg_start: [5, 35, 15], bg_end: [0, 10, 5], gradient: radial
+    - "emerald" → bg_start: [0, 60, 30], bg_end: [0, 25, 12], gradient: radial
+    - "navy" or "deep blue" → bg_start: [5, 10, 50], bg_end: [0, 5, 25], gradient: radial
+    - "celestial" or "night sky" → bg_start: [10, 20, 60], bg_end: [0, 0, 15], pattern: starry
+    - "parchment" or "manuscript" or "paper" → bg_start: [245, 235, 210], bg_end: [230, 220, 195], pattern: paper
+    - "gold" accent → border: gold
+    - "glow" or "halo" → glow_color_rgba: [255, 255, 220, 90]
+    - Default text color is WHITE unless background is light-colored (parchment/paper)
+
+    ALWAYS infer colors from keywords. NEVER return default green unless explicitly asked.
+    Keep it premium. Avoid neon or oversaturated hues.
+
+    JSON SCHEMA (return ONLY this, no extra text):
     {
       "bg_start_rgb": [r, g, b],
       "bg_end_rgb": [r, g, b],
       "gradient_type": "radial" or "none",
       "pattern_type": "islamic", "starry", "paper", or "none",
-      "pattern_color_rgba": [r, g, b, a] (0-255 for rgba),
+      "pattern_color_rgba": [r, g, b, a],
       "vignette": 0.0 to 1.0,
       "border": "gold" or "none",
       "glow_color_rgba": [r, g, b, a]
     }
-    
-    Example input: "dark forest with gold borders and a soft moonlit glow"
-    Example output: {"bg_start_rgb": [5, 25, 5], "bg_end_rgb": [0, 5, 0], "gradient_type": "radial", "pattern_type": "none", "pattern_color_rgba": [0, 0, 0, 0], "vignette": 0.8, "border": "gold", "glow_color_rgba": [255, 255, 255, 60]}
     """
 
     try:
@@ -57,9 +65,11 @@ def analyze_style_prompt(visual_prompt: str, base_style: str):
                 {"role": "user", "content": f"Visual Prompt: {visual_prompt}"}
             ],
             response_format={"type": "json_object"},
-            temperature=0.4
+            temperature=0.5
         )
-        return json.loads(response.choices[0].message.content)
+        config = json.loads(response.choices[0].message.content)
+        print(f"🎨 AI Design Config: {config}")
+        return config
     except Exception as e:
         print(f"❌ Style analysis error: {e}")
         return None
@@ -335,188 +345,233 @@ def draw_text_spaced(draw, position, text, font, fill, spacing=2):
 
 def render_minimal_quote_card(segments: list, output_dir: str, style: str = "classic", visual_prompt: str = None) -> str:
     """
-    Final Designer Engine: 3 Emotionally Powerful styles.
-    Supports visual_prompt to influence aesthetics.
+    Final Designer Engine v4.0 — 3-Zone Optical Centering.
+    Zones: [0] Top Reference | [1] Main Quote | [2] Supporting Line
+    Supports both preset styles and custom visual prompt overrides.
     """
     target_size = (1080, 1080)
+    W, H = target_size
     base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+    # ── 1. BACKGROUND CONSTRUCTION ────────────────────────────────────────────
+    # Custom mode: ALWAYS call AI analyzer if a prompt is provided
+    overrides = None
+    if visual_prompt and visual_prompt.strip():
+        overrides = analyze_style_prompt(visual_prompt, style)
     
-    # 1. Background Logic & Palette Overrides
-    overrides = analyze_style_prompt(visual_prompt, style)
-    
-    # Selection of Font based on style
-    font_file = "Inter.ttf"
-    if style in ["classic", "scholar", "ethereal"]:
-        font_file = "Amiri-Regular.ttf"
+    # Resolve effective style (for font/text decisions)
+    effective_style = style if style != "custom" else "premium"
+
+    # Font selection based on style family
+    font_file = "Amiri-Regular.ttf" if effective_style in ["classic", "scholar", "ethereal"] else "Inter.ttf"
     font_path = os.path.join(base_dir, "assets", "fonts", font_file)
 
-    # Initial Palette from Override or Style
+    glow_rgba = (255, 255, 255, 70)  # default glow
+
     if overrides:
+        # Custom prompt overrides ALL background settings
         bg_start = tuple(overrides.get("bg_start_rgb", [15, 20, 15]))
-        bg_end = tuple(overrides.get("bg_end_rgb", [5, 10, 5]))
+        bg_end   = tuple(overrides.get("bg_end_rgb",   [5,  10,  5]))
         v_intensity = overrides.get("vignette", 0.5)
         border_type = overrides.get("border", "none")
-        p_type = overrides.get("pattern_type", "none")
-        p_rgba = tuple(overrides.get("pattern_color_rgba", [255, 255, 255, 30]))
-        g_type = overrides.get("gradient_type", "radial")
-        glow_rgba = tuple(overrides.get("glow_color_rgba", [255, 255, 255, 80]))
-        
-        bg = Image.new("RGB", target_size, bg_end)
+        p_type      = overrides.get("pattern_type", "none")
+        p_rgba      = tuple(overrides.get("pattern_color_rgba", [255, 255, 255, 30]))
+        g_type      = overrides.get("gradient_type", "radial")
+        glow_rgba   = tuple(overrides.get("glow_color_rgba", [255, 255, 255, 80]))
+
+        bg   = Image.new("RGB", target_size, bg_end)
         draw = ImageDraw.Draw(bg)
-        
         if g_type == "radial":
             draw_radial_gradient(draw, target_size, bg_start, bg_end)
-        
         if p_type == "islamic":
             draw_islamic_pattern(draw, target_size, p_rgba)
         elif p_type == "starry":
             draw_starry_noise(draw, target_size)
         elif p_type == "paper":
             draw_paper_texture(draw, target_size)
-            
         bg = apply_vignette(bg, intensity=v_intensity)
         if border_type == "gold":
             draw = ImageDraw.Draw(bg)
             draw_gold_border(draw, target_size)
     else:
-        # Standard Style Presets
-        glow_rgba = None
-        if style == "classic":
-            bg = Image.new("RGB", target_size, (15, 20, 15))
+        # Preset style backgrounds
+        if effective_style == "classic":
+            bg   = Image.new("RGB", target_size, (15, 20, 15))
             draw = ImageDraw.Draw(bg)
             draw_textured_background(draw, target_size, (12, 18, 12))
             draw_islamic_pattern(draw, target_size, (180, 140, 50, 45))
-            bg = apply_vignette(bg, intensity=0.45)
+            bg   = apply_vignette(bg, intensity=0.45)
             draw = ImageDraw.Draw(bg)
             draw_gold_border(draw, target_size, border_width=40)
-        elif style == "modern":
-            bg = Image.new("RGB", target_size, (5, 5, 5))
+        elif effective_style == "modern":
+            bg   = Image.new("RGB", target_size, (5, 5, 5))
             draw = ImageDraw.Draw(bg)
             draw_radial_gradient(draw, target_size, (15, 45, 15), (2, 5, 2))
-        elif style == "premium":
-            bg = Image.new("RGB", target_size, (0, 0, 0))
+            glow_rgba = (20, 200, 80, 90)
+        elif effective_style == "premium":
+            bg   = Image.new("RGB", target_size, (0, 0, 0))
             draw = ImageDraw.Draw(bg)
             draw_radial_gradient(draw, target_size, (15, 42, 29), (0, 0, 0))
-            bg = apply_vignette(bg, intensity=0.9)
-        elif style == "ethereal":
-            bg = Image.new("RGB", target_size, (255, 255, 255))
+            bg   = apply_vignette(bg, intensity=0.9)
+        elif effective_style == "ethereal":
+            bg   = Image.new("RGB", target_size, (255, 255, 255))
             draw = ImageDraw.Draw(bg)
             draw_radial_gradient(draw, target_size, (255, 255, 255), (245, 245, 235))
-            bg = apply_vignette(bg, intensity=0.1) 
-        elif style == "scholar":
-            bg = Image.new("RGB", target_size, (245, 245, 235))
+            bg   = apply_vignette(bg, intensity=0.1)
+            glow_rgba = (80, 80, 80, 40)
+        elif effective_style == "scholar":
+            bg   = Image.new("RGB", target_size, (245, 245, 235))
             draw = ImageDraw.Draw(bg)
             draw_paper_texture(draw, target_size)
-        elif style == "celestial":
-            bg = Image.new("RGB", target_size, (0, 0, 0))
+            glow_rgba = None
+        elif effective_style == "celestial":
+            bg   = Image.new("RGB", target_size, (0, 0, 0))
             draw = ImageDraw.Draw(bg)
             draw_radial_gradient(draw, target_size, (10, 25, 60), (0, 0, 0))
             draw_starry_noise(draw, target_size, density=0.0006)
-            bg = apply_vignette(bg, intensity=0.4)
+            bg   = apply_vignette(bg, intensity=0.4)
+            glow_rgba = (180, 200, 255, 80)
         else:
-            bg = Image.new("RGB", target_size, (20, 20, 20))
-    
+            bg   = Image.new("RGB", target_size, (20, 20, 20))
+            draw = ImageDraw.Draw(bg)
+
     draw = ImageDraw.Draw(bg)
 
-    # 2. Text Calculation (Improved Alignment & Balancing)
-    padding = 180 if style in ["modern", "ethereal"] else 120
-    line_spacing = 40 if style in ["premium", "celestial"] else 30
-    segment_spacing = 100 
-    
-    prepared_segments = []
-    total_content_height = 0
+    # ── 2. ZONE DEFINITIONS ────────────────────────────────────────────────────
+    # Safe horizontal margins
+    h_pad = 130  # left/right margin
+    v_pad_min = 120  # minimum top/bottom vertical safe margin
+
+    # Width constraints per zone
+    zone_ref_w   = int(W * 0.68)   # Zone A — Reference (narrower, elegant)
+    zone_quote_w = int(W * 0.76)   # Zone B — Main Quote (dominant)
+    zone_supp_w  = int(W * 0.70)   # Zone C — Supporting Line
+
+    # Line spacing per zone
+    ls_ref   = 22
+    ls_quote = 34
+    ls_supp  = 26
+
+    # Spacing between zones
+    gap_ref_to_quote = 70
+    gap_quote_to_supp = 60
+
+    # ── 3. PRE-CALCULATION PASS ────────────────────────────────────────────────
+    # Measure all zones BEFORE drawing anything
+    zone_data = []  # [{font, lines:[{text,h,w}], block_h, color, zone_ls, zone_w}, ...]
+
+    zone_constraints = [
+        (zone_ref_w,   ls_ref,   0),   # Zone A
+        (zone_quote_w, ls_quote, 1),   # Zone B
+        (zone_supp_w,  ls_supp,  2),   # Zone C
+    ]
 
     for i, seg in enumerate(segments):
+        if i >= len(zone_constraints):
+            break
+        z_width, z_ls, _ = zone_constraints[i]
+
         try:
             curr_font = ImageFont.truetype(font_path, seg["size"])
         except:
             curr_font = ImageFont.load_default()
 
-        wrap_max = 1080 - 2 * padding
-        if i == 0:
-            wrap_max = int(wrap_max * 0.85)
-        
-        wrapped_lines = textwrap.wrap(seg["text"], width=int(wrap_max / (seg["size"] * 0.48)))
-        
+        # Smart wrap width: chars ≈ zone_width / (font_size * 0.52)
+        avg_char_w = seg["size"] * 0.52
+        wrap_chars = max(10, int(z_width / avg_char_w))
+
+        # Zone A hard cap: max 2 lines
+        raw_lines = textwrap.wrap(seg["text"], width=wrap_chars)
+        if i == 0 and len(raw_lines) > 2:
+            raw_lines = raw_lines[:2]
+            raw_lines[-1] = raw_lines[-1].rstrip() + "…"
+
         line_data = []
-        seg_h = 0
-        for line in wrapped_lines:
+        block_h = 0
+        for line in raw_lines:
             bbox = draw.textbbox((0, 0), line, font=curr_font)
-            h = (bbox[3] - bbox[1])
-            line_data.append({"line": line, "height": h, "width": bbox[2] - bbox[0]})
-            seg_h += h + line_spacing
-        
-        seg_h -= line_spacing
-        
-        current_gap = segment_spacing
-        if i == 0:
-            current_gap = int(segment_spacing * 0.55)
+            lh = bbox[3] - bbox[1]
+            lw = bbox[2] - bbox[0]
+            line_data.append({"text": line, "h": lh, "w": lw})
+            block_h += lh + z_ls
+        if block_h > 0:
+            block_h -= z_ls  # remove trailing spacing
 
-        prepared_segments.append({
-            "font": curr_font,
-            "lines": line_data,
-            "height": seg_h,
-            "spacing": current_gap,
-            "color": seg["color"],
-            "glow": i == 1 and (style in ["modern", "premium", "celestial"] or visual_prompt)
+        zone_data.append({
+            "font":    curr_font,
+            "lines":   line_data,
+            "block_h": block_h,
+            "color":   seg["color"],
+            "ls":      z_ls,
+            "width":   z_width,
         })
-        
-        total_content_height += seg_h
-        if i < len(segments)-1:
-            total_content_height += current_gap
 
-    # 3. Drawing Cycle (Optical Centering)
-    y = (1080 - total_content_height) // 2
+    # ── 4. OPTICAL CENTERING CALCULATION ──────────────────────────────────────
+    total_h = 0
+    for idx, zd in enumerate(zone_data):
+        total_h += zd["block_h"]
+        if idx == 0 and len(zone_data) > 1:
+            total_h += gap_ref_to_quote
+        elif idx == 1 and len(zone_data) > 2:
+            total_h += gap_quote_to_supp
+
+    # Optical center: pull content slightly above mathematical center (~5%)
+    center_y = H // 2
+    optical_offset = int(H * 0.03)  # 3% upward shift for visual balance
+    start_y = center_y - (total_h // 2) - optical_offset
+    start_y = max(v_pad_min, start_y)  # enforce minimum top margin
+
+    # ── 5. DRAWING PASS ───────────────────────────────────────────────────────
     bg_rgba = bg.convert("RGBA")
-    
-    for i, seg in enumerate(prepared_segments):
-        # 1. Soft Glow Layer
-        if seg.get("glow"):
+    y = start_y
+
+    for i, zd in enumerate(zone_data):
+        # === Zone B: Soft Glow Under Main Quote ===
+        if i == 1 and glow_rgba:
             glow_layer = Image.new("RGBA", target_size, (0, 0, 0, 0))
             gd = ImageDraw.Draw(glow_layer)
             ty = y
-            
-            # Select Glow Color
-            g_col = glow_rgba if glow_rgba else ((255, 255, 255, 70) if style == "premium" else (255, 255, 255, 90))
-            g_blur = 30
-            if style == "modern" and not glow_rgba:
-                g_col = (20, 100, 20, 140)
-                g_blur = 15
-                
-            for ln in seg["lines"]:
-                tx = (1080 - ln["width"]) // 2
-                draw_text_with_fallback(gd, (tx, ty), ln["line"], seg["font"], fill=g_col)
-                ty += ln["height"] + line_spacing
-                
-            glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(g_blur))
+            for ln in zd["lines"]:
+                tx = (W - ln["w"]) // 2
+                draw_text_with_fallback(gd, (tx, ty), ln["text"], zd["font"], fill=glow_rgba)
+                ty += ln["h"] + zd["ls"]
+            glow_layer = glow_layer.filter(ImageFilter.GaussianBlur(28))
             bg_rgba = Image.alpha_composite(bg_rgba, glow_layer)
 
-        # 2. Hero Text Rendering
+        # === Text Drawing ===
         draw_rgba = ImageDraw.Draw(bg_rgba)
         ty = y
-        for ln in seg["lines"]:
-            tx = (1080 - ln["width"]) // 2
-            
-            if i == 0 and style in ["premium", "celestial"]:
-                # Elegant gold reference with light opacity
-                sc = seg["color"]
-                ref_color = (sc[0], sc[1], sc[2], 160)
-                draw_text_spaced(draw_rgba, (tx, ty), ln["line"], seg["font"], fill=ref_color, spacing=4)
-            elif i == 1 and style in ["premium", "celestial"]:
-                # Bold hero line with soft shadow
-                draw_text_with_shadow(draw_rgba, (tx, ty), ln["line"], seg["font"], fill=seg["color"])
-            else:
-                draw_text_with_fallback(draw_rgba, (tx, ty), ln["line"], seg["font"], fill=seg["color"])
-                
-            ty += ln["height"] + line_spacing
-            
-        y = ty - line_spacing + seg["spacing"]
+        for ln in zd["lines"]:
+            tx = (W - ln["w"]) // 2  # center-align each line
 
-    # 4. Final Cinematic Post-Processing
+            if i == 0:  # Zone A — Reference
+                sc = zd["color"]
+                # Elegant spaced reference text, slightly transparent
+                ref_alpha_color = (sc[0], sc[1], sc[2], 170)
+                draw_text_spaced(draw_rgba, (tx, ty), ln["text"], zd["font"], fill=ref_alpha_color, spacing=3)
+
+            elif i == 1:  # Zone B — Main Quote (hero)
+                draw_text_with_shadow(draw_rgba, (tx, ty), ln["text"], zd["font"], fill=zd["color"])
+
+            else:  # Zone C — Supporting
+                draw_text_with_fallback(draw_rgba, (tx, ty), ln["text"], zd["font"], fill=zd["color"])
+
+            ty += ln["h"] + zd["ls"]
+
+        y = ty - zd["ls"]  # remove last trailing space
+
+        # Add zone gaps
+        if i == 0:
+            y += gap_ref_to_quote
+        elif i == 1:
+            y += gap_quote_to_supp
+
+    # ── 6. CINEMATIC POST-PROCESSING ──────────────────────────────────────────
     final_img = apply_cinematic_layers(bg_rgba)
     filename = f"qcard_{int(time.time() * 1000)}.jpg"
     final_path = os.path.join(output_dir, filename)
     os.makedirs(output_dir, exist_ok=True)
     final_img.save(final_path, quality=95)
-    
+    print(f"✅ Quote card rendered: {filename} (style={style}, prompt={'yes' if visual_prompt else 'no'})")
+
     return f"{settings.public_base_url.rstrip('/')}/uploads/{filename}"
