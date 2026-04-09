@@ -324,6 +324,136 @@ def analyze_style_prompt(visual_prompt: str, base_style: str) -> Optional[dict]:
 
 import urllib.request
 import io as _io
+import hashlib
+
+
+# ── Fast-path keywords: single clear themes PIL handles well without DALL-E ──
+# Prompts that consist ONLY of these common themes skip DALL-E entirely.
+_PIL_FAST_PATH_WORDS = {
+    "parchment", "manuscript", "marble", "charcoal", "obsidian", "onyx",
+    "velvet", "emerald", "forest", "moonlit", "celestial", "starry",
+    "night", "navy", "kaaba", "sacred", "fajr",
+}
+
+# ── Material/atmosphere → richer DALL-E background language ─────────────────
+_BG_EXPANSIONS = {
+    "parchment":   "aged parchment surface, warm antique ivory tones, subtle grain and time-worn texture",
+    "manuscript":  "old manuscript environment, aged vellum surface, warm amber tones, scholarly antique feel",
+    "marble":      "realistic stone marble texture with natural sinuous veins, polished depth, cool grey tones",
+    "charcoal":    "deep charcoal grey surface, fine grain, subtle tonal variation, modern dark aesthetic",
+    "obsidian":    "deep obsidian black stone, light absorption, faint iridescent edge glow, volcanic depth",
+    "onyx":        "polished onyx black stone, high contrast depth, subtle specular highlights",
+    "velvet":      "rich velvet-like matte surface, deep color saturation, smooth soft-focus depth",
+    "emerald":     "deep emerald green atmospheric scene, lush organic tones, gem-like depth",
+    "forest":      "deep forest atmosphere, mist between dark trees, organic green ambiance",
+    "moonlit":     "moonlit scene, silver cool light from above, serene nocturnal atmosphere",
+    "celestial":   "celestial atmosphere, radiant cosmic light, deep spiritual heavenly ambiance",
+    "starry":      "star field in deep space, scattered stars of varying brightness, velvet black void",
+    "night":       "quiet night scene, deep dark tones, subtle ambient light, peaceful nocturnal mood",
+    "sacred":      "sacred spiritual atmosphere, warm ambient glow, peaceful and reverent mood",
+    "navy":        "deep navy blue atmosphere, dignified and calm, rich oceanic depth",
+    "cosmic":      "cosmic nebula atmospheric scene, deep space, radiant distant light sources",
+}
+
+
+def _is_fast_path(prompt: str) -> bool:
+    """
+    Returns True if the prompt is a simple common-theme description that our
+    PIL pipeline handles well without needing DALL-E (saves time and cost).
+    A prompt qualifies when ALL identified keywords are standard fast-path
+    words AND the description is not unusually detailed (>= 60 chars).
+    """
+    p     = prompt.lower().strip()
+    words = set(p.replace(",", " ").replace(".", " ").split())
+    fast  = _PIL_FAST_PATH_WORDS
+    # Count matched fast-path words and non-stop words total
+    matched  = sum(1 for kw in fast if kw in p)
+    # Use DALL-E when prompt has unique/compound descriptions
+    if matched == 0:
+        return False
+    # Short simple prompts (only 1-2 concepts) → PIL
+    if len(p) <= 52 and matched >= 1:
+        return True
+    return False
+
+
+def _build_bg_prompt(visual_prompt: str) -> str:
+    """
+    Converts a user's visual description into a background-plate DALL-E prompt
+    optimised for Islamic quote cards.
+
+    Design goals:
+    - Reframe as an unoccupied background plate (not a finished design)
+    - Expand vague material words to richer visual descriptors
+    - Add strict composition guidance: clear, uncluttered center area
+    - Use five separate constraint clauses to prevent any fake Arabic /
+      pseudo-calligraphy / readable lettering from appearing
+    - End with quality and format directives
+    """
+    p = visual_prompt.lower()
+
+    # Insert richer descriptions for known material/atmosphere keywords
+    expanded = visual_prompt
+    for kw, expansion in _BG_EXPANSIONS.items():
+        if kw in p:
+            # Append expansion only if not already detailed
+            if expansion.split(",")[0] not in visual_prompt.lower():
+                expanded = f"{expanded}, {expansion}"
+            break  # one material expansion is sufficient
+
+    # Composition: golden-ratio guidance so center stays uncluttered
+    composition = (
+        "Clean composition: highly detailed texture and atmosphere concentrated "
+        "at edges and corners, leaving the central 50% calm and uncluttered "
+        "as an open plate for text placement"
+    )
+
+    # Five-tier text-free constraint (belt and suspenders approach)
+    no_text = (
+        "CRITICAL CONSTRAINTS — strictly enforce: "
+        "(1) absolutely no text of any language anywhere in the image; "
+        "(2) no Arabic script, no pseudo-Arabic shapes, no calligraphy-style strokes; "
+        "(3) no decorative lettering, no fake glyphs, no character-like ornaments; "
+        "(4) no Qur'anic ayah, no hadith text, no written verse of any kind; "
+        "(5) purely abstract and atmospheric — texture, light, and ornamental geometry only"
+    )
+
+    return (
+        f"Background plate only — Islamic quote card atmosphere. "
+        f"{expanded}. "
+        f"{composition}. "
+        "Cinematic photorealistic quality, premium spiritual aesthetic, "
+        "warm or cool light source suited to the material, "
+        "subtle ornamental geometric patterns in non-central areas only. "
+        f"{no_text}. "
+        "Square format 1:1. Fine digital art, 4K detail, tasteful and dignified."
+    )
+
+
+def _load_bg_cache(prompt_key: str, cache_dir: str) -> Optional[Image.Image]:
+    """Load a previously saved background from the file cache."""
+    h     = hashlib.md5(prompt_key.lower().strip().encode()).hexdigest()[:14]
+    path  = os.path.join(cache_dir, f"bgcache_{h}.jpg")
+    if os.path.exists(path):
+        try:
+            img = Image.open(path).convert("RGB")
+            print(f"⚡ [BG Cache] HIT {h} — skipping DALL-E")
+            return img
+        except Exception:
+            pass
+    return None
+
+
+def _save_bg_cache(img: Image.Image, prompt_key: str, cache_dir: str) -> None:
+    """Persist a generated background to the file cache."""
+    try:
+        os.makedirs(cache_dir, exist_ok=True)
+        h    = hashlib.md5(prompt_key.lower().strip().encode()).hexdigest()[:14]
+        path = os.path.join(cache_dir, f"bgcache_{h}.jpg")
+        img.save(path, quality=92)
+        print(f"💾 [BG Cache] Saved {h}")
+    except Exception as e:
+        print(f"⚠️  [BG Cache] Could not save ({e})")
 
 
 def _detect_center_brightness(image_rgb, size) -> float:
@@ -331,41 +461,57 @@ def _detect_center_brightness(image_rgb, size) -> float:
     Returns average pixel brightness (0-255) of the center 50% of the image.
     Used to choose white vs dark text when overlaying on a DALL-E background.
     """
-    W, H  = size
-    pad_x, pad_y = W // 4, H // 4
-    center = image_rgb.crop((pad_x, pad_y, W - pad_x, H - pad_y))
-    gray   = center.convert("L")
-    pixels = list(gray.getdata())
+    W, H     = size
+    px, py   = W // 4, H // 4
+    center   = image_rgb.crop((px, py, W - px, H - py))
+    gray     = center.convert("L")
+    pixels   = list(gray.getdata())
     return sum(pixels) / len(pixels) if pixels else 128.0
 
 
-def generate_dalle_background(visual_prompt: str,
-                              target_size=(1080, 1080)) -> Optional[Image.Image]:
+def generate_dalle_background(
+    visual_prompt: str,
+    target_size: tuple = (1080, 1080),
+    cache_dir: Optional[str] = None,
+) -> Optional[Image.Image]:
     """
-    Generates a rich, photo-realistic background using DALL-E 3.
+    Three-tier background generation for custom mode:
 
-    This is the PRIMARY visual engine for custom mode. The background-focused
-    prompt explicitly forbids any text in the image so only the material,
-    texture, lighting, and atmosphere are rendered — the quote text is then
-    overlaid by our PIL text system.
+    Tier 1 — File cache    : Same prompt → instant load, zero DALL-E cost.
+    Tier 2 — PIL fast-path : Simple single-theme prompts → rich PIL rendering.
+    Tier 3 — DALL-E 3      : Complex/unique prompts → photo-realistic bg plate.
 
-    Returns an RGB PIL Image (1080x1080), or None if unavailable / failed.
+    The DALL-E prompt is pre-processed by _build_bg_prompt() to:
+    - Frame the output explicitly as a background plate (NOT a finished card)
+    - Expand vague material keywords to richer visual descriptors
+    - Add composition guidance (clear uncluttered center)
+    - Apply five-clause constraint preventing any Arabic/text from appearing
+
+    Returns an RGB PIL Image at target_size, or None on total failure.
     """
+    # ── Tier 1: File cache ────────────────────────────────────────────────────
+    if cache_dir:
+        cached = _load_bg_cache(visual_prompt, cache_dir)
+        if cached is not None:
+            if cached.size != target_size:
+                cached = cached.resize(target_size, Image.LANCZOS)
+            return cached
+
+    # ── Tier 2: PIL fast-path ─────────────────────────────────────────────────
+    if _is_fast_path(visual_prompt):
+        print(f"⚡ [BG] Fast-path PIL for: '{visual_prompt[:55]}'")
+        return None   # signals caller to use PIL pipeline (already implemented)
+
+    # ── Tier 3: DALL-E 3 ─────────────────────────────────────────────────────
     client = get_openai_client()
     if not client:
-        print("📌 [DALL-E] No OpenAI key — using PIL fallback")
+        print("📌 [DALL-E] No OpenAI key — PIL fallback")
         return None
 
-    dalle_prompt = (
-        "Premium Islamic quote card background artwork. "
-        f"{visual_prompt}. "
-        "Cinematic quality, photorealistic texture and lighting, fine digital art. "
-        "NO text, NO words, NO letters, NO Arabic calligraphy, NO script of any kind. "
-        "Leave generous open space in the center for text overlay. "
-        "Square format. Spiritually serene, calm, and dignified aesthetic."
-    )
-    print(f"\n🎨 [DALL-E] Generating background...")
-    print(f"   Prompt: {dalle_prompt[:130]}...")
+    dalle_prompt = _build_bg_prompt(visual_prompt)
+    print(f"\n🎨 [DALL-E] Generating background plate...")
+    print(f"   Raw:  '{visual_prompt[:70]}'")
+    print(f"   Built: {dalle_prompt[:120]}...")
 
     try:
         response = client.images.generate(
@@ -376,15 +522,20 @@ def generate_dalle_background(visual_prompt: str,
             n=1,
         )
         img_url = response.data[0].url
-        with urllib.request.urlopen(img_url, timeout=35) as resp:
+        with urllib.request.urlopen(img_url, timeout=38) as resp:
             img_data = resp.read()
         img = Image.open(_io.BytesIO(img_data)).convert("RGB")
         if img.size != target_size:
             img = img.resize(target_size, Image.LANCZOS)
-        print("✅ [DALL-E] Background ready")
+        print("✅ [DALL-E] Background plate ready")
+
+        # Save to cache for next time
+        if cache_dir:
+            _save_bg_cache(img, visual_prompt, cache_dir)
+
         return img
     except Exception as e:
-        print(f"⚠️  [DALL-E] Failed ({type(e).__name__}: {e}) — using PIL fallback")
+        print(f"⚠️  [DALL-E] Failed ({type(e).__name__}: {e}) — PIL fallback")
         return None
 
 
@@ -885,7 +1036,8 @@ def render_minimal_quote_card(
 
     if mode == "custom":
         # ── Route A: DALL-E Background (primary) ──────────────────────────
-        dalle_bg = generate_dalle_background(visual_prompt, target_size)
+        dalle_bg = generate_dalle_background(visual_prompt, target_size,
+                                              cache_dir=output_dir)
 
         if dalle_bg is not None:
             # DALL-E succeeded — use photo-quality background
