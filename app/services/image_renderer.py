@@ -14,37 +14,115 @@ def get_openai_client():
         return None
     return OpenAI(api_key=settings.openai_api_key)
 
+def _keyword_style_fallback(prompt: str) -> dict:
+    """
+    Instant keyword-based style config — works with NO external API.
+    Returns a full design config based on common descriptors.
+    """
+    p = prompt.lower()
+
+    # Background color detection (first match wins)
+    bg_start, bg_end = [20, 20, 20], [5, 5, 5]  # safe dark default
+    gradient_type = "radial"
+
+    if any(k in p for k in ["marble", "stone", "slate"]):
+        bg_start, bg_end = [38, 38, 42], [16, 16, 20]
+    elif any(k in p for k in ["charcoal"]):
+        bg_start, bg_end = [44, 44, 44], [20, 20, 20]
+    elif any(k in p for k in ["black", "obsidian", "onyx"]):
+        bg_start, bg_end = [18, 18, 18], [0, 0, 0]
+    elif any(k in p for k in ["emerald", "jade"]):
+        bg_start, bg_end = [0, 65, 32], [0, 22, 12]
+    elif any(k in p for k in ["deep green", "forest green", "dark green", "green"]):
+        bg_start, bg_end = [5, 38, 18], [0, 12, 6]
+    elif any(k in p for k in ["navy", "deep blue", "midnight blue", "indigo"]):
+        bg_start, bg_end = [8, 14, 58], [2, 5, 26]
+    elif any(k in p for k in ["royal blue", "sapphire", "cobalt"]):
+        bg_start, bg_end = [10, 20, 90], [4, 8, 40]
+    elif any(k in p for k in ["burgundy", "crimson", "deep red", "wine"]):
+        bg_start, bg_end = [60, 8, 12], [28, 2, 5]
+    elif any(k in p for k in ["violet", "purple", "plum", "amethyst"]):
+        bg_start, bg_end = [38, 10, 80], [18, 4, 35]
+    elif any(k in p for k in ["parchment", "cream", "paper", "manuscript", "beige"]):
+        bg_start, bg_end = [245, 238, 215], [230, 222, 198]
+        gradient_type = "none"
+    elif any(k in p for k in ["celestial", "night sky", "starry", "midnight"]):
+        bg_start, bg_end = [12, 22, 65], [2, 4, 18]
+    elif any(k in p for k in ["sand", "desert", "amber", "golden", "warm"]):
+        bg_start, bg_end = [50, 30, 5], [20, 12, 2]
+
+    # Pattern detection
+    pattern_type = "none"
+    pattern_rgba = [255, 255, 255, 0]
+    if any(k in p for k in ["star", "celestial", "night", "cosmic", "galaxy"]):
+        pattern_type = "starry"
+    elif any(k in p for k in ["geometry", "islamic", "pattern", "geometric"]):
+        pattern_type = "islamic"
+        pattern_rgba = [200, 160, 50, 28]
+    elif any(k in p for k in ["parchment", "paper", "texture", "manuscript"]):
+        pattern_type = "paper"
+
+    # Border detection
+    border = "none"
+    if any(k in p for k in ["gold", "golden", "border", "frame", "corner"]):
+        border = "gold"
+
+    # Glow detection
+    glow_rgba = [255, 255, 220, 55]
+    if any(k in p for k in ["no glow", "no light", "minimal"]):
+        glow_rgba = [0, 0, 0, 0]
+    elif any(k in p for k in ["glow", "halo", "light", "bright"]):
+        glow_rgba = [255, 255, 200, 90]
+    elif any(k in p for k in ["blue", "navy", "sapphire", "indigo"]):
+        glow_rgba = [150, 180, 255, 65]
+    elif any(k in p for k in ["purple", "violet"]):
+        glow_rgba = [180, 120, 255, 65]
+
+    # Vignette intensity
+    vignette = 0.65
+    if any(k in p for k in ["bright", "light", "parchment", "cream"]):
+        vignette = 0.1
+    elif any(k in p for k in ["dark", "deep", "dramatic", "intense"]):
+        vignette = 0.85
+
+    config = {
+        "bg_start_rgb": bg_start,
+        "bg_end_rgb": bg_end,
+        "gradient_type": gradient_type,
+        "pattern_type": pattern_type,
+        "pattern_color_rgba": pattern_rgba,
+        "vignette": vignette,
+        "border": border,
+        "glow_color_rgba": glow_rgba,
+    }
+    print(f"🎨 Keyword Style Config (no API): {config}")
+    return config
+
+
 def analyze_style_prompt(visual_prompt: str, base_style: str):
     """
-    Uses AI to convert a natural language visual prompt into a design config.
+    Converts a natural-language visual prompt to a design config.
+    First tries OpenAI for creative interpretation, falls back to keyword matching.
+    ALWAYS returns a config if prompt is non-empty.
     """
     if not visual_prompt or not visual_prompt.strip():
         return None
 
     client = get_openai_client()
     if not client:
-        return None
+        # No API key — use fast keyword fallback immediately
+        return _keyword_style_fallback(visual_prompt)
 
     system_prompt = """
-    You are a luxury Islamic quote card design engine. Your ONLY job is to translate a user's visual
-    description into a precise JSON color config. You must be LITERAL and CREATIVE with colors.
+    You are a luxury Islamic quote card design engine. Translate the user's visual description into a precise JSON color config.
 
-    COLOR TRANSLATION RULES (follow these exactly):
-    - "marble" or "stone" → bg_start: [35, 35, 38], bg_end: [15, 15, 18], gradient: radial
-    - "charcoal" → bg_start: [42, 42, 42], bg_end: [18, 18, 18], gradient: radial
-    - "deep green" or "forest" → bg_start: [5, 35, 15], bg_end: [0, 10, 5], gradient: radial
-    - "emerald" → bg_start: [0, 60, 30], bg_end: [0, 25, 12], gradient: radial
-    - "navy" or "deep blue" → bg_start: [5, 10, 50], bg_end: [0, 5, 25], gradient: radial
-    - "celestial" or "night sky" → bg_start: [10, 20, 60], bg_end: [0, 0, 15], pattern: starry
-    - "parchment" or "manuscript" or "paper" → bg_start: [245, 235, 210], bg_end: [230, 220, 195], pattern: paper
-    - "gold" accent → border: gold
-    - "glow" or "halo" → glow_color_rgba: [255, 255, 220, 90]
-    - Default text color is WHITE unless background is light-colored (parchment/paper)
+    RULES:
+    - Be LITERAL with color keywords (e.g. "marble" → dark grey, "emerald" → deep green, "gold" → add gold border)
+    - Keep backgrounds dark and premium unless explicitly asked for light colors
+    - Text will always be white/light unless background is parchment/cream
+    - Return ONLY valid JSON, no explanation
 
-    ALWAYS infer colors from keywords. NEVER return default green unless explicitly asked.
-    Keep it premium. Avoid neon or oversaturated hues.
-
-    JSON SCHEMA (return ONLY this, no extra text):
+    JSON SCHEMA:
     {
       "bg_start_rgb": [r, g, b],
       "bg_end_rgb": [r, g, b],
@@ -65,14 +143,15 @@ def analyze_style_prompt(visual_prompt: str, base_style: str):
                 {"role": "user", "content": f"Visual Prompt: {visual_prompt}"}
             ],
             response_format={"type": "json_object"},
-            temperature=0.5
+            temperature=0.5,
+            timeout=10
         )
         config = json.loads(response.choices[0].message.content)
         print(f"🎨 AI Design Config: {config}")
         return config
     except Exception as e:
-        print(f"❌ Style analysis error: {e}")
-        return None
+        print(f"⚠️ OpenAI style error: {e} — using keyword fallback")
+        return _keyword_style_fallback(visual_prompt)
 
 def render_quote_card(background_local_path: str, quote: str, reference: str, output_dir: str) -> str:
     """
@@ -499,23 +578,21 @@ def render_minimal_quote_card(segments: list, output_dir: str, style: str = "cla
     draw = ImageDraw.Draw(bg)
 
     # ── 2. ZONE DEFINITIONS ────────────────────────────────────────────────────
-    # Safe horizontal margins
-    h_pad = 130  # left/right margin
-    v_pad_min = 120  # minimum top/bottom vertical safe margin
+    v_pad_min = 80   # minimum top/bottom safe margin
 
     # Width constraints per zone
-    zone_ref_w   = int(W * 0.68)   # Zone A — Reference (narrower, elegant)
-    zone_quote_w = int(W * 0.76)   # Zone B — Main Quote (dominant)
-    zone_supp_w  = int(W * 0.70)   # Zone C — Supporting Line
+    zone_ref_w   = int(W * 0.72)   # Zone A — Reference
+    zone_quote_w = int(W * 0.80)   # Zone B — Main Quote
+    zone_supp_w  = int(W * 0.74)   # Zone C — Supporting Line
 
     # Line spacing per zone
-    ls_ref   = 22
-    ls_quote = 34
-    ls_supp  = 26
+    ls_ref   = 18
+    ls_quote = 28
+    ls_supp  = 20
 
     # Spacing between zones
-    gap_ref_to_quote = 70
-    gap_quote_to_supp = 60
+    gap_ref_to_quote  = 55
+    gap_quote_to_supp = 45
 
     # ── 3. PRE-CALCULATION PASS ────────────────────────────────────────────────
     # Measure all zones BEFORE drawing anything

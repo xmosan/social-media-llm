@@ -30,44 +30,43 @@ def generate_quote_card(caption: str, style: str = "classic", visual_prompt: str
     segments = []
     
     # Text color & size hierarchy per style
-    if style == "quran":
-        base_size = 46
+    if style in ("quran", "custom"):  # custom also uses dark bg, needs white text
+        base_size = 38
         styles = [
             {"size": base_size,            "color": (212, 175, 55)},   # gold reference
             {"size": int(base_size * 1.8), "color": (255, 255, 255)},  # white quote
-            {"size": int(base_size * 1.25),"color": (195, 215, 195)},  # soft sage support
+            {"size": int(base_size * 1.3), "color": (195, 215, 195)},  # soft sage support
         ]
     elif style == "fajr":
-        base_size = 44
+        base_size = 36
         styles = [
             {"size": base_size,            "color": (140, 170, 245)},  # soft blue reference
             {"size": int(base_size * 1.85),"color": (230, 238, 255)},  # near-white quote
             {"size": int(base_size * 1.3), "color": (170, 195, 240)},  # pale blue support
         ]
     elif style == "madinah":
-        base_size = 46
+        base_size = 38
         styles = [
             {"size": base_size,            "color": (212, 165, 60)},   # amber gold reference
             {"size": int(base_size * 1.8), "color": (255, 242, 210)},  # warm cream quote
-            {"size": int(base_size * 1.25),"color": (200, 175, 130)},  # sandy support
+            {"size": int(base_size * 1.3), "color": (200, 175, 130)},  # sandy support
         ]
     elif style == "kaaba":
-        base_size = 46
+        base_size = 38
         styles = [
             {"size": base_size,            "color": (180, 148, 50)},   # muted gold reference
             {"size": int(base_size * 1.85),"color": (255, 255, 255)},  # pure white quote
-            {"size": int(base_size * 1.25),"color": (185, 185, 185)},  # silver support
+            {"size": int(base_size * 1.3), "color": (185, 185, 185)},  # silver support
         ]
     elif style == "laylulqadr":
-        base_size = 44
+        base_size = 36
         styles = [
             {"size": base_size,            "color": (180, 145, 235)},  # lavender reference
             {"size": int(base_size * 1.85),"color": (238, 230, 255)},  # near-white purple quote
             {"size": int(base_size * 1.3), "color": (195, 175, 240)},  # soft violet support
         ]
     elif style == "scholar":
-
-        base_size = 42
+        base_size = 34
         styles = [
             {"size": base_size, "color": (40, 40, 40)},
             {"size": int(base_size * 1.85), "color": (20, 20, 20)},
