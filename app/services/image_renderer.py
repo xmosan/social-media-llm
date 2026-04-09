@@ -5,6 +5,7 @@ import math
 import random
 import json
 import re
+from typing import Optional
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from openai import OpenAI
 from app.config import settings
@@ -123,7 +124,7 @@ def interpret_visual_prompt(prompt: str) -> dict:
     return config
 
 
-def analyze_style_prompt(visual_prompt: str, base_style: str) -> dict | None:
+def analyze_style_prompt(visual_prompt: str, base_style: str) -> Optional[dict]:
     """
     Converts a visual prompt to design config.
     ALWAYS returns a config if prompt is non-empty.
@@ -232,22 +233,23 @@ def render_quote_card(background_local_path: str, quote: str, reference: str, ou
 
 
 def draw_starry_noise(draw, size, density=0.0006):
+    """Draws subtle stars. draw must be on an RGB image."""
     w, h = size
     count = int(w * h * density)
     for _ in range(count):
         x = random.randint(0, w - 1)
         y = random.randint(0, h - 1)
         b = random.randint(180, 255)
-        a = random.randint(80, 200)
-        draw.point((x, y), fill=(b, b, b, a))
+        draw.point((x, y), fill=(b, b, b))  # RGB only
 
 def draw_paper_texture(draw, size):
+    """Adds subtle grain to paper-style backgrounds. draw must be on an RGB image."""
     w, h = size
     for _ in range(6000):
         x = random.randint(0, w - 1)
         y = random.randint(0, h - 1)
-        v = random.randint(0, 20)
-        draw.point((x, y), fill=(v, v, v, 18))
+        v = random.randint(220, 240)
+        draw.point((x, y), fill=(v, v, v))  # RGB only
 
 def apply_film_noise(size):
     noise = Image.new("RGBA", (size[0] // 4, size[1] // 4), (0, 0, 0, 0))

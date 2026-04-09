@@ -242,19 +242,27 @@ async def api_generate_quote_card(data: dict):
             "hint": "Describe the atmosphere using keywords like: marble, navy, emerald, gold borders, starry..."
         })
 
-    image_url = generate_quote_card(
-        caption,
-        style=style,
-        visual_prompt=visual_prompt or None,
-        mode=mode
-    )
-
-    return {
-        "image_url":     image_url,
-        "mode_used":     mode,
-        "style_used":    style,
-        "prompt_applied": bool(visual_prompt),
-    }
+    try:
+        image_url = generate_quote_card(
+            caption,
+            style=style,
+            visual_prompt=visual_prompt or None,
+            mode=mode
+        )
+        return {
+            "image_url":      image_url,
+            "mode_used":      mode,
+            "style_used":     style,
+            "prompt_applied": bool(visual_prompt),
+        }
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(f"\n❌ [API] generate-quote-card EXCEPTION:\n{tb}")
+        return JSONResponse(status_code=500, content={
+            "error": str(e)[:200],
+            "hint":  "Check server logs for full traceback."
+        })
 
 @app.get("/ready")
 def readiness_check():
