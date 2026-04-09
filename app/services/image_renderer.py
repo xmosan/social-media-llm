@@ -1366,18 +1366,50 @@ def render_minimal_quote_card(
         if i >= 3:
             break
         z_w, z_ls = zone_ws[i], zone_ls[i]
-        col        = palette[i] if i < len(palette) else palette[-1]
+        col       = palette[i] if i < len(palette) else palette[-1]
+        
+        # ── PREMIUM HIERARCHY OVERRIDES ──────────────────────────────────────
+        # Force strict sizes if in custom mode to guarantee elegance:
+        # A: Reference (i=0) -> Small, tracked out
+        # B: Quote (i=1)     -> Large, dominant (bold handled at draw time)
+        # C: Support (i=2)   -> Medium, softer
+        if mode == "custom":
+            if i == 0:
+                seg["size"] = 32
+                z_ls = 12       # Tighter line height for reference if wraps
+            elif i == 1:
+                seg["size"] = 68
+                z_ls = 26       # Balanced, elegant line height
+            else:
+                seg["size"] = 42
+                z_ls = 18       # Standard line height for support
 
         try:
             fnt = ImageFont.truetype(font_path, int(seg["size"]))
         except Exception:
             fnt = ImageFont.load_default()
 
-        avg_cw    = seg["size"] * 0.54
+        # Handle text wrap width using the exact font metrics
+        # For Zone A, we want wider tracking (simulated by spaces if needed, but
+        # PIL handles kerning natively mostly. We will draw custom spacing later, 
+        # but for bounding box width we account for expanded characters).
+        avg_cw = seg["size"] * (0.64 if i == 0 else 0.50)
         max_chars = max(10, int(z_w / max(1, avg_cw)))
-        raw       = textwrap.wrap(str(seg["text"]), width=max_chars)
+        
+        seg_text = str(seg["text"])
+        if mode == "custom" and i == 0:
+            seg_text = seg_text.upper() # Small Caps / uppercase for reference
+            # Manually inject tracking spaces between letters for Zone A
+            seg_text = " ".join(list(seg_text)).replace("   ", "  ")
+            
+        raw = textwrap.wrap(seg_text, width=max_chars)
         if i == 0 and len(raw) > 2:
             raw = raw[:2]; raw[-1] = raw[-1].rstrip() + "…"
+            
+        # Refine Zone C opacity (make it softer natively)
+        if mode == "custom" and i == 2:
+            # Drop the alpha of Zone C by ~25%
+            col = (col[0], col[1], col[2], 190)
 
         block_h = 0
         lines   = []
@@ -1484,14 +1516,24 @@ def render_minimal_quote_card(
 
         elif i == 1:
             # ── Zone B: Main Quote — prominent, readable ──────────────────
+            # Force BOLD via sub-pixel shifting since we lack a Bold TTF weight
             ty = y
             for ln in zd["lines"]:
-                # Shadow pass
-                draw_out.text((cx + shd_dx, ty + shd_dy), ln["text"],
-                              font=zd["font"], fill=shadow_fill, anchor="mt")
-                # Main text
-                draw_out.text((cx, ty), ln["text"], font=zd["font"],
-                              fill=col, anchor="mt")
+                # Shadow/Glow pass
+                # A subtle, multi-step shadow adds cinematic depth
+                draw_out.text((cx + shd_dx, ty + shd_dy), ln["text"], font=zd["font"], fill=shadow_fill, anchor="mt")
+                
+                # If dark mode, add an ultra-soft backlight under the quote
+                if is_light_text and shd_dx == 2:
+                    draw_out.text((cx, ty + 1), ln["text"], font=zd["font"], fill=(0,0,0, 60), anchor="mt")
+
+                # Main text with simulated bold (overstrike algorithm)
+                draw_out.text((cx - 1, ty), ln["text"], font=zd["font"], fill=col, anchor="mt")
+                draw_out.text((cx + 1, ty), ln["text"], font=zd["font"], fill=col, anchor="mt")
+                draw_out.text((cx, ty - 1), ln["text"], font=zd["font"], fill=col, anchor="mt")
+                draw_out.text((cx, ty + 1), ln["text"], font=zd["font"], fill=col, anchor="mt")
+                draw_out.text((cx, ty), ln["text"], font=zd["font"], fill=col, anchor="mt") # Center
+                
                 ty += ln["h"] + zd["ls"]
             y = ty - zd["ls"] + gap_bc
 
