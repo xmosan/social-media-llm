@@ -297,18 +297,19 @@ def draw_text_highlight(draw, bbox, bg_color):
 
 def draw_radial_gradient(draw, size, color_start, color_end):
     width, height = size
-    center_x, center_y = width / 2, height / 2
-    max_dist = math.sqrt(center_x ** 2 + center_y ** 2)
+    cx = width // 2
+    cy = height // 2
+    max_dist = int(math.sqrt(cx ** 2 + cy ** 2)) + 1
     steps = 50
     for i in range(steps, 0, -1):
         ratio   = i / steps
-        radius  = max_dist * ratio
+        radius  = int(max_dist * ratio)
         c_ratio = 1 - ratio
         r = int(color_start[0] * (1 - c_ratio) + color_end[0] * c_ratio)
         g = int(color_start[1] * (1 - c_ratio) + color_end[1] * c_ratio)
         b = int(color_start[2] * (1 - c_ratio) + color_end[2] * c_ratio)
         draw.ellipse(
-            [center_x - radius, center_y - radius, center_x + radius, center_y + radius],
+            [cx - radius, cy - radius, cx + radius, cy + radius],
             fill=(r, g, b)
         )
 
@@ -339,15 +340,16 @@ def apply_vignette(image, intensity=0.6):
     width, height = image.size
     overlay  = Image.new("RGBA", image.size, (0, 0, 0, 0))
     draw     = ImageDraw.Draw(overlay)
-    center_x, center_y = width / 2, height / 2
-    max_dist = math.sqrt(center_x ** 2 + center_y ** 2)
+    cx = width // 2
+    cy = height // 2
+    max_dist = int(math.sqrt(cx ** 2 + cy ** 2)) + 1
     steps    = 32
     for i in range(steps):
         dist_ratio = i / steps
         alpha  = int((dist_ratio ** 2.5) * 255 * intensity)
-        radius = max_dist * (1 - dist_ratio)
+        radius = int(max_dist * (1 - dist_ratio))
         draw.ellipse(
-            [center_x - radius, center_y - radius, center_x + radius, center_y + radius],
+            [cx - radius, cy - radius, cx + radius, cy + radius],
             fill=(0, 0, 0, alpha)
         )
     return Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
