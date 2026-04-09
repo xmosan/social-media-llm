@@ -396,8 +396,9 @@ class VariationEngine:
         fam = _STYLE_FAMILIES[family_key]
         traits_available = list(fam["traits"].keys())
         
-        # Pick 3 to 4 trait keys randomly
-        num_traits = random.randint(3, 4)
+        # Pick exactly 1 major variation, or 2 max, so the core aesthetic remains highly stable
+        # User requested: "Randomize ONE of the following per generation"
+        num_traits = random.randint(1, 2)
         selected_keys = random.sample(traits_available, num_traits)
 
         last_chosen = _VARIATION_HISTORY.get(family_key, {})
@@ -429,10 +430,13 @@ def compose_dalle_prompt(spec: VisualSpec, raw_prompt: str = "") -> str:
     """
     v_data = VariationEngine.generate(spec.theme, raw_prompt)
     
-    # 1. Hard constraints MUST dominate prompt
+    # 1. Strict composition rules MUST dominate prompt
     hard_constraints = (
-        "BACKGROUND PLATE ONLY. NO TEXT. NO CALLIGRAPHY. NO ARABIC. "
-        "NO LETTERS. NO WORDS. NO ICONS. Center must be absolutely bare and flat."
+        "BACKGROUND PLATE ONLY. STRICT COMPOSITION RULES: "
+        "1. The center area (middle 60%) MUST be visually completely clean, soft, and extremely low-detail. "
+        "2. The top area must have distinct but minimal texture for readability. "
+        "3. All heavy detail, ornaments, frame elements, and textures MUST be pushed strictly toward the outer edges and corners. "
+        "4. DO NOT place any patterns, geometry, noise, text, Arabic calligraphy, symbols, or letters anywhere near the center."
     )
     
     # 2. Extract variations into string
