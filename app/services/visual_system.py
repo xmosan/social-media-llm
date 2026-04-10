@@ -164,446 +164,40 @@ _THEME_ACCENT_OVERRIDES = {
 }
 
 
+
+@dataclass
+class ZoneStyle:
+    color: tuple
+    opacity: float
+    shadow_fill: tuple
+    shadow_dx: int
+    shadow_dy: int
+    glow_style: str  # "none", "subtle", "strong"
+    dim_layer: bool
+    dim_color: tuple
+    dim_radius: int
+
 @dataclass
 class TypographySpec:
     """
-    Complete text styling specification.
-    Produced by adapt_typography(analysis, spec).
-
-    typography_mode drives the base palette:
-      LIGHT     → dark grounded text (parchment, bright sky)
-      DARK      → warm luminous text (sacred black, deep space)
-      MID_LIGHT → lean dark (golden hour, medium-bright)
-      MID_DARK  → lean light (marble, charcoal, deep forest)
+    Complete text styling specification separated strictly by layout zones.
+    Output of adapt_typography(analysis, spec).
     """
-    ref_color:       tuple = (212, 175, 55)   # Zone A — reference/accent
-    quote_color:     tuple = (245, 241, 232)  # Zone B — main quote
-    support_color:   tuple = (221, 214, 200)  # Zone C — support
-    shadow_fill:     tuple = (0, 0, 0, 148)
-    shadow_dx:       int   = 2
-    shadow_dy:       int   = 2
-    dim_layer:       bool  = False
-    dim_color:       tuple = (0, 0, 0, 48)
-    dim_radius:      int   = 110
-    sep_color:       tuple = (188, 152, 50)
-    glow_rgba:       tuple = (212, 175, 55, 70)
-    orn_color:       tuple = (195, 162, 48)
-    ref_alpha:       int   = 192
-    typography_mode: str   = "DARK"
-    readability_risk: str  = "low"
-    has_glow:        bool  = True
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# THEME CATALOGUE
-# ─────────────────────────────────────────────────────────────────────────────
-
-# (theme_name, trigger_keywords, priority) — higher priority wins on conflict
-_THEME_KEYWORDS: List[tuple] = [
-    # Sacred / Kaaba-inspired
-    ("sacred_black",    ["kaaba", "kiswah", "cloth", "sacred black", "holy cloth",
-                         "sacred fabric", "black cloth", "kaba"],              10),
-    # Material — checked before color/atmosphere words
-    ("marble",          ["marble", "granite"],                                   9),
-    ("obsidian",        ["obsidian", "onyx", "volcanic glass"],                  9),
-    ("parchment",       ["parchment", "papyrus", "manuscript", "vellum",
-                         "aged paper", "scroll"],                                9),
-    ("velvet",          ["velvet", "velvet ribbon", "plush fabric"],             8),
-    # Atmosphere
-    ("emerald_forest",  ["emerald forest", "forest emerald", "emerald woodland",
-                         "forest", "woodland", "lush green", "jungle"],          7),
-    ("cosmic",          ["cosmic", "galaxy", "nebula", "deep space"],            6),
-    ("celestial",       ["celestial", "heavenly", "divine light",
-                         "sacred light", "radiant sky"],                          5),
-    ("moonlit",         ["moonlit", "moonlight", "lunar", "silver moon"],        5),
-    ("starry",          ["starry", "star field", "stars", "night sky",
-                         "midnight sky", "star-filled"],                          5),
-    ("desert",          ["desert", "dune", "golden sand", "warm sand", "amber"], 4),
-    ("navy",            ["navy", "deep blue", "sapphire", "midnight blue"],      4),
-    ("charcoal",        ["charcoal", "dark grey", "deep grey", "gunmetal"],      4),
-    # Fallback
-    ("custom",          [],                                                       0),
-]
-
-# Background color per theme: (bg_start, bg_end, is_light, accent)
-_PALETTES = {
-    "sacred_black":   ([8, 6, 10],     [2, 2, 4],      False, [180, 148, 42]),
-    "marble":         ([44, 41, 50],   [18, 16, 22],   False, [210, 205, 225]),
-    "obsidian":       ([14, 10, 18],   [3, 2, 6],      False, [160, 125, 225]),
-    "parchment":      ([248, 238, 210],[228, 218, 188], True,  [120, 90, 38]),
-    "velvet":         ([28, 12, 55],   [8, 4, 24],     False, [195, 148, 255]),
-    "emerald_forest": ([12, 48, 28],   [4, 18, 10],    False, [120, 210, 148]),
-    "cosmic":         ([10, 12, 52],   [2, 4, 20],     False, [175, 198, 255]),
-    "celestial":      ([14, 22, 75],   [3, 5, 24],     False, [198, 212, 255]),
-    "moonlit":        ([18, 22, 62],   [6, 8, 26],     False, [175, 200, 250]),
-    "starry":         ([8, 10, 32],    [2, 3, 12],     False, [195, 210, 255]),
-    "desert":         ([56, 34, 8],    [24, 14, 3],    False, [220, 180, 88]),
-    "navy":           ([10, 18, 66],   [3, 5, 27],     False, [138, 172, 250]),
-    "charcoal":       ([38, 36, 42],   [15, 13, 18],   False, [205, 195, 218]),
-    "custom":         ([22, 20, 26],   [5, 4, 8],      False, [200, 195, 215]),
-}
-
-_LIGHTING = {
-    "sacred_black":   "minimal",
-    "marble":         "center_soft",
-    "obsidian":       "edge_only",
-    "parchment":      "overhead",
-    "velvet":         "center_soft",
-    "emerald_forest": "overhead",
-    "cosmic":         "radial",
-    "celestial":      "radial",
-    "moonlit":        "corner_top",
-    "starry":         "radial",
-    "desert":         "overhead",
-    "navy":           "center_soft",
-    "charcoal":       "center_soft",
-    "custom":         "radial",
-}
-
-_ORNAMENT = {
-    "sacred_black":   "minimal",
-    "marble":         "corner",
-    "obsidian":       "corner",
-    "parchment":      "moderate",
-    "velvet":         "corner",
-    "emerald_forest": "minimal",
-    "cosmic":         "none",
-    "celestial":      "minimal",
-    "moonlit":        "minimal",
-    "starry":         "none",
-    "desert":         "corner",
-    "navy":           "corner",
-    "charcoal":       "corner",
-    "custom":         "corner",
-}
-
-_MOOD = {
-    "sacred_black":   "sacred",
-    "marble":         "contemplative",
-    "obsidian":       "majestic",
-    "parchment":      "peaceful",
-    "velvet":         "majestic",
-    "emerald_forest": "peaceful",
-    "cosmic":         "celestial",
-    "celestial":      "celestial",
-    "moonlit":        "contemplative",
-    "starry":         "celestial",
-    "desert":         "contemplative",
-    "navy":           "majestic",
-    "charcoal":       "contemplative",
-    "custom":         "contemplative",
-}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# BACKGROUND POLICY ENGINE
-# Policy = theme-specific DALL-E prompt clause (what to render)
-# These describe ONLY what the image should look like visually.
-# They never mention 'Islamic', 'Arabic', 'Qur'an', 'mosque', or 'quote card'.
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-import random
-
-_STYLE_FAMILIES = {
-    "parchment_manuscript": {
-        "core": (
-            "Aged parchment manuscript, warm antique tones, elegant Islamic geometric influence, "
-            "clean empty center for typography overlay. No modern elements."
-        ),
-        "traits": {
-            "lighting": ["warm top-down light", "soft ambient glow", "subtle rim lighting", "faded directional sunbeam"],
-            "frame_style": ["subtle corner ornaments", "faded border frame", "centered empty manuscript window", "clean edges with minimal grain"],
-            "texture": ["heavy distressed aging", "smooth refined parchment grain", "soft fibrous paper texture", "cracked ancient edges"],
-            "ornament": ["faint gold geometry hints", "floral arabesque whispers", "minimal elegant lines", "no ornaments, purely textural"],
-            "glow": ["soft center warmth", "even flat illumination", "vignetted dark edges", "faint golden aura"]
-        }
-    },
-    "emerald_forest": {
-        "core": (
-            "Deep emerald forest background, atmospheric depth, calm spiritual mood, "
-            "natural textures and realistic lighting, empty central space."
-        ),
-        "traits": {
-            "lighting": ["soft diffused light rays", "dappled sunlight filtering down", "mystical twilight glow", "moonlit silver rim light"],
-            "fog_density": ["heavy low-hanging mist", "subtle volumetric haze", "clear crisp air", "dense mystical fog around edges"],
-            "foliage": ["dense framing trees", "minimal distant silhouettes", "soft out-of-focus foreground leaves", "ancient mossy textures"],
-            "pathway": ["faint disappearing trail", "dark smooth stone floor", "soft overgrown moss bed", "pure atmospheric emptiness"],
-            "highlights": ["faint gold dust particles", "soft jade reflections", "luminous firefly sparks", "deep emerald gradients"]
-        }
-    },
-    "sacred_black": {
-        "core": (
-            "Deep matte black surface, fabric or stone inspired, restrained elegance, "
-            "minimal composition, strong spiritual presence, empty center for text."
-        ),
-        "traits": {
-            "lighting": ["soft gold edge light", "faint silver rim glow", "pure pitch black shadow focus", "subtle warm amber under-lighting"],
-            "glow": ["faint radial center glow", "pitch dark center with edge gradients", "soft halo effect", "completely matte flat absorption"],
-            "texture": ["subtle fabric weave visibility", "smooth obsidian stone", "dark velvet softness", "slight brushed metal micro-texture"],
-            "framing": ["geometric framing minimalism", "invisible soft fade edges", "single thin gold line at bottom", "barely visible top cornice shadow"]
-        }
-    },
-    "luxury_marble": {
-        "core": (
-            "Dark charcoal or obsidian stone marble, elegant lighting, premium feel, "
-            "clean central area, very high quality."
-        ),
-        "traits": {
-            "vein_direction": ["organic diagonal sweeping veins", "subtle horizontal stratification", "fractured chaotic gold veins", "minimal smooth pooling patterns"],
-            "border": ["dark vignette corners", "gold inlay hints at edge", "clean modern borderless", "classic architectural bevel frame"],
-            "reflection": ["high polished specular reflection", "soft matte honing", "wet-stone deep gloss", "diffused frosted surface"],
-            "accents": ["heavy gold flake deposits", "platinum silver traces", "pure charcoal monotone", "copper oxidization warmth"],
-            "illumination": ["strong top-down spotlight", "soft ambient wash", "dramatic side-lighting", "center-illuminated depth"]
-        }
-    },
-    "celestial_night": {
-        "core": (
-            "Deep night palette, peaceful stars, subtle cosmic mood, empty space in the center, "
-            "clean minimalist celestial abstraction."
-        ),
-        "traits": {
-            "nebula": ["faint blue nebula dust", "warm emerald cosmic clouds", "dark purple void ripples", "no nebula, purely stark night"],
-            "stars": ["dense varied starfield", "sparse distant pinpricks", "soft glowing clusters", "minimalist single bright anchor star"],
-            "lighting": ["silver moonlight top-down", "dark gradient abyss", "soft turquoise horizon glow", "ethereal halo effect"],
-            "haze": ["thick atmospheric optical haze", "crisp vacuum clarity", "soft floating light particles", "gossamer thin cloud wisp"]
-        }
-    }
-}
-
-_VARIATION_HISTORY = {}
-
-class VariationEngine:
-    @staticmethod
-    def generate(theme: str, user_prompt: str) -> dict:
-        """
-        Selects a pseudo-random rotation of traits for the given theme,
-        guaranteeing anti-repetition from the last cached call.
-        """
-        # Fallback if theme isn't mapped directly
-        family_map = {
-            "sacred_black": "sacred_black",
-            "parchment": "parchment_manuscript",
-            "marble": "luxury_marble",
-            "emerald_forest": "emerald_forest",
-            "cosmic": "celestial_night",
-            "dawn_sky": "celestial_night" # Alias mapping
-        }
-        family_key = family_map.get(theme, "sacred_black")
-        if family_key not in _STYLE_FAMILIES:
-            family_key = "sacred_black"
-
-        fam = _STYLE_FAMILIES[family_key]
-        traits_available = list(fam["traits"].keys())
-        
-        # Pick exactly 1 major variation, or 2 max, so the core aesthetic remains highly stable
-        # User requested: "Randomize ONE of the following per generation"
-        num_traits = random.randint(1, 2)
-        selected_keys = random.sample(traits_available, num_traits)
-
-        last_chosen = _VARIATION_HISTORY.get(family_key, {})
-        
-        chosen_traits_dict = {}
-        for k in selected_keys:
-            options = fam["traits"][k]
-            # Anti-repetition: if we used a value last time, temporarily remove it
-            last_val = last_chosen.get(k)
-            valid_options = [o for o in options if o != last_val]
-            if not valid_options: 
-                valid_options = options
-            
-            choice = random.choice(valid_options)
-            chosen_traits_dict[k] = choice
-        
-        _VARIATION_HISTORY[family_key] = chosen_traits_dict
-
-        return {
-            "family": family_key,
-            "core_traits": fam["core"],
-            "variation_traits": chosen_traits_dict
-        }
-
-def compose_dalle_prompt(spec: VisualSpec, raw_prompt: str = "") -> str:
-    """
-    Converts a VisualSpec into a safe, structured DALL-E background prompt
-    using the Auto-Variation Engine.
-    """
-    v_data = VariationEngine.generate(spec.theme, raw_prompt)
+    readability_score: float
+    top: ZoneStyle    # Reference line
+    main: ZoneStyle   # Main Quote
+    sub: ZoneStyle    # Support/Reflection
     
-    # 1. Strict composition rules MUST dominate prompt
-    hard_constraints = (
-        "BACKGROUND PLATE ONLY. STRICT COMPOSITION RULES: "
-        "1. The center area (middle 60%) MUST be visually completely clean, soft, and extremely low-detail. "
-        "2. The top area must have distinct but minimal texture for readability. "
-        "3. All heavy detail, ornaments, frame elements, and textures MUST be pushed strictly toward the outer edges and corners. "
-        "4. DO NOT place any patterns, geometry, noise, text, Arabic calligraphy, symbols, or letters anywhere near the center."
-    )
-    
-    # 2. Extract variations into string
-    var_list = [f"{k.replace('_', ' ')}: {v}" for k, v in v_data["variation_traits"].items()]
-    variations_str = ", ".join(var_list)
-    
-    final_prompt = (
-        f"{hard_constraints} "
-        f"Design family: {v_data['family']}. "
-        f"Core: {v_data['core_traits']} "
-        f"Specific variations for this generation: {variations_str}. "
-        f"Mood: {spec.mood}. "
-        f"Photorealistic, premium cinematic rendering."
-    )
-    
-    # We can attach the debug v_data dictionary directly to the spec or log it
-    print(f"\n🌪️ AUTO-VARIATION TRIGGERED [{v_data['family']}]: {v_data['variation_traits']}")
-    
-    return final_prompt
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# PROMPT INTERPRETER
-# ─────────────────────────────────────────────────────────────────────────────
-
-def interpret_prompt(raw: str) -> VisualSpec:
-    """
-    Convert a raw user description into a structured VisualSpec.
-    Uses exclusively keyword matching — no AI, no network calls.
-    This ensures deterministic, safe, consistent interpretation.
-
-    Examples:
-      "emerald forest"                      → theme=emerald_forest
-      "warm parchment with gold geometry"   → theme=parchment, ornament=moderate
-      "charcoal marble with celestial glow" → theme=marble, lighting=center_soft
-      "sacred Kaaba-inspired cloth"         → theme=sacred_black
-    """
-    p = raw.lower().strip()
-
-    # 1. Detect theme by keyword priority (highest priority wins)
-    theme = "custom"
-    for t_name, keywords, _ in sorted(_THEME_KEYWORDS, key=lambda x: -x[2]):
-        if any(kw in p for kw in keywords):
-            theme = t_name
-            break
-
-    # 2. Get base palette from theme
-    palette_entry = _PALETTES.get(theme, _PALETTES["custom"])
-    bg_start, bg_end, is_light, accent = palette_entry
-
-    # 3. For custom/mixed themes, refine palette from compound keywords
-    #    (e.g. "charcoal marble" → charcoal wins as the darker material)
-    if theme == "custom":
-        if "charcoal" in p:
-            bg_start, bg_end = [38, 36, 42], [15, 13, 18]
-        elif "emerald" in p or "jade" in p:
-            bg_start, bg_end, is_light, accent = [0, 72, 38], [0, 24, 14], False, [115, 222, 148]
-        elif "navy" in p or "midnight blue" in p:
-            bg_start, bg_end = [10, 18, 66], [3, 5, 27]
-        elif "dark" in p or "black" in p:
-            bg_start, bg_end = [18, 16, 22], [4, 4, 6]
-
-    # 4. Detect material (may override theme material)
-    material = "none"
-    if any(k in p for k in ["marble", "granite", "stone"]): material = "marble"
-    elif any(k in p for k in ["parchment", "papyrus", "paper", "vellum", "manuscript"]): material = "parchment"
-    elif any(k in p for k in ["velvet", "silk", "cloth", "fabric"]): material = "fabric"
-    elif any(k in p for k in ["obsidian", "onyx"]): material = "stone"
-    elif any(k in p for k in ["forest", "woodland", "leaf", "leaves"]): material = "organic"
-
-    # 5. Detect lighting (prompt overrides theme default)
-    lighting = _LIGHTING.get(theme, "radial")
-    if any(k in p for k in ["center light", "center glow", "light center"]): lighting = "center_soft"
-    if any(k in p for k in ["overhead", "from above", "top light"]):          lighting = "overhead"
-    if any(k in p for k in ["corner light", "corner glow"]):                   lighting = "corner"
-    if "dramatic" in p:                                                         lighting = "dramatic"
-    if any(k in p for k in ["minimal light", "dark only", "no light"]):        lighting = "minimal"
-
-    # 6. Detect mood (prompt overrides theme default)
-    mood = _MOOD.get(theme, "contemplative")
-    if any(k in p for k in ["peaceful", "calm", "serene", "tranquil"]):        mood = "peaceful"
-    if any(k in p for k in ["majestic", "epic", "powerful", "striking"]):      mood = "majestic"
-    if any(k in p for k in ["sacred", "holy", "divine", "reverent"]):          mood = "sacred"
-    if any(k in p for k in ["celestial", "heavenly", "cosmic"]):               mood = "celestial"
-
-    # 7. Detect ornament level
-    ornament = _ORNAMENT.get(theme, "corner")
-    if any(k in p for k in ["ornate", "detailed border", "arabesque",
-                              "filigree", "intricate"]):                         ornament = "ornate"
-    if any(k in p for k in ["minimal ornament", "clean", "spare", "simple"]):  ornament = "minimal"
-    if any(k in p for k in ["no border", "borderless", "no ornament"]):        ornament = "none"
-    if "gold" in p or "golden" in p:
-        # Gold keyword implies at least corner treatment
-        if ornament == "none": ornament = "minimal"
-
-    # 8. Detect detail level
-    detail = "medium"
-    if any(k in p for k in ["minimal", "sparse", "bare", "very clean"]):       detail = "sparse"
-    if any(k in p for k in ["rich", "luxurious", "detailed", "ornate",
-                              "elaborate"]):                                      detail = "rich"
-
-    # 9. Center clarity
-    center = "clear"
-    if any(k in p for k in ["all over", "full texture", "full detail"]):       center = "textured"
-    if "moderate" in p:                                                          center = "moderate"
-
-    spec = VisualSpec(
-        theme=theme,
-        material=material,
-        lighting=lighting,
-        mood=mood,
-        bg_start=tuple(int(v) for v in bg_start),
-        bg_end=tuple(int(v) for v in bg_end),
-        is_light_bg=is_light,
-        accent=tuple(int(v) for v in accent),
-        ornament_level=ornament,
-        detail_level=detail,
-        center_clarity=center,
-    )
-    print(f"\n🔍 [VisualSpec] theme={theme}  mat={material}  light={lighting}  "
-          f"mood={mood}  orn={ornament}  light_bg={is_light}")
-    return spec
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# DALL-E PROMPT COMPOSER
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Hard constraints — ALWAYS first in the prompt for maximum token-weight.
-# Uses ALL-CAPS and plain English synonyms, never 'Arabic' or 'Islamic'
-# (those words reliably trigger calligraphy in DALL-E regardless of negation).
-_HARD_CONSTRAINTS = (
-    "NO CALLIGRAPHY. NO SCRIPT. NO LETTERS. NO TEXT. NO WRITING OF ANY KIND. "
-    "Zero glyphs, zero characters, zero lettering, zero symbols, zero inscriptions. "
-    "No brush-stroke patterns resembling written language. "
-    "No decorative elements that resemble alphabet characters. "
-    "Only pure texture, atmosphere, light, and abstract geometric ornament."
-)
-
-# Composition rule — maintains center clarity for text overlay
-_COMPOSITION = (
-    "Composition discipline: all fine detail, texture richness, and ornamental "
-    "elements are pushed to the outer 25% of the image (edges and corners). "
-    "The central 50% must be intentionally calm, smooth, and unoccupied — "
-    "a pristine open plate for digital text compositing."
-)
-
-_QUALITY = (
-    "Premium photorealistic quality. "
-    "Cinematic 4K detail. "
-    "Fine digital art. "
-    "Square format 1:1."
-)
-
-_LIGHTING_CLAUSES = {
-    "radial":       "Soft light radiating gently from center, fading toward edges.",
-    "overhead":     "Warm atmospheric light descending naturally from above.",
-    "center_soft":  "Very gentle soft-focus glow at center, edges darker and richer.",
-    "corner":       "Directional ambient light entering from upper-right corner.",
-    "corner_top":   "Cool silvery light from upper-left corner.",
-    "edge_only":    "Light exists only at extreme edges — center held in deep shadow.",
-    "minimal":      "Nearly lightless — only the barest textural hint in near-darkness.",
-    "dramatic":     "Strong directional light, marked contrast between light and shadow.",
-}
-
-
-
+    # Global fallbacks to remain theoretically compatible
+    typography_mode: str = "DARK"
+    readability_risk: str = "low"
+    has_glow: bool = False
+    ref_color: tuple = (255,255,255)
+    quote_color: tuple = (255,255,255)
+    support_color: tuple = (255,255,255)
+    dim_layer: bool = False
+    dim_color: tuple = (0,0,0,0)
+    dim_radius: int = 0
 def _sample_zone(image, size: tuple,
                  y1f: float, y2f: float,
                  x1f: float = 0.10, x2f: float = 0.90) -> dict:
@@ -795,16 +389,11 @@ def analyze_background(image, size: tuple) -> "AnalysisResult":
 # TYPOGRAPHY ADAPTATION ENGINE
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def adapt_typography(analysis: "AnalysisResult",
                      spec: "VisualSpec" = None) -> "TypographySpec":
     """
-    Build a TypographySpec from a background AnalysisResult.
-
-    Pipeline:
-      1.  Select base style mode (LIGHT / DARK / MID_LIGHT / MID_DARK)
-      2.  Apply per-zone brightness fine-tuning to each color slot
-      3.  Apply theme accent overrides (orn_color, glow_rgba, ref_color)
-      4.  Set protection-layer parameters based on readability_risk
+    Build independent Typography styling per text zone based on background analysis.
     """
     mode_map = {
         "LIGHT":     _LIGHT_MODE,
@@ -813,121 +402,90 @@ def adapt_typography(analysis: "AnalysisResult",
         "MID_DARK":  _MID_DARK_MODE,
     }
     mode_key = analysis.typography_mode
-    M       = mode_map.get(mode_key, _DARK_MODE)
-    theme   = getattr(spec, "theme", "custom") if spec else "custom"
+    M = mode_map.get(mode_key, _DARK_MODE)
+    theme = getattr(spec, "theme", "custom") if spec else "custom"
 
-    # ── Per-zone brightness fine-tuning ──────────────────────────────────────
-    # Each zone can shift slightly if its own local brightness differs
-    # from what the global mode assumed.  We adjust only the opacity/shade,
-    # not the fundamental color family (that would kill consistency).
+    # Theme overrides
+    T_ovr = _THEME_ACCENT_OVERRIDES.get(theme, {})
+    ref_c = tuple(T_ovr.get("reference", M["reference"]))
+    q_c = tuple(M["main"])
+    sub_c = tuple(M["support"])
+    sh_fill = tuple(M["shadow"])
+    sh_dx = M.get("shadow_dx", 2)
+    sh_dy = M.get("shadow_dy", 2)
 
-    def _tune(base_color: tuple, local_brightness: float,
-               mode_is_dark: bool) -> tuple:
-        """
-        Nudge a color toward full contrast if the local zone is extreme.
-        mode_is_dark = True means we're in DARK/MID_DARK (light text expected).
-        """
-        r, g, b = base_color
-        if mode_is_dark:
-            # Brighten further if zone is extremely dark (< 55)
-            if local_brightness < 55:
-                factor = 1.08
-                return (min(255, int(r * factor)),
-                        min(255, int(g * factor)),
-                        min(255, int(b * factor)))
-            # Slightly dim if zone is lighter than expected (>= 118)
-            elif local_brightness >= 118:
-                factor = 0.92
-                return (int(r * factor), int(g * factor), int(b * factor))
-        else:
-            # Darken further if zone is extremely bright (> 205)
-            if local_brightness > 205:
-                factor = 0.88
-                return (int(r * factor), int(g * factor), int(b * factor))
-            # Slightly brighten if zone is medium (< 145)
-            elif local_brightness < 145:
-                factor = 1.10
-                return (min(255, int(r * factor)),
-                        min(255, int(g * factor)),
-                        min(255, int(b * factor)))
-        return base_color
+    # Calculate global readability score
+    baseline_contrast = analysis.center_contrast
+    noise_penalty = min(0.3, analysis.center_detail * 1.5)
+    readability_score = max(0.0, min(1.0, baseline_contrast - noise_penalty))
 
-    is_dark_mode = mode_key in ("DARK", "MID_DARK")
-
-    ref_color     = _tune(M["reference"], analysis.zone_a_brightness, is_dark_mode)
-    quote_color   = _tune(M["main"],      analysis.zone_b_brightness, is_dark_mode)
-    support_color = _tune(M["support"],   analysis.zone_c_brightness, is_dark_mode)
-
-    # ── Shadow specs ─────────────────────────────────────────────────────────
-    shadow_fill   = M["shadow"]
-    shadow_dx     = M["shadow_dx"]
-    shadow_dy     = M["shadow_dy"]
-
-    # ── Glow ─────────────────────────────────────────────────────────────────
-    has_glow  = is_dark_mode
-    glow_rgba = M.get("glow_rgba") or (195, 162, 48, 55)
-    orn_color = M["orn_color"]
-    sep_color = M["sep_color"]
-    ref_alpha = M["ref_alpha"]
-
-    # ── Theme accent overrides ────────────────────────────────────────────────
-    overrides = _THEME_ACCENT_OVERRIDES.get(theme, {})
-    if overrides:
-        if "reference" in overrides:
-            ref_color = overrides["reference"]
-        if "glow_rgba" in overrides and overrides["glow_rgba"] is not None:
-            glow_rgba = overrides["glow_rgba"]
-        elif overrides.get("glow_rgba") is None:
-            has_glow  = False
-            glow_rgba = (0, 0, 0, 0)
-        if "orn_color" in overrides:
-            orn_color = overrides["orn_color"]
-            sep_color = overrides["orn_color"]
-
-    # ── Protection layer ─────────────────────────────────────────────────────
-    dim_layer  = analysis.needs_protection
-    risk       = analysis.readability_risk
-
-    if risk == "high":
-        # Strong but still invisible soft radial veil
-        dim_color  = (0, 0, 0, 72) if is_dark_mode else (0, 0, 0, 55)
-        dim_radius = 135
-    elif risk == "medium":
-        dim_color  = (0, 0, 0, 50) if is_dark_mode else (0, 0, 0, 38)
-        dim_radius = 110
-    else:
-        dim_color  = (0, 0, 0, 38)
-        dim_radius = 90
-
-    typo = TypographySpec(
-        ref_color       = ref_color,
-        quote_color     = quote_color,
-        support_color   = support_color,
-        shadow_fill     = shadow_fill,
-        shadow_dx       = shadow_dx,
-        shadow_dy       = shadow_dy,
-        dim_layer       = dim_layer,
-        dim_color       = dim_color,
-        dim_radius      = dim_radius,
-        sep_color       = sep_color,
-        glow_rgba       = glow_rgba,
-        orn_color       = orn_color,
-        ref_alpha       = ref_alpha,
-        typography_mode = mode_key,
-        readability_risk= risk,
-        has_glow        = has_glow,
+    top_noise = max(0, analysis.zone_a_brightness - 120) / 135.0 if mode_key == "LIGHT" else max(0, 135 - analysis.zone_a_brightness) / 135.0
+    
+    # ── TOP ZONE (Reference) ──
+    top_dim = analysis.zone_a_brightness > 130 and mode_key == "LIGHT" or analysis.zone_a_brightness < 90 and mode_key == "DARK"
+    top_glow = "strong" if theme in ["cosmic", "sacred_black"] else "subtle" if theme in ["celestial", "moonlit"] else "none"
+    top_style = ZoneStyle(
+        color=ref_c,
+        opacity=1.0,
+        shadow_fill=sh_fill,
+        shadow_dx=sh_dx,
+        shadow_dy=sh_dy,
+        glow_style=top_glow,
+        dim_layer=top_dim,
+        dim_color=(0,0,0,135) if mode_key in ["LIGHT", "MID_LIGHT"] else (0,0,0,165),
+        dim_radius=55
     )
-    print(f"✏️  [Typography]  mode={mode_key}  theme={theme}"
-          f"  ref={ref_color}  quote={quote_color}  glow={has_glow}")
-    return typo
 
+    # ── MAIN ZONE (Quote) ──
+    main_dim = analysis.readability_risk in ["medium", "high"]
+    dm_r = {"low": 0, "medium": 320, "high": 420}.get(analysis.readability_risk, 200)
+    dm_c = (0,0,0,45) if mode_key in ["LIGHT", "MID_LIGHT"] else (0,0,0,140)
+    if mode_key == "LIGHT" and analysis.readability_risk == "high":
+        dm_c = (0,0,0,120)
+    elif mode_key == "DARK" and analysis.readability_risk == "high":
+        dm_c = (0,0,0,180)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# CACHE MANAGER
-# Cache key is based on: theme + material + lighting + mood + ornament_level
-# This means semantically identical prompts (same theme, different wording)
-# will naturally share cached backgrounds.
-# ─────────────────────────────────────────────────────────────────────────────
+    main_style = ZoneStyle(
+        color=q_c,
+        opacity=1.0,
+        shadow_fill=sh_fill,
+        shadow_dx=sh_dx + (1 if analysis.readability_risk == "high" else 0),
+        shadow_dy=sh_dy + (1 if analysis.readability_risk == "high" else 0),
+        glow_style="subtle" if T_ovr.get("glow_rgba") and mode_key == "DARK" else "none",
+        dim_layer=main_dim,
+        dim_color=dm_c,
+        dim_radius=dm_r
+    )
+
+    # ── SUB ZONE (Support) ──
+    sub_dim = analysis.zone_c_brightness > 140 if mode_key == "LIGHT" else analysis.zone_c_brightness < 70
+    sub_style = ZoneStyle(
+        color=sub_c,
+        opacity=0.82,
+        shadow_fill=sh_fill,
+        shadow_dx=max(1, sh_dx - 1),
+        shadow_dy=max(1, sh_dy - 1),
+        glow_style="none",
+        dim_layer=sub_dim,
+        dim_color=(0,0,0,85),
+        dim_radius=110
+    )
+
+    return TypographySpec(
+        readability_score=readability_score,
+        top=top_style,
+        main=main_style,
+        sub=sub_style,
+        typography_mode=mode_key,
+        readability_risk=analysis.readability_risk,
+        has_glow=(T_ovr.get("glow_rgba") is not None),
+        ref_color=ref_c,
+        quote_color=q_c,
+        support_color=sub_c,
+        dim_layer=main_dim,
+        dim_color=dm_c,
+        dim_radius=dm_r
+    )
 
 def spec_cache_key(spec: VisualSpec) -> str:
     """Stable 12-char hash of the semantic content of a VisualSpec."""

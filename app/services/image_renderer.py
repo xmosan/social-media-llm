@@ -1158,200 +1158,26 @@ def render_minimal_quote_card(
             draw = ImageDraw.Draw(bg)
 
             # Analyze + adapt typography per zone
-            if _VS_OK:
-                analysis  = vs_analyze(bg, target_size)
-                typo_spec = vs_adapt(analysis, vs_spec)
-                if typo_spec.dim_layer:
-                    # Soft radial protection behind text zone — NEVER a box
-                    # Radius scales with the readability_risk level
-                    pr    = {"low": 340, "medium": 400, "high": 440}.get(
-                            typo_spec.readability_risk, 380)
-                    d_lay = Image.new("RGBA", target_size, (0, 0, 0, 0))
-                    dd    = ImageDraw.Draw(d_lay)
-                    dd.ellipse([cx - pr, cy - pr, cx + pr, cy + pr],
-                               fill=typo_spec.dim_color)
-                    blur  = typo_spec.dim_radius
-                    d_lay = d_lay.filter(ImageFilter.GaussianBlur(blur))
-                    # Composite twice for medium/high risk (smoother fade)
-                    bg    = Image.alpha_composite(
-                        bg.convert("RGBA"), d_lay).convert("RGB")
-                    if typo_spec.readability_risk == "high":
-                        bg = Image.alpha_composite(
-                            bg.convert("RGBA"), d_lay).convert("RGB")
-                    draw  = ImageDraw.Draw(bg)
-                print(f"   🎨 Mode={typo_spec.typography_mode}  risk={typo_spec.readability_risk}  glow={typo_spec.has_glow}")
-                palette   = [typo_spec.ref_color, typo_spec.quote_color, typo_spec.support_color]
-                sep_color = typo_spec.sep_color
-            else:
-                palette   = _build_adaptive_palette(bg, target_size)
-                sep_color = None
-
-            # Ornaments driven by spec.ornament_level
-            gold_c    = (205, 165, 45)
-            orn_level = getattr(vs_spec, "ornament_level", "corner") if vs_spec else "corner"
-            if orn_level == "ornate":
-                draw_manuscript_frame(draw, target_size,
-                                      tuple(max(0, v - 20) for v in gold_c))
-                draw_corner_filigree(draw, target_size, gold_c, length=90)
-            elif orn_level in ("corner", "moderate"):
-                draw_corner_filigree(draw, target_size, gold_c, length=82)
-            elif orn_level == "minimal":
-                draw_corner_filigree(draw, target_size, gold_c, length=48)
-            elif orn_level != "none" and any(
-                    k in (visual_prompt or "").lower() for k in
-                    ["gold", "golden", "border", "corner", "filigree"]):
-                draw_corner_filigree(draw, target_size, gold_c, length=82)
-
+        if _VS_OK:
+            analysis  = vs_analyze(bg, target_size)
+            typo_spec = vs_adapt(analysis, vs_spec)
+            print(f"   🎨 Mode={typo_spec.typography_mode} risk={typo_spec.readability_risk} score={typo_spec.readability_score:.2f}")
         else:
-            # ── Route B: PIL Fallback ──────────────────────────────────────
-            overrides  = overrides  # already computed above
-            is_light   = overrides.get("is_light_bg", False)
-            palette    = CUSTOM_TEXT_LIGHT if is_light else CUSTOM_TEXT_DARK
-            material   = overrides.get("material",   "none")
-            atmosphere = overrides.get("atmosphere", "none")
-            border_sty = overrides.get("border_style", "none")
-            p_type     = overrides.get("pattern_type", "none")
-            g_type     = overrides.get("gradient_type", "radial")
-            intensity  = float(overrides.get("intensity", 0.80))
-            accent     = [int(v) for v in overrides.get("accent_rgb", [200, 196, 216])]
-            bg_start   = tuple(int(v) for v in overrides["bg_start_rgb"])
-            bg_end     = tuple(int(v) for v in overrides["bg_end_rgb"])
-            p_rgba     = tuple(int(v) for v in overrides.get("pattern_color_rgba",
-                                                             [255, 255, 255, 0]))
-            glow_rgba  = tuple(int(v) for v in overrides.get("glow_color_rgba",
-                                                             [255, 245, 220, 50]))
-            v_int      = float(overrides.get("vignette", 0.70))
-
-            print(f"🏗️  PIL Fallback:  mat={material}  atm={atmosphere}  bdr={border_sty}")
-            print(f"   bg: {bg_start}→{bg_end}  p={p_type}  glow_a={glow_rgba[3]}")
-
-            # Layer 1: Base gradient
-            bg   = Image.new("RGB", target_size, bg_end)
-            draw = ImageDraw.Draw(bg)
-            if g_type == "radial":
-                draw_radial_gradient(draw, target_size, bg_start, bg_end)
-
-            # Layer 2: Material texture
-            if material == "marble":
-                draw_radial_gradient(draw, target_size, bg_start, bg_end)
-                bg = apply_marble_depth(bg, target_size, list(bg_start), intensity)
-                draw = ImageDraw.Draw(bg)
-            elif material in ("parchment", "manuscript", "paper"):
-                draw_paper_texture(draw, target_size,
-                                   base_color=tuple(int(v) for v in bg_start))
-                bg   = apply_parchment_depth(bg, target_size, intensity)
-                draw = ImageDraw.Draw(bg)
-
-            # Patterns
-            if p_type == "starry":
-                draw_starry_noise(draw, target_size,
-                                  density=max(0.0003, 0.0006 * intensity))
-            elif p_type == "islamic":
-                draw_islamic_pattern(draw, target_size, p_rgba)
-
-            # Layer 3: Atmosphere
-            glow_list = list(glow_rgba[:3])
-            if atmosphere == "celestial":
-                bg = apply_celestial_atmosphere(bg, target_size, glow_list, intensity)
-            elif atmosphere == "moonlit":
-                bg = apply_moonlit_atmosphere(bg, target_size, intensity)
-            elif atmosphere in ("spiritual", "peaceful", "sacred"):
-                bg = apply_spiritual_atmosphere(bg, target_size, glow_list, intensity * 0.88)
-            draw = ImageDraw.Draw(bg)
-
-            # Layer 4: Light source — center by default
-            cx_s, cy_s = W // 2, H // 2
-            light_col  = tuple(int(v) for v in glow_rgba[:3])
-            bg = apply_light_source(bg, target_size, (cx_s, cy_s),
-                                    light_col, int(W * 0.48), intensity * 0.65)
-            draw = ImageDraw.Draw(bg)
-
-            # Layer 5: Vignette
-            bg   = apply_vignette(bg, intensity=v_int)
-            draw = ImageDraw.Draw(bg)
-
-            # Layer 6: Border
-            gold_c = (min(255, accent[0] // 2 + 148),
-                      min(255, int(accent[1] * 0.35 + 128)),
-                      max(0,   int(accent[2] * 0.08 + 28)))
-            if border_sty == "corner_filigree":
-                draw_corner_filigree(draw, target_size, gold_c, length=80)
-            elif border_sty == "manuscript":
-                draw_manuscript_frame(draw, target_size,
-                                      tuple(max(0, v - 28) for v in gold_c))
-            elif border_sty == "gold_block":
-                draw_gold_border(draw, target_size)
-
-    # ── MODE: PRESET ──────────────────────────────────────────────────────────
-    if mode == "preset":
-        eff  = style if style in PRESET_CONFIGS else "quran"
-        spec = PRESET_CONFIGS[eff]
-        palette = PRESET_TEXT.get(eff, PRESET_TEXT["quran"])
-
-        print(f"🏗️  Preset: '{eff}'")
-
-        bg   = Image.new("RGB", target_size, spec["base"])
-        draw = ImageDraw.Draw(bg)
-        draw_radial_gradient(draw, target_size, spec["bg_start"], spec["bg_end"])
-
-        # Pattern
-        pat = spec.get("pattern", "none")
-        if pat == "starry":
-            draw_starry_noise(draw, target_size,
-                              density=spec.get("pattern_density", 0.0006),
-                              seed=42)
-        elif pat == "paper":
-            bg_c = tuple(int(v) for v in spec["bg_start"])
-            draw_paper_texture(draw, target_size, base_color=bg_c)
-        elif pat == "islamic":
-            draw_islamic_pattern(draw, target_size, spec["pattern_col"])
-
-        # Atmosphere (preset-specific)
-        atm = spec.get("atmosphere")
-        gc  = spec.get("glow")
-        glow_rgba = gc
-
-        if atm == "parchment":
-            bg   = apply_parchment_depth(bg, target_size, 0.55)
-            draw = ImageDraw.Draw(bg)
-        elif atm == "celestial" and gc:
-            bg   = apply_celestial_atmosphere(bg, target_size, list(gc[:3]), 0.85)
-            draw = ImageDraw.Draw(bg)
-        elif atm == "fajr_horizon":
-            # Warm amber horizon glow at bottom
-            hz_layer = Image.new("RGBA", target_size, (0, 0, 0, 0))
-            hd = ImageDraw.Draw(hz_layer)
-            hd.ellipse([100, H - 200, W - 100, H + 180], fill=(255, 180, 60, 22))
-            hz_layer = hz_layer.filter(ImageFilter.GaussianBlur(48))
-            bg = Image.alpha_composite(bg.convert("RGBA"), hz_layer).convert("RGB")
-            draw = ImageDraw.Draw(bg)
-
-        # Light source
-        lpos = spec.get("light_pos", "center")
-        if lpos == "center":
-            lpos = (W // 2, H // 2)
-        if lpos:
-            lcol = spec.get("light_col", (255, 245, 220))
-            lrad = spec.get("light_r", 400)
-            bg   = apply_light_source(bg, target_size, lpos,
-                                      lcol, lrad, intensity=0.60)
-            draw = ImageDraw.Draw(bg)
-
-        # Vignette
-        bg   = apply_vignette(bg, intensity=spec["vignette"])
-        draw = ImageDraw.Draw(bg)
-
-        # Border
-        bsty = spec.get("border", "none")
-        if bsty == "gold_block":
-            draw_gold_border(draw, target_size,
-                             border_width=spec.get("border_w", 30))
-        elif bsty == "corner_filigree":
-            draw_corner_filigree(draw, target_size, (190, 158, 45), length=75)
-
-        glow_rgba = spec.get("glow")
-
-    # ── TEXT ZONE LAYOUT ─────────────────────────────────────────────────────
+            typo_spec = None
+            palette = _build_adaptive_palette(bg, target_size)
+            
+        # Ornaments driven by spec.ornament_level
+        gold_c    = (205, 165, 45)
+        orn_level = getattr(vs_spec, "ornament_level", "corner") if vs_spec else "corner"
+        if orn_level == "ornate":
+            draw_manuscript_frame(draw, target_size, tuple(max(0, v - 20) for v in gold_c))
+            draw_corner_filigree(draw, target_size, gold_c, length=90)
+        elif orn_level in ("corner", "moderate"):
+            draw_corner_filigree(draw, target_size, gold_c, length=82)
+        elif orn_level == "minimal":
+            draw_corner_filigree(draw, target_size, gold_c, length=48)
+            
+        # ── TEXT ZONE LAYOUT ─────────────────────────────────────────────────────
     # Generous zones: Reference (A) | Main Quote (B) | Supporting (C)
     v_pad   = 88
     zone_ws = [int(W * 0.68), int(W * 0.80), int(W * 0.72)]
@@ -1366,7 +1192,11 @@ def render_minimal_quote_card(
         if i >= 3:
             break
         z_w, z_ls = zone_ws[i], zone_ls[i]
-        col       = palette[i] if i < len(palette) else palette[-1]
+        if typo_spec:
+            style_idx = [typo_spec.top, typo_spec.main, typo_spec.sub][i]
+            col = style_idx.color
+        else:
+            col = palette[i] if palette and i < len(palette) else (255,255,255)
         
         # ── PREMIUM HIERARCHY OVERRIDES ──────────────────────────────────────
         # Force strict sizes if in custom mode to guarantee elegance:
@@ -1462,135 +1292,79 @@ def render_minimal_quote_card(
         bg_rgba = Image.alpha_composite(bg_rgba, g_layer)
 
     # ── DRAWING PASS ─────────────────────────────────────────────────────────
+
     draw_out = ImageDraw.Draw(bg_rgba)
-    cx       = W // 2
-    y        = start_y
-
-    try:
-        orn_font = ImageFont.truetype(font_path, 18)
-    except Exception:
-        orn_font = ImageFont.load_default()
-
+    cx = W // 2
+    y = start_y
+    
     for i, zd in enumerate(zone_data):
-        col = zd["color"]
-        is_light_text = (col[0] + col[1] + col[2]) > 440
-
-        # ── Adaptive shadow for this zone ────────────────────────────────────
-        # Use TypographySpec shadow when available; else compute from text luminance
-        if typo_spec is not None:
-            shadow_fill = typo_spec.shadow_fill
-            shd_dx, shd_dy = typo_spec.shadow_dx, typo_spec.shadow_dy
+        if typo_spec:
+            z_style = [typo_spec.top, typo_spec.main, typo_spec.sub][i]
+            col = z_style.color
+            opacity = z_style.opacity
+            shd_fill = z_style.shadow_fill
+            shd_dx = z_style.shadow_dx
+            shd_dy = z_style.shadow_dy
+            dim_layer = z_style.dim_layer
+            dim_color = z_style.dim_color
+            dim_rad = z_style.dim_radius
         else:
-            if is_light_text:
-                shadow_fill = (0, 0, 0, 130)
-                shd_dx, shd_dy = 2, 2
-            else:
-                shadow_fill = (255, 255, 255, 100)
-                shd_dx, shd_dy = -1, -1
-
+            col = zd["color"]
+            opacity = 1.0
+            shd_fill = (0,0,0,130) if (col[0]+col[1]+col[2])>440 else (255,255,255,100)
+            shd_dx, shd_dy = (2,2) if shd_fill[0]==0 else (-1,-1)
+            dim_layer = False
+            
+        fc = (int(col[0]), int(col[1]), int(col[2]), int(255 * opacity))
+        
+        # Determine strict bounds of current zone for local protection veil
+        ty = y
+        ty_end = ty + zd["block_h"]
+        if i == 0: ty_end += gap_ab // 2
+        elif i == 1: ty_end += gap_bc // 2
+        
+        # 1) Soft Protection Layer directly under the zone
+        if dim_layer:
+            # We draw a highly blurred ellipse
+            pr_layer = Image.new("RGBA", target_size, (0, 0, 0, 0))
+            pd = ImageDraw.Draw(pr_layer)
+            pd.ellipse([cx - dim_rad, ty - dim_rad*0.5, cx + dim_rad, ty_end + dim_rad*0.5], fill=dim_color)
+            pr_layer = pr_layer.filter(ImageFilter.GaussianBlur(dim_rad // 3))
+            bg_rgba = Image.alpha_composite(bg_rgba, pr_layer)
+            draw_out = ImageDraw.Draw(bg_rgba)
+            
+        # 2) Text elements
         if i == 0:
-            # ── Zone A: Reference — honored, calm, elevated ───────────────
-            draw_top_ornament(draw_out, cx, y - 22, sep_col)
-            # Soft glow layer (optional)
-            if g_rgba and len(g_rgba) >= 4:
-                soft_ref_col = (int(orn_col[0]), int(orn_col[1]),
-                                int(orn_col[2]), min(255, int(g_rgba[3] * 0.30)))
-                for ln in zd["lines"]:
-                    draw_out.text((cx, y), ln["text"], font=zd["font"],
-                                  fill=soft_ref_col, anchor="mt")
-                    y += ln["h"] + zd["ls"]
-                y = start_y
-            # Shadow pass then actual reference text
-            ty = start_y
+            # Zone A: Top Reference — honored, calm
+            if typo_spec and typo_spec.has_glow:
+                draw_top_ornament(draw_out, cx, y - 22, (min(255, int(col[0]*1.2)), min(255, int(col[1]*1.2)), min(255, int(col[2]*1.2))))
+            
             for ln in zd["lines"]:
-                draw_out.text((cx + shd_dx, ty + shd_dy), ln["text"],
-                              font=zd["font"], fill=shadow_fill, anchor="mt")
-                _ref_alpha = typo_spec.ref_alpha if typo_spec is not None else 188
-                fc = (int(col[0]), int(col[1]), int(col[2]), _ref_alpha)
-                draw_out.text((cx, ty), ln["text"], font=zd["font"],
-                              fill=fc, anchor="mt")
+                draw_out.text((cx + shd_dx, ty + shd_dy), ln["text"], font=zd["font"], fill=shd_fill, anchor="mt")
+                draw_out.text((cx, ty), ln["text"], font=zd["font"], fill=fc, anchor="mt")
                 ty += ln["h"] + zd["ls"]
             y = ty - zd["ls"] + gap_ab
             sep_y = (start_y + zd["block_h"]) + gap_ab // 2
-            draw_zone_separator(draw_out, cx, sep_y, sep_col)
+            draw_zone_separator(draw_out, cx, sep_y, fc)
 
         elif i == 1:
-            # ── Zone B: Main Quote — prominent, readable ──────────────────
-            # Force BOLD via sub-pixel shifting since we lack a Bold TTF weight
-            ty = y
+            # Zone B: Main Quote — bold via micro-offset shifts
             for ln in zd["lines"]:
-                # Shadow/Glow pass
-                # A subtle, multi-step shadow adds cinematic depth
-                draw_out.text((cx + shd_dx, ty + shd_dy), ln["text"], font=zd["font"], fill=shadow_fill, anchor="mt")
-                
-                # If dark mode, add an ultra-soft backlight under the quote
-                if is_light_text and shd_dx == 2:
-                    draw_out.text((cx, ty + 1), ln["text"], font=zd["font"], fill=(0,0,0, 60), anchor="mt")
-
-                # Main text with simulated bold (overstrike algorithm)
-                draw_out.text((cx - 1, ty), ln["text"], font=zd["font"], fill=col, anchor="mt")
-                draw_out.text((cx + 1, ty), ln["text"], font=zd["font"], fill=col, anchor="mt")
-                draw_out.text((cx, ty - 1), ln["text"], font=zd["font"], fill=col, anchor="mt")
-                draw_out.text((cx, ty + 1), ln["text"], font=zd["font"], fill=col, anchor="mt")
-                draw_out.text((cx, ty), ln["text"], font=zd["font"], fill=col, anchor="mt") # Center
-                
+                draw_out.text((cx + shd_dx, ty + shd_dy), ln["text"], font=zd["font"], fill=shd_fill, anchor="mt")
+                draw_out.text((cx - 1, ty), ln["text"], font=zd["font"], fill=fc, anchor="mt")
+                draw_out.text((cx + 1, ty), ln["text"], font=zd["font"], fill=fc, anchor="mt")
+                draw_out.text((cx, ty - 1), ln["text"], font=zd["font"], fill=fc, anchor="mt")
+                draw_out.text((cx, ty + 1), ln["text"], font=zd["font"], fill=fc, anchor="mt")
+                draw_out.text((cx, ty), ln["text"], font=zd["font"], fill=fc, anchor="mt")
                 ty += ln["h"] + zd["ls"]
             y = ty - zd["ls"] + gap_bc
 
         else:
-            # ── Zone C: Supporting — quiet, readable ─────────────────────
-            ty = y
+            # Zone C: Support — quiet fallback
             for ln in zd["lines"]:
-                draw_out.text((cx + shd_dx, ty + shd_dy), ln["text"],
-                              font=zd["font"], fill=shadow_fill, anchor="mt")
-                fc = (int(col[0]), int(col[1]), int(col[2]), 215)
-                draw_out.text((cx, ty), ln["text"], font=zd["font"],
-                              fill=fc, anchor="mt")
+                draw_out.text((cx + shd_dx, ty + shd_dy), ln["text"], font=zd["font"], fill=shd_fill, anchor="mt")
+                draw_out.text((cx, ty), ln["text"], font=zd["font"], fill=fc, anchor="mt")
                 ty += ln["h"] + zd["ls"]
             y = ty - zd["ls"]
 
-    # ── CINEMATIC POST ────────────────────────────────────────────────────────
-    glow_list  = list(glow_rgba) if glow_rgba else None
-    final_img  = apply_cinematic_layers(bg_rgba, glow_color=glow_list)
 
-    filename   = f"qcard_{int(time.time() * 1000)}.jpg"
-    final_path = os.path.join(output_dir, filename)
-    os.makedirs(output_dir, exist_ok=True)
-    final_img.save(final_path, quality=95)
-
-    print(f"✅ [v7.0] {filename}  (mode={mode} style={style})")
-    print(f"{'═'*64}\n")
-    return f"{settings.public_base_url.rstrip('/')}/uploads/{filename}"
-
-
-def render_quote_card(background_local_path: str, quote: str,
-                      reference: str, output_dir: str) -> str:
-    """Legacy image-overlay render (kept for compatibility)."""
-    bg = Image.open(background_local_path).convert("RGB")
-    W, H = 1080, 1080
-    r = bg.width / bg.height
-    nw, nh = (int(H * r), H) if r > 1 else (W, int(W / r))
-    bg = bg.resize((nw, nh), Image.LANCZOS)
-    bg = bg.crop(((nw - W) // 2, (nh - H) // 2,
-                   (nw - W) // 2 + W, (nh - H) // 2 + H))
-    base_dir  = os.path.dirname(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    fp = os.path.join(base_dir, "assets", "fonts", "Inter.ttf")
-    try:
-        fs, fl = ImageFont.truetype(fp, 36), ImageFont.truetype(fp, 72)
-    except Exception:
-        fs = fl = ImageFont.load_default()
-    ov = Image.new("RGBA", (W, H), (0, 0, 0, 120))
-    bg = Image.alpha_composite(bg.convert("RGBA"), ov).convert("RGB")
-    draw = ImageDraw.Draw(bg)
-    for i, l in enumerate(textwrap.wrap(reference, 44)[:2]):
-        draw.text((W//2, 120 + i*44), l, font=fs, fill=(212, 175, 55), anchor="mt")
-    y = H // 2
-    for l in textwrap.wrap(quote, 22):
-        draw.text((W//2, y), l, font=fl, fill=(255, 255, 255), anchor="mt")
-        y += 80
-    fn = f"qcard_{int(time.time()*1000)}.jpg"
-    fp2 = os.path.join(output_dir, fn)
-    os.makedirs(output_dir, exist_ok=True)
-    bg.save(fp2, quality=95)
-    return f"{settings.public_base_url.rstrip('/')}/uploads/{fn}"
