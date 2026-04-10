@@ -1043,6 +1043,7 @@ class TypographySpec:
     typography_mode: str = "DARK"
     readability_risk: str = "low"
     has_glow: bool = False
+    glow_rgba: tuple = None
     ref_color: tuple = (255,255,255)
     quote_color: tuple = (255,255,255)
     support_color: tuple = (255,255,255)
@@ -1123,6 +1124,7 @@ def adapt_typography(analysis: "AnalysisResult",
     return TypographySpec(
         readability_score=readability_score, top=top_style, main=main_style, sub=sub_style,
         typography_mode=mode_key, readability_risk=analysis.readability_risk, has_glow=(T_ovr.get("glow_rgba") is not None),
+        glow_rgba=T_ovr.get("glow_rgba"),
         ref_color=ref_c, quote_color=q_c, support_color=sub_c, dim_layer=main_dim, dim_color=dm_c, dim_radius=dm_r,
         sep_color=sep_c, orn_color=orn_c
     )
