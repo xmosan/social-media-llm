@@ -797,15 +797,18 @@ def interpret_text_style(raw: str, experimental: bool = False) -> TextStyleSpec:
     # 6. Apply Bucket Multipliers
     if spec.bucket == "Editorial":
         spec.size_ratios = {"verse": 0.4, "quote": 1.0, "reflection": 0.6}
-        spec.line_spacing = 1.1
+        spec.line_spacing = 1.05
+        spec.letter_spacing = 12 # Substantial tracking for high-end look
         spec.layout_mode = "Editorial"
     elif spec.bucket == "Modern Bold":
         spec.size_ratios = {"verse": 0.45, "quote": 1.0, "reflection": 0.45}
         spec.weight = "Bold"
+        spec.letter_spacing = 6
     elif spec.bucket == "Sacred Manuscript":
         spec.size_ratios = {"verse": 0.8, "quote": 1.0, "reflection": 0.9}
         spec.line_spacing = 1.4
         spec.font_family = "Serif"
+        spec.italic = True
         
     return spec
 

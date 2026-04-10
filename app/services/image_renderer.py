@@ -1472,21 +1472,20 @@ def render_minimal_quote_card(
     
     if typo_spec and typo_spec.text_style.layout_mode == "Editorial":
         ts = typo_spec.text_style
-        # In Editorial mode, we break the stack. 
         # Zone 0: Top-Right (always, for balance)
         layout_params.append({
-            "cx": int(W * 0.88), "y": int(H * 0.08), "anchor": "rt"
+            "cx": int(W * 0.90), "y": int(H * 0.08), "anchor": "rt"
         })
         # Zone 1: Main Quote (User defined placement + side focus)
-        q_cx = int(W * 0.12) if ts.alignment != "Right" else int(W * 0.88)
+        q_cx = int(W * 0.10) if ts.alignment != "Right" else int(W * 0.90)
         q_y = start_y
         layout_params.append({
             "cx": q_cx, "y": q_y, "anchor": "lt" if ts.alignment != "Right" else "rt"
         })
         # Zone 2: Support (Opposite of quote or bottom center)
         layout_params.append({
-            "cx": int(W * 0.88) if ts.alignment != "Right" else int(W * 0.12),
-            "y": H - int(H * 0.12) - zone_data[2]["block_h"],
+            "cx": int(W * 0.90) if ts.alignment != "Right" else int(W * 0.10),
+            "y": H - int(H * 0.10) - zone_data[2]["block_h"],
             "anchor": "rb" if ts.alignment != "Right" else "lb"
         })
     else:
@@ -1525,7 +1524,13 @@ def render_minimal_quote_card(
             z_style = [typo_spec.top, typo_spec.main, typo_spec.sub][i]
             col = z_style.color
             opacity = z_style.opacity
-            shd_fill = z_style.shadow_fill
+            
+            # Cinematic Soft Shadow Upgrade:
+            # We use the shadow from the spec but soften it for premium feel
+            shd_fill = list(z_style.shadow_fill)
+            shd_fill[3] = int(shd_fill[3] * 0.7) # Reduce alpha for softness
+            shd_fill = tuple(shd_fill)
+            
             shd_dx = z_style.shadow_dx
             shd_dy = z_style.shadow_dy
             dim_layer = z_style.dim_layer

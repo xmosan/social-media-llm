@@ -195,6 +195,7 @@ STUDIO_SCRIPTS_JS = """
 
         const caption      = captionEl.value.trim();
         const visualPrompt = visualPromptEl ? visualPromptEl.value.trim() : '';
+        const textStylePrompt = document.getElementById('studioTextStylePrompt') ? document.getElementById('studioTextStylePrompt').value.trim() : '';
         const isCustomMode = (studioCreationMode === 'custom');
 
         // --- Validation ---
@@ -219,6 +220,7 @@ STUDIO_SCRIPTS_JS = """
             caption,
             style,
             visual_prompt: isCustomMode ? visualPrompt : '',
+            text_style_prompt: isCustomMode ? textStylePrompt : '',
             mode:          isCustomMode ? 'custom' : 'preset',
         };
         console.log('🎨 [Studio] Generate payload:', payload);
@@ -394,6 +396,14 @@ STUDIO_SCRIPTS_JS = """
     window.addEventListener('load', function() {
         renderAccountSwitcher();
     });
+
+    function setTypoStyle(style) {
+        const el = document.getElementById('studioTextStylePrompt');
+        if (el) {
+            el.value = style;
+            invalidateQuoteCard();
+        }
+    }
 </script>
 """
 
@@ -585,13 +595,28 @@ STUDIO_COMPONENTS_HTML = """
                             <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Describe Your Card</label>
                             <textarea id="studioVisualPrompt"
                                 placeholder="e.g. black marble with gold borders and a cinematic center light..."
-                                class="w-full bg-white border border-brand/10 rounded-3xl p-6 text-sm font-medium text-brand outline-none focus:border-brand/40 placeholder:text-brand/20 transition-all resize-none h-36 shadow-sm custom-scrollbar" oninput="invalidateQuoteCard()"></textarea>
+                                class="w-full bg-white border border-brand/10 rounded-3xl p-6 text-sm font-medium text-brand outline-none focus:border-brand/40 placeholder:text-brand/20 transition-all resize-none h-32 shadow-sm custom-scrollbar" oninput="invalidateQuoteCard()"></textarea>
                             <!-- Inline validation error -->
                             <p id="visualPromptError" class="hidden text-[9px] font-black text-red-500 uppercase tracking-widest ml-1">
                                 Please describe your card before generating.
                             </p>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Typographic Style (Intent)</label>
+                            <input type="text" id="studioTextStylePrompt"
+                                placeholder="e.g. Editorial serif, Ivory theme, Bold tracking..."
+                                class="w-full bg-white border border-brand/10 rounded-2xl px-6 py-4 text-sm font-medium text-brand outline-none focus:border-brand/40 placeholder:text-brand/20 transition-all shadow-sm" oninput="invalidateQuoteCard()">
+                            
+                            <!-- QUICK STYLE BUTTONS -->
+                            <div class="flex flex-wrap gap-2 pt-1">
+                                <button type="button" onclick="setTypoStyle('Editorial ivory serif')" class="px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/10 text-[8px] font-bold text-brand uppercase tracking-widest hover:bg-brand/10 transition-all">Modern Serif</button>
+                                <button type="button" onclick="setTypoStyle('Modern Bold uppercase wide tracking')" class="px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/10 text-[8px] font-bold text-brand uppercase tracking-widest hover:bg-brand/10 transition-all">Bold Impact</button>
+                                <button type="button" onclick="setTypoStyle('Manuscript gold italic')" class="px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/10 text-[8px] font-bold text-brand uppercase tracking-widest hover:bg-brand/10 transition-all">Sacred Script</button>
+                            </div>
+
                             <p class="text-[8px] font-bold text-text-muted/40 uppercase tracking-widest leading-loose ml-1">
-                                Try: marble &bull; emerald forest &bull; navy sky &bull; parchment &bull; moonlit &bull; gold corners
+                                Try: Editorial &bull; Modern Bold &bull; Italic &bull; Uppercase &bull; Wide Tracking
                             </p>
                         </div>
                     </div>
