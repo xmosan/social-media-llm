@@ -578,15 +578,6 @@ STUDIO_COMPONENTS_HTML = """
                                <div class="text-[7px] text-brand/40 font-medium">Sacred Black</div>
                             </div>
 
-                            <!-- Laylul Qadr -->
-                            <div onclick="setStudioStyle('laylulqadr', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
-                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all">
-                                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/><path d="M12 3l1 2m-1-2l-1 2M17 6l-1 2m1-2l1 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
-                               </div>
-                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Laylul Qadr</div>
-                               <div class="text-[7px] text-brand/40 font-medium">Night of Power</div>
-                            </div>
-
                         </div>
                     </div>
 
@@ -601,19 +592,24 @@ STUDIO_COMPONENTS_HTML = """
                                 Please describe your card before generating.
                             </p>
                         </div>
+                    </div>
 
-                        <div class="space-y-2">
-                            <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Typographic Style (Intent)</label>
+                    <!-- UNIVERSAL TYPOGRAPHY EXPERIENCE -->
+                    <div class="mt-8 pt-8 border-t border-brand/5 space-y-6">
+                        <div class="space-y-4">
+                            <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Elevate Your Typography</label>
+                            
+                            <!-- QUICK STYLE CHIPS -->
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button" onclick="setTypoStyle('Editorial ivory serif')" class="typo-chip px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/10 text-[8px] font-bold text-brand uppercase tracking-widest hover:bg-brand/10 transition-all">Modern Serif</button>
+                                <button type="button" onclick="setTypoStyle('Modern Bold uppercase wide tracking')" class="typo-chip px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/10 text-[8px] font-bold text-brand uppercase tracking-widest hover:bg-brand/10 transition-all">Bold Impact</button>
+                                <button type="button" onclick="setTypoStyle('Manuscript gold italic')" class="typo-chip px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/10 text-[8px] font-bold text-brand uppercase tracking-widest hover:bg-brand/10 transition-all">Sacred Script</button>
+                                <button type="button" onclick="setTypoStyle('Minimalist wide tracking light')" class="typo-chip px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/10 text-[8px] font-bold text-brand uppercase tracking-widest hover:bg-brand/10 transition-all">Minimalist</button>
+                            </div>
+
                             <input type="text" id="studioTextStylePrompt"
                                 placeholder="e.g. Editorial serif, Ivory theme, Bold tracking..."
                                 class="w-full bg-white border border-brand/10 rounded-2xl px-6 py-4 text-sm font-medium text-brand outline-none focus:border-brand/40 placeholder:text-brand/20 transition-all shadow-sm" oninput="invalidateQuoteCard()">
-                            
-                            <!-- QUICK STYLE BUTTONS -->
-                            <div class="flex flex-wrap gap-2 pt-1">
-                                <button type="button" onclick="setTypoStyle('Editorial ivory serif')" class="px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/10 text-[8px] font-bold text-brand uppercase tracking-widest hover:bg-brand/10 transition-all">Modern Serif</button>
-                                <button type="button" onclick="setTypoStyle('Modern Bold uppercase wide tracking')" class="px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/10 text-[8px] font-bold text-brand uppercase tracking-widest hover:bg-brand/10 transition-all">Bold Impact</button>
-                                <button type="button" onclick="setTypoStyle('Manuscript gold italic')" class="px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/10 text-[8px] font-bold text-brand uppercase tracking-widest hover:bg-brand/10 transition-all">Sacred Script</button>
-                            </div>
 
                             <p class="text-[8px] font-bold text-text-muted/40 uppercase tracking-widest leading-loose ml-1">
                                 Try: Editorial &bull; Modern Bold &bull; Italic &bull; Uppercase &bull; Wide Tracking
