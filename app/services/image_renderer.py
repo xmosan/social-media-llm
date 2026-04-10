@@ -1176,8 +1176,70 @@ def render_minimal_quote_card(
             draw_corner_filigree(draw, target_size, gold_c, length=82)
         elif orn_level == "minimal":
             draw_corner_filigree(draw, target_size, gold_c, length=48)
+
+    else:
+        # ── MODE: PRESET ──────────────────────────────────────────────────────
+        key = style if style in PRESET_CONFIGS else "quran"
+        cfg = PRESET_CONFIGS[key]
+        
+        bg = Image.new("RGB", target_size, cfg["bg_start"])
+        draw = ImageDraw.Draw(bg)
+        if cfg["bg_start"] != cfg["bg_end"]:
+            draw_radial_gradient(draw, target_size, cfg["bg_start"], cfg["bg_end"])
+        
+        pat = cfg.get("pattern")
+        if pat == "islamic":
+            draw_islamic_pattern(draw, target_size, cfg.get("pattern_col", (190, 150, 40, 30)))
+        elif pat == "paper":
+            draw_paper_texture(draw, target_size, cfg["base"])
+        elif pat == "starry":
+            draw_starry_noise(draw, target_size, cfg.get("pattern_density", 0.0006))
             
-        # ── TEXT ZONE LAYOUT ─────────────────────────────────────────────────────
+        l_pos = cfg.get("light_pos")
+        pos = None
+        if l_pos == "center":
+            pos = (W // 2, H // 2)
+        elif isinstance(l_pos, tuple):
+            pos = l_pos
+            
+        if pos and cfg.get("light_col"):
+            bg = apply_light_source(bg, target_size, pos, cfg["light_col"], cfg.get("light_r", 300))
+            draw = ImageDraw.Draw(bg)
+            
+        atm = cfg.get("atmosphere")
+        if atm == "fajr_horizon":
+            horizon = Image.new("RGBA", target_size, (0, 0, 0, 0))
+            hd = ImageDraw.Draw(horizon)
+            hd.rectangle([0, H//2+100, W, H], fill=(10, 15, 45, 120))
+            horizon = horizon.filter(ImageFilter.GaussianBlur(80))
+            bg = Image.alpha_composite(bg.convert("RGBA"), horizon).convert("RGB")
+            draw = ImageDraw.Draw(bg)
+        elif atm == "parchment":
+            bg = apply_parchment_depth(bg, target_size, intensity=0.6)
+            draw = ImageDraw.Draw(bg)
+        elif atm == "celestial":
+            celestial = Image.new("RGBA", target_size, (0, 0, 0, 0))
+            cd = ImageDraw.Draw(celestial)
+            cd.ellipse([W//2-300, H//2-300, W//2+300, H//2+300], fill=(160, 100, 255, 30))
+            celestial = celestial.filter(ImageFilter.GaussianBlur(140))
+            bg = Image.alpha_composite(bg.convert("RGBA"), celestial).convert("RGB")
+            draw = ImageDraw.Draw(bg)
+            
+        v = cfg.get("vignette", 0)
+        if v > 0:
+            bg = apply_vignette(bg, intensity=v)
+            draw = ImageDraw.Draw(bg)
+            
+        bdr = cfg.get("border")
+        if bdr == "gold_block":
+            draw_gold_border(draw, target_size, cfg.get("border_w", 30))
+        elif bdr == "corner_filigree":
+            draw_corner_filigree(draw, target_size, (200, 162, 42), length=80)
+            
+        palette = PRESET_TEXT.get(key, PRESET_TEXT["quran"])
+        glow_rgba = cfg.get("glow")
+            
+    # ── TEXT ZONE LAYOUT ─────────────────────────────────────────────────────
     # Generous zones: Reference (A) | Main Quote (B) | Supporting (C)
     v_pad   = 88
     zone_ws = [int(W * 0.68), int(W * 0.80), int(W * 0.72)]
@@ -1367,7 +1429,21 @@ def render_minimal_quote_card(
                 ty += ln["h"] + zd["ls"]
             y = ty - zd["ls"]
 
+    # ── CINEMATIC POST ────────────────────────────────────────────────────────
+    glow_list  = list(g_rgba) if g_rgba else None
+    final_img  = apply_cinematic_layers(bg_rgba, glow_color=glow_list)
 
+    filename   = f"qcard_{int(time.time() * 1000)}.jpg"
+    final_path = os.path.join(output_dir, filename)
+    os.makedirs(output_dir, exist_ok=True)
+    final_img.save(final_path, quality=95)
+
+    print(f"✅ [v7.0] {filename}  (mode={mode} style={style})")
+    print(f"{'═'*64}\n")
+    
+    # Avoid crashing on missing public_base_url by handling cases where it's not set
+    base_url = settings.public_base_url.rstrip('/') if settings.public_base_url else ""
+    return f"{base_url}/uploads/{filename}"
 
 
 def render_quote_card(background_local_path: str, quote: str,
