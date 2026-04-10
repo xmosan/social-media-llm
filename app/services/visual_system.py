@@ -470,6 +470,7 @@ _STYLE_FAMILIES = {
             "Deep matte black surface, fabric or stone inspired, restrained elegance, minimal composition."
         ),
         "traits": {
+            "scene_type": ["infinite black void", "minimalist fabric drape", "geometric stone shadow-play", "soft radial pulse of light"],
             "lighting": ["soft gold edge light", "faint silver rim glow", "pure pitch black shadow focus", "subtle warm amber under-lighting"],
             "glow": ["faint radial center glow", "pitch dark center with edge gradients", "soft halo effect", "completely matte flat absorption"],
             "texture": ["subtle fabric weave visibility", "smooth obsidian stone", "dark velvet softness", "slight brushed metal micro-texture"],
@@ -482,6 +483,7 @@ _STYLE_FAMILIES = {
             "Dark charcoal or obsidian stone marble, elegant lighting, premium feel."
         ),
         "traits": {
+            "scene_type": ["sweeping organic marble veins", "stratified stone layers", "cracked gold-fill veins", "smooth liquid-stone pooling"],
             "vein_direction": ["organic diagonal sweeping veins", "subtle horizontal stratification", "fractured chaotic gold veins", "minimal smooth pooling patterns"],
             "border": ["dark vignette corners", "gold inlay hints at edge", "clean modern borderless", "classic architectural bevel frame"],
             "reflection": ["high polished specular reflection", "soft matte honing", "wet-stone deep gloss", "diffused frosted surface"],
@@ -500,8 +502,46 @@ _STYLE_FAMILIES = {
             "lighting": ["silver moonlight top-down", "dark gradient abyss", "soft turquoise horizon glow", "ethereal halo effect"],
             "haze": ["thick atmospheric optical haze", "crisp vacuum clarity", "soft floating light particles", "gossamer thin cloud wisp"]
         }
+    },
+    "obsidian_stone": {
+        "core": "Deep obsidian volcanic glass surface, near-perfect darkness, restrained elegance.",
+        "traits": {
+            "scene_type": ["monolithic slab presence", "shattered geometric glass shards", "smooth liquid-like flow patterns", "abstract crystalline depth"],
+            "texture": ["highly polished mirror surface", "raw fractured geological edges", "subtle iridescent sheen", "matte volcanic sand texture"],
+            "lighting": ["extreme edge rim-light", "soft blue-purple internal glow", "dramatic single-point specular highlight", "minimalist ambient shadow"]
+        }
+    },
+    "royal_velvet": {
+        "core": "Rich deep-colored velvet-like matte surface, soft-focus depth, heavy color saturation.",
+        "traits": {
+            "scene_type": ["cascading fabric folds", "taut structured panel", "soft undulating waves", "abstract macro pile detail"],
+            "pile": ["lush heavy velvet pile", "smooth silken sheen", "crushed textured fabric", "faint brushed directional grain"],
+            "lighting": ["soft overhead diffuse wash", "deep shadow vignettes", "subtle golden rim highlights", "low-angle tactile illumination"]
+        }
+    },
+    "sacred_desert": {
+        "core": "Warm expansive desert environment, golden amber tones, timeless contemplative scale.",
+        "traits": {
+            "scene_type": ["towering dune ridge silhouettes", "vast open horizon line", "soft undulating sand ripples", "mirage-like heat haze distance"],
+            "detail": ["fine wind-swept ripples", "ancient cracked desert floor", "scattered smooth basalt stones", "pure undisturbed sand sheets"],
+            "lighting": ["low-angle golden hour sun", "cool blue hour twilight", "harsh midday high-contrast sun", "soft hazy dust-filtered light"]
+        }
+    },
+    "premium_charcoal": {
+        "core": "Deep charcoal grey surface, fine grain texture, modern dignified presence.",
+        "traits": {
+            "scene_type": ["brushed industrial panel", "soft charcoal sketch dust", "solid monolithic stone block", "layered stratified sedimentary grey"],
+            "lighting": ["center spotlight glow", "cool horizontal rim light", "soft top-down ambient wash", "dramatic high-contrast shadow-play"]
+        }
     }
 }
+
+def sanitize_for_dalle(prompt: str) -> str:
+    """Removes keywords that reliably trigger calligraphy/mosques in DALL-E."""
+    forbidden = ["islamic", "quran", "koran", "arabic", "muslim", "mosque", "masjid", "script", "allah", "god"]
+    words = prompt.split()
+    safe_words = [w for w in words if w.lower().strip(",.!?") not in forbidden]
+    return " ".join(safe_words)
 
 _VARIATION_HISTORY = {}
 
@@ -510,7 +550,10 @@ class VariationEngine:
     def generate(theme: str, user_prompt: str) -> dict:
         family_map = {
             "sacred_black": "sacred_black", "parchment": "parchment_manuscript",
-            "marble": "luxury_marble", "emerald_forest": "emerald_forest",
+            "marble": "premium_charcoal", "emerald_forest": "emerald_forest",
+            "obsidian": "obsidian_stone", "velvet": "royal_velvet",
+            "desert": "sacred_desert", "navy": "premium_charcoal",
+            "charcoal": "premium_charcoal",
             "cosmic": "celestial_night", "dawn_sky": "celestial_night", "moonlit": "celestial_night"
         }
         family_key = family_map.get(theme, "sacred_black")
@@ -545,14 +588,18 @@ def compose_dalle_prompt(spec: VisualSpec, raw_prompt: str = "") -> str:
     # Store the traits in the spec for cache key stability
     spec.variation_traits = v_data["variation_traits"]
     
-    var_list = [f"{k.replace('_', ' ')}: {v}" for k, v in v_data["variation_traits"].items()]
+    var_list = [f"{v}" for k, v in v_data["variation_traits"].items()]
     variations_str = ", ".join(var_list)
     
-    # Strategy: Tokens 1-50 are the strongest in DALL-E.
-    # We lead with the variation traits to ensure maximum scene diversity.
+    # Sanitize user input to keep it visual, not semantic
+    safe_user_input = sanitize_for_dalle(raw_prompt) if raw_prompt else ""
+    
+    # Architecture C: Leading with User Input + Randomized Traits
+    # This ensures user's specific items (e.g. "small waterfall") are given max weight
     final_prompt = (
         f"{_HARD_CONSTRAINTS} "
-        f"BACKGROUND PLATE: {variations_str}. "
+        f"A beautiful square background plate image showing: {safe_user_input}. "
+        f"Artistic style traits: {variations_str}. "
         f"{v_data['core_traits']} "
         f"Mood: {spec.mood}. "
         f"{_COMPOSITION} "
