@@ -23,7 +23,10 @@ def generate_quote_card(
     caption: str,
     style: str = "quran",
     visual_prompt: str = None,
-    mode: str = "preset"
+    mode: str = "preset",
+    text_style_prompt: str = "",
+    readability_priority: bool = True,
+    experimental_mode: bool = False
 ) -> str:
     """
     Parses an Islamic caption and renders a premium quote card.
@@ -99,6 +102,9 @@ def generate_quote_card(
         style=style,
         visual_prompt=visual_prompt,
         mode=mode,
+        text_style_prompt=text_style_prompt,
+        readability_priority=readability_priority,
+        experimental_mode=experimental_mode
     )
     return url
 

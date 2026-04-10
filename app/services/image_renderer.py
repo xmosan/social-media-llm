@@ -31,6 +31,7 @@ vs_interpret = vs_compose = vs_analyze = vs_adapt = vs_load_cache = vs_save_cach
 try:
     from app.services.visual_system import (
         interpret_prompt     as vs_interpret,
+        interpret_text_style as vs_interpret_text,
         compose_dalle_prompt as vs_compose,
         analyze_background   as vs_analyze,
         adapt_typography     as vs_adapt,
@@ -111,16 +112,17 @@ def _extract_border(p: str) -> str:
     return "none"
 
 
-def balanced_text_wrap(text: str, font: ImageFont.FreeTypeFont, max_width: int, draw_tmp: ImageDraw.Draw) -> list[str]:
+def balanced_text_wrap(text: str, font: ImageFont.FreeTypeFont, max_width: int, draw_tmp: ImageDraw.Draw, letter_spacing: int = 0) -> list[str]:
     """
     Split text into 2-4 lines that are roughly equal in pixel width.
-    Avoids 'hangers' (single words) and ensures a symmetrical block shape.
+    Accounts for letter_spacing (tracking) in width calculations.
     """
     words = text.strip().split()
     if not words: return []
     
     # Measure total width to estimate line count
-    total_w = draw_tmp.textbbox((0, 0), text, font=font)[2]
+    raw_w = draw_tmp.textbbox((0, 0), text, font=font)[2]
+    total_w = raw_w + (len(text) - 1) * letter_spacing
     n_lines = max(1, math.ceil(total_w / max_width))
     
     # For small snippets, don't force multiple lines unless necessary
@@ -137,10 +139,10 @@ def balanced_text_wrap(text: str, font: ImageFont.FreeTypeFont, max_width: int, 
     for word in words:
         # Measure word including the trailing space
         w_text = word + " "
-        word_w = draw_tmp.textbbox((0, 0), w_text, font=font)[2]
+        w_raw = draw_tmp.textbbox((0, 0), w_text, font=font)[2]
+        word_w = w_raw + len(w_text) * letter_spacing
         
-        # If adding this word exceeds the target SIGNIFICANTLY, and we have a line...
-        # We use a threshold (1.15x) to allow some lines to be slightly wider to keep balance.
+        # Threshold (1.15x) to allow some lines to be slightly wider to keep balance.
         if current_w + word_w > target_w * 1.15 and current_line:
             lines.append(" ".join(current_line))
             current_line = [word]
@@ -923,6 +925,50 @@ def apply_vignette(image, intensity=0.65):
     return Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
 
 
+def draw_text_advanced(
+    draw: ImageDraw.ImageDraw,
+    pos: tuple,
+    text: str,
+    font: ImageFont.FreeTypeFont,
+    fill: tuple,
+    anchor: str = "mt",
+    letter_spacing: int = 0,
+    shadow_fill: tuple = None,
+    shadow_offset: tuple = (0, 0),
+    stroke_width: int = 0,
+    stroke_fill: tuple = None
+):
+    """
+    Advanced text drawing with support for tracking (letter_spacing), 
+    shadows, and secondary effects.
+    """
+    if letter_spacing == 0:
+        # Standard fast path
+        if shadow_fill and shadow_offset != (0, 0):
+            draw.text((pos[0] + shadow_offset[0], pos[1] + shadow_offset[1]), text, font=font, fill=shadow_fill, anchor=anchor)
+        draw.text(pos, text, font=font, fill=fill, anchor=anchor, stroke_width=stroke_width, stroke_fill=stroke_fill)
+        return
+
+    # Tracking path: Draw character by character
+    chars = list(text)
+    char_widths = [draw.textbbox((0, 0), c, font=font)[2] - draw.textbbox((0, 0), c, font=font)[0] for c in chars]
+    total_w = sum(char_widths) + (len(chars) - 1) * letter_spacing
+    
+    # Adjust starting X based on anchor
+    x, y = pos
+    if anchor.startswith("m"): # middle
+        x -= total_w // 2
+    elif anchor.startswith("r"): # right
+        x -= total_w
+    
+    curr_x = x
+    for i, char in enumerate(chars):
+        if shadow_fill and shadow_offset != (0, 0):
+            draw.text((curr_x + shadow_offset[0], y + shadow_offset[1]), char, font=font, fill=shadow_fill)
+        draw.text((curr_x, y), char, font=font, fill=fill, stroke_width=stroke_width, stroke_fill=stroke_fill)
+        curr_x += char_widths[i] + letter_spacing
+
+
 def apply_cinematic_layers(image, glow_color=None):
     W, H   = image.size
     img    = image.convert("RGBA")
@@ -1128,6 +1174,9 @@ def render_minimal_quote_card(
     style:         str = "quran",
     visual_prompt: str = None,
     mode:          str = "preset",
+    text_style_prompt: str = "",
+    readability_priority: bool = True,
+    experimental_mode: bool = False
 ) -> str:
     """
     Sabeel Designer Engine v7.0 — Spiritual Depth Renderer.
@@ -1143,9 +1192,8 @@ def render_minimal_quote_card(
     print(f"📦 segments={len(segments)}")
     print(f"{'═'*64}")
 
-    # ── FONT ─────────────────────────────────────────────────────────────────
-    use_serif = (style in ("scholar", "madinah") and mode == "preset")
-    font_file = "Amiri-Regular.ttf" if use_serif else "Inter.ttf"
+    # Initial default font
+    font_file = "Inter.ttf"
     font_path = os.path.join(base_dir, "assets", "fonts", font_file)
 
     # ── MODE: CUSTOM ──────────────────────────────────────────────────────────
@@ -1186,25 +1234,31 @@ def render_minimal_quote_card(
             bg   = apply_vignette(bg, intensity=0.38)
             draw = ImageDraw.Draw(bg)
 
-            # Analyze + adapt typography per zone
-            if _VS_OK:
-                analysis  = vs_analyze(bg, target_size)
-                typo_spec = vs_adapt(analysis, vs_spec)
-                print(f"   🎨 Mode={typo_spec.typography_mode} risk={typo_spec.readability_risk} score={typo_spec.readability_score:.2f}")
-            else:
-                typo_spec = None
-                palette = _build_adaptive_palette(bg, target_size)
-                
-            # Ornaments driven by spec.ornament_level
-            gold_c    = (205, 165, 45)
-            orn_level = getattr(vs_spec, "ornament_level", "corner") if vs_spec else "corner"
-            if orn_level == "ornate":
-                draw_manuscript_frame(draw, target_size, tuple(max(0, v - 20) for v in gold_c))
-                draw_corner_filigree(draw, target_size, gold_c, length=90)
-            elif orn_level in ("corner", "moderate"):
-                draw_corner_filigree(draw, target_size, gold_c, length=82)
-            elif orn_level == "minimal":
-                draw_corner_filigree(draw, target_size, gold_c, length=48)
+    # ── VISUAL SYSTEM INTEGRATION ─────────────────────────────────────────────
+    # This block interprets aesthetic intent and adapts typography to the background.
+    if _VS_OK:
+        # Avoid double interpretation if already done for custom mode
+        if typo_spec is None:
+            # 1. Interpret user text-style intent
+            text_style = vs_interpret_text(text_style_prompt, experimental=experimental_mode)
+            
+            # 2. Analyze background (requires bg to be initialized)
+            # If in custom mode, bg is the DALL-E image. 
+            # If in preset mode, bg is generated below.
+            # So we move this analysis to AFTER bg is finalized.
+            pass 
+    else:
+        typo_spec = None
+        # Ornaments driven by spec.ornament_level
+        gold_c    = (205, 165, 45)
+        orn_level = getattr(vs_spec, "ornament_level", "corner") if vs_spec else "corner"
+        if orn_level == "ornate":
+            draw_manuscript_frame(draw, target_size, tuple(max(0, v - 20) for v in gold_c))
+            draw_corner_filigree(draw, target_size, gold_c, length=90)
+        elif orn_level in ("corner", "moderate"):
+            draw_corner_filigree(draw, target_size, gold_c, length=82)
+        elif orn_level == "minimal":
+            draw_corner_filigree(draw, target_size, gold_c, length=48)
 
     if mode == "preset":
         # ── MODE: PRESET ──────────────────────────────────────────────────────
@@ -1267,8 +1321,20 @@ def render_minimal_quote_card(
             
         palette = PRESET_TEXT.get(key, PRESET_TEXT["quran"])
         glow_rgba = cfg.get("glow")
-            
-    # ── TEXT ZONE LAYOUT ─────────────────────────────────────────────────────
+
+    # ── FINAL TYPOGRAPHY ADAPTATION ──────────────────────────────────────────
+    # Run analysis and adaptation now that 'bg' is definitively ready (custom or preset)
+    if _VS_OK and typo_spec is None:
+        text_style = vs_interpret_text(text_style_prompt, experimental=experimental_mode)
+        analysis   = vs_analyze(bg, target_size)
+        typo_spec  = vs_adapt(analysis, vs_spec if mode == "custom" else None, 
+                              text_style=text_style, readability_priority=readability_priority)
+        
+        print(f"   🎨 [Adapt] mode={typo_spec.typography_mode} risk={typo_spec.readability_risk}")
+
+    if typo_spec is None:
+        # Fallback to simple adaptive palette if visual_system failed or isn't used
+        palette = _build_adaptive_palette(bg, target_size)
     # Generous zones: Reference (A) | Main Quote (B) | Supporting (C)
     v_pad   = 120  # Increased for breathing room
     zone_ws = [int(W * 0.70), int(W * 0.82), int(W * 0.74)]
@@ -1290,20 +1356,34 @@ def render_minimal_quote_card(
             col = palette[i] if palette and i < len(palette) else (255,255,255)
         
         # ── PREMIUM HIERARCHY OVERRIDES ──────────────────────────────────────
-        # Force strict sizes if in custom mode to guarantee elegance:
-        # A: Reference (i=0) -> Small, tracked out
-        # B: Quote (i=1)     -> Large, dominant (bold handled at draw time)
-        # C: Support (i=2)   -> Medium, softer
         if mode == "custom":
-            if i == 0:
-                seg["size"] = 34
-                z_ls = 14       # Tighter line height for reference if wraps
-            elif i == 1:
-                seg["size"] = 74
-                z_ls = 28       # Balanced, elegant line height
-            else:
-                seg["size"] = 42
-                z_ls = 20       # Standard line height for support
+            # Default sizes: 34 (Ref), 74 (Quote), 42 (Support)
+            base_sizes = [34, 74, 42]
+            
+        # ── DYNAMIC FONT SELECTION ──────────────────────────────────────────
+        # Build path based on family, weight, and italic intent
+        family = "Sans"
+        if typo_spec and typo_spec.text_style:
+            family = typo_spec.text_style.font_family
+            ts = typo_spec.text_style
+            
+            # Map logical families to assets
+            f_base = "Amiri" if family == "Serif" else "Inter"
+            
+            # Form specific variant name (e.g., Inter-Bold.ttf)
+            variant = f_base
+            if ts.weight == "Bold": variant += "-Bold"
+            elif ts.weight == "Light": variant += "-Light"
+            if ts.italic: variant += "-Italic"
+            
+            # Fallback to Regular if specific variant doesn't exist
+            font_path = os.path.join(base_dir, "assets", "fonts", f"{variant}.ttf")
+            if not os.path.exists(font_path):
+                # Try adding -Regular if it's missing (Amiri uses -Regular.ttf)
+                if not os.path.exists(os.path.join(base_dir, "assets", "fonts", f"{f_base}-Regular.ttf")):
+                    font_path = os.path.join(base_dir, "assets", "fonts", f"{f_base}.ttf")
+                else:
+                    font_path = os.path.join(base_dir, "assets", "fonts", f"{f_base}-Regular.ttf")
 
         try:
             fnt = ImageFont.truetype(font_path, int(seg["size"]))
@@ -1318,13 +1398,19 @@ def render_minimal_quote_card(
         max_chars = max(10, int(z_w / max(1, avg_cw)))
         
         seg_text = str(seg["text"])
+        if typo_spec and typo_spec.text_style:
+            if typo_spec.text_style.uppercase or (mode == "custom" and i == 0):
+                seg_text = seg_text.upper()
+        elif mode == "custom" and i == 0:
+            seg_text = seg_text.upper() 
+
         if mode == "custom" and i == 0:
-            seg_text = seg_text.upper() # Small Caps / uppercase for reference
             # Manually inject tracking spaces between letters for Zone A
             seg_text = " ".join(list(seg_text)).replace("   ", "  ")
             
         # Use our intelligent balanced wrapper instead of textwrap
-        raw = balanced_text_wrap(seg_text, fnt, z_w, draw_tmp)
+        ls_val = typo_spec.text_style.letter_spacing if typo_spec and typo_spec.text_style else 0
+        raw = balanced_text_wrap(seg_text, fnt, z_w, draw_tmp, letter_spacing=ls_val)
         
         if i == 0 and len(raw) > 2:
             raw = raw[:2]; raw[-1] = raw[-1].rstrip() + "…"
@@ -1349,11 +1435,23 @@ def render_minimal_quote_card(
                           "block_h": block_h, "color": col, "ls": z_ls})
         print(f"   Zone {i}: {len(lines)} lines  h={block_h}px  size={seg['size']}")
 
-    # Optical centering
+    # Optical centering and Vertical Placement logic
     total_h = sum(zd["block_h"] for zd in zone_data)
     if len(zone_data) > 1: total_h += gap_ab
     if len(zone_data) > 2: total_h += gap_bc
-    start_y = max(v_pad, (H // 2) - (total_h // 2) - int(H * 0.03))
+    
+    # Default: Center vertically
+    start_y = (H // 2) - (total_h // 2) - int(H * 0.03)
+    
+    # User-defined placement
+    if typo_spec and typo_spec.text_style:
+        vp = typo_spec.text_style.v_placement
+        if vp == "Top_Third":
+            start_y = int(H * 0.18)
+        elif vp == "Bottom_Third":
+            start_y = int(H * 0.82) - total_h
+            
+    start_y = max(v_pad, start_y)
     print(f"📐 total_h={total_h}  start_y={start_y}")
 
     # Ornament / glow colors — driven by TypographySpec theme when available
@@ -1368,15 +1466,61 @@ def render_minimal_quote_card(
                    min(255, int(orn_col[1] * 0.9)),
                    min(255, int(orn_col[2] * 0.75)))
 
+    # ── LAYOUT RESOLVER ──────────────────────────────────────────────────────
+    # Determine (cx, y, anchor) for each zone based on LayoutMode
+    layout_params = []
+    
+    if typo_spec and typo_spec.text_style.layout_mode == "Editorial":
+        ts = typo_spec.text_style
+        # In Editorial mode, we break the stack. 
+        # Zone 0: Top-Right (always, for balance)
+        layout_params.append({
+            "cx": int(W * 0.88), "y": int(H * 0.08), "anchor": "rt"
+        })
+        # Zone 1: Main Quote (User defined placement + side focus)
+        q_cx = int(W * 0.12) if ts.alignment != "Right" else int(W * 0.88)
+        q_y = start_y
+        layout_params.append({
+            "cx": q_cx, "y": q_y, "anchor": "lt" if ts.alignment != "Right" else "rt"
+        })
+        # Zone 2: Support (Opposite of quote or bottom center)
+        layout_params.append({
+            "cx": int(W * 0.88) if ts.alignment != "Right" else int(W * 0.12),
+            "y": H - int(H * 0.12) - zone_data[2]["block_h"],
+            "anchor": "rb" if ts.alignment != "Right" else "lb"
+        })
+    else:
+        # Default: Stacked Vertical Layout
+        curr_y = start_y
+        for i, zd in enumerate(zone_data):
+            # Alignment logic
+            z_cx = W // 2
+            z_anchor = "mt"
+            if typo_spec and typo_spec.text_style:
+                ts = typo_spec.text_style
+                if ts.alignment == "Left":
+                    z_cx = int(W * 0.12) + ts.horiz_offset
+                    z_anchor = "lt"
+                elif ts.alignment == "Right":
+                    z_cx = int(W * 0.88) - ts.horiz_offset
+                    z_anchor = "rt"
+            
+            layout_params.append({"cx": z_cx, "y": curr_y, "anchor": z_anchor})
+            gap = gap_ab if i == 0 else gap_bc
+            curr_y += zd["block_h"] + gap
+
     bg_rgba = bg.convert("RGBA")
 
     # ── DRAWING PASS ─────────────────────────────────────────────────────────
 
     draw_out = ImageDraw.Draw(bg_rgba)
-    cx = W // 2
+            
     y = start_y
     
     for i, zd in enumerate(zone_data):
+        lp = layout_params[i]
+        cx, z_y, anchor = lp["cx"], lp["y"], lp["anchor"]
+        
         if typo_spec:
             z_style = [typo_spec.top, typo_spec.main, typo_spec.sub][i]
             col = z_style.color
@@ -1397,7 +1541,7 @@ def render_minimal_quote_card(
         fc = (int(col[0]), int(col[1]), int(col[2]), int(255 * opacity))
         
         # Determine strict bounds of current zone for local protection veil
-        ty = y
+        ty = z_y
         ty_end = ty + zd["block_h"]
         if i == 0: ty_end += gap_ab // 2
         elif i == 1: ty_end += gap_bc // 2
@@ -1420,33 +1564,49 @@ def render_minimal_quote_card(
         if i == 0:
             # Zone A: Top Reference — honored, calm
             if typo_spec and typo_spec.has_glow:
-                draw_top_ornament(draw_out, cx, y - 22, (min(255, int(col[0]*1.2)), min(255, int(col[1]*1.2)), min(255, int(col[2]*1.2))))
+                # Use the theme-aware ornament color
+                draw_top_ornament(draw_out, cx, ty - 22, typo_spec.orn_color)
+            
+            l_spacing = typo_spec.text_style.letter_spacing if typo_spec else 0
             
             for ln in zd["lines"]:
-                draw_out.text((cx + shd_dx, ty + shd_dy), ln["text"], font=zd["font"], fill=shd_fill, anchor="mt")
-                draw_out.text((cx, ty), ln["text"], font=zd["font"], fill=fc, anchor="mt")
+                draw_text_advanced(
+                    draw_out, (cx, ty), ln["text"], font=zd["font"], fill=fc,
+                    anchor=anchor, letter_spacing=l_spacing,
+                    shadow_fill=shd_fill, shadow_offset=(shd_dx, shd_dy)
+                )
                 ty += ln["h"] + zd["ls"]
-            y = ty - zd["ls"] + gap_ab
-            sep_y = (start_y + zd["block_h"]) + gap_ab // 2
-            draw_zone_separator(draw_out, cx, sep_y, fc)
+            
+            # Separator logic (only in Stack mode or if specifically requested)
+            if typo_spec and typo_spec.text_style.layout_mode == "Stack":
+                sep_y = ty + zd["ls"] // 2
+                draw_zone_separator(draw_out, cx, sep_y, typo_spec.orn_color)
 
         elif i == 1:
-            # Zone B: Main Quote — bold via micro-offset shifts
+            l_spacing = typo_spec.text_style.letter_spacing if typo_spec else 0
+            
             for ln in zd["lines"]:
-                draw_out.text((cx + shd_dx, ty + shd_dy), ln["text"], font=zd["font"], fill=shd_fill, anchor="mt")
-                draw_out.text((cx - 1, ty), ln["text"], font=zd["font"], fill=fc, anchor="mt")
-                draw_out.text((cx + 1, ty), ln["text"], font=zd["font"], fill=fc, anchor="mt")
-                draw_out.text((cx, ty - 1), ln["text"], font=zd["font"], fill=fc, anchor="mt")
-                draw_out.text((cx, ty + 1), ln["text"], font=zd["font"], fill=fc, anchor="mt")
-                draw_out.text((cx, ty), ln["text"], font=zd["font"], fill=fc, anchor="mt")
+                # Zone B: Bold support via draw_text_advanced stroke or micro-offset
+                draw_text_advanced(
+                    draw_out, (cx, ty), ln["text"], font=zd["font"], fill=fc,
+                    anchor=anchor, letter_spacing=l_spacing,
+                    shadow_fill=shd_fill, shadow_offset=(shd_dx, shd_dy),
+                    stroke_width=1 if typo_spec and typo_spec.text_style.weight == "Bold" else 0,
+                    stroke_fill=fc
+                )
                 ty += ln["h"] + zd["ls"]
             y = ty - zd["ls"] + gap_bc
 
         else:
             # Zone C: Support — quiet fallback
+            l_spacing = typo_spec.text_style.letter_spacing if typo_spec else 0
+            
             for ln in zd["lines"]:
-                draw_out.text((cx + shd_dx, ty + shd_dy), ln["text"], font=zd["font"], fill=shd_fill, anchor="mt")
-                draw_out.text((cx, ty), ln["text"], font=zd["font"], fill=fc, anchor="mt")
+                draw_text_advanced(
+                    draw_out, (cx, ty), ln["text"], font=zd["font"], fill=fc,
+                    anchor=anchor, letter_spacing=l_spacing,
+                    shadow_fill=shd_fill, shadow_offset=(shd_dx, shd_dy)
+                )
                 ty += ln["h"] + zd["ls"]
             y = ty - zd["ls"]
 

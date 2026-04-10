@@ -144,33 +144,58 @@ _THEME_ACCENT_OVERRIDES = {
 
 
 @dataclass
-class TypographySpec:
-    """
-    Complete text styling specification.
-    Produced by adapt_typography(analysis, spec).
+class TextStyleSpec:
+    """Interpreted aesthetic intent for the text overlay."""
+    bucket:            str   = "Minimal"
+    font_family:       str   = "Sans"
+    weight:            str   = "Regular"
+    italic:            bool  = False
+    uppercase:         bool  = False
+    line_spacing:      float = 1.3
+    letter_spacing:    int   = 0
+    alignment:         str   = "Center"
+    v_placement:       str   = "Center"
+    horiz_offset:      int   = 0
+    ornament_level:    str   = "Minimal"
+    accent_color:      str   = "Gold"
+    has_shadow:        bool  = True
+    experimental:      bool  = False
+    size_ratios:       dict  = field(default_factory=lambda: {"verse": 0.5, "quote": 1.0, "reflection": 0.7})
+    layout_mode:       str   = "Stack" # Stack | Editorial | Split
 
-    typography_mode drives the base palette:
-      LIGHT     → dark grounded text (parchment, bright sky)
-      DARK      → warm luminous text (sacred black, deep space)
-      MID_LIGHT → lean dark (golden hour, medium-bright)
-      MID_DARK  → lean light (marble, charcoal, deep forest)
-    """
-    ref_color:       tuple = (212, 175, 55)   # Zone A — reference/accent
-    quote_color:     tuple = (245, 241, 232)  # Zone B — main quote
-    support_color:   tuple = (221, 214, 200)  # Zone C — support
-    shadow_fill:     tuple = (0, 0, 0, 148)
-    shadow_dx:       int   = 2
-    shadow_dy:       int   = 2
-    dim_layer:       bool  = False
-    dim_color:       tuple = (0, 0, 0, 48)
-    dim_radius:      int   = 110
-    sep_color:       tuple = (188, 152, 50)
-    glow_rgba:       tuple = (212, 175, 55, 70)
-    orn_color:       tuple = (195, 162, 48)
-    ref_alpha:       int   = 192
-    typography_mode: str   = "DARK"
-    readability_risk: str  = "low"
-    has_glow:        bool  = True
+@dataclass
+class ZoneStyle:
+    """Styling settings for an individual text zone (A, B, or C)."""
+    color: tuple
+    opacity: float = 1.0
+    shadow_fill: tuple = (0, 0, 0, 128)
+    shadow_dx: int = 1
+    shadow_dy: int = 1
+    glow_style: str = "none"
+    dim_layer: bool = False
+    dim_color: tuple = (0, 0, 0, 0)
+    dim_radius: int = 0
+
+@dataclass
+class TypographySpec:
+    """Final validated spec for the renderer."""
+    readability_score: float
+    top: ZoneStyle
+    main: ZoneStyle
+    sub: ZoneStyle
+    typography_mode: str = "DARK"
+    readability_risk: str = "low"
+    has_glow: bool = False
+    glow_rgba: tuple = None
+    ref_color: tuple = (255, 255, 255)
+    quote_color: tuple = (255, 255, 255)
+    support_color: tuple = (255, 255, 255)
+    dim_layer: bool = False
+    dim_color: tuple = (0, 0, 0, 0)
+    dim_radius: int = 0
+    sep_color: tuple = (255, 255, 255)
+    orn_color: tuple = (255, 255, 255)
+    text_style: TextStyleSpec = field(default_factory=TextStyleSpec)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -709,6 +734,83 @@ def interpret_prompt(raw: str) -> VisualSpec:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# TEXT STYLE INTERPRETATION
+# ─────────────────────────────────────────────────────────────────────────────
+
+def interpret_text_style(raw: str, experimental: bool = False) -> TextStyleSpec:
+    """Maps user text-style prompt to a structured TextStyleSpec."""
+    p = raw.lower().strip()
+    spec = TextStyleSpec(experimental=experimental)
+    
+    # 1. Bucket Detection
+    if any(k in p for k in ["editorial", "magazine", "luxury", "fashion"]):
+        spec.bucket = "Editorial"
+    elif any(k in p for k in ["manuscript", "sacred", "holy", "scroll", "ancient"]):
+        spec.bucket = "Sacred Manuscript"
+    elif any(k in p for k in ["bold", "poster", "strong", "impact", "heavy"]):
+        spec.bucket = "Modern Bold"
+    elif any(k in p for k in ["minimal", "clean", "simple", "quiet", "airy"]):
+        spec.bucket = "Minimal"
+    elif any(k in p for k in ["classic", "serif", "timeless"]):
+        spec.bucket = "Classic Serif"
+        
+    # 2. Font Category
+    if any(k in p for k in ["serif", "classic", "traditional", "manuscript", "elegant"]):
+        spec.font_family = "Serif"
+    elif any(k in p for k in ["modern", "sans", "clean", "minimal", "bold"]):
+        spec.font_family = "Sans"
+        
+    # 3. Hierarchy & Weight
+    if "delicate" in p or "thin" in p:
+        spec.weight = "Light"
+        spec.letter_spacing = 2
+    elif "bold" in p or "heavy" in p or "impact" in p:
+        spec.weight = "Bold"
+        
+    # 4. Alignment & Placement
+    if "left" in p:
+        spec.alignment = "Left"
+    elif "right" in p:
+        spec.alignment = "Right"
+        
+    if "top" in p or "upper" in p or "above" in p:
+        spec.v_placement = "Top_Third"
+    elif "bottom" in p or "below" in p or "lower" in p:
+        spec.v_placement = "Bottom_Third"
+        
+    if "off-center" in p or "side" in p:
+        if spec.alignment == "Center": spec.alignment = "Left"
+        spec.horiz_offset = 80
+        
+    # 5. Accent Colors & Style
+    if "gold" in p:
+        spec.accent_color = "Gold"
+        spec.ornament_level = "Minimal"
+    elif "ivory" in p or "warm white" in p:
+        spec.accent_color = "Ivory"
+        
+    if "italic" in p or "cursive" in p or "slanted" in p:
+        spec.italic = True
+    if "uppercase" in p or "all caps" in p:
+        spec.uppercase = True
+        
+    # 6. Apply Bucket Multipliers
+    if spec.bucket == "Editorial":
+        spec.size_ratios = {"verse": 0.4, "quote": 1.0, "reflection": 0.6}
+        spec.line_spacing = 1.1
+        spec.layout_mode = "Editorial"
+    elif spec.bucket == "Modern Bold":
+        spec.size_ratios = {"verse": 0.45, "quote": 1.0, "reflection": 0.45}
+        spec.weight = "Bold"
+    elif spec.bucket == "Sacred Manuscript":
+        spec.size_ratios = {"verse": 0.8, "quote": 1.0, "reflection": 0.9}
+        spec.line_spacing = 1.4
+        spec.font_family = "Serif"
+        
+    return spec
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # DALL-E PROMPT COMPOSER
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -948,40 +1050,17 @@ def analyze_background(image, size: tuple) -> "AnalysisResult":
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-@dataclass
-class ZoneStyle:
-    color: tuple
-    opacity: float
-    shadow_fill: tuple
-    shadow_dx: int
-    shadow_dy: int
-    glow_style: str
-    dim_layer: bool
-    dim_color: tuple
-    dim_radius: int
-
-@dataclass
-class TypographySpec:
-    readability_score: float
-    top: ZoneStyle
-    main: ZoneStyle
-    sub: ZoneStyle
-    
-    typography_mode: str = "DARK"
-    readability_risk: str = "low"
-    has_glow: bool = False
-    glow_rgba: tuple = None
-    ref_color: tuple = (255,255,255)
-    quote_color: tuple = (255,255,255)
-    support_color: tuple = (255,255,255)
-    dim_layer: bool = False
-    dim_color: tuple = (0,0,0,0)
-    dim_radius: int = 0
-    sep_color: tuple = (255,255,255)
-    orn_color: tuple = (255,255,255)
-
 def adapt_typography(analysis: "AnalysisResult",
-                     spec: "VisualSpec" = None) -> "TypographySpec":
+                     spec: "VisualSpec" = None,
+                     text_style: "TextStyleSpec" = None,
+                     readability_priority: bool = True) -> "TypographySpec":
+    """
+    The Readability Engine: Merges background analysis with aesthetic intent.
+    Ensures text is legible even if the user requests "Experimental" or difficult styles.
+    """
+    if text_style is None:
+        text_style = TextStyleSpec()
+        
     mode_map = {"LIGHT": _LIGHT_MODE, "DARK": _DARK_MODE, "MID_LIGHT": _MID_LIGHT_MODE, "MID_DARK":  _MID_DARK_MODE}
     mode_key = analysis.typography_mode
     M = mode_map.get(mode_key, _DARK_MODE)
@@ -990,6 +1069,9 @@ def adapt_typography(analysis: "AnalysisResult",
     
     # Adaptive zone-based text color switching
     def get_color(brt, key):
+        # Honor user ivory/white intent if background contrast allows
+        if text_style.accent_color == "Ivory" and brt < 180:
+            return (245, 241, 232)
         if brt > 145: return _LIGHT_MODE[key]
         if brt < 85:  return _DARK_MODE[key]
         return M[key]
@@ -997,6 +1079,10 @@ def adapt_typography(analysis: "AnalysisResult",
     ref_c = get_color(analysis.zone_a_brightness, "reference")
     q_c   = get_color(analysis.zone_b_brightness, "main")
     sub_c = get_color(analysis.zone_c_brightness, "support")
+    
+    # Force Gold accent if requested and contrast allows (or experimental mode is on)
+    if text_style.accent_color == "Gold" and (analysis.zone_b_brightness < 120 or text_style.experimental):
+        ref_c = (212, 175, 55)
     
     # Gently blend theme-specific accents only if the background allows it
     if T_ovr.get("reference") and mode_key in ("DARK", "MID_DARK") and analysis.zone_a_brightness < 100:
@@ -1006,31 +1092,35 @@ def adapt_typography(analysis: "AnalysisResult",
     sep_c = M["sep_color"]
 
     baseline_contrast = analysis.center_contrast
+    baseline_contrast = analysis.center_contrast
     noise_penalty = min(0.3, analysis.center_detail * 1.5)
     readability_score = max(0.0, min(1.0, baseline_contrast - noise_penalty))
 
+    # READABILITY GUARDRAILS
+    # If priority is HIGH or risk is HIGH, we force shadows and dim layers
+    force_protection = (readability_priority and analysis.readability_risk != "low")
+    if text_style.experimental:
+        force_protection = False # Relax for experimental mode
+
     # --- TOP ZONE (Reference) ---
+    top_is_dark = (sum(ref_c[:3]) < 384)
     top_dim = False
     top_dim_color = (0, 0, 0, 0)
-    top_is_dark_text = (sum(ref_c[:3]) < 384)
+    
     # Subtle darkening/brightening ONLY behind text if needed
-    if top_is_dark_text and analysis.zone_a_brightness < 160:
+    if (top_is_dark and analysis.zone_a_brightness < 160) or (force_protection and analysis.zone_a_brightness > 180 and not top_is_dark):
         top_dim = True
-        top_dim_color = (255, 255, 255, 45) # Increased slightly for presence
-    elif not top_is_dark_text and analysis.zone_a_brightness > 80:
-        top_dim = True
-        top_dim_color = (0, 0, 0, 50)       # Increased slightly for presence
+        top_dim_color = (255, 255, 255, 45) if top_is_dark else (0, 0, 0, 50)
 
     top_style = ZoneStyle(
         color=ref_c,
         opacity=1.0,
-        shadow_fill=(255, 255, 255, 140) if top_is_dark_text else (0, 0, 0, 160),
-        shadow_dx=-1 if top_is_dark_text else 1,
-        shadow_dy=-1 if top_is_dark_text else 1,
-        glow_style="none",
+        shadow_fill=(255, 255, 255, 140) if top_is_dark else (0, 0, 0, 160),
+        shadow_dx=-1 if top_is_dark else 1,
+        shadow_dy=-1 if top_is_dark else 1,
         dim_layer=top_dim,
         dim_color=top_dim_color,
-        dim_radius=80  # high blur behind text
+        dim_radius=80
     )
 
     # --- MAIN ZONE (Quote) ---
@@ -1039,7 +1129,7 @@ def adapt_typography(analysis: "AnalysisResult",
     main_dim_color = (0, 0, 0, 0)
     main_dim_rad = 380
     
-    if analysis.readability_risk != 'low':
+    if force_protection or analysis.readability_risk != 'low':
         main_dim = True
         if main_is_dark_text:
             main_dim_color = (255, 255, 255, 45 if analysis.readability_risk == "high" else 25)
@@ -1052,7 +1142,6 @@ def adapt_typography(analysis: "AnalysisResult",
         shadow_fill=(255, 255, 255, 160) if main_is_dark_text else (0, 0, 0, 180),
         shadow_dx=-1 if main_is_dark_text else 1,
         shadow_dy=-1 if main_is_dark_text else 2,
-        glow_style="none",
         dim_layer=main_dim,
         dim_color=main_dim_color,
         dim_radius=main_dim_rad
@@ -1063,7 +1152,6 @@ def adapt_typography(analysis: "AnalysisResult",
     sub_dim = False
     sub_dim_color = (0, 0, 0, 0)
     
-    # Slight clarity boost / micro-darkening
     if sub_is_dark_text and analysis.zone_c_brightness < 160:
         sub_dim = True
         sub_dim_color = (255, 255, 255, 25)
@@ -1073,11 +1161,10 @@ def adapt_typography(analysis: "AnalysisResult",
 
     sub_style = ZoneStyle(
         color=sub_c,
-        opacity=0.88, # Slightly boosted from 0.82/0.9 to find the sweet spot
+        opacity=0.88,
         shadow_fill=(255, 255, 255, 120) if sub_is_dark_text else (0, 0, 0, 140),
         shadow_dx=0,
         shadow_dy=1,
-        glow_style="none",
         dim_layer=sub_dim,
         dim_color=sub_dim_color,
         dim_radius=120
@@ -1085,11 +1172,11 @@ def adapt_typography(analysis: "AnalysisResult",
 
     return TypographySpec(
         readability_score=readability_score, top=top_style, main=main_style, sub=sub_style,
-        typography_mode=mode_key, readability_risk=analysis.readability_risk, has_glow=False,
-        glow_rgba=None,
+        typography_mode=mode_key, readability_risk=analysis.readability_risk, 
         ref_color=ref_c, quote_color=q_c, support_color=sub_c, 
         dim_layer=main_dim, dim_color=main_dim_color, dim_radius=main_dim_rad,
-        sep_color=sep_c, orn_color=orn_c
+        sep_color=sep_c, orn_color=orn_c,
+        text_style=text_style
     )
 
 
@@ -1133,3 +1220,5 @@ def save_bg_cache(image, spec: VisualSpec, cache_dir: str) -> None:
         print(f"💾 [Cache] Saved vsbg_{key}  (theme={spec.theme})")
     except Exception as e:
         print(f"⚠️  [Cache] Save failed: {e}")
+
+        

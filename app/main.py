@@ -217,7 +217,10 @@ async def api_generate_quote_card(data: dict):
     caption      = data.get("caption", "").strip()
     style        = data.get("style", "quran")
     visual_prompt = (data.get("visual_prompt") or "").strip()
+    text_style_prompt = (data.get("text_style_prompt") or "").strip()
     mode         = data.get("mode", "preset")
+    readability_priority = data.get("readability_priority", True)
+    experimental_mode   = data.get("experimental_mode", False)
 
     # Auto-detect mode if not explicitly sent
     if style == "custom":
@@ -247,7 +250,10 @@ async def api_generate_quote_card(data: dict):
             caption,
             style=style,
             visual_prompt=visual_prompt or None,
-            mode=mode
+            mode=mode,
+            text_style_prompt=text_style_prompt,
+            readability_priority=readability_priority,
+            experimental_mode=experimental_mode
         )
         return {
             "image_url":      image_url,
