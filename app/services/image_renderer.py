@@ -111,6 +111,50 @@ def _extract_border(p: str) -> str:
     return "none"
 
 
+def balanced_text_wrap(text: str, font: ImageFont.FreeTypeFont, max_width: int, draw_tmp: ImageDraw.Draw) -> list[str]:
+    """
+    Split text into 2-4 lines that are roughly equal in pixel width.
+    Avoids 'hangers' (single words) and ensures a symmetrical block shape.
+    """
+    words = text.strip().split()
+    if not words: return []
+    
+    # Measure total width to estimate line count
+    total_w = draw_tmp.textbbox((0, 0), text, font=font)[2]
+    n_lines = max(1, math.ceil(total_w / max_width))
+    
+    # For small snippets, don't force multiple lines unless necessary
+    if n_lines == 1 and total_w < max_width:
+        return [text]
+
+    # Target width per line
+    target_w = total_w / n_lines
+    
+    lines = []
+    current_line = []
+    current_w = 0
+    
+    for word in words:
+        # Measure word including the trailing space
+        w_text = word + " "
+        word_w = draw_tmp.textbbox((0, 0), w_text, font=font)[2]
+        
+        # If adding this word exceeds the target SIGNIFICANTLY, and we have a line...
+        # We use a threshold (1.15x) to allow some lines to be slightly wider to keep balance.
+        if current_w + word_w > target_w * 1.15 and current_line:
+            lines.append(" ".join(current_line))
+            current_line = [word]
+            current_w = word_w
+        else:
+            current_line.append(word)
+            current_w += word_w
+            
+    if current_line:
+        lines.append(" ".join(current_line))
+        
+    return lines
+
+
 def _extract_palette(p: str):
     """
     Returns (bg_start, bg_end, is_light, accent_rgb) — all plain ints.
@@ -515,13 +559,7 @@ def generate_dalle_background(
 
     Returns an RGB PIL Image at target_size, or None on total failure.
     """
-    # ── Tier 1: File cache ────────────────────────────────────────────────────
-    if cache_dir:
-        cached = _load_bg_cache(visual_prompt, cache_dir)
-        if cached is not None:
-            if cached.size != target_size:
-                cached = cached.resize(target_size, Image.LANCZOS)
-            return cached
+    # ── Tier 1: (Removed - handled by caller vs_load_cache for variation awareness) ──
 
     # ── Tier 2: PIL fast-path ─────────────────────────────────────────────────
     if _is_fast_path(visual_prompt):
@@ -1232,11 +1270,11 @@ def render_minimal_quote_card(
             
     # ── TEXT ZONE LAYOUT ─────────────────────────────────────────────────────
     # Generous zones: Reference (A) | Main Quote (B) | Supporting (C)
-    v_pad   = 88
-    zone_ws = [int(W * 0.68), int(W * 0.80), int(W * 0.72)]
-    zone_ls = [18, 30, 20]
-    gap_ab  = 68   # generous gap: Reference → Quote (holds separator + breathing)
-    gap_bc  = 46   # Quote → Supporting
+    v_pad   = 120  # Increased for breathing room
+    zone_ws = [int(W * 0.70), int(W * 0.82), int(W * 0.74)]
+    zone_ls = [22, 34, 24]
+    gap_ab  = 74   # refined gap: Reference → Quote
+    gap_bc  = 74   # refined gap: Quote → Supporting
 
     draw_tmp = ImageDraw.Draw(bg)
     zone_data = []
@@ -1258,14 +1296,14 @@ def render_minimal_quote_card(
         # C: Support (i=2)   -> Medium, softer
         if mode == "custom":
             if i == 0:
-                seg["size"] = 32
-                z_ls = 12       # Tighter line height for reference if wraps
+                seg["size"] = 34
+                z_ls = 14       # Tighter line height for reference if wraps
             elif i == 1:
-                seg["size"] = 68
-                z_ls = 26       # Balanced, elegant line height
+                seg["size"] = 74
+                z_ls = 28       # Balanced, elegant line height
             else:
                 seg["size"] = 42
-                z_ls = 18       # Standard line height for support
+                z_ls = 20       # Standard line height for support
 
         try:
             fnt = ImageFont.truetype(font_path, int(seg["size"]))
@@ -1285,7 +1323,9 @@ def render_minimal_quote_card(
             # Manually inject tracking spaces between letters for Zone A
             seg_text = " ".join(list(seg_text)).replace("   ", "  ")
             
-        raw = textwrap.wrap(seg_text, width=max_chars)
+        # Use our intelligent balanced wrapper instead of textwrap
+        raw = balanced_text_wrap(seg_text, fnt, z_w, draw_tmp)
+        
         if i == 0 and len(raw) > 2:
             raw = raw[:2]; raw[-1] = raw[-1].rstrip() + "…"
             

@@ -35,6 +35,7 @@ class VisualSpec:
     ornament_level: str   = "corner"   # none | minimal | corner | moderate | ornate
     detail_level:   str   = "medium"   # sparse | medium | rich
     center_clarity: str   = "clear"    # clear | moderate | textured
+    variation_traits: dict = field(default_factory=dict) # NEW: tracks randomized traits for caching
 
 
 @dataclass
@@ -378,107 +379,6 @@ _POLICIES = {
 }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# PROMPT INTERPRETER
-# ─────────────────────────────────────────────────────────────────────────────
-
-def interpret_prompt(raw: str) -> VisualSpec:
-    """
-    Convert a raw user description into a structured VisualSpec.
-    Uses exclusively keyword matching — no AI, no network calls.
-    This ensures deterministic, safe, consistent interpretation.
-
-    Examples:
-      "emerald forest"                      → theme=emerald_forest
-      "warm parchment with gold geometry"   → theme=parchment, ornament=moderate
-      "charcoal marble with celestial glow" → theme=marble, lighting=center_soft
-      "sacred Kaaba-inspired cloth"         → theme=sacred_black
-    """
-    p = raw.lower().strip()
-
-    # 1. Detect theme by keyword priority (highest priority wins)
-    theme = "custom"
-    for t_name, keywords, _ in sorted(_THEME_KEYWORDS, key=lambda x: -x[2]):
-        if any(kw in p for kw in keywords):
-            theme = t_name
-            break
-
-    # 2. Get base palette from theme
-    palette_entry = _PALETTES.get(theme, _PALETTES["custom"])
-    bg_start, bg_end, is_light, accent = palette_entry
-
-    # 3. For custom/mixed themes, refine palette from compound keywords
-    #    (e.g. "charcoal marble" → charcoal wins as the darker material)
-    if theme == "custom":
-        if "charcoal" in p:
-            bg_start, bg_end = [38, 36, 42], [15, 13, 18]
-        elif "emerald" in p or "jade" in p:
-            bg_start, bg_end, is_light, accent = [0, 72, 38], [0, 24, 14], False, [115, 222, 148]
-        elif "navy" in p or "midnight blue" in p:
-            bg_start, bg_end = [10, 18, 66], [3, 5, 27]
-        elif "dark" in p or "black" in p:
-            bg_start, bg_end = [18, 16, 22], [4, 4, 6]
-
-    # 4. Detect material (may override theme material)
-    material = "none"
-    if any(k in p for k in ["marble", "granite", "stone"]): material = "marble"
-    elif any(k in p for k in ["parchment", "papyrus", "paper", "vellum", "manuscript"]): material = "parchment"
-    elif any(k in p for k in ["velvet", "silk", "cloth", "fabric"]): material = "fabric"
-    elif any(k in p for k in ["obsidian", "onyx"]): material = "stone"
-    elif any(k in p for k in ["forest", "woodland", "leaf", "leaves"]): material = "organic"
-
-    # 5. Detect lighting (prompt overrides theme default)
-    lighting = _LIGHTING.get(theme, "radial")
-    if any(k in p for k in ["center light", "center glow", "light center"]): lighting = "center_soft"
-    if any(k in p for k in ["overhead", "from above", "top light"]):          lighting = "overhead"
-    if any(k in p for k in ["corner light", "corner glow"]):                   lighting = "corner"
-    if "dramatic" in p:                                                         lighting = "dramatic"
-    if any(k in p for k in ["minimal light", "dark only", "no light"]):        lighting = "minimal"
-
-    # 6. Detect mood (prompt overrides theme default)
-    mood = _MOOD.get(theme, "contemplative")
-    if any(k in p for k in ["peaceful", "calm", "serene", "tranquil"]):        mood = "peaceful"
-    if any(k in p for k in ["majestic", "epic", "powerful", "striking"]):      mood = "majestic"
-    if any(k in p for k in ["sacred", "holy", "divine", "reverent"]):          mood = "sacred"
-    if any(k in p for k in ["celestial", "heavenly", "cosmic"]):               mood = "celestial"
-
-    # 7. Detect ornament level
-    ornament = _ORNAMENT.get(theme, "corner")
-    if any(k in p for k in ["ornate", "detailed border", "arabesque",
-                              "filigree", "intricate"]):                         ornament = "ornate"
-    if any(k in p for k in ["minimal ornament", "clean", "spare", "simple"]):  ornament = "minimal"
-    if any(k in p for k in ["no border", "borderless", "no ornament"]):        ornament = "none"
-    if "gold" in p or "golden" in p:
-        # Gold keyword implies at least corner treatment
-        if ornament == "none": ornament = "minimal"
-
-    # 8. Detect detail level
-    detail = "medium"
-    if any(k in p for k in ["minimal", "sparse", "bare", "very clean"]):       detail = "sparse"
-    if any(k in p for k in ["rich", "luxurious", "detailed", "ornate",
-                              "elaborate"]):                                      detail = "rich"
-
-    # 9. Center clarity
-    center = "clear"
-    if any(k in p for k in ["all over", "full texture", "full detail"]):       center = "textured"
-    if "moderate" in p:                                                          center = "moderate"
-
-    spec = VisualSpec(
-        theme=theme,
-        material=material,
-        lighting=lighting,
-        mood=mood,
-        bg_start=tuple(int(v) for v in bg_start),
-        bg_end=tuple(int(v) for v in bg_end),
-        is_light_bg=is_light,
-        accent=tuple(int(v) for v in accent),
-        ornament_level=ornament,
-        detail_level=detail,
-        center_clarity=center,
-    )
-    print(f"\n🔍 [VisualSpec] theme={theme}  mat={material}  light={lighting}  "
-          f"mood={mood}  orn={ornament}  light_bg={is_light}")
-    return spec
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -550,10 +450,17 @@ _STYLE_FAMILIES = {
             "Deep emerald forest background, atmospheric depth, calm spiritual mood, natural textures."
         ),
         "traits": {
+            "scene_type": [
+                "upward canopy looking through dense trees toward sky",
+                "misty valley with distant mountain/tree silhouettes",
+                "close foreground leaves and foliage with soft focus blur",
+                "distant silhouette treeline against morning mist",
+                "abstract fog and emerald light patterns in deep woodland",
+                "ethereal clearing with soft dappled sunlight and moss"
+            ],
             "lighting": ["soft diffused light rays", "dappled sunlight filtering down", "mystical twilight glow", "moonlit silver rim light"],
             "fog_density": ["heavy low-hanging mist", "subtle volumetric haze", "clear crisp air", "dense mystical fog around edges"],
             "foliage": ["dense framing trees", "minimal distant silhouettes", "soft out-of-focus foreground leaves", "ancient mossy textures"],
-            "pathway": ["faint disappearing trail", "dark smooth stone floor", "soft overgrown moss bed", "pure atmospheric emptiness"],
             "highlights": ["faint gold dust particles", "soft jade reflections", "luminous firefly sparks", "deep emerald gradients"]
         }
     },
@@ -634,14 +541,22 @@ class VariationEngine:
 
 def compose_dalle_prompt(spec: VisualSpec, raw_prompt: str = "") -> str:
     v_data = VariationEngine.generate(spec.theme, raw_prompt)
+    
+    # Store the traits in the spec for cache key stability
+    spec.variation_traits = v_data["variation_traits"]
+    
     var_list = [f"{k.replace('_', ' ')}: {v}" for k, v in v_data["variation_traits"].items()]
     variations_str = ", ".join(var_list)
+    
+    # Strategy: Tokens 1-50 are the strongest in DALL-E.
+    # We lead with the variation traits to ensure maximum scene diversity.
     final_prompt = (
+        f"{_HARD_CONSTRAINTS} "
+        f"BACKGROUND PLATE: {variations_str}. "
         f"{v_data['core_traits']} "
-        f"Design family: {v_data['family']}. "
-        f"Specific variations for this generation: {variations_str}. "
         f"Mood: {spec.mood}. "
-        f"Photorealistic, premium cinematic rendering."
+        f"{_COMPOSITION} "
+        f"{_QUALITY}"
     )
     print(f"\n🌪️ AUTO-VARIATION TRIGGERED [{v_data['family']}]: {v_data['variation_traits']}")
     return final_prompt
@@ -788,41 +703,6 @@ _LIGHTING_CLAUSES = {
 }
 
 
-def compose_dalle_prompt(spec: VisualSpec, raw_prompt: str = "") -> str:
-    """
-    Converts a VisualSpec into a safe, structured DALL-E background prompt.
-
-    Token order strategy (DALL-E weights first tokens most heavily):
-      1. Hard constraints     — NO CALLIGRAPHY / NO TEXT (must dominate)
-      2. Frame descriptor     — 'Abstract texture background plate'
-      3. Theme policy         — what specifically to render
-      4. Lighting clause      — direction and quality of light
-      5. Composition rule     — center must stay clear
-      6. Quality directives   — premium, photorealistic, cinematic
-
-    Nothing in this prompt may reference: Islamic, Arabic, mosque, Qur'an,
-    calligraphy, quote card, or any religious text system.
-    """
-    policy = _POLICIES.get(spec.theme)
-    if not policy:
-        # For custom/unknown themes, describe the raw material directly
-        policy = (
-            f"{raw_prompt}. "
-            "Premium material texture and atmospheric depth. "
-            "Subtle geometric ornament at edges and corners only."
-        )
-
-    lighting_clause = _LIGHTING_CLAUSES.get(spec.lighting,
-                                            "Soft diffused ambient lighting.")
-
-    return (
-        f"{_HARD_CONSTRAINTS} "
-        "Abstract texture background plate for digital photo compositing. "
-        f"{policy} "
-        f"Lighting: {lighting_clause} "
-        f"{_COMPOSITION} "
-        f"{_QUALITY}"
-    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1089,10 +969,10 @@ def adapt_typography(analysis: "AnalysisResult",
     # Subtle darkening/brightening ONLY behind text if needed
     if top_is_dark_text and analysis.zone_a_brightness < 160:
         top_dim = True
-        top_dim_color = (255, 255, 255, 30)
+        top_dim_color = (255, 255, 255, 45) # Increased slightly for presence
     elif not top_is_dark_text and analysis.zone_a_brightness > 80:
         top_dim = True
-        top_dim_color = (0, 0, 0, 35)
+        top_dim_color = (0, 0, 0, 50)       # Increased slightly for presence
 
     top_style = ZoneStyle(
         color=ref_c,
@@ -1146,7 +1026,7 @@ def adapt_typography(analysis: "AnalysisResult",
 
     sub_style = ZoneStyle(
         color=sub_c,
-        opacity=0.9,
+        opacity=0.88, # Slightly boosted from 0.82/0.9 to find the sweet spot
         shadow_fill=(255, 255, 255, 120) if sub_is_dark_text else (0, 0, 0, 140),
         shadow_dx=0,
         shadow_dy=1,
@@ -1167,9 +1047,11 @@ def adapt_typography(analysis: "AnalysisResult",
 
 
 def spec_cache_key(spec: VisualSpec) -> str:
-    """Stable 12-char hash of the semantic content of a VisualSpec."""
+    """Stable 12-char hash of the semantic content AND random variation of a VisualSpec."""
+    # We include variation_traits to ensure randomized generations don't collide in cache
+    v_str = str(sorted(spec.variation_traits.items()))
     key_str = (f"{spec.theme}|{spec.material}|{spec.lighting}|"
-               f"{spec.mood}|{spec.ornament_level}|{spec.detail_level}")
+               f"{spec.mood}|{spec.ornament_level}|{spec.detail_level}|{v_str}")
     return hashlib.md5(key_str.encode()).hexdigest()[:12]
 
 
