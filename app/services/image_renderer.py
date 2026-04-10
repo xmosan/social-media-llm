@@ -1139,45 +1139,36 @@ def render_minimal_quote_card(
         glow_rgba = tuple(int(v) for v in kw_ov.get("glow_color_rgba",
                                                       [255, 245, 220, 60]))
 
-        if dalle_bg is not None:
+        if dalle_bg is None:
+            mode = "preset"
+        else:
             bg = dalle_bg
-
-            # Readability softening overlay (before analysis)
-            center_brt = _detect_center_brightness(bg, target_size)
-            is_light   = center_brt > 148
-            cx, cy     = W // 2, H // 2
-            r_layer    = Image.new("RGBA", target_size, (0, 0, 0, 0))
-            rd         = ImageDraw.Draw(r_layer)
-            rd.ellipse([cx - 400, cy - 400, cx + 400, cy + 400],
-                       fill=(255, 255, 255, 42) if is_light else (0, 0, 0, 58))
-            r_layer = r_layer.filter(ImageFilter.GaussianBlur(120))
-            bg = Image.alpha_composite(bg.convert("RGBA"), r_layer).convert("RGB")
 
             # Gentle vignette (preserves DALL-E detail)
             bg   = apply_vignette(bg, intensity=0.38)
             draw = ImageDraw.Draw(bg)
 
             # Analyze + adapt typography per zone
-        if _VS_OK:
-            analysis  = vs_analyze(bg, target_size)
-            typo_spec = vs_adapt(analysis, vs_spec)
-            print(f"   🎨 Mode={typo_spec.typography_mode} risk={typo_spec.readability_risk} score={typo_spec.readability_score:.2f}")
-        else:
-            typo_spec = None
-            palette = _build_adaptive_palette(bg, target_size)
-            
-        # Ornaments driven by spec.ornament_level
-        gold_c    = (205, 165, 45)
-        orn_level = getattr(vs_spec, "ornament_level", "corner") if vs_spec else "corner"
-        if orn_level == "ornate":
-            draw_manuscript_frame(draw, target_size, tuple(max(0, v - 20) for v in gold_c))
-            draw_corner_filigree(draw, target_size, gold_c, length=90)
-        elif orn_level in ("corner", "moderate"):
-            draw_corner_filigree(draw, target_size, gold_c, length=82)
-        elif orn_level == "minimal":
-            draw_corner_filigree(draw, target_size, gold_c, length=48)
+            if _VS_OK:
+                analysis  = vs_analyze(bg, target_size)
+                typo_spec = vs_adapt(analysis, vs_spec)
+                print(f"   🎨 Mode={typo_spec.typography_mode} risk={typo_spec.readability_risk} score={typo_spec.readability_score:.2f}")
+            else:
+                typo_spec = None
+                palette = _build_adaptive_palette(bg, target_size)
+                
+            # Ornaments driven by spec.ornament_level
+            gold_c    = (205, 165, 45)
+            orn_level = getattr(vs_spec, "ornament_level", "corner") if vs_spec else "corner"
+            if orn_level == "ornate":
+                draw_manuscript_frame(draw, target_size, tuple(max(0, v - 20) for v in gold_c))
+                draw_corner_filigree(draw, target_size, gold_c, length=90)
+            elif orn_level in ("corner", "moderate"):
+                draw_corner_filigree(draw, target_size, gold_c, length=82)
+            elif orn_level == "minimal":
+                draw_corner_filigree(draw, target_size, gold_c, length=48)
 
-    else:
+    if mode == "preset":
         # ── MODE: PRESET ──────────────────────────────────────────────────────
         key = style if style in PRESET_CONFIGS else "quran"
         cfg = PRESET_CONFIGS[key]
@@ -1337,21 +1328,7 @@ def render_minimal_quote_card(
                    min(255, int(orn_col[1] * 0.9)),
                    min(255, int(orn_col[2] * 0.75)))
 
-    # ── GLOW HALO UNDER ZONE B ────────────────────────────────────────────────
     bg_rgba = bg.convert("RGBA")
-    _use_glow = (typo_spec is not None and typo_spec.has_glow) or typo_spec is None
-    if len(zone_data) > 1 and g_rgba and _use_glow:
-        g_layer = Image.new("RGBA", target_size, (0, 0, 0, 0))
-        gd      = ImageDraw.Draw(g_layer)
-        ty_g    = start_y + zone_data[0]["block_h"] + gap_ab
-        cx      = W // 2
-        gr      = tuple(int(v) for v in g_rgba)
-        for ln in zone_data[1]["lines"]:
-            gd.text((cx, ty_g), ln["text"], font=zone_data[1]["font"],
-                    fill=gr, anchor="mt")
-            ty_g += ln["h"] + zone_data[1]["ls"]
-        g_layer = g_layer.filter(ImageFilter.GaussianBlur(32))
-        bg_rgba = Image.alpha_composite(bg_rgba, g_layer)
 
     # ── DRAWING PASS ─────────────────────────────────────────────────────────
 
@@ -1387,11 +1364,15 @@ def render_minimal_quote_card(
         
         # 1) Soft Protection Layer directly under the zone
         if dim_layer:
-            # We draw a highly blurred ellipse
+            # Cinematic high-blur radial falloff to seamlessly melt into the background without banding.
             pr_layer = Image.new("RGBA", target_size, (0, 0, 0, 0))
             pd = ImageDraw.Draw(pr_layer)
-            pd.ellipse([cx - dim_rad, ty - dim_rad*0.5, cx + dim_rad, ty_end + dim_rad*0.5], fill=dim_color)
-            pr_layer = pr_layer.filter(ImageFilter.GaussianBlur(dim_rad // 3))
+            
+            # Subtly expand the ellipse vertical bounds slightly to prevent horizontal squeezing
+            pd.ellipse([cx - dim_rad, ty - dim_rad*0.8, cx + dim_rad, ty_end + dim_rad*0.8], fill=dim_color)
+            
+            # Massive blur for invisible transition (no visible edges)
+            pr_layer = pr_layer.filter(ImageFilter.GaussianBlur(dim_rad // 2))
             bg_rgba = Image.alpha_composite(bg_rgba, pr_layer)
             draw_out = ImageDraw.Draw(bg_rgba)
             

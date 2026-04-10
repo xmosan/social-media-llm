@@ -1059,73 +1059,109 @@ def adapt_typography(analysis: "AnalysisResult",
     mode_key = analysis.typography_mode
     M = mode_map.get(mode_key, _DARK_MODE)
     theme = getattr(spec, "theme", "custom") if spec else "custom"
-
     T_ovr = _THEME_ACCENT_OVERRIDES.get(theme, {})
-    ref_c = tuple(T_ovr.get("reference", M["reference"]))
-    q_c = tuple(M["main"])
-    sub_c = tuple(M["support"])
-    sh_fill = tuple(M["shadow"])
-    sh_dx = M.get("shadow_dx", 2)
-    sh_dy = M.get("shadow_dy", 2)
-    sep_c = M["sep_color"]
+    
+    # Adaptive zone-based text color switching
+    def get_color(brt, key):
+        if brt > 145: return _LIGHT_MODE[key]
+        if brt < 85:  return _DARK_MODE[key]
+        return M[key]
+        
+    ref_c = get_color(analysis.zone_a_brightness, "reference")
+    q_c   = get_color(analysis.zone_b_brightness, "main")
+    sub_c = get_color(analysis.zone_c_brightness, "support")
+    
+    # Gently blend theme-specific accents only if the background allows it
+    if T_ovr.get("reference") and mode_key in ("DARK", "MID_DARK") and analysis.zone_a_brightness < 100:
+        ref_c = tuple(T_ovr["reference"])
+
     orn_c = M["orn_color"]
+    sep_c = M["sep_color"]
 
     baseline_contrast = analysis.center_contrast
     noise_penalty = min(0.3, analysis.center_detail * 1.5)
     readability_score = max(0.0, min(1.0, baseline_contrast - noise_penalty))
 
-    top_dim = analysis.zone_a_brightness > 130 and mode_key == "LIGHT" or analysis.zone_a_brightness < 90 and mode_key == "DARK"
-    top_glow = "strong" if theme in ["cosmic", "sacred_black"] else "subtle" if theme in ["celestial", "moonlit"] else "none"
+    # --- TOP ZONE (Reference) ---
+    top_dim = False
+    top_dim_color = (0, 0, 0, 0)
+    top_is_dark_text = (sum(ref_c[:3]) < 384)
+    # Subtle darkening/brightening ONLY behind text if needed
+    if top_is_dark_text and analysis.zone_a_brightness < 160:
+        top_dim = True
+        top_dim_color = (255, 255, 255, 30)
+    elif not top_is_dark_text and analysis.zone_a_brightness > 80:
+        top_dim = True
+        top_dim_color = (0, 0, 0, 35)
+
     top_style = ZoneStyle(
         color=ref_c,
         opacity=1.0,
-        shadow_fill=sh_fill,
-        shadow_dx=sh_dx,
-        shadow_dy=sh_dy,
-        glow_style=top_glow,
+        shadow_fill=(255, 255, 255, 140) if top_is_dark_text else (0, 0, 0, 160),
+        shadow_dx=-1 if top_is_dark_text else 1,
+        shadow_dy=-1 if top_is_dark_text else 1,
+        glow_style="none",
         dim_layer=top_dim,
-        dim_color=(0,0,0,135) if mode_key in ["LIGHT", "MID_LIGHT"] else (0,0,0,165),
-        dim_radius=55
+        dim_color=top_dim_color,
+        dim_radius=80  # high blur behind text
     )
 
-    if analysis.readability_risk != 'low': main_dim = True
-    else: main_dim = False
-        
-    dm_r = {"low": 0, "medium": 320, "high": 420}.get(analysis.readability_risk, 200)
-    dm_c = (0,0,0,45) if mode_key in ["LIGHT", "MID_LIGHT"] else (0,0,0,140)
-    if mode_key == "LIGHT" and analysis.readability_risk == "high": dm_c = (0,0,0,120)
-    elif mode_key == "DARK" and analysis.readability_risk == "high": dm_c = (0,0,0,180)
+    # --- MAIN ZONE (Quote) ---
+    main_is_dark_text = (sum(q_c[:3]) < 384)
+    main_dim = False
+    main_dim_color = (0, 0, 0, 0)
+    main_dim_rad = 380
+    
+    if analysis.readability_risk != 'low':
+        main_dim = True
+        if main_is_dark_text:
+            main_dim_color = (255, 255, 255, 45 if analysis.readability_risk == "high" else 25)
+        else:
+            main_dim_color = (0, 0, 0, 85 if analysis.readability_risk == "high" else 55)
 
     main_style = ZoneStyle(
         color=q_c,
         opacity=1.0,
-        shadow_fill=sh_fill,
-        shadow_dx=sh_dx + (1 if analysis.readability_risk == "high" else 0),
-        shadow_dy=sh_dy + (1 if analysis.readability_risk == "high" else 0),
-        glow_style="subtle" if T_ovr.get("glow_rgba") and mode_key == "DARK" else "none",
+        shadow_fill=(255, 255, 255, 160) if main_is_dark_text else (0, 0, 0, 180),
+        shadow_dx=-1 if main_is_dark_text else 1,
+        shadow_dy=-1 if main_is_dark_text else 2,
+        glow_style="none",
         dim_layer=main_dim,
-        dim_color=dm_c,
-        dim_radius=dm_r
+        dim_color=main_dim_color,
+        dim_radius=main_dim_rad
     )
 
-    sub_dim = analysis.zone_c_brightness > 140 if mode_key == "LIGHT" else analysis.zone_c_brightness < 70
+    # --- SUBTEXT ZONE (Support) ---
+    sub_is_dark_text = (sum(sub_c[:3]) < 384)
+    sub_dim = False
+    sub_dim_color = (0, 0, 0, 0)
+    
+    # Slight clarity boost / micro-darkening
+    if sub_is_dark_text and analysis.zone_c_brightness < 160:
+        sub_dim = True
+        sub_dim_color = (255, 255, 255, 25)
+    elif not sub_is_dark_text and analysis.zone_c_brightness > 70:
+        sub_dim = True
+        sub_dim_color = (0, 0, 0, 30)
+
     sub_style = ZoneStyle(
         color=sub_c,
-        opacity=0.82,
-        shadow_fill=sh_fill,
-        shadow_dx=max(1, sh_dx - 1),
-        shadow_dy=max(1, sh_dy - 1),
+        opacity=0.9,
+        shadow_fill=(255, 255, 255, 120) if sub_is_dark_text else (0, 0, 0, 140),
+        shadow_dx=0,
+        shadow_dy=1,
         glow_style="none",
         dim_layer=sub_dim,
-        dim_color=(0,0,0,85),
-        dim_radius=110
+        dim_color=sub_dim_color,
+        dim_radius=120
     )
 
     return TypographySpec(
         readability_score=readability_score, top=top_style, main=main_style, sub=sub_style,
-        typography_mode=mode_key, readability_risk=analysis.readability_risk, has_glow=(T_ovr.get("glow_rgba") is not None),
-        glow_rgba=T_ovr.get("glow_rgba"),
-        ref_color=ref_c, quote_color=q_c, support_color=sub_c, dim_layer=main_dim, dim_color=dm_c, dim_radius=dm_r,
+        typography_mode=mode_key, readability_risk=analysis.readability_risk, has_glow=False,
+        glow_rgba=None,
+        ref_color=ref_c, quote_color=q_c, support_color=sub_c, 
+        dim_layer=main_dim, dim_color=main_dim_color, dim_radius=main_dim_rad,
         sep_color=sep_c, orn_color=orn_c
     )
 
