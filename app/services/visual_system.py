@@ -525,3 +525,142 @@ def save_bg_cache(image, spec: VisualSpec, cache_dir: str) -> None:
         print(f"💾 [Cache] Saved vsbg_{key}  (theme={spec.theme})")
     except Exception as e:
         print(f"⚠️  [Cache] Save failed: {e}")
+
+
+def interpret_prompt(raw: str) -> VisualSpec:
+    """
+    Convert a raw user description into a structured VisualSpec.
+    Uses exclusively keyword matching — no AI, no network calls.
+    This ensures deterministic, safe, consistent interpretation.
+
+    Examples:
+      "emerald forest"                      → theme=emerald_forest
+      "warm parchment with gold geometry"   → theme=parchment, ornament=moderate
+      "charcoal marble with celestial glow" → theme=marble, lighting=center_soft
+      "sacred Kaaba-inspired cloth"         → theme=sacred_black
+    """
+    p = raw.lower().strip()
+
+    # 1. Detect theme by keyword priority (highest priority wins)
+    theme = "custom"
+    for t_name, keywords, _ in sorted(_THEME_KEYWORDS, key=lambda x: -x[2]):
+        if any(kw in p for kw in keywords):
+            theme = t_name
+            break
+
+    # 2. Get base palette from theme
+    palette_entry = _PALETTES.get(theme, _PALETTES["custom"])
+    bg_start, bg_end, is_light, accent = palette_entry
+
+    # 3. For custom/mixed themes, refine palette from compound keywords
+    #    (e.g. "charcoal marble" → charcoal wins as the darker material)
+    if theme == "custom":
+        if "charcoal" in p:
+            bg_start, bg_end = [38, 36, 42], [15, 13, 18]
+        elif "emerald" in p or "jade" in p:
+            bg_start, bg_end, is_light, accent = [0, 72, 38], [0, 24, 14], False, [115, 222, 148]
+        elif "navy" in p or "midnight blue" in p:
+            bg_start, bg_end = [10, 18, 66], [3, 5, 27]
+        elif "dark" in p or "black" in p:
+            bg_start, bg_end = [18, 16, 22], [4, 4, 6]
+
+    # 4. Detect material (may override theme material)
+    material = "none"
+    if any(k in p for k in ["marble", "granite", "stone"]): material = "marble"
+    elif any(k in p for k in ["parchment", "papyrus", "paper", "vellum", "manuscript"]): material = "parchment"
+    elif any(k in p for k in ["velvet", "silk", "cloth", "fabric"]): material = "fabric"
+    elif any(k in p for k in ["obsidian", "onyx"]): material = "stone"
+    elif any(k in p for k in ["forest", "woodland", "leaf", "leaves"]): material = "organic"
+
+    # 5. Detect lighting (prompt overrides theme default)
+    lighting = _LIGHTING.get(theme, "radial")
+    if any(k in p for k in ["center light", "center glow", "light center"]): lighting = "center_soft"
+    if any(k in p for k in ["overhead", "from above", "top light"]):          lighting = "overhead"
+    if any(k in p for k in ["corner light", "corner glow"]):                   lighting = "corner"
+    if "dramatic" in p:                                                         lighting = "dramatic"
+    if any(k in p for k in ["minimal light", "dark only", "no light"]):        lighting = "minimal"
+
+    # 6. Detect mood (prompt overrides theme default)
+    mood = _MOOD.get(theme, "contemplative")
+    if any(k in p for k in ["peaceful", "calm", "serene", "tranquil"]):        mood = "peaceful"
+    if any(k in p for k in ["majestic", "epic", "powerful", "striking"]):      mood = "majestic"
+    if any(k in p for k in ["sacred", "holy", "divine", "reverent"]):          mood = "sacred"
+    if any(k in p for k in ["celestial", "heavenly", "cosmic"]):               mood = "celestial"
+
+    # 7. Detect ornament level
+    ornament = _ORNAMENT.get(theme, "corner")
+    if any(k in p for k in ["ornate", "detailed border", "arabesque",
+                              "filigree", "intricate"]):                         ornament = "ornate"
+    if any(k in p for k in ["minimal ornament", "clean", "spare", "simple"]):  ornament = "minimal"
+    if any(k in p for k in ["no border", "borderless", "no ornament"]):        ornament = "none"
+    if "gold" in p or "golden" in p:
+        # Gold keyword implies at least corner treatment
+        if ornament == "none": ornament = "minimal"
+
+    # 8. Detect detail level
+    detail = "medium"
+    if any(k in p for k in ["minimal", "sparse", "bare", "very clean"]):       detail = "sparse"
+    if any(k in p for k in ["rich", "luxurious", "detailed", "ornate",
+                              "elaborate"]):                                      detail = "rich"
+
+    # 9. Center clarity
+    center = "clear"
+    if any(k in p for k in ["all over", "full texture", "full detail"]):       center = "textured"
+    if "moderate" in p:                                                          center = "moderate"
+
+    spec = VisualSpec(
+        theme=theme,
+        material=material,
+        lighting=lighting,
+        mood=mood,
+        bg_start=tuple(int(v) for v in bg_start),
+        bg_end=tuple(int(v) for v in bg_end),
+        is_light_bg=is_light,
+        accent=tuple(int(v) for v in accent),
+        ornament_level=ornament,
+        detail_level=detail,
+        center_clarity=center,
+    )
+    print(f"\n🔍 [VisualSpec] theme={theme}  mat={material}  light={lighting}  "
+          f"mood={mood}  orn={ornament}  light_bg={is_light}")
+    return spec
+
+
+def spec_cache_key(spec: VisualSpec) -> str:
+    """Stable 12-char hash of the semantic content of a VisualSpec."""
+    key_str = (f"{spec.theme}|{spec.material}|{spec.lighting}|"
+               f"{spec.mood}|{spec.ornament_level}|{spec.detail_level}")
+    return hashlib.md5(key_str.encode()).hexdigest()[:12]
+
+
+def load_bg_cache(spec: VisualSpec, cache_dir: str):
+    """
+    Load a background from the semantic spec cache.
+    Returns PIL Image or None.
+    """
+    key  = spec_cache_key(spec)
+    path = os.path.join(cache_dir, f"vsbg_{key}.jpg")
+    if os.path.exists(path):
+        try:
+            if Image is None:
+                return None
+            img = Image.open(path).convert("RGB")
+            print(f"⚡ [Cache] Spec HIT vsbg_{key}  (theme={spec.theme})")
+            return img
+        except Exception:
+            pass
+    return None
+
+
+def save_bg_cache(image, spec: VisualSpec, cache_dir: str) -> None:
+    """Persist a generated background to the semantic spec cache."""
+    if Image is None:
+        return
+    try:
+        os.makedirs(cache_dir, exist_ok=True)
+        key  = spec_cache_key(spec)
+        path = os.path.join(cache_dir, f"vsbg_{key}.jpg")
+        image.save(path, quality=92)
+        print(f"💾 [Cache] Saved vsbg_{key}  (theme={spec.theme})")
+    except Exception as e:
+        print(f"⚠️  [Cache] Save failed: {e}")

@@ -1368,3 +1368,36 @@ def render_minimal_quote_card(
             y = ty - zd["ls"]
 
 
+
+
+def render_quote_card(background_local_path: str, quote: str,
+                      reference: str, output_dir: str) -> str:
+    """Legacy image-overlay render (kept for compatibility)."""
+    bg = Image.open(background_local_path).convert("RGB")
+    W, H = 1080, 1080
+    r = bg.width / bg.height
+    nw, nh = (int(H * r), H) if r > 1 else (W, int(W / r))
+    bg = bg.resize((nw, nh), Image.LANCZOS)
+    bg = bg.crop(((nw - W) // 2, (nh - H) // 2,
+                   (nw - W) // 2 + W, (nh - H) // 2 + H))
+    base_dir  = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    fp = os.path.join(base_dir, "assets", "fonts", "Inter.ttf")
+    try:
+        fs, fl = ImageFont.truetype(fp, 36), ImageFont.truetype(fp, 72)
+    except Exception:
+        fs = fl = ImageFont.load_default()
+    ov = Image.new("RGBA", (W, H), (0, 0, 0, 120))
+    bg = Image.alpha_composite(bg.convert("RGBA"), ov).convert("RGB")
+    draw = ImageDraw.Draw(bg)
+    for i, l in enumerate(textwrap.wrap(reference, 44)[:2]):
+        draw.text((W//2, 120 + i*44), l, font=fs, fill=(212, 175, 55), anchor="mt")
+    y = H // 2
+    for l in textwrap.wrap(quote, 22):
+        draw.text((W//2, y), l, font=fl, fill=(255, 255, 255), anchor="mt")
+        y += 80
+    fn = f"qcard_{int(time.time()*1000)}.jpg"
+    fp2 = os.path.join(output_dir, fn)
+    os.makedirs(output_dir, exist_ok=True)
+    bg.save(fp2, quality=95)
+    return f"{settings.public_base_url.rstrip('/')}/uploads/{fn}"
