@@ -22,6 +22,10 @@ from typing import Optional
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from openai import OpenAI
 from app.config import settings
+from google import genai
+from google.genai import types
+import base64
+import io as _io
 
 # ── Visual System Layer ───────────────────────────────────────────────────────
 # Pre-declare as safe defaults so NameError is impossible if import fails
@@ -30,18 +34,20 @@ vs_interpret = vs_compose = vs_analyze = vs_adapt = vs_load_cache = vs_save_cach
 
 try:
     from app.services.visual_system import (
-        interpret_prompt     as vs_interpret,
-        interpret_text_style as vs_interpret_text,
-        compose_dalle_prompt as vs_compose,
-        analyze_background   as vs_analyze,
-        adapt_typography     as vs_adapt,
-        load_bg_cache        as vs_load_cache,
-        save_bg_cache        as vs_save_cache,
+        interpret_prompt      as vs_interpret,
+        interpret_text_style  as vs_interpret_text,
+        compose_dalle_prompt  as vs_compose,
+        compose_gemini_prompt as vs_compose_gemini,
+        analyze_background    as vs_analyze,
+        adapt_typography      as vs_adapt,
+        load_bg_cache         as vs_load_cache,
+        save_bg_cache         as vs_save_cache,
     )
     _VS_OK = True
     print("✅ visual_system loaded OK")
 except Exception as _vs_err:
     print(f"⚠️  visual_system unavailable: {_vs_err}")
+    vs_compose_gemini = None
     _VS_OK = False
 
 
@@ -54,6 +60,12 @@ def get_openai_client() -> Optional[OpenAI]:
     if not settings.openai_api_key:
         return None
     return OpenAI(api_key=settings.openai_api_key)
+
+def get_gemini_client():
+    if not settings.gemini_api_key:
+        return None
+    # Using the modern GenAI Python SDK
+    return genai.Client(api_key=settings.gemini_api_key)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -538,6 +550,88 @@ def _detect_center_brightness(image_rgb, size) -> float:
     gray     = center.convert("L")
     pixels   = list(gray.getdata())
     return sum(pixels) / len(pixels) if pixels else 128.0
+
+
+def generate_background(
+    visual_prompt: str,
+    target_size: tuple = (1080, 1080),
+    cache_dir: Optional[str] = None,
+    engine: str = "dalle",
+    vs_spec = None
+) -> Optional[Image.Image]:
+    """
+    Unified entry point for background generation.
+    Switches between DALL-E (default) and Gemini.
+    """
+    if engine == "gemini":
+        return generate_background_gemini(
+            visual_prompt, target_size, cache_dir, vs_spec=vs_spec)
+    
+    # Default: DALL-E
+    dalle_prompt = None
+    if vs_spec and vs_compose:
+        dalle_prompt = vs_compose(vs_spec, raw_prompt=visual_prompt)
+        
+    return generate_dalle_background(
+        visual_prompt, target_size, cache_dir, 
+        dalle_prompt_override=dalle_prompt
+    )
+
+
+def generate_background_gemini(
+    visual_prompt: str,
+    target_size: tuple = (1080, 1080),
+    cache_dir: Optional[str] = None,
+    vs_spec = None
+) -> Optional[Image.Image]:
+    """
+    Gemini (Imagen 3) implementation for background plate generation.
+    """
+    client = get_gemini_client()
+    if not client:
+        print("📌 [Gemini] No Google API key — falling back")
+        return None
+
+    # Compose the stricter Gemini prompt
+    if vs_spec and vs_compose_gemini:
+        prompt = vs_compose_gemini(vs_spec, raw_prompt=visual_prompt)
+    else:
+        prompt = f"A professional background plate: {visual_prompt}. No text, no calligraphy."
+
+    print(f"\n💎 [Gemini] Generating background plate (Imagen 4.0 Ultra)...")
+    print(f"   Prompt: {prompt[:110]}...")
+    try:
+        # High fidelity Imagen 4.0 Ultra call (modern google-genai SDK)
+        response = client.models.generate_images(
+            model='imagen-4.0-ultra-generate-001',
+            prompt=prompt,
+            config=types.GenerateImagesConfig(
+                number_of_images=1,
+                aspect_ratio='1:1',
+                output_mime_type='image/jpeg'
+            )
+        )
+        
+        if not response.generated_images:
+            return None
+            
+        # The new SDK provides a types.Image object with .image_bytes
+        img_raw = response.generated_images[0].image.image_bytes
+        img = Image.open(_io.BytesIO(img_raw)).convert("RGB")
+        
+        if img.size != target_size:
+            img = img.resize(target_size, Image.LANCZOS)
+            
+        print("✅ [Gemini] Background plate ready")
+        
+        if cache_dir:
+            from app.services.image_renderer import _save_bg_cache
+            _save_bg_cache(img, visual_prompt, cache_dir)
+            
+        return img
+    except Exception as e:
+        print(f"⚠️  [Gemini] Failed ({type(e).__name__}: {e})")
+        return None
 
 
 def generate_dalle_background(
@@ -1176,7 +1270,8 @@ def render_minimal_quote_card(
     mode:          str = "preset",
     text_style_prompt: str = "",
     readability_priority: bool = True,
-    experimental_mode: bool = False
+    experimental_mode: bool = False,
+    engine: str = "dalle"  # NEW: Engine selection
 ) -> str:
     """
     Sabeel Designer Engine v7.0 — Spiritual Depth Renderer.
@@ -1207,19 +1302,13 @@ def render_minimal_quote_card(
         vs_spec = None
         if _VS_OK:
             vs_spec      = vs_interpret(visual_prompt)
-            dalle_prompt = vs_compose(vs_spec, raw_prompt=visual_prompt)
-            dalle_bg     = vs_load_cache(vs_spec, output_dir)
-            if dalle_bg is None:
-                dalle_bg = generate_dalle_background(
-                    visual_prompt, target_size,
-                    cache_dir=output_dir,
-                    dalle_prompt_override=dalle_prompt,
-                )
-                if dalle_bg is not None:
-                    vs_save_cache(dalle_bg, vs_spec, output_dir)
-        else:
-            dalle_bg = generate_dalle_background(
-                visual_prompt, target_size, cache_dir=output_dir)
+            # Logic moved to centralized generate_background switcher
+            dalle_bg = generate_background(
+                visual_prompt, target_size, 
+                cache_dir=output_dir,
+                engine=engine,
+                vs_spec=vs_spec
+            )
 
         kw_ov     = interpret_visual_prompt(visual_prompt or "")
         glow_rgba = tuple(int(v) for v in kw_ov.get("glow_color_rgba",

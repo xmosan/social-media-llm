@@ -29,6 +29,7 @@ class Settings(BaseSettings):
 
     admin_api_key: str | None = Field(default=None, env="ADMIN_API_KEY")
     openai_api_key: str | None = Field(default=None, env="OPENAI_API_KEY")
+    gemini_api_key: str | None = Field(default=None)
 
     # Auth & security
     secret_key: str = Field(default="change-me-in-production-for-jwt", env="SECRET_KEY")

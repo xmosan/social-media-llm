@@ -47,3 +47,4 @@ authlib
 httpx
 itsdangerous
 jinja2
+google-genai

@@ -836,6 +836,20 @@ _COMPOSITION = (
     "a pristine open plate for digital text compositing."
 )
 
+# GEMINI SPECIFIC - Stricter constraints for Imagen 3
+_GEMINI_STRICT_CONSTRAINTS = (
+    "ABSOLUTELY NO TEXT. ABSOLUTELY NO SCRIPT. NO CALLIGRAPHY. NO LETTERS. NO CHARACTERS. "
+    "Zero writing, zero glyphs, zero inscriptions, zero symbols, zero alphabets. "
+    "This is a PURE MATERIAL BACKGROUND. NO MESSAGE, NO QUOTES, NO WORDS. "
+    "The image must contain ONLY abstract texture and material artifacts."
+)
+
+_GEMINI_COMPOSITION = (
+    "Composition: Subject elements and visual interest concentrated ONLY at the extremes of the frame. "
+    "The central 60% of the image must be a PRISTINELY EMPTY, CLEAN, UNIFORM surface. "
+    "Center must be smooth, quiet, and absolutely free of any representational detail."
+)
+
 _QUALITY = (
     "Premium photorealistic quality. "
     "Cinematic 4K detail. "
@@ -1225,3 +1239,35 @@ def save_bg_cache(image, spec: VisualSpec, cache_dir: str) -> None:
         print(f"⚠️  [Cache] Save failed: {e}")
 
         
+def compose_gemini_prompt(spec: VisualSpec, raw_prompt: str = "") -> str:
+    """
+    Production-hardened prompt composer for Gemini (Imagen 3).
+    Stricter than DALL-E version: enforces zero-text and ultra-clean center 
+    using explicit negation tokens and mandatory sanitization.
+    """
+    # 1. Generate variations (Consistent with DALL-E flow)
+    v_data = VariationEngine.generate(spec.theme, raw_prompt)
+    
+    # 2. Mutate spec for cache key stability
+    spec.variation_traits = v_data.get("variation_traits", {})
+    
+    # 3. Prepare visual strings
+    var_list = [f"{v}" for k, v in spec.variation_traits.items()]
+    variations_str = ", ".join(var_list)
+    
+    # 4. Sanitize user input (removes semantic/text markers)
+    safe_user_input = sanitize_for_dalle(raw_prompt) if raw_prompt else ""
+    
+    # 5. Assemble stricter Gemini prompt
+    final_prompt = (
+        f"{_GEMINI_STRICT_CONSTRAINTS} "
+        f"A beautiful artistic square background plate representing: {safe_user_input or spec.theme}. "
+        f"Material traits: {variations_str}. "
+        f"{v_data.get('core_traits', '')} "
+        f"Mood: {spec.mood}. "
+        f"{_GEMINI_COMPOSITION} "
+        f"{_QUALITY}"
+    )
+    
+    print(f"\n🌪️  GEMINI AUTO-VARIATION [{v_data.get('family')}]: {spec.variation_traits}")
+    return final_prompt
