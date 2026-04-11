@@ -601,9 +601,8 @@ def generate_background_gemini(
     print(f"\n💎 [Gemini] Generating background plate (Imagen 4.0 Ultra)...")
     print(f"   Prompt: {prompt[:110]}...")
     try:
-        # High fidelity Imagen 4.0 Ultra call (modern google-genai SDK)
         response = client.models.generate_images(
-            model='imagen-4.0-ultra-generate-001',
+            model='imagen-3.0-generate-001',
             prompt=prompt,
             config=types.GenerateImagesConfig(
                 number_of_images=1,
@@ -1279,11 +1278,12 @@ def render_minimal_quote_card(
     """
     W, H = 1080, 1080
     target_size = (W, H)
+    cx, cy = W // 2, H // 2
     base_dir    = os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     print(f"\n{'═'*64}")
-    print(f"🎨 [v7.0] mode={mode}  style={style}")
+    print(f"🎨 [v7.0] mode={mode}  style={style}  engine={engine}")
     print(f"📝 prompt={repr((visual_prompt or '')[:65])}")
     print(f"📦 segments={len(segments)}")
     print(f"{'═'*64}")
