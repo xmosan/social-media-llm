@@ -1761,7 +1761,7 @@ def render_quote_card(background_local_path: str, quote: str,
     return f"{settings.public_base_url.rstrip('/')}/uploads/{fn}"
 
 def draw_soft_protection_glow(base_img, target_size, center, zone_box, blend_color=(0,0,0,128)):
-    \"\"\"Legacy wrapper to maintain compatibility while shifting to Glassmorphism.\"\"\"
+    """Legacy wrapper to maintain compatibility while shifting to Glassmorphism."""
     # If a legacy glow is requested, we now provide a light version of the Frosted Glass
     # but with 'dim_color' and lower blur.
     return apply_glass_morphism(base_img, target_size, center, zone_box, blend_color, intensity=15)
