@@ -220,6 +220,9 @@ async def api_generate_quote_card(data: dict):
     text_style_prompt = (data.get("text_style_prompt") or "").strip()
     engine       = data.get("engine", "dalle")
     glossy       = data.get("glossy", False)
+    mode         = data.get("mode", "preset")
+    readability_priority = data.get("readability_priority", True)
+    experimental_mode = data.get("experimental_mode", False)
     
     # Auto-detect mode if not explicitly sent
     if style == "custom":
