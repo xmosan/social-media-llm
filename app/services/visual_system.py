@@ -426,11 +426,9 @@ _HARD_CONSTRAINTS = (
 
 # Composition rule — maintains center clarity for text overlay
 _COMPOSITION = (
-    "Composition discipline: all fine detail, texture richness, and ornamental "
-    "elements are pushed to the outer 25% of the image (edges and corners). "
-    "The central 50% must be an atmospheric clearing of negative space — "
-    "allow background textures to flow naturally through the center but held "
-    "in a minimalist, soft-focus depth-of-field effect."
+    "Composition: subject elements concentrated ONLY at the corners and edges. "
+    "The central zone must be a natural light clearing with organic depth-of-field. "
+    "Allow background colors to melt into a soft-focus bokeh effect in the center 60%."
 )
 
 _QUALITY = (
@@ -834,11 +832,9 @@ _HARD_CONSTRAINTS = (
 
 # Composition rule — maintains center clarity for text overlay
 _COMPOSITION = (
-    "Composition discipline: all fine detail, texture richness, and ornamental "
-    "elements are pushed to the outer 25% of the image (edges and corners). "
-    "The central 50% must be an atmospheric clearing of negative space — "
-    "allow background textures to flow naturally through the center but held "
-    "in a minimalist, soft-focus depth-of-field effect."
+    "Composition: subject elements concentrated ONLY at the corners and edges. "
+    "The central zone must be a natural light clearing with organic depth-of-field. "
+    "Allow background colors to melt into a soft-focus bokeh effect in the center 60%."
 )
 
 # GEMINI SPECIFIC - Stricter constraints for Imagen 3/4
@@ -850,10 +846,10 @@ _GEMINI_STRICT_CONSTRAINTS = (
 )
 
 _GEMINI_COMPOSITION = (
-    "Composition: Subject elements and visual interest concentrated ONLY at the extremes of the frame. "
-    "The central 60% of the image must be a calm, minimalistic NEGATIVE SPACE. "
-    "Center must be an atmospheric soft-focus clearing where background textures "
-    "melt into a subtle bokeh-like depth-of-field clearing."
+    "Composition: Intricate material detail and ornamental filigree are restricted ONLY to the outer edges. "
+    "The central 60% of the frame must be a clean, atmospheric clearing. "
+    "Center must have an organic, creamy bokeh transition avoiding any distinct shapes or lines. "
+    "Zero subject matter in the center."
 )
 
 _QUALITY = (
@@ -1207,21 +1203,21 @@ def adapt_typography(analysis: "AnalysisResult",
     )
 
 
-def spec_cache_key(spec: VisualSpec) -> str:
-    """Stable 12-char hash of the semantic content AND random variation of a VisualSpec."""
-    # We include variation_traits to ensure randomized generations don't collide in cache
+def spec_cache_key(spec: VisualSpec, engine: str = "dalle") -> str:
+    """Stable 12-char hash of the semantic content, variation, AND engine."""
     v_str = str(sorted(spec.variation_traits.items()))
-    key_str = (f"{spec.theme}|{spec.material}|{spec.lighting}|"
+    # We include engine to prevent engine-mismatch cache hits
+    key_str = (f"{engine}|{spec.theme}|{spec.material}|{spec.lighting}|"
                f"{spec.mood}|{spec.ornament_level}|{spec.detail_level}|{v_str}")
     return hashlib.md5(key_str.encode()).hexdigest()[:12]
 
 
-def load_bg_cache(spec: VisualSpec, cache_dir: str):
+def load_bg_cache(spec: VisualSpec, cache_dir: str, engine: str = "dalle"):
     """
     Load a background from the semantic spec cache.
     Returns PIL Image or None.
     """
-    key  = spec_cache_key(spec)
+    key  = spec_cache_key(spec, engine=engine)
     path = os.path.join(cache_dir, f"vsbg_{key}.jpg")
     if os.path.exists(path):
         try:
@@ -1235,13 +1231,13 @@ def load_bg_cache(spec: VisualSpec, cache_dir: str):
     return None
 
 
-def save_bg_cache(image, spec: VisualSpec, cache_dir: str) -> None:
+def save_bg_cache(image, spec: VisualSpec, cache_dir: str, engine: str = "dalle") -> None:
     """Persist a generated background to the semantic spec cache."""
     if Image is None:
         return
     try:
         os.makedirs(cache_dir, exist_ok=True)
-        key  = spec_cache_key(spec)
+        key  = spec_cache_key(spec, engine=engine)
         path = os.path.join(cache_dir, f"vsbg_{key}.jpg")
         image.save(path, quality=92)
         print(f"💾 [Cache] Saved vsbg_{key}  (theme={spec.theme})")

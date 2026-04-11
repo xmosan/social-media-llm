@@ -561,21 +561,48 @@ def generate_background(
 ) -> Optional[Image.Image]:
     """
     Unified entry point for background generation.
-    Switches between DALL-E (default) and Gemini.
+    Checks cache first, then switches between DALL-E and Gemini.
     """
+    # 1. Attempt Cache Load (Semantic Match)
+    if cache_dir and vs_spec and vs_load_cache:
+        img = vs_load_cache(vs_spec, cache_dir, engine=engine)
+        if img: return img
+
+    # 2. Generate Fresh if Cache Miss
     if engine == "gemini":
         return generate_background_gemini(
             visual_prompt, target_size, cache_dir, vs_spec=vs_spec)
     
     # Default: DALL-E
-    dalle_prompt = None
-    if vs_spec and vs_compose:
-        dalle_prompt = vs_compose(vs_spec, raw_prompt=visual_prompt)
-        
-    return generate_dalle_background(
-        visual_prompt, target_size, cache_dir, 
-        dalle_prompt_override=dalle_prompt
+    client = get_openai_client()
+    if not client:
+        print("📌 [DALL-E] No OpenAI key — PIL fallback")
+        return None
+
+    dalle_prompt = vs_compose(vs_spec, raw_prompt=visual_prompt) if vs_spec and vs_compose else _build_bg_prompt(visual_prompt)
+    print(f"\n🎨 [DALL-E] Generating background plate...")
+    
+    response = client.images.generate(
+        model="dall-e-3",
+        prompt=dalle_prompt,
+        size="1024x1024",
+        quality="standard",
+        n=1,
     )
+    img_url = response.data[0].url
+    import requests
+    img_data = requests.get(img_url).content
+    img = Image.open(_io.BytesIO(img_data)).convert("RGB")
+    
+    if img.size != target_size:
+        img = img.resize(target_size, Image.LANCZOS)
+        
+    print("✅ [DALL-E] Background plate ready")
+    
+    if cache_dir and vs_spec and vs_save_cache:
+            vs_save_cache(img, vs_spec, cache_dir, engine="dalle")
+        
+    return img
 
 
 def generate_background_gemini(
@@ -623,9 +650,8 @@ def generate_background_gemini(
             
         print("✅ [Gemini] Background plate ready")
         
-        if cache_dir:
-            from app.services.image_renderer import _save_bg_cache
-            _save_bg_cache(img, visual_prompt, cache_dir)
+        if cache_dir and vs_spec and vs_save_cache:
+            vs_save_cache(img, vs_spec, cache_dir, engine="gemini")
             
         return img
     except Exception as e:
@@ -1761,10 +1787,25 @@ def render_quote_card(background_local_path: str, quote: str,
     return f"{settings.public_base_url.rstrip('/')}/uploads/{fn}"
 
 def draw_soft_protection_glow(base_img, target_size, center, zone_box, blend_color=(0,0,0,128)):
-    """Legacy wrapper to maintain compatibility while shifting to Glassmorphism."""
-    # If a legacy glow is requested, we now provide a light version of the Frosted Glass
-    # but with 'dim_color' and lower blur.
-    return apply_glass_morphism(base_img, target_size, center, zone_box, blend_color, intensity=15)
+    """
+    Subtle contrast boost (ATMOSPHERIC BLOOM).
+    No blur, no smudge—just preserves the texture while making text pop.
+    """
+    if not base_img: return base_img
+    
+    # We ignore the 'blend_color' alpha and force a much tighter/subtler alpha (5-10%)
+    # to avoid the "weird box" reported by the user.
+    r, g, b, _ = blend_color
+    subtle_color = (r, g, b, 25) # 10% opacity
+    
+    x1, y1, x2, y2 = zone_box
+    mask_region = Image.new("RGBA", (x2-x1, y2-y1), subtle_color)
+    
+    # Smooth edges for the non-destructive layer
+    clean_box = Image.new("RGBA", target_size, (0,0,0,0))
+    clean_box.paste(mask_region, (x1, y1))
+    
+    return Image.alpha_composite(base_img.convert("RGBA"), clean_box).convert("RGB")
 
 def apply_glass_morphism(base_img, target_size, center, zone_box, blend_color=(0,0,0,128), intensity=40):
     """

@@ -247,8 +247,8 @@ STUDIO_SCRIPTS_JS = """
             visual_prompt: isCustomMode ? visualPrompt : '',
             text_style_prompt: isCustomMode ? textStylePrompt : '',
             mode:          isCustomMode ? 'custom' : 'preset',
-            engine:        isCustomMode ? studioEngine : 'dalle',
-            glossy:        isCustomMode ? studioGlossy : false,
+            engine:        studioEngine, // Choice persists globally
+            glossy:        studioGlossy, // Choice persists globally
         };
         console.log('🎨 [Studio] Generate payload:', payload);
 
