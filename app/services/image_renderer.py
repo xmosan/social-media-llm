@@ -1765,3 +1765,44 @@ def draw_soft_protection_glow(base_img, target_size, center, zone_box, blend_col
     # If a legacy glow is requested, we now provide a light version of the Frosted Glass
     # but with 'dim_color' and lower blur.
     return apply_glass_morphism(base_img, target_size, center, zone_box, blend_color, intensity=15)
+
+def apply_glass_morphism(base_img, target_size, center, zone_box, blend_color=(0,0,0,128), intensity=40):
+    """
+    Applies a premium frosted glass (Glassmorphism) effect to a specific zone.
+    Refracted blur, frosted highlight, and subtle alpha blending.
+    """
+    if not base_img: return base_img
+    
+    # Gaussian Blur depth
+    blur_radius = intensity // 2
+    
+    # 1. Extract the region to be frosted
+    # Padding to ensure blur doesn't have hard edges
+    x1, y1, x2, y2 = zone_box
+    pad = 20
+    crop_box = (max(0, x1-pad), max(0, y1-pad), min(target_size[0], x2+pad), min(target_size[1], y2+pad))
+    
+    region = base_img.crop(crop_box)
+    
+    # 2. Apply atmospheric blur
+    blurred = region.filter(ImageFilter.GaussianBlur(radius=blur_radius))
+    
+    # 3. Apply frosted tint
+    overlay = Image.new("RGBA", blurred.size, blend_color)
+    frosted = Image.alpha_composite(blurred.convert("RGBA"), overlay)
+    
+    # 4. Create mask for the actual zone (rounded rectangle)
+    mask = Image.new("L", blurred.size, 0)
+    m_draw = ImageDraw.Draw(mask)
+    # Local coordinates for the mask
+    lx1, ly1 = pad, pad
+    lx2, ly2 = (x2-x1) + pad, (y2-y1) + pad
+    m_draw.rounded_rectangle([lx1, ly1, lx2, ly2], radius=15, fill=255)
+    
+    # 5. Composite back onto main image
+    final_region = Image.composite(frosted, blurred.convert("RGBA"), mask)
+    
+    # Paste back
+    base_img.paste(final_region.convert("RGB"), crop_box)
+    
+    return base_img
