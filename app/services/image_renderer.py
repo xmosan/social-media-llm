@@ -1268,10 +1268,11 @@ def render_minimal_quote_card(
     style:         str = "quran",
     visual_prompt: str = None,
     mode:          str = "preset",
-    text_style_prompt: str = "",
+    text_style_prompt: Optional[str] = None,
     readability_priority: bool = True,
     experimental_mode: bool = False,
-    engine: str = "dalle"  # NEW: Engine selection
+    engine: str = "dalle",
+    glossy: bool = False
 ) -> str:
     """
     Sabeel Designer Engine v7.0 — Spiritual Depth Renderer.
@@ -1640,18 +1641,24 @@ def render_minimal_quote_card(
         if i == 0: ty_end += gap_ab // 2
         elif i == 1: ty_end += gap_bc // 2
         
-        # 1) Soft Protection Layer directly under the zone
+        # 1) Center Protection Layer — ELIMINATED as default.
+        # Now only triggers ifuser opts-in for 'Glossy' or system detects 'insane' risk.
         if dim_layer:
-            # Cinematic high-blur radial falloff to seamlessly melt into the background without banding.
-            pr_layer = Image.new("RGBA", target_size, (0, 0, 0, 0))
-            pd = ImageDraw.Draw(pr_layer)
-            
-            # Subtly expand the ellipse vertical bounds slightly to prevent horizontal squeezing
-            pd.ellipse([cx - dim_rad, ty - dim_rad*0.8, cx + dim_rad, ty_end + dim_rad*0.8], fill=dim_color)
-            
-            # Massive blur for invisible transition (no visible edges)
-            pr_layer = pr_layer.filter(ImageFilter.GaussianBlur(dim_rad // 2))
-            bg_rgba = Image.alpha_composite(bg_rgba, pr_layer)
+            is_glossy = getattr(typo_spec, "glossy", False)
+            if is_glossy:
+                # Premium Glassmorphism 'Melt'
+                bg_rgba = apply_glass_morphism(
+                    bg_rgba, target_size, (cx, cy), 
+                    (cx - zone_ws[i]//2, ty, cx + zone_ws[i]//2, ty_end),
+                    dim_color
+                )
+            else:
+                # Subtle Legacy Glow (only if needs_protection was forced)
+                bg_rgba = draw_soft_protection_glow(
+                    bg_rgba, target_size, (cx, cy), 
+                    (cx - zone_ws[i]//2, ty, cx + zone_ws[i]//2, ty_end),
+                    dim_color
+                )
             draw_out = ImageDraw.Draw(bg_rgba)
             
         # 2) Text elements

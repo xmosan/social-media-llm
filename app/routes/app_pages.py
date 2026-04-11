@@ -26,6 +26,8 @@ STUDIO_SCRIPTS_JS = """
     let currentQuoteCardUrl = null;
     let isQuoteCardOutOfDate = false;
     let studioCreationMode = 'preset'; // 'preset' or 'custom'
+    let studioEngine       = 'dalle';  // 'dalle' or 'gemini'
+    let studioGlossy       = false;    // Frosted glass effect
 
     function openNewPostModal() {
         document.getElementById('newPostModal').classList.remove('hidden');
@@ -105,6 +107,29 @@ STUDIO_SCRIPTS_JS = """
         document.getElementById('studioStyle').value = style;
         document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
         el.closest('.style-card').classList.add('active');
+        invalidateQuoteCard();
+    }
+
+    function setStudioEngine(engine, el) {
+        studioEngine = engine;
+        document.querySelectorAll('.engine-chip').forEach(c => {
+            c.classList.remove('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
+            c.classList.add('bg-brand/5', 'text-brand');
+        });
+        el.classList.remove('bg-brand/5', 'text-brand');
+        el.classList.add('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
+        invalidateQuoteCard();
+    }
+
+    function toggleStudioGlossy(el) {
+        studioGlossy = !studioGlossy;
+        if (studioGlossy) {
+            el.classList.remove('bg-brand/5', 'text-brand');
+            el.classList.add('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
+        } else {
+            el.classList.add('bg-brand/5', 'text-brand');
+            el.classList.remove('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
+        }
         invalidateQuoteCard();
     }
 
@@ -222,6 +247,8 @@ STUDIO_SCRIPTS_JS = """
             visual_prompt: isCustomMode ? visualPrompt : '',
             text_style_prompt: isCustomMode ? textStylePrompt : '',
             mode:          isCustomMode ? 'custom' : 'preset',
+            engine:        isCustomMode ? studioEngine : 'dalle',
+            glossy:        isCustomMode ? studioGlossy : false,
         };
         console.log('🎨 [Studio] Generate payload:', payload);
 
@@ -582,6 +609,24 @@ STUDIO_COMPONENTS_HTML = """
                     </div>
 
                     <div id="customModeContainer" class="hidden space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <!-- ENGINE SELECTION -->
+                        <div class="flex flex-col gap-4">
+                            <div class="flex-1 space-y-2">
+                                <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Background Engine</label>
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="setStudioEngine('dalle', this)" class="engine-chip flex-1 py-3 px-4 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all bg-brand text-white shadow-lg shadow-brand/20 border border-brand/10">DALL-E 3</button>
+                                    <button type="button" onclick="setStudioEngine('gemini', this)" class="engine-chip flex-1 py-3 px-4 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all bg-brand/5 text-brand border border-brand/10">Gemini 1.5</button>
+                                </div>
+                            </div>
+                            <div class="flex-1 space-y-2">
+                                <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Atmosphere Tone</label>
+                                <button type="button" onclick="toggleStudioGlossy(this)" class="w-full py-3 px-4 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all bg-brand/5 text-brand border border-brand/10 flex items-center justify-center gap-2">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                                    Frosted Glass Layer
+                                </button>
+                            </div>
+                        </div>
+
                         <div class="space-y-2">
                             <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Describe Your Card</label>
                             <textarea id="studioVisualPrompt"

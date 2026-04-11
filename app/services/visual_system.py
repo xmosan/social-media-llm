@@ -158,8 +158,9 @@ class TextStyleSpec:
     horiz_offset:      int   = 0
     ornament_level:    str   = "Minimal"
     accent_color:      str   = "Gold"
-    has_shadow:        bool  = True
     experimental:      bool  = False
+    glossy:            bool  = False # NEW: Frosted glass effect
+    has_shadow:        bool  = True
     size_ratios:       dict  = field(default_factory=lambda: {"verse": 0.5, "quote": 1.0, "reflection": 0.7})
     layout_mode:       str   = "Stack" # Stack | Editorial | Split
 
@@ -175,6 +176,7 @@ class ZoneStyle:
     dim_layer: bool = False
     dim_color: tuple = (0, 0, 0, 0)
     dim_radius: int = 0
+    glossy: bool = False
 
 @dataclass
 class TypographySpec:
@@ -193,6 +195,7 @@ class TypographySpec:
     dim_layer: bool = False
     dim_color: tuple = (0, 0, 0, 0)
     dim_radius: int = 0
+    glossy: bool = False # NEW: Propagated to renderer
     sep_color: tuple = (255, 255, 255)
     orn_color: tuple = (255, 255, 255)
     text_style: TextStyleSpec = field(default_factory=TextStyleSpec)
@@ -425,8 +428,9 @@ _HARD_CONSTRAINTS = (
 _COMPOSITION = (
     "Composition discipline: all fine detail, texture richness, and ornamental "
     "elements are pushed to the outer 25% of the image (edges and corners). "
-    "The central 50% must be intentionally calm, smooth, and unoccupied — "
-    "a pristine open plate for digital text compositing."
+    "The central 50% must be an atmospheric clearing of negative space — "
+    "allow background textures to flow naturally through the center but held "
+    "in a minimalist, soft-focus depth-of-field effect."
 )
 
 _QUALITY = (
@@ -628,7 +632,7 @@ def compose_dalle_prompt(spec: VisualSpec, raw_prompt: str = "") -> str:
         f"{v_data['core_traits']} "
         f"Mood: {spec.mood}. "
         f"{_COMPOSITION} "
-        f"{_QUALITY}"
+        "NO MESSAGE. NO QUOTES. NO WORDS. PURE MATERIAL TEXTURE ONLY."
     )
     print(f"\n🌪️ AUTO-VARIATION TRIGGERED [{v_data['family']}]: {v_data['variation_traits']}")
     return final_prompt
@@ -832,11 +836,12 @@ _HARD_CONSTRAINTS = (
 _COMPOSITION = (
     "Composition discipline: all fine detail, texture richness, and ornamental "
     "elements are pushed to the outer 25% of the image (edges and corners). "
-    "The central 50% must be intentionally calm, smooth, and unoccupied — "
-    "a pristine open plate for digital text compositing."
+    "The central 50% must be an atmospheric clearing of negative space — "
+    "allow background textures to flow naturally through the center but held "
+    "in a minimalist, soft-focus depth-of-field effect."
 )
 
-# GEMINI SPECIFIC - Stricter constraints for Imagen 3
+# GEMINI SPECIFIC - Stricter constraints for Imagen 3/4
 _GEMINI_STRICT_CONSTRAINTS = (
     "ABSOLUTELY NO TEXT. ABSOLUTELY NO SCRIPT. NO CALLIGRAPHY. NO LETTERS. NO CHARACTERS. "
     "Zero writing, zero glyphs, zero inscriptions, zero symbols, zero alphabets. "
@@ -846,8 +851,9 @@ _GEMINI_STRICT_CONSTRAINTS = (
 
 _GEMINI_COMPOSITION = (
     "Composition: Subject elements and visual interest concentrated ONLY at the extremes of the frame. "
-    "The central 60% of the image must be a PRISTINELY EMPTY, CLEAN, UNIFORM surface. "
-    "Center must be smooth, quiet, and absolutely free of any representational detail."
+    "The central 60% of the image must be a calm, minimalistic NEGATIVE SPACE. "
+    "Center must be an atmospheric soft-focus clearing where background textures "
+    "melt into a subtle bokeh-like depth-of-field clearing."
 )
 
 _QUALITY = (
@@ -964,10 +970,10 @@ def _readability_risk(center_brightness: float,
     Low risk:
       - Very dark or very bright with low detail
     """
-    grey_zone   = 85 < center_brightness < 168
-    very_busy   = center_detail > 0.40
-    busy        = center_detail > 0.25
-    borderline  = 100 < center_brightness < 148
+    grey_zone   = 75 < center_brightness < 185 # Slightly wider sensitive zone
+    very_busy   = center_detail > 0.60         # Relaxed from 0.40
+    busy        = center_detail > 0.35         # Relaxed from 0.25
+    borderline  = 95 < center_brightness < 155 # Slightly wider borderline
 
     if very_busy or (grey_zone and busy):
         return "high"
@@ -1033,7 +1039,9 @@ def analyze_background(image, size: tuple) -> "AnalysisResult":
     risk     = _readability_risk(zB["brightness"], zB["detail"])
     typo_mode = _typography_mode(zB["brightness"], palette_mode, dominant_hue)
 
-    needs_protection = (risk in ("medium", "high"))
+    # REFORM: Automatic protection is now DISABLED by default.
+    # We only trigger it if risk is 'insane' (rare) or user explicitly opts-in.
+    needs_protection = (risk == "insane") 
 
     result = AnalysisResult(
         overall_brightness  = full["brightness"],
@@ -1137,7 +1145,8 @@ def adapt_typography(analysis: "AnalysisResult",
         shadow_dy=-1 if top_is_dark else 1,
         dim_layer=top_dim,
         dim_color=top_dim_color,
-        dim_radius=80
+        dim_radius=80,
+        glossy=text_style.glossy
     )
 
     # --- MAIN ZONE (Quote) ---
@@ -1149,9 +1158,9 @@ def adapt_typography(analysis: "AnalysisResult",
     if force_protection or analysis.readability_risk != 'low':
         main_dim = True
         if main_is_dark_text:
-            main_dim_color = (255, 255, 255, 45 if analysis.readability_risk == "high" else 25)
+            main_dim_color = (255, 255, 255, 30 if analysis.readability_risk == "high" else 15)
         else:
-            main_dim_color = (0, 0, 0, 85 if analysis.readability_risk == "high" else 55)
+            main_dim_color = (0, 0, 0, 65 if analysis.readability_risk == "high" else 40)
 
     main_style = ZoneStyle(
         color=q_c,
@@ -1161,7 +1170,8 @@ def adapt_typography(analysis: "AnalysisResult",
         shadow_dy=-1 if main_is_dark_text else 2,
         dim_layer=main_dim,
         dim_color=main_dim_color,
-        dim_radius=main_dim_rad
+        dim_radius=main_dim_rad,
+        glossy=text_style.glossy # NEW
     )
 
     # --- SUBTEXT ZONE (Support) ---
