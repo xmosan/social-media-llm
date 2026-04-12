@@ -1135,12 +1135,12 @@ def adapt_typography(analysis: "AnalysisResult",
     top_style = ZoneStyle(
         color=ref_c,
         opacity=1.0,
-        shadow_fill=(255, 255, 255, 140) if top_is_dark else (0, 0, 0, 160),
-        shadow_dx=-1 if top_is_dark else 1,
-        shadow_dy=-1 if top_is_dark else 1,
-        dim_layer=top_dim,
-        dim_color=top_dim_color,
-        dim_radius=80,
+        shadow_fill=(255, 255, 255, 120) if top_is_dark else (0, 0, 0, 150),
+        shadow_dx=0,
+        shadow_dy=2,
+        dim_layer=False, # Forced NO-BOX
+        dim_color=(0, 0, 0, 0),
+        dim_radius=0,
         glossy=text_style.glossy
     )
 
@@ -1160,13 +1160,13 @@ def adapt_typography(analysis: "AnalysisResult",
     main_style = ZoneStyle(
         color=q_c,
         opacity=1.0,
-        shadow_fill=(255, 255, 255, 160) if main_is_dark_text else (0, 0, 0, 180),
-        shadow_dx=-1 if main_is_dark_text else 1,
-        shadow_dy=-1 if main_is_dark_text else 2,
-        dim_layer=main_dim,
-        dim_color=main_dim_color,
-        dim_radius=main_dim_rad,
-        glossy=text_style.glossy # NEW
+        shadow_fill=(255, 255, 255, 130) if main_is_dark_text else (0, 0, 0, 160),
+        shadow_dx=0,
+        shadow_dy=2, # Soft vertical offset
+        dim_layer=False, # Forced NO-BOX
+        dim_color=(0, 0, 0, 0),
+        dim_radius=0,
+        glossy=text_style.glossy
     )
 
     # --- SUBTEXT ZONE (Support) ---
@@ -1184,12 +1184,12 @@ def adapt_typography(analysis: "AnalysisResult",
     sub_style = ZoneStyle(
         color=sub_c,
         opacity=0.88,
-        shadow_fill=(255, 255, 255, 120) if sub_is_dark_text else (0, 0, 0, 140),
+        shadow_fill=(255, 255, 255, 100) if sub_is_dark_text else (0, 0, 0, 120),
         shadow_dx=0,
         shadow_dy=1,
-        dim_layer=sub_dim,
-        dim_color=sub_dim_color,
-        dim_radius=120
+        dim_layer=False, # Forced NO-BOX
+        dim_color=(0, 0, 0, 0),
+        dim_radius=0
     )
 
     return TypographySpec(

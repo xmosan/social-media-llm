@@ -632,8 +632,8 @@ def generate_background_gemini(
         prompt = f"A professional background plate: {visual_prompt}. No text, no calligraphy."
 
     models_to_try = [
-        'imagen-3.0-generate-001',
-        'imagen-3.0-fast-generate-001'
+        'imagen-4.0-generate-001',
+        'imagen-4.0-fast-generate-001'
     ]
 
     last_err = None
@@ -1059,6 +1059,27 @@ def apply_vignette(image, intensity=0.65):
         a  = int((t ** 2.3) * 255 * intensity)
         draw.ellipse([cx-r, cy-r, cx+r, cy+r], fill=(0, 0, 0, a))
     return Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
+
+
+def apply_text_halo(text_layer, radius=12, halo_color=(255, 255, 255, 255)):
+    """
+    Builds a soft cinematic halo from the rendered text glyphs' alpha channel.
+    The halo follows the actual letter shapes, providing organic readability protection.
+    """
+    if radius <= 0:
+        return None
+        
+    # 1. Extract the alpha mask from the text layer
+    alpha = text_layer.split()[-1]
+    
+    # 2. Blur the alpha mask to create the 'glow' shape
+    halo_alpha = alpha.filter(ImageFilter.GaussianBlur(radius))
+    
+    # 3. Create a solid color layer and apply the blurred alpha
+    halo = Image.new("RGBA", text_layer.size, halo_color)
+    halo.putalpha(halo_alpha)
+    
+    return halo
 
 
 def draw_text_advanced(
@@ -1704,55 +1725,72 @@ def render_minimal_quote_card(
                 )
             draw_out = ImageDraw.Draw(bg_rgba)
             
-        # 2) Text elements
+        # --- CINEMATIC TEXT RENDERING (HALO SYSTEM) ---
+        # 1. Prepare Zone-Specific Layers
+        zone_mask_layer = Image.new("RGBA", target_size, (0, 0, 0, 0))
+        zone_draw = ImageDraw.Draw(zone_mask_layer)
+        
+        # 2. Determine Cinematic Treatment
+        risk = getattr(typo_spec, "readability_risk", "low")
+        radius = 8  # Default
+        if risk == "high": radius = 16
+        elif risk == "medium": radius = 11
+        
+        # Determine Halo Color
+        is_dark_bg = (sum(col[:3]) > 400) # Text is light -> BG is likely dark
+        if is_dark_bg:
+            h_col = (255, 252, 240, 180 if risk == "high" else 140) # Warm light halo
+        else:
+            h_col = (0, 0, 0, 140 if risk == "high" else 90) # Dark shadow halo
+            
+        l_spacing = typo_spec.text_style.letter_spacing if typo_spec else 0
+        
+        # 3. Render Zone Contents (Top/Main/Sub)
+        ty = z_y
+        
         if i == 0:
-            # Zone A: Top Reference — honored, calm
             if typo_spec and typo_spec.has_glow:
-                # Use the theme-aware ornament color
-                draw_top_ornament(draw_out, cx, ty - 22, typo_spec.orn_color)
-            
-            l_spacing = typo_spec.text_style.letter_spacing if typo_spec else 0
-            
+                draw_top_ornament(zone_draw, cx, ty - 22, typo_spec.orn_color)
             for ln in zd["lines"]:
-                draw_text_advanced(
-                    draw_out, (cx, ty), ln["text"], font=zd["font"], fill=fc,
-                    anchor=anchor, letter_spacing=l_spacing,
-                    shadow_fill=shd_fill, shadow_offset=(shd_dx, shd_dy)
-                )
+                draw_text_advanced(zone_draw, (cx, ty), ln["text"], font=zd["font"], fill=fc, anchor=anchor, letter_spacing=l_spacing)
                 ty += ln["h"] + zd["ls"]
-            
-            # Separator logic (only in Stack mode or if specifically requested)
             if typo_spec and typo_spec.text_style.layout_mode == "Stack":
-                sep_y = ty + zd["ls"] // 2
-                draw_zone_separator(draw_out, cx, sep_y, typo_spec.orn_color)
-
+                draw_zone_separator(zone_draw, cx, ty + zd["ls"] // 2, typo_spec.orn_color)
+            y = ty - zd["ls"] + gap_ab
         elif i == 1:
-            l_spacing = typo_spec.text_style.letter_spacing if typo_spec else 0
-            
             for ln in zd["lines"]:
-                # Zone B: Bold support via draw_text_advanced stroke or micro-offset
-                draw_text_advanced(
-                    draw_out, (cx, ty), ln["text"], font=zd["font"], fill=fc,
-                    anchor=anchor, letter_spacing=l_spacing,
-                    shadow_fill=shd_fill, shadow_offset=(shd_dx, shd_dy),
-                    stroke_width=1 if typo_spec and typo_spec.text_style.weight == "Bold" else 0,
-                    stroke_fill=fc
-                )
+                sw = 1 if typo_spec and typo_spec.text_style.weight == "Bold" else 0
+                draw_text_advanced(zone_draw, (cx, ty), ln["text"], font=zd["font"], fill=fc, anchor=anchor, letter_spacing=l_spacing, stroke_width=sw, stroke_fill=fc)
                 ty += ln["h"] + zd["ls"]
             y = ty - zd["ls"] + gap_bc
-
         else:
-            # Zone C: Support — quiet fallback
-            l_spacing = typo_spec.text_style.letter_spacing if typo_spec else 0
-            
             for ln in zd["lines"]:
-                draw_text_advanced(
-                    draw_out, (cx, ty), ln["text"], font=zd["font"], fill=fc,
-                    anchor=anchor, letter_spacing=l_spacing,
-                    shadow_fill=shd_fill, shadow_offset=(shd_dx, shd_dy)
-                )
+                draw_text_advanced(zone_draw, (cx, ty), ln["text"], font=zd["font"], fill=fc, anchor=anchor, letter_spacing=l_spacing)
                 ty += ln["h"] + zd["ls"]
             y = ty - zd["ls"]
+
+        # 4. Generate Cinematic Effects Layers
+        halo_layer = apply_text_halo(zone_mask_layer, radius=radius, halo_color=h_col)
+        
+        # Soft Cinematic Shadow Layer
+        shd_radius = 4 if risk == "high" else 2
+        shadow_mask = zone_mask_layer.split()[-1].filter(ImageFilter.GaussianBlur(shd_radius))
+        shadow_layer = Image.new("RGBA", target_size, shd_fill)
+        shadow_layer.putalpha(shadow_mask)
+        
+        # 5. Final Composite Pass (Halo -> Shadow -> Text)
+        if halo_layer:
+            bg_rgba = Image.alpha_composite(bg_rgba, halo_layer)
+        
+        # Apply shadow with vertical offset (dy=2)
+        shadow_final = Image.new("RGBA", target_size, (0,0,0,0))
+        shadow_final.paste(shadow_layer, (0, 2)) # dy=2
+        bg_rgba = Image.alpha_composite(bg_rgba, shadow_final)
+        
+        # Final Text Overlay
+        bg_rgba = Image.alpha_composite(bg_rgba, zone_mask_layer)
+        
+        draw_out = ImageDraw.Draw(bg_rgba)
 
     # ── CINEMATIC POST ────────────────────────────────────────────────────────
     glow_list  = list(g_rgba) if g_rgba else None
