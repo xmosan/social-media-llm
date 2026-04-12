@@ -61,6 +61,71 @@ def get_openai_client() -> Optional[OpenAI]:
         return None
     return OpenAI(api_key=settings.openai_api_key)
 
+# v8.0 CINEMATIC SETTINGS
+SHOW_READABILITY_MASKS = False
+
+def draw_radial_halo(image: Image.Image, center: tuple, radius: int, color: tuple, opacity: int):
+    """
+    Creates a soft atmospheric radial halo (blurred ellipse) behind the text.
+    """
+    if opacity <= 0 or radius <= 0:
+        return image
+        
+    w, h = image.size
+    halo_mask = Image.new("L", (radius * 2, radius * 2), 0)
+    draw = ImageDraw.Draw(halo_mask)
+    
+    # Draw radial gradient via multiple concentric circles or a single blurred ellipse
+    # A blurred ellipse is much smoother for cinematic effects
+    draw.ellipse((0, 0, radius * 2, radius * 2), fill=255)
+    halo_mask = halo_mask.filter(ImageFilter.GaussianBlur(radius // 2.5))
+    
+    # Apply requested alpha/opacity
+    halo_mask = Image.eval(halo_mask, lambda x: int(x * (opacity / 255.0)))
+    
+    halo_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    halo_color = (int(color[0]), int(color[1]), int(color[2]), 255)
+    
+    # Paste the blurred halo at the center
+    # center is (cx, cy)
+    cx, cy = center
+    halo_layer.paste(halo_color, (int(cx - radius), int(cy - radius)), halo_mask)
+    
+    if SHOW_READABILITY_MASKS:
+        # Debug: Magenta border for mask visualization
+        draw_debug = ImageDraw.Draw(halo_layer)
+        draw_debug.ellipse((cx - radius, cy - radius, cx + radius, cy + radius), outline=(255, 0, 255, 180), width=2)
+
+    return Image.alpha_composite(image.convert("RGBA"), halo_layer).convert("RGB")
+
+
+def draw_top_gradient_band(image: Image.Image, color: tuple, alpha: int, height_percent: float = 0.20):
+    """
+    Creates a soft horizontal gradient band at the top of the image (light shaping).
+    """
+    w, h = image.size
+    band_h = int(h * height_percent)
+    
+    # Create vertical gradient mask
+    band_mask = Image.new("L", (w, band_h), 0)
+    for y in range(band_h):
+        # Linear falloff from top to bottom
+        v = int(255 * (1.0 - (y / float(band_h))**1.5))
+        for x in range(w):
+            band_mask.putpixel((x, y), v)
+            
+    band_mask = Image.eval(band_mask, lambda x: int(x * (alpha / 255.0)))
+    
+    band_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    band_color = (int(color[0]), int(color[1]), int(color[2]), 255)
+    band_layer.paste(band_color, (0, 0), band_mask)
+    
+    if SHOW_READABILITY_MASKS:
+        draw_debug = ImageDraw.Draw(band_layer)
+        draw_debug.rectangle((0, 0, w, band_h), outline=(0, 255, 255, 180), width=2)
+        
+    return Image.alpha_composite(image.convert("RGBA"), band_layer).convert("RGB")
+
 def get_gemini_client():
     if not settings.gemini_api_key:
         return None
@@ -1662,6 +1727,32 @@ def render_minimal_quote_card(
             gap = gap_ab if i == 0 else gap_bc
             curr_y += zd["block_h"] + gap
 
+    # ── ATMOSPHERIC READABILITY PASS (v8.0) ──────────────────────────────────
+    
+    if typo_spec:
+        # A. Top Gradient Band (Light Shaping)
+        if getattr(typo_spec, "top_band_enabled", False):
+            bg = draw_top_gradient_band(
+                bg, 
+                typo_spec.top_band_color[:3], 
+                typo_spec.top_band_alpha,
+                height_percent=0.20
+            )
+            
+        # B. Radial Halo (Main Quote Pool)
+        if getattr(typo_spec, "halo_radius", 0) > 0:
+            # We target the center of the main quote zone (Zone 1)
+            main_lp = layout_params[1]
+            main_zd = zone_data[1]
+            halo_center = (main_lp["cx"], main_lp["y"] + main_zd["block_h"] // 2)
+            bg = draw_radial_halo(
+                bg, 
+                halo_center, 
+                typo_spec.halo_radius, 
+                typo_spec.halo_color[:3], 
+                typo_spec.halo_opacity
+            )
+
     bg_rgba = bg.convert("RGBA")
 
     # ── DRAWING PASS ─────────────────────────────────────────────────────────
@@ -1705,25 +1796,8 @@ def render_minimal_quote_card(
         if i == 0: ty_end += gap_ab // 2
         elif i == 1: ty_end += gap_bc // 2
         
-        # 1) Center Protection Layer — ELIMINATED as default.
-        # Now only triggers ifuser opts-in for 'Glossy' or system detects 'insane' risk.
-        if dim_layer:
-            is_glossy = getattr(typo_spec, "glossy", False)
-            if is_glossy:
-                # Premium Glassmorphism 'Melt'
-                bg_rgba = apply_glass_morphism(
-                    bg_rgba, target_size, (cx, cy), 
-                    (cx - zone_ws[i]//2, ty, cx + zone_ws[i]//2, ty_end),
-                    dim_color
-                )
-            else:
-                # Subtle Legacy Glow (only if needs_protection was forced)
-                bg_rgba = draw_soft_protection_glow(
-                    bg_rgba, target_size, (cx, cy), 
-                    (cx - zone_ws[i]//2, ty, cx + zone_ws[i]//2, ty_end),
-                    dim_color
-                )
-            draw_out = ImageDraw.Draw(bg_rgba)
+        # 1) Protection Layer — REPLACED BY v8.0 ATMOSPHERIC PASS
+        # (Old rectangular logic removed as requested)
             
         # --- CINEMATIC TEXT RENDERING (HALO SYSTEM) ---
         # 1. Prepare Zone-Specific Layers
@@ -1732,16 +1806,16 @@ def render_minimal_quote_card(
         
         # 2. Determine Cinematic Treatment
         risk = getattr(typo_spec, "readability_risk", "low")
-        radius = 8  # Default
-        if risk == "high": radius = 16
-        elif risk == "medium": radius = 11
+        radius = 8  # Default Glyph-Halo (v7.5) preserved as secondary reinforcement
+        if risk == "high": radius = 14
+        elif risk == "medium": radius = 10
         
-        # Determine Halo Color
+        # Determine Glyph-Halo Tint
         is_dark_bg = (sum(col[:3]) > 400) # Text is light -> BG is likely dark
         if is_dark_bg:
-            h_col = (255, 252, 240, 180 if risk == "high" else 140) # Warm light halo
+            h_col = (255, 252, 240, 140 if risk == "high" else 100)
         else:
-            h_col = (0, 0, 0, 140 if risk == "high" else 90) # Dark shadow halo
+            h_col = (0, 0, 0, 110 if risk == "high" else 70)
             
         l_spacing = typo_spec.text_style.letter_spacing if typo_spec else 0
         
@@ -1749,6 +1823,10 @@ def render_minimal_quote_card(
         ty = z_y
         
         if i == 0:
+            # Check Guardrail for Reference Line (v8.0)
+            if not getattr(typo_spec, "show_reference", True):
+                continue
+                
             if typo_spec and typo_spec.has_glow:
                 draw_top_ornament(zone_draw, cx, ty - 22, typo_spec.orn_color)
             for ln in zd["lines"]:
@@ -1758,9 +1836,20 @@ def render_minimal_quote_card(
                 draw_zone_separator(zone_draw, cx, ty + zd["ls"] // 2, typo_spec.orn_color)
             y = ty - zd["ls"] + gap_ab
         elif i == 1:
+            # Font Hardening (v8.0): Heavier weight/spacing handled by visual_system
+            # Size boost applied here locally
+            z_font = zd["font"]
+            if risk != "low":
+                boost = 1.06 if risk == "medium" else 1.08
+                new_size = int(z_font.size * boost)
+                try:
+                    z_font = ImageFont.truetype(z_font.path, new_size)
+                except:
+                    pass
+            
             for ln in zd["lines"]:
                 sw = 1 if typo_spec and typo_spec.text_style.weight == "Bold" else 0
-                draw_text_advanced(zone_draw, (cx, ty), ln["text"], font=zd["font"], fill=fc, anchor=anchor, letter_spacing=l_spacing, stroke_width=sw, stroke_fill=fc)
+                draw_text_advanced(zone_draw, (cx, ty), ln["text"], font=z_font, fill=fc, anchor=anchor, letter_spacing=l_spacing, stroke_width=sw, stroke_fill=fc)
                 ty += ln["h"] + zd["ls"]
             y = ty - zd["ls"] + gap_bc
         else:

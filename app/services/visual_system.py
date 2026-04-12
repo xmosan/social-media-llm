@@ -173,10 +173,11 @@ class ZoneStyle:
     shadow_dx: int = 1
     shadow_dy: int = 1
     glow_style: str = "none"
+    glossy: bool = False
+    # Legacy dim fields kept for signature compatibility but ignored in v8.0
     dim_layer: bool = False
     dim_color: tuple = (0, 0, 0, 0)
     dim_radius: int = 0
-    glossy: bool = False
 
 @dataclass
 class TypographySpec:
@@ -192,10 +193,15 @@ class TypographySpec:
     ref_color: tuple = (255, 255, 255)
     quote_color: tuple = (255, 255, 255)
     support_color: tuple = (255, 255, 255)
-    dim_layer: bool = False
-    dim_color: tuple = (0, 0, 0, 0)
-    dim_radius: int = 0
-    glossy: bool = False # NEW: Propagated to renderer
+    glossy: bool = False
+    # Atmospheric Halo / Shaping
+    halo_radius: int = 0
+    halo_opacity: int = 0
+    halo_color: tuple = (0, 0, 0, 0)
+    top_band_enabled: bool = False
+    top_band_alpha: int = 0
+    top_band_color: tuple = (0, 0, 0, 0)
+    show_reference: bool = True
     sep_color: tuple = (255, 255, 255)
     orn_color: tuple = (255, 255, 255)
     text_style: TextStyleSpec = field(default_factory=TextStyleSpec)
@@ -1192,13 +1198,66 @@ def adapt_typography(analysis: "AnalysisResult",
         dim_radius=0
     )
 
+    # --- CINEMATIC v8.0 ATMOSPHERIC READABILITY ---
+    halo_opacity = 0
+    halo_radius = 0
+    halo_color = (0, 0, 0, 0)
+    
+    # 1. Main Quote Halo Logic
+    risk = analysis.readability_risk
+    if risk == "high":
+        halo_opacity = 90
+        halo_radius = 420
+    elif risk == "medium":
+        halo_opacity = 60
+        halo_radius = 350
+    elif risk == "low":
+        halo_opacity = 40
+        halo_radius = 280
+        
+    # Halo Color Selection
+    if main_is_dark_text:
+        halo_color = (255, 255, 255, halo_opacity)
+    else:
+        halo_color = (0, 0, 0, halo_opacity)
+
+    # 2. Top Band Logic
+    top_band_enabled = False
+    top_band_alpha = 0
+    top_band_color = (0, 0, 0, 0)
+    
+    # Check if top zone brightness is too close to reference text color
+    ref_brightness = sum(ref_c[:3]) / 3
+    if abs(analysis.zone_a_brightness - ref_brightness) < 50 or risk != "low":
+        top_band_enabled = True
+        top_band_alpha = 45 if risk == "high" else 35
+        top_band_color = (0, 0, 0, top_band_alpha) if not top_is_dark else (255, 255, 255, top_band_alpha)
+
+    # 3. Typography Hardening (Weight/Spacing/Size)
+    if analysis.zone_b_detail > 0.25 or risk != "low":
+        text_style.weight = "Bold"
+        text_style.letter_spacing += 1
+        # Size boost handled in renderer by applying 1.05-1.08 scale to the quote font size
+        
+    # 4. Reference Guardrail
+    show_reference = True
+    if abs(analysis.zone_a_brightness - ref_brightness) < 30 or risk == "high":
+        # Check if we can just boost contrast, otherwise hide
+        if risk == "high":
+            show_reference = False # Prefer hiding over unreadable text as requested
+        else:
+            ref_c = (255, 255, 255) if analysis.zone_a_brightness < 128 else (0, 0, 0)
+
     return TypographySpec(
         readability_score=readability_score, top=top_style, main=main_style, sub=sub_style,
-        typography_mode=mode_key, readability_risk=analysis.readability_risk, 
+        typography_mode=mode_key, readability_risk=risk, 
         ref_color=ref_c, quote_color=q_c, support_color=sub_c, 
-        dim_layer=main_dim, dim_color=main_dim_color, dim_radius=main_dim_rad,
+        glossy=text_style.glossy,
         sep_color=sep_c, orn_color=orn_c,
-        text_style=text_style
+        text_style=text_style,
+        halo_radius=halo_radius, halo_opacity=halo_opacity, halo_color=halo_color,
+        top_band_enabled=top_band_enabled, top_band_alpha=top_band_alpha, top_band_color=top_band_color,
+        show_reference=show_reference
     )
 
 
