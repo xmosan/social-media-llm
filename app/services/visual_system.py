@@ -1221,32 +1221,51 @@ def adapt_typography(analysis: "AnalysisResult",
     else:
         halo_color = (0, 0, 0, halo_opacity)
 
-    # 2. Top Band Logic
+    # 2. Top Band Logic (Atmospheric Protection)
     top_band_enabled = False
     top_band_alpha = 0
     top_band_color = (0, 0, 0, 0)
     
-    # Check if top zone brightness is too close to reference text color
     ref_brightness = sum(ref_c[:3]) / 3
-    if abs(analysis.zone_a_brightness - ref_brightness) < 50 or risk != "low":
+    contrast_diff = abs(analysis.zone_a_brightness - ref_brightness)
+    
+    if contrast_diff < 50 or risk != "low":
         top_band_enabled = True
-        top_band_alpha = 45 if risk == "high" else 35
+        top_band_alpha = 55 if risk == "high" else 35 # Stronger for high risk
         top_band_color = (0, 0, 0, top_band_alpha) if not top_is_dark else (255, 255, 255, top_band_alpha)
 
     # 3. Typography Hardening (Weight/Spacing/Size)
     if analysis.zone_b_detail > 0.25 or risk != "low":
         text_style.weight = "Bold"
         text_style.letter_spacing += 1
-        # Size boost handled in renderer by applying 1.05-1.08 scale to the quote font size
         
-    # 4. Reference Guardrail
+    # 4. Reference Guardrail (v8.5 Refinement)
     show_reference = True
-    if abs(analysis.zone_a_brightness - ref_brightness) < 30 or risk == "high":
-        # Check if we can just boost contrast, otherwise hide
-        if risk == "high":
-            show_reference = False # Prefer hiding over unreadable text as requested
-        else:
-            ref_c = (255, 255, 255) if analysis.zone_a_brightness < 128 else (0, 0, 0)
+    
+    # Adaptive Protection Pass
+    if contrast_diff < 42 or risk == "high":
+        # A. Try Contrast Flip (Dark text on light area, or vice versa)
+        better_c = (255, 255, 255) if analysis.zone_a_brightness < 128 else (0, 0, 0)
+        new_diff = abs(analysis.zone_a_brightness - (sum(better_c)/3))
+        if new_diff > contrast_diff:
+            ref_c = better_c
+            contrast_diff = new_diff
+            
+        # B. Increase Opacity & Tracking
+        top_style.opacity = 1.0 # Maximize
+        top_style.letter_spacing = 1 # Tracking boost
+        top_style.shadow_fill = (0, 0, 0, 200) if (sum(ref_c[:3])/3) > 128 else (255, 255, 255, 180)
+        
+        # C. Force Top Band if not already on
+        if not top_band_enabled:
+            top_band_enabled = True
+            top_band_alpha = 40
+            top_band_color = (0, 0, 0, top_band_alpha) if (sum(ref_c[:3])/3) > 128 else (255, 255, 255, top_band_alpha)
+
+    # Final "Last Resort" Hide Check
+    # Only hide if it's truly unreadable (low contrast + very high noise)
+    if contrast_diff < 25 and analysis.zone_a_detail > 0.42:
+        show_reference = False
 
     return TypographySpec(
         readability_score=readability_score, top=top_style, main=main_style, sub=sub_style,

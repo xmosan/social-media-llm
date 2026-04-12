@@ -1823,14 +1823,25 @@ def render_minimal_quote_card(
         ty = z_y
         
         if i == 0:
-            # Check Guardrail for Reference Line (v8.0)
+            # Check Guardrail for Reference Line (v8.0/v8.5)
             if not getattr(typo_spec, "show_reference", True):
                 continue
+            
+            # Zone-specific letter spacing (already includes base + boost)
+            lp_spacing = l_spacing + getattr(z_style, "letter_spacing", 0)
                 
             if typo_spec and typo_spec.has_glow:
                 draw_top_ornament(zone_draw, cx, ty - 22, typo_spec.orn_color)
+                
+            # Font Adaptation (v8.5): Slightly smaller for high risk
+            z_font = zd["font"]
+            if risk == "high":
+                try:
+                    z_font = ImageFont.truetype(z_font.path, int(z_font.size * 0.92))
+                except: pass
+                
             for ln in zd["lines"]:
-                draw_text_advanced(zone_draw, (cx, ty), ln["text"], font=zd["font"], fill=fc, anchor=anchor, letter_spacing=l_spacing)
+                draw_text_advanced(zone_draw, (cx, ty), ln["text"], font=z_font, fill=fc, anchor=anchor, letter_spacing=lp_spacing)
                 ty += ln["h"] + zd["ls"]
             if typo_spec and typo_spec.text_style.layout_mode == "Stack":
                 draw_zone_separator(zone_draw, cx, ty + zd["ls"] // 2, typo_spec.orn_color)
@@ -1839,6 +1850,8 @@ def render_minimal_quote_card(
             # Font Hardening (v8.0): Heavier weight/spacing handled by visual_system
             # Size boost applied here locally
             z_font = zd["font"]
+            lp_spacing = l_spacing + getattr(z_style, "letter_spacing", 0)
+            
             if risk != "low":
                 boost = 1.06 if risk == "medium" else 1.08
                 new_size = int(z_font.size * boost)
@@ -1849,12 +1862,15 @@ def render_minimal_quote_card(
             
             for ln in zd["lines"]:
                 sw = 1 if typo_spec and typo_spec.text_style.weight == "Bold" else 0
-                draw_text_advanced(zone_draw, (cx, ty), ln["text"], font=z_font, fill=fc, anchor=anchor, letter_spacing=l_spacing, stroke_width=sw, stroke_fill=fc)
+                draw_text_advanced(zone_draw, (cx, ty), ln["text"], font=z_font, fill=fc, anchor=anchor, letter_spacing=lp_spacing, stroke_width=sw, stroke_fill=fc)
                 ty += ln["h"] + zd["ls"]
             y = ty - zd["ls"] + gap_bc
         else:
+            # Zone-specific letter spacing
+            lp_spacing = l_spacing + getattr(z_style, "letter_spacing", 0)
+            
             for ln in zd["lines"]:
-                draw_text_advanced(zone_draw, (cx, ty), ln["text"], font=zd["font"], fill=fc, anchor=anchor, letter_spacing=l_spacing)
+                draw_text_advanced(zone_draw, (cx, ty), ln["text"], font=zd["font"], fill=fc, anchor=anchor, letter_spacing=lp_spacing)
                 ty += ln["h"] + zd["ls"]
             y = ty - zd["ls"]
 
