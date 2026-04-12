@@ -1621,7 +1621,14 @@ def render_minimal_quote_card(
     if typo_spec:
         if getattr(typo_spec, "top_band_enabled", False):
             bg = draw_top_gradient_band(bg, typo_spec.top_band_color[:3], typo_spec.top_band_alpha, height_percent=0.20)
-        if getattr(typo_spec, "halo_radius", 0) > 0:
+            
+        # Refined Atmospheric Layering (Glossy > Halo)
+        if glossy:
+            # Subtle centered frosted glass only when requested by UI
+            main_zd = zone_data[1]
+            bx = (int(W * 0.08), main_zd["y"] - 20, int(W * 0.92), main_zd["y"] + main_zd["block_h"] + 20)
+            bg = apply_glass_morphism(bg, target_size, (W//2, main_zd["y"]), bx, blend_color=(0,0,0,32), intensity=30)
+        elif getattr(typo_spec, "halo_radius", 0) > 0:
             main_zd = zone_data[1]
             bg = draw_radial_halo(bg, (main_zd["x_center"], main_zd["y"] + main_zd["block_h"] // 2), typo_spec.halo_radius, typo_spec.halo_color[:3], typo_spec.halo_opacity)
 
@@ -1758,15 +1765,18 @@ def apply_glass_morphism(base_img, target_size, center, zone_box, blend_color=(0
     overlay = Image.new("RGBA", blurred.size, blend_color)
     frosted = Image.alpha_composite(blurred.convert("RGBA"), overlay)
     
-    # 4. Create mask for the actual zone (rounded rectangle)
+    # 4. Create mask for the actual zone (Cine-Ellipse instead of Box)
     mask = Image.new("L", blurred.size, 0)
     m_draw = ImageDraw.Draw(mask)
-    # Local coordinates for the mask
+    # Draw centered ellipse for the bloom effect
     lx1, ly1 = pad, pad
     lx2, ly2 = (x2-x1) + pad, (y2-y1) + pad
-    m_draw.rounded_rectangle([lx1, ly1, lx2, ly2], radius=15, fill=255)
+    m_draw.ellipse([lx1-40, ly1-20, lx2+40, ly2+20], fill=255)
     
-    # 5. Composite back onto main image
+    # 5. Soften the mask significantly (atmospheric bloom)
+    mask = mask.filter(ImageFilter.GaussianBlur(radius=30))
+    
+    # 6. Composite back onto main image
     final_region = Image.composite(frosted, blurred.convert("RGBA"), mask)
     
     # Paste back

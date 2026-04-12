@@ -1152,17 +1152,7 @@ def adapt_typography(analysis: "AnalysisResult",
 
     # --- MAIN ZONE (Quote) ---
     main_is_dark_text = (sum(q_c[:3]) < 384)
-    main_dim = False
-    main_dim_color = (0, 0, 0, 0)
-    main_dim_rad = 380
     
-    if force_protection or analysis.readability_risk != 'low':
-        main_dim = True
-        if main_is_dark_text:
-            main_dim_color = (255, 255, 255, 30 if analysis.readability_risk == "high" else 15)
-        else:
-            main_dim_color = (0, 0, 0, 65 if analysis.readability_risk == "high" else 40)
-
     main_style = ZoneStyle(
         color=q_c,
         opacity=1.0,
