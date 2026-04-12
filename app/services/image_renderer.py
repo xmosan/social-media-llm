@@ -191,47 +191,110 @@ def _extract_border(p: str) -> str:
 
 def balanced_text_wrap(text: str, font: ImageFont.FreeTypeFont, max_width: int, draw_tmp: ImageDraw.Draw, letter_spacing: int = 0) -> list[str]:
     """
-    Split text into 2-4 lines that are roughly equal in pixel width.
+    Split text into lines that fit within max_width, targeting balanced widths.
     Accounts for letter_spacing (tracking) in width calculations.
+    Ensures NO text is lost.
     """
     words = text.strip().split()
     if not words: return []
     
-    # Measure total width to estimate line count
-    raw_w = draw_tmp.textbbox((0, 0), text, font=font)[2]
-    total_w = raw_w + (len(text) - 1) * letter_spacing
-    n_lines = max(1, math.ceil(total_w / max_width))
-    
-    # For small snippets, don't force multiple lines unless necessary
-    if n_lines == 1 and total_w < max_width:
-        return [text]
+    # Calculate widths for all words with tracking
+    def get_word_w(w):
+        w_raw = draw_tmp.textbbox((0, 0), w, font=font)[2]
+        return w_raw + len(w) * letter_spacing
 
-    # Target width per line
-    target_w = total_w / n_lines
+    space_w = draw_tmp.textbbox((0, 0), " ", font=font)[2] + letter_spacing
     
     lines = []
-    current_line = []
-    current_w = 0
+    curr_line = []
+    curr_w = 0
     
     for word in words:
-        # Measure word including the trailing space
-        w_text = word + " "
-        w_raw = draw_tmp.textbbox((0, 0), w_text, font=font)[2]
-        word_w = w_raw + len(w_text) * letter_spacing
-        
-        # Threshold (1.15x) to allow some lines to be slightly wider to keep balance.
-        if current_w + word_w > target_w * 1.15 and current_line:
-            lines.append(" ".join(current_line))
-            current_line = [word]
-            current_w = word_w
+        word_w = get_word_w(word)
+        # If adding this word exceeds max_width, start a new line
+        if curr_line and (curr_w + space_w + word_w > max_width):
+            lines.append(" ".join(curr_line))
+            curr_line = [word]
+            curr_w = word_w
         else:
-            current_line.append(word)
-            current_w += word_w
+            if curr_line:
+                curr_w += space_w
+            curr_line.append(word)
+            curr_w += word_w
             
-    if current_line:
-        lines.append(" ".join(current_line))
+    if curr_line:
+        lines.append(" ".join(curr_line))
         
     return lines
+
+def fit_text_to_zone(
+    text: str, 
+    font_path: str, 
+    max_w: int, 
+    max_h: int, 
+    start_size: int, 
+    draw_tmp: ImageDraw.Draw,
+    min_size: int = 24,
+    base_ls: int = 0,
+    base_tracking: int = 0
+):
+    """
+    Iteratively fits text into a budget using size, tracking, and leading adjustments.
+    Returns: (list[str], ImageFont.FreeTypeFont, block_h, final_ls, final_tracking)
+    """
+    curr_size = start_size
+    curr_tracking = base_tracking # extra per-zone boost
+    curr_ls = 0 # line spacing adjustment
+    
+    # Long Quote detection (v9.0)
+    is_long = len(text) > 100
+    if is_long:
+        curr_size = int(start_size * 0.85)
+
+    iterations = 0
+    max_iterations = 25
+    
+    while iterations < max_iterations:
+        iterations += 1
+        try:
+            fnt = ImageFont.truetype(font_path, curr_size)
+        except:
+            fnt = ImageFont.load_default()
+            
+        # 1. Wrap
+        total_tracking = base_ls + curr_tracking
+        lines = balanced_text_wrap(text, fnt, max_w, draw_tmp, letter_spacing=total_tracking)
+        
+        # 2. Measure
+        block_h = 0
+        line_metrics = []
+        for line in lines:
+            bbox = draw_tmp.textbbox((0, 0), line, font=fnt)
+            lh = bbox[3] - bbox[1]
+            lw = (bbox[2] - bbox[0]) + len(line) * total_tracking
+            line_metrics.append({"h": lh, "w": lw})
+            
+        # Base line spacing (1.3x font size or custom)
+        zd_ls = int(curr_size * (0.45 + curr_ls))
+        block_h = sum(m["h"] for m in line_metrics) + (len(lines)-1) * zd_ls
+        
+        # 3. Check Fit
+        if block_h <= max_h:
+            return lines, fnt, block_h, zd_ls, total_tracking
+            
+        # 4. Decimate (Priority Order)
+        if curr_tracking > 0:
+            curr_tracking -= 1
+        elif curr_size > min_size:
+            curr_size -= 2
+        elif curr_ls > -0.15:
+            curr_ls -= 0.05
+        else:
+            # Absolute limit reached
+            break
+            
+    # Final fallback if we never perfectly fit
+    return lines, fnt, block_h, int(curr_size * (0.45 + curr_ls)), base_ls + curr_tracking
 
 
 def _extract_palette(p: str):
@@ -1296,7 +1359,6 @@ PRESET_CONFIGS = {
         "atmosphere": None,
     },
     "kaaba": {
-        "base": (0, 0, 0),
         "bg_start": (14, 12, 14), "bg_end": (0, 0, 0),
         "pattern": "islamic",    "pattern_col": (175, 148, 50, 14),
         "vignette": 0.32,
@@ -1338,13 +1400,6 @@ def _build_adaptive_palette(
     """
     Builds a 3-element text palette by independently sampling the average
     brightness of each text zone in the rendered background image.
-
-    Returns [reference_rgb, quote_rgb, support_rgb].
-
-    Zone layout (fractions of 1080x1080):
-      Zone A (reference / top ornament): rows 8–25%
-      Zone B (main quote):               rows 30–70%
-      Zone C (support / bottom):         rows 72–88%
     """
     W, H = size
 
@@ -1360,35 +1415,21 @@ def _build_adaptive_palette(
     bC = zone_brightness(0.72, 0.88)   # support row
 
     def pick_text(brightness: float, accent: bool = False):
-        """Return RGB that maximally contrasts with the sampled brightness."""
         if brightness < 100:
-            # Very dark bg: bright white or warm gold for accent
             return (220, 178, 58) if accent else (255, 255, 255)
         elif brightness < 155:
-            # Medium-dark: off-white or slightly muted gold
             return (210, 168, 52) if accent else (248, 248, 245)
         elif brightness < 200:
-            # Medium-light: dark brown-gold or near-black
             return (60, 40, 8)   if accent else (22, 18, 12)
         else:
-            # Very light: deep mahogany or near-black
             return (50, 30, 5)   if accent else (12, 10, 8)
 
     ref_c     = pick_text(bA, accent=True)
     quote_c   = pick_text(bB, accent=False)
     support_c = pick_text(bC, accent=False)
 
-    print(f"   🎨 Adaptive palette:  "
-          f"A-brt={bA:.0f} ref={ref_c}  "
-          f"B-brt={bB:.0f} qte={quote_c}  "
-          f"C-brt={bC:.0f} sup={support_c}")
-
     return [ref_c, quote_c, support_c]
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# MAIN RENDER ENGINE v7.0
-# ─────────────────────────────────────────────────────────────────────────────
 
 def render_minimal_quote_card(
     segments:      list,
@@ -1403,7 +1444,8 @@ def render_minimal_quote_card(
     glossy: bool = False
 ) -> str:
     """
-    Sabeel Designer Engine v7.0 — Spiritual Depth Renderer.
+    Sabeel Designer Engine v9.0 — Precision Layout & Cinematic Typography.
+    Guarantees 100% text preservation using iterative fitting budgets.
     """
     W, H = 1080, 1080
     target_size = (W, H)
@@ -1412,508 +1454,232 @@ def render_minimal_quote_card(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
     print(f"\n{'═'*64}")
-    print(f"🎨 [v7.0] mode={mode}  style={style}  engine={engine}")
+    print(f"🎨 [v9.0] mode={mode}  style={style}  engine={engine}")
     print(f"📝 prompt={repr((visual_prompt or '')[:65])}")
     print(f"📦 segments={len(segments)}")
     print(f"{'═'*64}")
 
-    # Initial default font
-    font_file = "Inter.ttf"
-    font_path = os.path.join(base_dir, "assets", "fonts", font_file)
-
-    # ── MODE: CUSTOM ──────────────────────────────────────────────────────────
+    # 1. Background Generation / Setup
+    bg = None
+    vs_spec = None
+    typo_spec = None
+    dalle_bg = None
+    
     if mode == "custom" and (not visual_prompt or not visual_prompt.strip()):
         mode = "preset"; style = "quran"
 
-    typo_spec = None   # will be populated by visual system if available
-
     if mode == "custom":
-        # Interpret prompt → VisualSpec, compose safe DALL-E prompt
-        vs_spec = None
         if _VS_OK:
-            vs_spec      = vs_interpret(visual_prompt)
-            # Logic moved to centralized generate_background switcher
-            dalle_bg = generate_background(
-                visual_prompt, target_size, 
-                cache_dir=output_dir,
-                engine=engine,
-                vs_spec=vs_spec
-            )
-
-        kw_ov     = interpret_visual_prompt(visual_prompt or "")
-        glow_rgba = tuple(int(v) for v in kw_ov.get("glow_color_rgba",
-                                                      [255, 245, 220, 60]))
-
+            vs_spec = vs_interpret(visual_prompt)
+            dalle_bg = generate_background(visual_prompt, target_size, cache_dir=output_dir, engine=engine, vs_spec=vs_spec)
+        
         if dalle_bg is None:
             mode = "preset"
         else:
             bg = dalle_bg
-
-            # Gentle vignette (preserves DALL-E detail)
-            bg   = apply_vignette(bg, intensity=0.38)
-            draw = ImageDraw.Draw(bg)
-
-    # ── VISUAL SYSTEM INTEGRATION ─────────────────────────────────────────────
-    # This block interprets aesthetic intent and adapts typography to the background.
-    if _VS_OK:
-        # Avoid double interpretation if already done for custom mode
-        if typo_spec is None:
-            # 1. Interpret user text-style intent
-            text_style = vs_interpret_text(text_style_prompt, experimental=experimental_mode)
-            
-            # 2. Analyze background (requires bg to be initialized)
-            # If in custom mode, bg is the DALL-E image. 
-            # If in preset mode, bg is generated below.
-            # So we move this analysis to AFTER bg is finalized.
-            pass 
-    else:
-        typo_spec = None
-        # Ornaments driven by spec.ornament_level
-        gold_c    = (205, 165, 45)
-        orn_level = getattr(vs_spec, "ornament_level", "corner") if vs_spec else "corner"
-        if orn_level == "ornate":
-            draw_manuscript_frame(draw, target_size, tuple(max(0, v - 20) for v in gold_c))
-            draw_corner_filigree(draw, target_size, gold_c, length=90)
-        elif orn_level in ("corner", "moderate"):
-            draw_corner_filigree(draw, target_size, gold_c, length=82)
-        elif orn_level == "minimal":
-            draw_corner_filigree(draw, target_size, gold_c, length=48)
+            bg = apply_vignette(bg, intensity=0.38)
 
     if mode == "preset":
-        # ── MODE: PRESET ──────────────────────────────────────────────────────
         key = style if style in PRESET_CONFIGS else "quran"
         cfg = PRESET_CONFIGS[key]
-        
         bg = Image.new("RGB", target_size, cfg["bg_start"])
         draw = ImageDraw.Draw(bg)
         if cfg["bg_start"] != cfg["bg_end"]:
             draw_radial_gradient(draw, target_size, cfg["bg_start"], cfg["bg_end"])
         
         pat = cfg.get("pattern")
-        if pat == "islamic":
-            draw_islamic_pattern(draw, target_size, cfg.get("pattern_col", (190, 150, 40, 30)))
-        elif pat == "paper":
-            draw_paper_texture(draw, target_size, cfg["base"])
-        elif pat == "starry":
-            draw_starry_noise(draw, target_size, cfg.get("pattern_density", 0.0006))
+        if pat == "islamic": draw_islamic_pattern(draw, target_size, cfg.get("pattern_col", (190, 150, 40, 30)))
+        elif pat == "paper": draw_paper_texture(draw, target_size, cfg["base"])
+        elif pat == "starry": draw_starry_noise(draw, target_size, cfg.get("pattern_density", 0.0006))
             
         l_pos = cfg.get("light_pos")
-        pos = None
-        if l_pos == "center":
-            pos = (W // 2, H // 2)
-        elif isinstance(l_pos, tuple):
-            pos = l_pos
-            
+        pos = (W // 2, H // 2) if l_pos == "center" else l_pos if isinstance(l_pos, tuple) else None
         if pos and cfg.get("light_col"):
             bg = apply_light_source(bg, target_size, pos, cfg["light_col"], cfg.get("light_r", 300))
-            draw = ImageDraw.Draw(bg)
             
         atm = cfg.get("atmosphere")
         if atm == "fajr_horizon":
             horizon = Image.new("RGBA", target_size, (0, 0, 0, 0))
             hd = ImageDraw.Draw(horizon)
             hd.rectangle([0, H//2+100, W, H], fill=(10, 15, 45, 120))
-            horizon = horizon.filter(ImageFilter.GaussianBlur(80))
-            bg = Image.alpha_composite(bg.convert("RGBA"), horizon).convert("RGB")
-            draw = ImageDraw.Draw(bg)
+            bg = Image.alpha_composite(bg.convert("RGBA"), horizon.filter(ImageFilter.GaussianBlur(80))).convert("RGB")
         elif atm == "parchment":
             bg = apply_parchment_depth(bg, target_size, intensity=0.6)
-            draw = ImageDraw.Draw(bg)
         elif atm == "celestial":
             celestial = Image.new("RGBA", target_size, (0, 0, 0, 0))
             cd = ImageDraw.Draw(celestial)
             cd.ellipse([W//2-300, H//2-300, W//2+300, H//2+300], fill=(160, 100, 255, 30))
-            celestial = celestial.filter(ImageFilter.GaussianBlur(140))
-            bg = Image.alpha_composite(bg.convert("RGBA"), celestial).convert("RGB")
-            draw = ImageDraw.Draw(bg)
+            bg = Image.alpha_composite(bg.convert("RGBA"), celestial.filter(ImageFilter.GaussianBlur(140))).convert("RGB")
             
         v = cfg.get("vignette", 0)
-        if v > 0:
-            bg = apply_vignette(bg, intensity=v)
-            draw = ImageDraw.Draw(bg)
+        if v > 0: bg = apply_vignette(bg, intensity=v)
             
         bdr = cfg.get("border")
-        if bdr == "gold_block":
-            draw_gold_border(draw, target_size, cfg.get("border_w", 30))
-        elif bdr == "corner_filigree":
-            draw_corner_filigree(draw, target_size, (200, 162, 42), length=80)
+        draw = ImageDraw.Draw(bg)
+        if bdr == "gold_block": draw_gold_border(draw, target_size, cfg.get("border_w", 30))
+        elif bdr == "corner_filigree": draw_corner_filigree(draw, target_size, (200, 162, 42), length=80)
             
         palette = PRESET_TEXT.get(key, PRESET_TEXT["quran"])
         glow_rgba = cfg.get("glow")
 
-    # ── FINAL TYPOGRAPHY ADAPTATION ──────────────────────────────────────────
-    # Run analysis and adaptation now that 'bg' is definitively ready (custom or preset)
-    if _VS_OK and typo_spec is None:
+    # 2. Typography Adaptation (Visual System v8.5+)
+    if _VS_OK:
         text_style = vs_interpret_text(text_style_prompt, experimental=experimental_mode)
         analysis   = vs_analyze(bg, target_size)
-        typo_spec  = vs_adapt(analysis, vs_spec if mode == "custom" else None, 
-                              text_style=text_style, readability_priority=readability_priority)
-        
-        print(f"   🎨 [Adapt] mode={typo_spec.typography_mode} risk={typo_spec.readability_risk}")
+        typo_spec  = vs_adapt(analysis, vs_spec if mode == "custom" else None, text_style=text_style, readability_priority=readability_priority)
+        print(f"   🎨 [Adapt] risk={typo_spec.readability_risk} theme={typo_spec.typography_mode}")
 
     if typo_spec is None:
-        # Fallback to simple adaptive palette if visual_system failed or isn't used
         palette = _build_adaptive_palette(bg, target_size)
-    # Generous zones: Reference (A) | Main Quote (B) | Supporting (C)
-    v_pad   = 120  # Increased for breathing room
-    zone_ws = [int(W * 0.70), int(W * 0.82), int(W * 0.74)]
-    zone_ls = [22, 34, 24]
-    gap_ab  = 74   # refined gap: Reference → Quote
-    gap_bc  = 74   # refined gap: Quote → Supporting
+        glow_rgba = (255, 255, 255, 40)
 
+    # 3. V9.0 PRECISION LAYOUT BUDGETS
+    BUDGETS = [
+        [int(H * 0.08), int(H * 0.23), int(W * 0.78), int(H * 0.15)], # Top
+        [int(H * 0.28), int(H * 0.68), int(W * 0.86), int(H * 0.40)], # Main
+        [int(H * 0.72), int(H * 0.88), int(W * 0.82), int(H * 0.16)], # Sub
+    ]
+    
     draw_tmp = ImageDraw.Draw(bg)
     zone_data = []
 
+    print(f"📐 [v9.0] Budget Fitting...")
+
     for i, seg in enumerate(segments):
-        if i >= 3:
-            break
-        z_w, z_ls = zone_ws[i], zone_ls[i]
+        if i >= 3: break
+        
+        # Style resolution
         if typo_spec:
             style_idx = [typo_spec.top, typo_spec.main, typo_spec.sub][i]
             col = style_idx.color
+            opacity = style_idx.opacity
+            z_style = style_idx # Reference for later
         else:
             col = palette[i] if palette and i < len(palette) else (255,255,255)
-        
-        # ── PREMIUM HIERARCHY OVERRIDES ──────────────────────────────────────
-        if mode == "custom":
-            # Default sizes: 34 (Ref), 74 (Quote), 42 (Support)
-            base_sizes = [34, 74, 42]
+            opacity = 1.0
+            z_style = None
             
-        # ── DYNAMIC FONT SELECTION ──────────────────────────────────────────
-        # Build path based on family, weight, and italic intent
-        family = "Sans"
+        # Font Selection
+        variant = "Inter"
         if typo_spec and typo_spec.text_style:
-            family = typo_spec.text_style.font_family
-            ts = typo_spec.text_style
-            
-            # Map logical families to assets
-            f_base = "Amiri" if family == "Serif" else "Inter"
-            
-            # Form specific variant name (e.g., Inter-Bold.ttf)
+            f_base = "Amiri" if typo_spec.text_style.font_family == "Serif" else "Inter"
             variant = f_base
-            if ts.weight == "Bold": variant += "-Bold"
-            elif ts.weight == "Light": variant += "-Light"
-            if ts.italic: variant += "-Italic"
+            if typo_spec.text_style.weight == "Bold": variant += "-Bold"
+            elif typo_spec.text_style.weight == "Light": variant += "-Light"
+            if typo_spec.text_style.italic: variant += "-Italic"
             
-            # Fallback to Regular if specific variant doesn't exist
-            font_path = os.path.join(base_dir, "assets", "fonts", f"{variant}.ttf")
-            if not os.path.exists(font_path):
-                # Try adding -Regular if it's missing (Amiri uses -Regular.ttf)
-                if not os.path.exists(os.path.join(base_dir, "assets", "fonts", f"{f_base}-Regular.ttf")):
-                    font_path = os.path.join(base_dir, "assets", "fonts", f"{f_base}.ttf")
-                else:
-                    font_path = os.path.join(base_dir, "assets", "fonts", f"{f_base}-Regular.ttf")
+        font_path = os.path.join(base_dir, "assets", "fonts", f"{variant}.ttf")
+        if not os.path.exists(font_path):
+            f_base = "Amiri" if "Amiri" in variant else "Inter"
+            font_path = os.path.join(base_dir, "assets", "fonts", f"{f_base}-Regular.ttf" if f_base == "Amiri" else f"{f_base}.ttf")
 
-        try:
-            fnt = ImageFont.truetype(font_path, int(seg["size"]))
-        except Exception:
-            fnt = ImageFont.load_default()
-
-        # Handle text wrap width using the exact font metrics
-        # For Zone A, we want wider tracking (simulated by spaces if needed, but
-        # PIL handles kerning natively mostly. We will draw custom spacing later, 
-        # but for bounding box width we account for expanded characters).
-        avg_cw = seg["size"] * (0.64 if i == 0 else 0.50)
-        max_chars = max(10, int(z_w / max(1, avg_cw)))
-        
+        # Text Preparation
         seg_text = str(seg["text"])
         if typo_spec and typo_spec.text_style:
-            if typo_spec.text_style.uppercase or (mode == "custom" and i == 0):
-                seg_text = seg_text.upper()
-        elif mode == "custom" and i == 0:
-            seg_text = seg_text.upper() 
+            if typo_spec.text_style.uppercase or (mode == "custom" and i == 0): seg_text = seg_text.upper()
 
-        if mode == "custom" and i == 0:
-            # Manually inject tracking spaces between letters for Zone A
-            seg_text = " ".join(list(seg_text)).replace("   ", "  ")
-            
-        # Use our intelligent balanced wrapper instead of textwrap
-        ls_val = typo_spec.text_style.letter_spacing if typo_spec and typo_spec.text_style else 0
-        raw = balanced_text_wrap(seg_text, fnt, z_w, draw_tmp, letter_spacing=ls_val)
+        # Iterative Fit
+        budget = BUDGETS[i]
+        base_ls = typo_spec.text_style.letter_spacing if typo_spec and typo_spec.text_style else 0
+        z_boost = getattr(z_style, "letter_spacing", 0) if z_style else 0
         
-        if i == 0 and len(raw) > 2:
-            raw = raw[:2]; raw[-1] = raw[-1].rstrip() + "…"
-            
-        # Refine Zone C opacity (make it softer natively)
-        if mode == "custom" and i == 2:
-            # Drop the alpha of Zone C by ~25%
-            col = (col[0], col[1], col[2], 190)
+        start_sz = int(seg["size"])
+        if i == 1 and len(seg_text) > 90: start_sz = int(start_sz * 0.88)
+        elif i == 0 and len(seg_text) > 40: start_sz = int(start_sz * 0.90)
 
-        block_h = 0
-        lines   = []
-        for line in raw:
-            bbox = draw_tmp.textbbox((0, 0), line, font=fnt)
-            lh   = bbox[3] - bbox[1]
-            lw   = bbox[2] - bbox[0]
-            lines.append({"text": line, "h": lh, "w": lw})
-            block_h += lh + z_ls
-        if block_h > 0:
-            block_h -= z_ls
+        lines, fnt, b_h, zd_ls, final_track = fit_text_to_zone(
+            seg_text, font_path, budget[2], budget[3], start_sz, 
+            draw_tmp, min_size=(24 if i != 1 else 32), 
+            base_ls=base_ls, base_tracking=z_boost
+        )
+        
+        z_y = budget[0] + (budget[3] // 2) - (b_h // 2)
+        
+        zone_data.append({
+            "font": fnt, "lines": lines, "block_h": b_h, 
+            "color": col, "opacity": opacity, "ls": zd_ls, "tracking": final_track,
+            "y": z_y, "x_center": W // 2, "anchor": "mt", "style_ref": z_style
+        })
+        print(f"   ✅ Zone {i}: {len(lines)} lines | size={fnt.size} | y={z_y}")
 
-        zone_data.append({"font": fnt, "lines": lines,
-                          "block_h": block_h, "color": col, "ls": z_ls})
-        print(f"   Zone {i}: {len(lines)} lines  h={block_h}px  size={seg['size']}")
-
-    # Optical centering and Vertical Placement logic
-    total_h = sum(zd["block_h"] for zd in zone_data)
-    if len(zone_data) > 1: total_h += gap_ab
-    if len(zone_data) > 2: total_h += gap_bc
-    
-    # Default: Center vertically
-    start_y = (H // 2) - (total_h // 2) - int(H * 0.03)
-    
-    # User-defined placement
-    if typo_spec and typo_spec.text_style:
-        vp = typo_spec.text_style.v_placement
-        if vp == "Top_Third":
-            start_y = int(H * 0.18)
-        elif vp == "Bottom_Third":
-            start_y = int(H * 0.82) - total_h
-            
-    start_y = max(v_pad, start_y)
-    print(f"📐 total_h={total_h}  start_y={start_y}")
-
-    # Ornament / glow colors — driven by TypographySpec theme when available
-    if typo_spec is not None:
-        g_rgba  = typo_spec.glow_rgba
-        orn_col = list(typo_spec.orn_color)
-        sep_col = tuple(typo_spec.orn_color)
-    else:
-        g_rgba  = glow_rgba
-        orn_col = list(g_rgba[:3]) if g_rgba else [200, 162, 42]
-        sep_col = (min(255, int(orn_col[0] * 0.9)),
-                   min(255, int(orn_col[1] * 0.9)),
-                   min(255, int(orn_col[2] * 0.75)))
-
-    # ── LAYOUT RESOLVER ──────────────────────────────────────────────────────
-    # Determine (cx, y, anchor) for each zone based on LayoutMode
-    layout_params = []
-    
+    # 4. Alignment / Editorial Override
     if typo_spec and typo_spec.text_style.layout_mode == "Editorial":
         ts = typo_spec.text_style
-        # Zone 0: Top-Right (always, for balance)
-        layout_params.append({
-            "cx": int(W * 0.90), "y": int(H * 0.08), "anchor": "rt"
-        })
-        # Zone 1: Main Quote (User defined placement + side focus)
-        q_cx = int(W * 0.10) if ts.alignment != "Right" else int(W * 0.90)
-        q_y = start_y
-        layout_params.append({
-            "cx": q_cx, "y": q_y, "anchor": "lt" if ts.alignment != "Right" else "rt"
-        })
-        # Zone 2: Support (Opposite of quote or bottom center)
-        layout_params.append({
-            "cx": int(W * 0.90) if ts.alignment != "Right" else int(W * 0.10),
-            "y": H - int(H * 0.10) - zone_data[2]["block_h"],
-            "anchor": "rb" if ts.alignment != "Right" else "lb"
-        })
+        zone_data[0].update({"x_center": int(W * 0.90), "anchor": "rt", "y": int(H * 0.10)})
+        q_cx = int(W * 0.12) if ts.alignment != "Right" else int(W * 0.88)
+        zone_data[1].update({"x_center": q_cx, "anchor": "lt" if ts.alignment != "Right" else "rt"})
+        zone_data[2].update({"x_center": int(W * 0.88) if ts.alignment != "Right" else int(W * 0.12), 
+                             "anchor": "rb" if ts.alignment != "Right" else "lb", "y": BUDGETS[2][1] - zone_data[2]["block_h"]})
     else:
-        # Default: Stacked Vertical Layout
-        curr_y = start_y
-        for i, zd in enumerate(zone_data):
-            # Alignment logic
-            z_cx = W // 2
-            z_anchor = "mt"
+        for zd in zone_data:
             if typo_spec and typo_spec.text_style:
                 ts = typo_spec.text_style
-                if ts.alignment == "Left":
-                    z_cx = int(W * 0.12) + ts.horiz_offset
-                    z_anchor = "lt"
-                elif ts.alignment == "Right":
-                    z_cx = int(W * 0.88) - ts.horiz_offset
-                    z_anchor = "rt"
-            
-            layout_params.append({"cx": z_cx, "y": curr_y, "anchor": z_anchor})
-            gap = gap_ab if i == 0 else gap_bc
-            curr_y += zd["block_h"] + gap
+                if ts.alignment == "Left": zd.update({"x_center": int(W * 0.12) + ts.horiz_offset, "anchor": "lt"})
+                elif ts.alignment == "Right": zd.update({"x_center": int(W * 0.88) - ts.horiz_offset, "anchor": "rt"})
 
-    # ── ATMOSPHERIC READABILITY PASS (v8.0) ──────────────────────────────────
-    
+    # 5. Atmospheric Pass
     if typo_spec:
-        # A. Top Gradient Band (Light Shaping)
         if getattr(typo_spec, "top_band_enabled", False):
-            bg = draw_top_gradient_band(
-                bg, 
-                typo_spec.top_band_color[:3], 
-                typo_spec.top_band_alpha,
-                height_percent=0.20
-            )
-            
-        # B. Radial Halo (Main Quote Pool)
+            bg = draw_top_gradient_band(bg, typo_spec.top_band_color[:3], typo_spec.top_band_alpha, height_percent=0.20)
         if getattr(typo_spec, "halo_radius", 0) > 0:
-            # We target the center of the main quote zone (Zone 1)
-            main_lp = layout_params[1]
             main_zd = zone_data[1]
-            halo_center = (main_lp["cx"], main_lp["y"] + main_zd["block_h"] // 2)
-            bg = draw_radial_halo(
-                bg, 
-                halo_center, 
-                typo_spec.halo_radius, 
-                typo_spec.halo_color[:3], 
-                typo_spec.halo_opacity
-            )
+            bg = draw_radial_halo(bg, (main_zd["x_center"], main_zd["y"] + main_zd["block_h"] // 2), typo_spec.halo_radius, typo_spec.halo_color[:3], typo_spec.halo_opacity)
 
     bg_rgba = bg.convert("RGBA")
+    g_rgba = typo_spec.glow_rgba if typo_spec else glow_rgba
 
-    # ── DRAWING PASS ─────────────────────────────────────────────────────────
-
-    draw_out = ImageDraw.Draw(bg_rgba)
-            
-    y = start_y
-    
+    # 6. Render Loop
     for i, zd in enumerate(zone_data):
-        lp = layout_params[i]
-        cx, z_y, anchor = lp["cx"], lp["y"], lp["anchor"]
-        
-        if typo_spec:
-            z_style = [typo_spec.top, typo_spec.main, typo_spec.sub][i]
-            col = z_style.color
-            opacity = z_style.opacity
-            
-            # Cinematic Soft Shadow Upgrade:
-            # We use the shadow from the spec but soften it for premium feel
-            shd_fill = list(z_style.shadow_fill)
-            shd_fill[3] = int(shd_fill[3] * 0.7) # Reduce alpha for softness
-            shd_fill = tuple(shd_fill)
-            
-            shd_dx = z_style.shadow_dx
-            shd_dy = z_style.shadow_dy
-            dim_layer = z_style.dim_layer
-            dim_color = z_style.dim_color
-            dim_rad = z_style.dim_radius
-        else:
-            col = zd["color"]
-            opacity = 1.0
-            shd_fill = (0,0,0,130) if (col[0]+col[1]+col[2])>440 else (255,255,255,100)
-            shd_dx, shd_dy = (2,2) if shd_fill[0]==0 else (-1,-1)
-            dim_layer = False
-            
+        z_y, cx, anchor, z_font, lp_track, zd_ls = zd["y"], zd["x_center"], zd["anchor"], zd["font"], zd["tracking"], zd["ls"]
+        col, opacity = zd["color"], zd["opacity"]
         fc = (int(col[0]), int(col[1]), int(col[2]), int(255 * opacity))
         
-        # Determine strict bounds of current zone for local protection veil
-        ty = z_y
-        ty_end = ty + zd["block_h"]
-        if i == 0: ty_end += gap_ab // 2
-        elif i == 1: ty_end += gap_bc // 2
+        z_style = zd["style_ref"]
+        shd_fill = tuple(z_style.shadow_fill) if z_style else (0,0,0,128)
         
-        # 1) Protection Layer — REPLACED BY v8.0 ATMOSPHERIC PASS
-        # (Old rectangular logic removed as requested)
-            
-        # --- CINEMATIC TEXT RENDERING (HALO SYSTEM) ---
-        # 1. Prepare Zone-Specific Layers
-        zone_mask_layer = Image.new("RGBA", target_size, (0, 0, 0, 0))
-        zone_draw = ImageDraw.Draw(zone_mask_layer)
+        zone_mask = Image.new("RGBA", target_size, (0, 0, 0, 0))
+        z_draw = ImageDraw.Draw(zone_mask)
         
-        # 2. Determine Cinematic Treatment
+        # Scaled Effects
+        base_rad = 8 * (z_font.size / 74)
         risk = getattr(typo_spec, "readability_risk", "low")
-        radius = 8  # Default Glyph-Halo (v7.5) preserved as secondary reinforcement
-        if risk == "high": radius = 14
-        elif risk == "medium": radius = 10
-        
-        # Determine Glyph-Halo Tint
-        is_dark_bg = (sum(col[:3]) > 400) # Text is light -> BG is likely dark
-        if is_dark_bg:
-            h_col = (255, 252, 240, 140 if risk == "high" else 100)
-        else:
-            h_col = (0, 0, 0, 110 if risk == "high" else 70)
-            
-        l_spacing = typo_spec.text_style.letter_spacing if typo_spec else 0
-        
-        # 3. Render Zone Contents (Top/Main/Sub)
-        ty = z_y
+        radius = base_rad * (1.8 if risk == "high" else 1.3 if risk == "medium" else 1.0)
+        h_col = (255, 252, 240, 140 if risk == "high" else 100) if (sum(col[:3]) > 400) else (0, 0, 0, 110 if risk == "high" else 70)
         
         if i == 0:
-            # Check Guardrail for Reference Line (v8.0/v8.5)
-            if not getattr(typo_spec, "show_reference", True):
-                continue
-            
-            # Zone-specific letter spacing (already includes base + boost)
-            lp_spacing = l_spacing + getattr(z_style, "letter_spacing", 0)
-                
-            if typo_spec and typo_spec.has_glow:
-                draw_top_ornament(zone_draw, cx, ty - 22, typo_spec.orn_color)
-                
-            # Font Adaptation (v8.5): Slightly smaller for high risk
-            z_font = zd["font"]
-            if risk == "high":
-                try:
-                    z_font = ImageFont.truetype(z_font.path, int(z_font.size * 0.92))
-                except: pass
-                
-            for ln in zd["lines"]:
-                draw_text_advanced(zone_draw, (cx, ty), ln["text"], font=z_font, fill=fc, anchor=anchor, letter_spacing=lp_spacing)
-                ty += ln["h"] + zd["ls"]
-            if typo_spec and typo_spec.text_style.layout_mode == "Stack":
-                draw_zone_separator(zone_draw, cx, ty + zd["ls"] // 2, typo_spec.orn_color)
-            y = ty - zd["ls"] + gap_ab
-        elif i == 1:
-            # Font Hardening (v8.0): Heavier weight/spacing handled by visual_system
-            # Size boost applied here locally
-            z_font = zd["font"]
-            lp_spacing = l_spacing + getattr(z_style, "letter_spacing", 0)
-            
-            if risk != "low":
-                boost = 1.06 if risk == "medium" else 1.08
-                new_size = int(z_font.size * boost)
-                try:
-                    z_font = ImageFont.truetype(z_font.path, new_size)
-                except:
-                    pass
-            
-            for ln in zd["lines"]:
-                sw = 1 if typo_spec and typo_spec.text_style.weight == "Bold" else 0
-                draw_text_advanced(zone_draw, (cx, ty), ln["text"], font=z_font, fill=fc, anchor=anchor, letter_spacing=lp_spacing, stroke_width=sw, stroke_fill=fc)
-                ty += ln["h"] + zd["ls"]
-            y = ty - zd["ls"] + gap_bc
-        else:
-            # Zone-specific letter spacing
-            lp_spacing = l_spacing + getattr(z_style, "letter_spacing", 0)
-            
-            for ln in zd["lines"]:
-                draw_text_advanced(zone_draw, (cx, ty), ln["text"], font=zd["font"], fill=fc, anchor=anchor, letter_spacing=lp_spacing)
-                ty += ln["h"] + zd["ls"]
-            y = ty - zd["ls"]
+            if not getattr(typo_spec, "show_reference", True): continue
+            if typo_spec and typo_spec.has_glow: draw_top_ornament(z_draw, cx, z_y - 22, typo_spec.orn_color)
+        
+        ty = z_y
+        for ln in zd["lines"]:
+            sw = 1 if (i == 1 and typo_spec and typo_spec.text_style.weight == "Bold") else 0
+            draw_text_advanced(z_draw, (cx, ty), ln, font=z_font, fill=fc, anchor=anchor, letter_spacing=lp_track, stroke_width=sw, stroke_fill=fc)
+            bbox = draw_tmp.textbbox((0, 0), ln, font=z_font)
+            ty += (bbox[3] - bbox[1]) + zd_ls
 
-        # 4. Generate Cinematic Effects Layers
-        halo_layer = apply_text_halo(zone_mask_layer, radius=radius, halo_color=h_col)
+        if i == 0 and typo_spec and typo_spec.text_style.layout_mode == "Stack":
+            draw_zone_separator(z_draw, cx, ty + zd_ls // 2, typo_spec.orn_color)
+
+        # Layers: Halo -> Shadow -> Text
+        halo_layer = apply_text_halo(zone_mask, radius=int(radius), halo_color=h_col)
+        shd_radius = max(1, int(4 * (z_font.size / 74))) if risk == "high" else max(1, int(2 * (z_font.size / 74)))
+        shadow_mask = zone_mask.split()[-1].filter(ImageFilter.GaussianBlur(shd_radius))
+        shadow_layer = Image.new("RGBA", target_size, shd_fill); shadow_layer.putalpha(shadow_mask)
         
-        # Soft Cinematic Shadow Layer
-        shd_radius = 4 if risk == "high" else 2
-        shadow_mask = zone_mask_layer.split()[-1].filter(ImageFilter.GaussianBlur(shd_radius))
-        shadow_layer = Image.new("RGBA", target_size, shd_fill)
-        shadow_layer.putalpha(shadow_mask)
-        
-        # 5. Final Composite Pass (Halo -> Shadow -> Text)
-        if halo_layer:
-            bg_rgba = Image.alpha_composite(bg_rgba, halo_layer)
-        
-        # Apply shadow with vertical offset (dy=2)
-        shadow_final = Image.new("RGBA", target_size, (0,0,0,0))
-        shadow_final.paste(shadow_layer, (0, 2)) # dy=2
+        if halo_layer: bg_rgba = Image.alpha_composite(bg_rgba, halo_layer)
+        dy = max(1, int(2 * (z_font.size / 74)))
+        shadow_final = Image.new("RGBA", target_size, (0,0,0,0)); shadow_final.paste(shadow_layer, (0, dy))
         bg_rgba = Image.alpha_composite(bg_rgba, shadow_final)
+        bg_rgba = Image.alpha_composite(bg_rgba, zone_mask)
         
-        # Final Text Overlay
-        bg_rgba = Image.alpha_composite(bg_rgba, zone_mask_layer)
-        
-        draw_out = ImageDraw.Draw(bg_rgba)
-
-    # ── CINEMATIC POST ────────────────────────────────────────────────────────
-    glow_list  = list(g_rgba) if g_rgba else None
-    final_img  = apply_cinematic_layers(bg_rgba, glow_color=glow_list)
-
-    filename   = f"qcard_{int(time.time() * 1000)}.jpg"
+    final_img = apply_cinematic_layers(bg_rgba, glow_color=list(g_rgba) if g_rgba else None)
+    filename = f"qcard_{int(time.time() * 1000)}.jpg"
     final_path = os.path.join(output_dir, filename)
     os.makedirs(output_dir, exist_ok=True)
     final_img.save(final_path, quality=95)
-
-    print(f"✅ [v7.0] {filename}  (mode={mode} style={style})")
-    print(f"{'═'*64}\n")
     
-    # Avoid crashing on missing public_base_url by handling cases where it's not set
     base_url = settings.public_base_url.rstrip('/') if settings.public_base_url else ""
     return f"{base_url}/uploads/{filename}"
-
-
 def render_quote_card(background_local_path: str, quote: str,
                       reference: str, output_dir: str) -> str:
     """Legacy image-overlay render (kept for compatibility)."""

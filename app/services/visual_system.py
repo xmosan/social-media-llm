@@ -1264,7 +1264,8 @@ def adapt_typography(analysis: "AnalysisResult",
 
     # Final "Last Resort" Hide Check
     # Only hide if it's truly unreadable (low contrast + very high noise)
-    if contrast_diff < 25 and analysis.zone_a_detail > 0.42:
+    # UNLESS top band is NOT enabled (unlikely) or detail is high
+    if contrast_diff < 25 and analysis.zone_a_detail > 0.42 and top_band_enabled:
         show_reference = False
 
     return TypographySpec(
