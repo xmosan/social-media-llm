@@ -837,12 +837,11 @@ _COMPOSITION = (
     "Allow background colors to melt into a soft-focus bokeh effect in the center 60%."
 )
 
-# GEMINI SPECIFIC - Stricter constraints for Imagen 3/4
+# GEMINI SPECIFIC - High-fidelity material constraints
 _GEMINI_STRICT_CONSTRAINTS = (
-    "ABSOLUTELY NO TEXT. ABSOLUTELY NO SCRIPT. NO CALLIGRAPHY. NO LETTERS. NO CHARACTERS. "
-    "Zero writing, zero glyphs, zero inscriptions, zero symbols, zero alphabets. "
-    "This is a PURE MATERIAL BACKGROUND. NO MESSAGE, NO QUOTES, NO WORDS. "
-    "The image must contain ONLY abstract texture and material artifacts."
+    "A pure material background plate focusing on texture, light, and atmosphere. "
+    "Non-textual abstract surface. Cinematic depth. No characters or inscriptions. "
+    "The image should be a pristine artistic ground for overlaying spiritual text."
 )
 
 _GEMINI_COMPOSITION = (

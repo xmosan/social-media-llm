@@ -570,8 +570,14 @@ def generate_background(
 
     # 2. Generate Fresh if Cache Miss
     if engine == "gemini":
-        return generate_background_gemini(
+        img = generate_background_gemini(
             visual_prompt, target_size, cache_dir, vs_spec=vs_spec)
+        if img:
+            return img
+        
+        # 3. RECOVERY MODE: If Gemini fails, don't show green—try DALL-E
+        print("🔄 [Gemini] Generation failed — attempting DALL-E Recovery...")
+        # We fall through to the DALL-E logic below
     
     # Default: DALL-E
     client = get_openai_client()
@@ -625,38 +631,49 @@ def generate_background_gemini(
     else:
         prompt = f"A professional background plate: {visual_prompt}. No text, no calligraphy."
 
-    print(f"\n💎 [Gemini] Generating background plate (Imagen 4.0 Ultra)...")
-    print(f"   Prompt: {prompt[:110]}...")
-    try:
-        response = client.models.generate_images(
-            model='imagen-3.0-generate-001',
-            prompt=prompt,
-            config=types.GenerateImagesConfig(
-                number_of_images=1,
-                aspect_ratio='1:1',
-                output_mime_type='image/jpeg'
+    models_to_try = [
+        'imagen-3.0-generate-001',
+        'imagen-3.0-fast-generate-001'
+    ]
+
+    last_err = None
+    for model_name in models_to_try:
+        print(f"\n💎 [Gemini] Manifesting background (model={model_name})...")
+        try:
+            response = client.models.generate_images(
+                model=model_name,
+                prompt=prompt,
+                config=types.GenerateImagesConfig(
+                    number_of_images=1,
+                    aspect_ratio='1:1',
+                    output_mime_type='image/jpeg'
+                )
             )
-        )
-        
-        if not response.generated_images:
-            return None
             
-        # The new SDK provides a types.Image object with .image_bytes
-        img_raw = response.generated_images[0].image.image_bytes
-        img = Image.open(_io.BytesIO(img_raw)).convert("RGB")
-        
-        if img.size != target_size:
-            img = img.resize(target_size, Image.LANCZOS)
+            if not response.generated_images:
+                print(f"⚠️  [Gemini] No images returned for {model_name}")
+                continue
+                
+            img_raw = response.generated_images[0].image.image_bytes
+            img = Image.open(_io.BytesIO(img_raw)).convert("RGB")
             
-        print("✅ [Gemini] Background plate ready")
-        
-        if cache_dir and vs_spec and vs_save_cache:
-            vs_save_cache(img, vs_spec, cache_dir, engine="gemini")
+            if img.size != target_size:
+                img = img.resize(target_size, Image.LANCZOS)
+                
+            print(f"✅ [Gemini] {model_name} generated successfully")
             
-        return img
-    except Exception as e:
-        print(f"⚠️  [Gemini] Failed ({type(e).__name__}: {e})")
-        return None
+            if cache_dir and vs_spec and vs_save_cache:
+                vs_save_cache(img, vs_spec, cache_dir, engine="gemini")
+                
+            return img
+
+        except Exception as e:
+            last_err = e
+            print(f"❌ [Gemini] {model_name} failed: {e}")
+            continue
+
+    print(f"💀 [Gemini] Exhausted all models. Final error: {last_err}")
+    return None
 
 
 def generate_dalle_background(
