@@ -24,5 +24,6 @@ class WaitlistEntry(Base):
     
     # Administrative Tagging
     tags = Column(String, default=None, nullable=True) # comma-separated tags
+    admin_notes = Column(Text, nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

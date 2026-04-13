@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List, Optional
+from typing import List, Optional, Any
 import logging
 import io
 import csv
@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 from app.db import get_db
 from app.models.waitlist import WaitlistEntry
 from app.schemas.waitlist import WaitlistJoinRequest
+from app.security.rbac import require_superadmin
+from app.models import User
 from app.services.email import send_email
 
 logger = logging.getLogger(__name__)
@@ -173,14 +175,35 @@ def export_waitlist_csv(db: Session = Depends(get_db)):
 def get_all_entries(
     limit: int = 100,
     offset: int = 0,
+    q: Optional[str] = None,
+    status: Optional[str] = None,
+    source: Optional[str] = None,
+    wants_updates: Optional[bool] = None,
     db: Session = Depends(get_db)
 ):
     """
-    Returns all waitlist entries with pagination and tracking fields.
+    Returns waitlist entries with pagination, search, and filtering.
     """
-    total_count = db.query(WaitlistEntry).count()
-    entries = db.query(WaitlistEntry)\
-                .order_by(WaitlistEntry.created_at.desc())\
+    query = db.query(WaitlistEntry)
+
+    if q:
+        search = f"%{q}%"
+        query = query.filter(
+            (WaitlistEntry.email.ilike(search)) | 
+            (WaitlistEntry.name.ilike(search))
+        )
+    
+    if status:
+        query = query.filter(WaitlistEntry.status == status)
+    
+    if source:
+        query = query.filter(WaitlistEntry.source == source)
+        
+    if wants_updates is not None:
+        query = query.filter(WaitlistEntry.wants_updates == wants_updates)
+
+    total_count = query.count()
+    entries = query.order_by(WaitlistEntry.created_at.desc())\
                 .limit(limit)\
                 .offset(offset)\
                 .all()
@@ -193,6 +216,8 @@ def get_all_entries(
             "source": e.source,
             "wants_updates": e.wants_updates,
             "status": e.status,
+            "tags": e.tags,
+            "admin_notes": e.admin_notes,
             "created_at": e.created_at.isoformat() if e.created_at else None,
             "utm_source": e.utm_source,
             "utm_medium": e.utm_medium,
@@ -207,3 +232,39 @@ def get_all_entries(
         "offset": offset,
         "items": items
     }
+
+@router.patch("/{id}")
+async def patch_waitlist_entry(
+    id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_superadmin)
+):
+    """Updates a waitlist entry (Admin Only)."""
+    entry = db.query(WaitlistEntry).filter(WaitlistEntry.id == id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    
+    allowed_fields = ["status", "tags", "admin_notes", "name", "source"]
+    for field in allowed_fields:
+        if field in payload:
+            setattr(entry, field, payload[field])
+            
+    db.commit()
+    db.refresh(entry)
+    return {"ok": True, "id": entry.id}
+
+@router.delete("/{id}")
+async def delete_waitlist_entry(
+    id: int,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_superadmin)
+):
+    """Deletes a waitlist entry (Admin Only)."""
+    entry = db.query(WaitlistEntry).filter(WaitlistEntry.id == id).first()
+    if not entry:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    
+    db.delete(entry)
+    db.commit()
+    return {"ok": True}

@@ -3,17 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sabeel Studio Admin | Waitlist Control</title>
+  <title>Sabeel Studio Admin | Control Center</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     :root {
       --primary: #10B981;
+      --primary-dim: rgba(16, 185, 129, 0.1);
       --bg-dark: #0F172A;
       --card-bg: #1E293B;
       --text-main: #F8FAFC;
       --text-muted: #94A3B8;
-      --border: rgba(255, 255, 255, 0.1);
+      --border: rgba(255, 255, 255, 0.08);
+      --accent: #6366F1;
     }
     body { 
       font-family: 'Inter', sans-serif; 
@@ -21,171 +23,572 @@
       color: var(--text-main);
       -webkit-font-smoothing: antialiased;
     }
-    .card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-    }
-    .btn-emerald {
-      background-color: var(--primary);
-      color: white;
-      transition: all 0.3s ease;
-    }
-    .btn-emerald:hover {
-      background-color: #059669;
-      transform: translateY(-1px);
-    }
-    .btn-outline {
-      border: 1px solid var(--border);
-      color: var(--text-main);
-      transition: all 0.3s ease;
-    }
-    .btn-outline:hover {
-      background: rgba(255, 255, 255, 0.05);
-    }
-    table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 1rem; border-bottom: 1px solid var(--border); }
-    td { padding: 1rem; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
-    tr:last-child td { border-bottom: none; }
+    .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid var(--border); }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 1.5rem; transition: transform 0.2s ease, border-color 0.2s ease; }
+    .card:hover { border-color: rgba(255, 255, 255, 0.15); }
+    
+    .btn { padding: 0.75rem 1.25rem; border-radius: 0.75rem; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s ease; display: inline-flex; items-center; gap: 0.5rem; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: #059669; transform: translateY(-1px); box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2); }
+    .btn-accent { background: var(--accent); color: white; }
+    .btn-outline { border: 1px solid var(--border); color: var(--text-main); }
+    .btn-outline:hover { background: rgba(255, 255, 255, 0.05); }
+    
+    .status-badge { padding: 0.25rem 0.625rem; border-radius: 0.5rem; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+    .status-new { background: var(--primary-dim); color: var(--primary); }
+    .status-contacted { background: rgba(99, 102, 241, 0.1); color: #818CF8; }
+    .status-invited { background: rgba(245, 158, 11, 0.1); color: #F59E0B; }
+    .status-converted { background: rgba(16, 185, 129, 0.2); color: #34D399; }
+    .status-archived { background: rgba(148, 163, 184, 0.1); color: #94A3B8; }
+
+    table { width: 100%; }
+    th { text-align: left; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; padding: 1rem; border-bottom: 1px solid var(--border); }
+    td { padding: 1rem; border-bottom: 1px solid var(--border); font-size: 0.8rem; }
     tr:hover { background: rgba(255, 255, 255, 0.02); }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); display: none; items-center; justify-content: center; z-index: 100; }
+    .modal-content { background: var(--card-bg); width: 100%; max-width: 500px; border-radius: 2rem; border: 1px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
+
+    select, input { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 0.75rem; padding: 0.625rem 1rem; color: white; outline: none; transition: border-color 0.2s; }
+    select:focus, input:focus { border-color: var(--primary); }
   </style>
 </head>
-<body class="min-h-screen p-6 md:p-12">
-  <div class="max-w-6xl mx-auto space-y-8">
+<body class="min-h-screen p-6 md:p-12 pb-24">
+  <div class="max-w-7xl mx-auto space-y-12">
     
-    <!-- Header -->
+    <!-- 1. Header -->
     <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
       <div class="space-y-1">
-        <h1 class="text-3xl font-extrabold tracking-tight">Sabeel Studio Admin</h1>
-        <p class="text-text-muted text-sm font-medium">Waitlist management & growth tracking</p>
+        <h1 class="text-4xl font-black tracking-tight italic">Sabeel Studio <span class="text-primary">Admin</span></h1>
+        <p class="text-text-muted text-sm font-semibold uppercase tracking-widest opacity-60">Strategic Control Matrix</p>
       </div>
-      <div class="flex gap-4">
-        <a href="/api/waitlist/export" class="px-6 py-3 btn-emerald rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2">
+      <div class="flex flex-wrap gap-3">
+        <button onclick="refreshAll()" class="btn btn-outline">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+          Sync Matrix
+        </button>
+        <a href="/api/waitlist/export" class="btn btn-primary">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-          Export CSV
+          Export Waitlist
         </a>
       </div>
     </header>
 
-    <!-- Stats Grid -->
-    <div id="stats-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div class="card p-8 rounded-3xl space-y-2">
-        <div class="text-text-muted text-[10px] font-bold uppercase tracking-widest">Total Liftoffs</div>
-        <div id="stat-total" class="text-4xl font-black text-primary">—</div>
+    <!-- 2. Platform Overview (NEW) -->
+    <section id="platform-overview" class="space-y-6">
+      <div class="flex items-center gap-3">
+        <div class="h-px flex-1 bg-border"></div>
+        <h2 class="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted">Platform Overview</h2>
+        <div class="h-px flex-1 bg-border"></div>
       </div>
-      <div class="card p-8 rounded-3xl space-y-2">
-        <div class="text-text-muted text-[10px] font-bold uppercase tracking-widest">Arrivals Today</div>
-        <div id="stat-today" class="text-4xl font-black">—</div>
+      <div id="overview-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        <div class="card p-5 space-y-1">
+          <div class="text-[9px] font-black text-text-muted uppercase tracking-widest">Total Users</div>
+          <div id="ov-users" class="text-2xl font-black">—</div>
+        </div>
+        <div class="card p-5 space-y-1">
+          <div class="text-[9px] font-black text-text-muted uppercase tracking-widest">Workspaces</div>
+          <div id="ov-orgs" class="text-2xl font-black">—</div>
+        </div>
+        <div class="card p-5 space-y-1">
+          <div class="text-[9px] font-black text-text-muted uppercase tracking-widest">IG Nodes</div>
+          <div id="ov-accounts" class="text-2xl font-black">—</div>
+        </div>
+        <div class="card p-5 space-y-1 border-primary/20">
+          <div class="text-[9px] font-black text-primary uppercase tracking-widest">Waitlist</div>
+          <div id="ov-waitlist" class="text-2xl font-black text-primary">—</div>
+        </div>
+        <div class="card p-5 space-y-1">
+          <div class="text-[9px] font-black text-text-muted uppercase tracking-widest">Automations</div>
+          <div id="ov-autos" class="text-2xl font-black">—</div>
+        </div>
+        <div class="card p-5 space-y-1">
+          <div class="text-[9px] font-black text-text-muted uppercase tracking-widest">Total Posts</div>
+          <div id="ov-posts-total" class="text-2xl font-black">—</div>
+        </div>
+        <div class="card p-5 space-y-1">
+          <div class="text-[9px] font-black text-text-muted uppercase tracking-widest">Published</div>
+          <div id="ov-posts-pub" class="text-2xl font-black text-emerald-400">—</div>
+        </div>
       </div>
-      <div class="card p-8 rounded-3xl space-y-2">
-        <div class="text-text-muted text-[10px] font-bold uppercase tracking-widest">This Week</div>
-        <div id="stat-week" class="text-4xl font-black">—</div>
-      </div>
-    </div>
+    </section>
 
-    <!-- Table Section -->
-    <div class="card rounded-3xl overflow-hidden shadow-2xl">
-      <div class="p-6 border-b border-white/5 bg-white/5 flex justify-between items-center">
-        <h3 class="text-xs font-bold uppercase tracking-widest">Waitlist Manifest</h3>
-        <span id="entry-count" class="text-[10px] font-bold bg-white/10 px-3 py-1 rounded-full text-text-muted">Loading...</span>
+    <!-- 3. Waitlist Section (Expanded) -->
+    <section id="waitlist-control" class="space-y-6">
+      <div class="flex flex-col md:flex-row justify-between items-end gap-6">
+        <div class="space-y-4 w-full md:w-auto">
+          <div class="flex items-center gap-3">
+             <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
+              <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+              Waitlist Manifest
+             </h2>
+             <span id="entry-count" class="text-[9px] font-black bg-white/5 border border-white/5 px-3 py-1 rounded-full text-text-muted tracking-tighter italic">Loading...</span>
+          </div>
+          <!-- Filters (PART 2) -->
+          <div class="flex flex-wrap gap-2">
+            <input type="text" id="wl-search" placeholder="Search email/name..." class="text-xs min-w-[240px]" oninput="debounce(reloadWaitlist, 500)()">
+            <select id="wl-status" class="text-xs" onchange="reloadWaitlist()">
+              <option value="">All Statuses</option>
+              <option value="active">Active/New</option>
+              <option value="contacted">Contacted</option>
+              <option value="invited">Invited</option>
+              <option value="converted">Converted</option>
+              <option value="archived">Archived</option>
+            </select>
+            <select id="wl-source" class="text-xs" onchange="reloadWaitlist()">
+              <option value="">All Sources</option>
+              <option value="homepage">Homepage</option>
+              <option value="waitlist-page">Waitlist Page</option>
+              <option value="ref">Referral</option>
+            </select>
+          </div>
+        </div>
+        
+        <!-- Waitlist Quick Stats (PART 1 rule) -->
+        <div id="waitlist-mini-stats" class="flex gap-4">
+          <div class="text-right">
+            <div class="text-[9px] font-black text-text-muted uppercase tracking-widest">Arrived Today</div>
+            <div id="wl-today" class="text-lg font-black text-white">0</div>
+          </div>
+          <div class="h-8 w-px bg-border"></div>
+          <div class="text-right">
+            <div class="text-[9px] font-black text-text-muted uppercase tracking-widest">This Week</div>
+            <div id="wl-week" class="text-lg font-black text-white">0</div>
+          </div>
+        </div>
       </div>
-      <div class="overflow-x-auto">
-        <table>
-          <thead>
-            <tr>
-              <th>Email</th>
-              <th>Name</th>
-              <th>Source</th>
-              <th>Aquired</th>
-            </tr>
-          </thead>
-          <tbody id="waitlist-tbody">
-            <!-- Rows injected here -->
-          </tbody>
-        </table>
-      </div>
-      <div class="p-8 text-center bg-white/5 border-t border-white/5">
-        <button id="btn-load-more" onclick="loadEntries()" class="px-10 py-4 btn-outline rounded-2xl font-bold text-xs uppercase tracking-widest">Load More Entries</button>
-      </div>
-    </div>
 
-    <footer class="text-center pt-8 opacity-40">
-      <div class="text-[10px] font-bold uppercase tracking-[0.3em]">&copy; 2026 Mohammed Hassan. Sabeel Studio Admin v1.0</div>
+      <div class="card overflow-hidden shadow-2xl">
+        <div class="overflow-x-auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Identity</th>
+                <th>Status</th>
+                <th>Source & Tracking</th>
+                <th>Acquired</th>
+                <th>Tags & Notes</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="waitlist-tbody">
+              <!-- Rows injected here -->
+            </tbody>
+          </table>
+        </div>
+        <div class="p-8 text-center bg-white/5 border-t border-white/5">
+          <button id="btn-load-more" onclick="loadMoreEntries()" class="btn btn-outline min-w-[200px]">Load More Records</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Automation Control (PART 5 NEW) -->
+    <section id="automation-section" class="space-y-6">
+      <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-accent"></span>
+        Automation Control
+      </h2>
+      <div class="card overflow-hidden">
+        <div class="overflow-x-auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Automation Name</th>
+                <th>Workspace</th>
+                <th>Instagram Node</th>
+                <th>Schedule</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="automations-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Global Networks & Accounts (PART 6 NEW) -->
+    <section id="accounts-section" class="space-y-6">
+      <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+        Connected Networks
+      </h2>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Accounts Table -->
+        <div class="card overflow-hidden">
+          <table>
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th>Workspace</th>
+                <th>Status</th>
+                <th>Joined</th>
+              </tr>
+            </thead>
+            <tbody id="accounts-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- Recent Activity (PART 7 NEW) -->
+        <div class="card p-8 space-y-6 flex flex-col">
+          <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted flex justify-between">
+            <span>Recent System Activity</span>
+            <span class="animate-pulse text-accent">Real-time Feed</span>
+          </h3>
+          <div id="activity-feed" class="space-y-4 overflow-y-auto max-h-[400px] pr-2">
+            <!-- Feed injected here -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="text-center pt-12 opacity-30">
+      <div class="text-[9px] font-black uppercase tracking-[0.5em]">&copy; 2026 Sabeel Studio Intelligence Matrix</div>
     </footer>
+  </div>
+
+  <!-- Note/Tag Modal (PART 3) -->
+  <div id="edit-modal" class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal-content p-10 space-y-8" onclick="event.stopPropagation()">
+      <div class="space-y-1">
+        <h3 class="text-xl font-black italic">Modify Entry</h3>
+        <p class="text-[10px] font-black text-text-muted uppercase tracking-widest" id="edit-id-label">Waitlist ID: —</p>
+      </div>
+      
+      <div class="space-y-4">
+        <div class="space-y-2">
+          <label class="text-[9px] font-black uppercase tracking-widest text-text-muted ml-2">Administrative Notes</label>
+          <textarea id="edit-notes" class="w-full bg-white/5 border border-border rounded-2xl p-4 text-xs font-medium outline-none h-32 focus:border-primary" placeholder="Internal notes..."></textarea>
+        </div>
+        <div class="space-y-2">
+          <label class="text-[9px] font-black uppercase tracking-widest text-text-muted ml-2">Tags (Comma Separated)</label>
+          <input type="text" id="edit-tags" class="w-full" placeholder="VIP, early_adopter, developer">
+        </div>
+      </div>
+
+      <div class="flex gap-3 justify-end">
+        <button onclick="closeModal()" class="btn btn-outline">Cancel</button>
+        <button onclick="saveEntryChanges()" class="btn btn-primary" id="btn-save-edit">Apply Intelligence</button>
+      </div>
+    </div>
   </div>
 
   <script>
     let currentOffset = 0;
     const limit = 50;
+    let currentEditId = null;
 
-    async function fetchStats() {
+    // --- Core Logic ---
+
+    async function refreshAll() {
+      fetchOverview();
+      fetchWaitlistStats();
+      reloadWaitlist();
+      fetchAutomations();
+      fetchAccounts();
+      fetchActivity();
+    }
+
+    async function fetchOverview() {
+      try {
+        const res = await fetch('/api/admin/overview');
+        const data = await res.json();
+        if(!data.ok) return;
+        document.getElementById('ov-users').textContent = data.users;
+        document.getElementById('ov-orgs').textContent = data.orgs;
+        document.getElementById('ov-accounts').textContent = data.ig_accounts;
+        document.getElementById('ov-waitlist').textContent = data.waitlist;
+        document.getElementById('ov-autos').textContent = data.automations;
+        document.getElementById('ov-posts-total').textContent = data.posts.total;
+        document.getElementById('ov-posts-pub').textContent = data.posts.published;
+      } catch(e) { console.error(e); }
+    }
+
+    async function fetchWaitlistStats() {
       try {
         const res = await fetch('/api/waitlist/stats');
         const data = await res.json();
-        if (data.ok) {
-          document.getElementById('stat-total').textContent = data.total;
-          document.getElementById('stat-today').textContent = data.today;
-          document.getElementById('stat-week').textContent = data.this_week;
+        if(data.ok) {
+          document.getElementById('wl-today').textContent = data.today;
+          document.getElementById('wl-week').textContent = data.this_week;
         }
-      } catch (err) { console.error('Stats error:', err); }
+      } catch(e) { console.error(e); }
     }
 
-    async function loadEntries() {
+    async function reloadWaitlist() {
+      currentOffset = 0;
+      document.getElementById('waitlist-tbody').innerHTML = '';
+      document.getElementById('btn-load-more').classList.remove('hidden');
+      loadMoreEntries();
+    }
+
+    async function loadMoreEntries() {
       const btn = document.getElementById('btn-load-more');
-      const tbody = document.getElementById('waitlist-tbody');
-      const countLabel = document.getElementById('entry-count');
+      const q = document.getElementById('wl-search').value;
+      const status = document.getElementById('wl-status').value;
+      const source = document.getElementById('wl-source').value;
       
+      const qs = new URLSearchParams({ limit, offset: currentOffset });
+      if(q) qs.set('q', q);
+      if(status) qs.set('status', status);
+      if(source) qs.set('source', source);
+
       try {
         btn.disabled = true;
-        btn.textContent = "Sourcing...";
+        btn.textContent = "Scanning Matrix...";
         
-        const res = await fetch(`/api/waitlist/all?limit=${limit}&offset=${currentOffset}`);
+        const res = await fetch(`/api/waitlist/all?${qs.toString()}`);
         const data = await res.json();
         
         if (data.ok) {
-          data.items.forEach(item => {
-            const row = document.createElement('tr');
-            const date = new Date(item.created_at).toLocaleDateString('en-US', {
-              month: 'short', day: 'numeric', year: 'numeric'
-            });
-            
-            row.innerHTML = `
-              <td class="font-bold flex flex-col">
-                ${item.email}
-                <span class="text-[9px] text-text-muted opacity-60">ID: ${item.id}</span>
-              </td>
-              <td class="text-text-muted font-medium">${item.name || '—'}</td>
-              <td>
-                <span class="px-2 py-1 rounded bg-white/5 text-[10px] font-bold uppercase tracking-wider text-primary">
-                  ${item.source}
-                </span>
-              </td>
-              <td class="text-text-muted text-xs">${date}</td>
-            `;
-            tbody.appendChild(row);
-          });
-          
+          renderWaitlistRows(data.items);
           currentOffset += data.items.length;
-          countLabel.textContent = `${currentOffset} of ${data.count} listed`;
+          document.getElementById('entry-count').textContent = `${currentOffset} of ${data.count} found`;
           
-          if (currentOffset >= data.count) {
+          if (currentOffset >= data.count || data.items.length === 0) {
             btn.classList.add('hidden');
           } else {
-            btn.textContent = "Load More Entries";
             btn.disabled = false;
+            btn.textContent = "Load More Records";
           }
         }
-      } catch (err) {
-        console.error('Fetch error:', err);
-        btn.textContent = "Retry Connection";
-        btn.disabled = false;
+      } catch (err) { console.error(err); }
+    }
+
+    function renderWaitlistRows(items) {
+      const tbody = document.getElementById('waitlist-tbody');
+      items.forEach(item => {
+        const row = document.createElement('tr');
+        const date = new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        
+        row.innerHTML = `
+          <td>
+            <div class="font-bold text-white">${esc(item.email)}</div>
+            <div class="text-[10px] text-text-muted font-medium">${esc(item.name || 'Anonymous')}</div>
+          </td>
+          <td>
+            <span class="status-badge status-${item.status}">${item.status}</span>
+          </td>
+          <td>
+            <div class="text-[9px] font-black uppercase tracking-wider text-primary mb-1">${item.source}</div>
+            <div class="text-[9px] text-text-muted opacity-60">UTM: ${item.utm_source || 'direct'}</div>
+          </td>
+          <td class="text-text-muted text-xs font-semibold">${date}</td>
+          <td class="max-w-[150px]">
+            <div class="flex flex-wrap gap-1 mb-2">
+              ${(item.tags || '').split(',').filter(Boolean).map(t => `<span class="bg-white/5 border border-white/5 px-2 py-0.5 rounded text-[8px] font-bold text-text-muted">${esc(t.trim())}</span>`).join('')}
+            </div>
+            <div class="text-[9px] text-text-muted italic truncate opacity-40">${esc(item.admin_notes || 'No notes...')}</div>
+          </td>
+          <td>
+            <div class="flex gap-2">
+              <select class="text-[9px] bg-white/5 border-none p-1 font-bold rounded cursor-pointer" onchange="updateEntryStatus(${item.id}, this.value)">
+                <option value="active" ${item.status === 'active' ? 'selected' : ''}>Active</option>
+                <option value="contacted" ${item.status === 'contacted' ? 'selected' : ''}>Contacted</option>
+                <option value="invited" ${item.status === 'invited' ? 'selected' : ''}>Invited</option>
+                <option value="converted" ${item.status === 'converted' ? 'selected' : ''}>Converted</option>
+                <option value="archived" ${item.status === 'archived' ? 'selected' : ''}>Archive</option>
+              </select>
+              <button onclick="openEditModal(${item.id}, '${esc(item.admin_notes || '')}', '${esc(item.tags || '')}')" class="p-2 glass rounded-lg hover:border-primary/40 text-text-muted hover:text-primary transition-all">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+              </button>
+              <button onclick="deleteEntry(${item.id})" class="p-2 glass rounded-lg hover:border-rose-500/40 text-text-muted hover:text-rose-500 transition-all">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+              </button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    async function fetchAutomations() {
+      try {
+        const res = await fetch('/api/admin/automations');
+        const data = await res.json();
+        const tbody = document.getElementById('automations-tbody');
+        tbody.innerHTML = data.items.map(a => `
+          <tr>
+            <td class="font-black italic text-white">${esc(a.name)}</td>
+            <td><span class="text-[10px] font-bold text-text-muted uppercase">${esc(a.org_name)}</span></td>
+            <td><span class="text-[10px] font-black italic text-accent opacity-80">@${esc(a.ig_username)}</span></td>
+            <td class="text-text-muted text-xs font-semibold">${a.post_time}</td>
+            <td>
+              <span class="status-badge ${a.enabled ? 'status-converted' : 'status-archived'}">
+                ${a.enabled ? 'Enabled' : 'Paused'}
+              </span>
+            </td>
+            <td>
+              <div class="flex gap-2">
+                <button onclick="toggleAutomation(${a.id}, ${!a.enabled})" class="btn btn-outline py-1.5 px-3 text-[9px]">
+                  ${a.enabled ? 'Pause' : 'Resume'}
+                </button>
+                <button onclick="runAutomation(${a.id})" class="btn btn-accent py-1.5 px-3 text-[9px]">
+                  Run Now
+                </button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+      } catch(e) { console.error(e); }
+    }
+
+    async function fetchAccounts() {
+      try {
+        const res = await fetch('/api/admin/ig-accounts');
+        const data = await res.json();
+        const tbody = document.getElementById('accounts-tbody');
+        tbody.innerHTML = data.items.map(a => `
+          <tr>
+            <td>
+              <div class="font-bold text-white">@${esc(a.username)}</div>
+              <div class="text-[9px] text-text-muted">${esc(a.name)}</div>
+            </td>
+            <td><span class="text-[10px] font-bold text-text-muted uppercase">${esc(a.org_name)}</span></td>
+            <td>
+              <span class="status-badge ${a.active ? 'status-new' : 'status-archived'}">
+                ${a.active ? 'Live' : 'Inactive'}
+              </span>
+            </td>
+            <td class="text-text-muted text-[10px] font-semibold">${new Date(a.created_at).toLocaleDateString()}</td>
+          </tr>
+        `).join('');
+      } catch(e) { console.error(e); }
+    }
+
+    async function fetchActivity() {
+      try {
+        const res = await fetch('/api/admin/activity');
+        const data = await res.json();
+        const feed = document.getElementById('activity-feed');
+        feed.innerHTML = data.items.map(item => `
+          <div class="flex gap-4 items-start pb-4 border-b border-white/5 last:border-0 group">
+            <div class="mt-1 w-2 h-2 rounded-full flex-shrink-0 ${getActivityColor(item.type)} shadow-[0_0_8px_rgba(255,255,255,0.1)]"></div>
+            <div class="flex-1 space-y-1">
+              <p class="text-[11px] font-medium text-white/90 group-hover:text-white transition-colors leading-relaxed">${esc(item.text)}</p>
+              <div class="text-[8px] font-black uppercase tracking-widest text-text-muted opacity-50 italic">${timeAgo(item.time)}</div>
+            </div>
+          </div>
+        `).join('');
+      } catch(e) { console.error(e); }
+    }
+
+    // --- Actions ---
+
+    async function updateEntryStatus(id, status) {
+      const res = await fetch(`/api/waitlist/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      if((await res.json()).ok) refreshAll();
+    }
+
+    async function deleteEntry(id) {
+      if(!confirm("Permanently erase this data record?")) return;
+      const res = await fetch(`/api/waitlist/${id}`, { method: 'DELETE' });
+      if((await res.json()).ok) reloadWaitlist();
+    }
+
+    async function toggleAutomation(id, enabled) {
+      const res = await fetch(`/api/admin/automations/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled })
+      });
+      if((await res.json()).ok) fetchAutomations();
+    }
+
+    async function runAutomation(id) {
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = "Executing...";
+      const res = await fetch(`/api/admin/automations/${id}/run`, { method: 'POST' });
+      const data = await res.json();
+      btn.disabled = false;
+      btn.textContent = "Run Now";
+      if(data.ok) alert("Post manifested successfully (ID: " + data.post_id + ")");
+      else alert("Run failed: " + (data.message || "Unknown error"));
+      refreshAll();
+    }
+
+    function openEditModal(id, notes, tags) {
+      currentEditId = id;
+      document.getElementById('edit-id-label').textContent = `Waitlist ID: ${id}`;
+      document.getElementById('edit-notes').value = notes;
+      document.getElementById('edit-tags').value = tags;
+      document.getElementById('edit-modal').style.display = 'flex';
+    }
+
+    async function saveEntryChanges() {
+      const btn = document.getElementById('btn-save-edit');
+      const notes = document.getElementById('edit-notes').value;
+      const tags = document.getElementById('edit-tags').value;
+      
+      btn.disabled = true;
+      btn.textContent = "Updating Identity...";
+
+      const res = await fetch(`/api/waitlist/${currentEditId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ admin_notes: notes, tags: tags })
+      });
+
+      btn.disabled = false;
+      btn.textContent = "Apply Intelligence";
+      
+      if((await res.json()).ok) {
+        closeModal();
+        reloadWaitlist();
       }
     }
 
+    function closeModal() {
+      document.getElementById('edit-modal').style.display = 'none';
+      currentEditId = null;
+    }
+
+    // --- Helpers ---
+
+    function getActivityColor(type) {
+      if(type === 'waitlist') return 'bg-primary';
+      if(type === 'post') return 'bg-accent';
+      if(type === 'account') return 'bg-indigo-500';
+      return 'bg-white';
+    }
+
+    function timeAgo(date) {
+      const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+      let interval = seconds / 31536000;
+      if (interval > 1) return Math.floor(interval) + "y ago";
+      interval = seconds / 2592000;
+      if (interval > 1) return Math.floor(interval) + "mo ago";
+      interval = seconds / 86400;
+      if (interval > 1) return Math.floor(interval) + "d ago";
+      interval = seconds / 3600;
+      if (interval > 1) return Math.floor(interval) + "h ago";
+      interval = seconds / 60;
+      if (interval > 1) return Math.floor(interval) + "m ago";
+      return "just now";
+    }
+
+    function esc(str) {
+      if(!str) return '';
+      return str.replace(/[&<>"']/g, function(m) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+      });
+    }
+
+    function debounce(func, wait) {
+      let timeout;
+      return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+      };
+    }
+
     // Initialize
-    window.onload = () => {
-      fetchStats();
-      loadEntries();
-    };
+    window.onload = refreshAll;
   </script>
 </body>
 </html>
