@@ -51,3 +51,4 @@ google-genai
 email-validator
 arabic-reshaper
 python-bidi
+resend
