@@ -48,3 +48,6 @@ httpx
 itsdangerous
 jinja2
 google-genai
+email-validator
+arabic-reshaper
+python-bidi
