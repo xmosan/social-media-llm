@@ -920,6 +920,14 @@ def register_page(error: Optional[str] = None):
         html = html.replace('<h2 class="text-xl font-bold">Start Automating</h2>', error_banner + '<h2 class="text-xl font-bold">Start Automating</h2>')
     return html
 
+@router.get("/admin", response_class=HTMLResponse)
+async def get_admin_dashboard(request: Request):
+    """
+    Serves the Waitlist Admin Dashboard.
+    Note: Place for Depends(get_current_user) in the future for security.
+    """
+    return templates.TemplateResponse("admin.html", {"request": request})
+
 @router.get("/demo", response_class=HTMLResponse)
 def demo_page():
     return DEMO_HTML

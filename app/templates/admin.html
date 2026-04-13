@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sabeel Studio Admin | Waitlist Control</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #10B981;
+      --bg-dark: #0F172A;
+      --card-bg: #1E293B;
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --border: rgba(255, 255, 255, 0.1);
+    }
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background-color: var(--bg-dark); 
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+    }
+    .btn-emerald {
+      background-color: var(--primary);
+      color: white;
+      transition: all 0.3s ease;
+    }
+    .btn-emerald:hover {
+      background-color: #059669;
+      transform: translateY(-1px);
+    }
+    .btn-outline {
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      transition: all 0.3s ease;
+    }
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 1rem; border-bottom: 1px solid var(--border); }
+    td { padding: 1rem; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover { background: rgba(255, 255, 255, 0.02); }
+  </style>
+</head>
+<body class="min-h-screen p-6 md:p-12">
+  <div class="max-w-6xl mx-auto space-y-8">
+    
+    <!-- Header -->
+    <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      <div class="space-y-1">
+        <h1 class="text-3xl font-extrabold tracking-tight">Sabeel Studio Admin</h1>
+        <p class="text-text-muted text-sm font-medium">Waitlist management & growth tracking</p>
+      </div>
+      <div class="flex gap-4">
+        <a href="/api/waitlist/export" class="px-6 py-3 btn-emerald rounded-xl font-bold text-xs uppercase tracking-widest flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          Export CSV
+        </a>
+      </div>
+    </header>
+
+    <!-- Stats Grid -->
+    <div id="stats-grid" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="card p-8 rounded-3xl space-y-2">
+        <div class="text-text-muted text-[10px] font-bold uppercase tracking-widest">Total Liftoffs</div>
+        <div id="stat-total" class="text-4xl font-black text-primary">—</div>
+      </div>
+      <div class="card p-8 rounded-3xl space-y-2">
+        <div class="text-text-muted text-[10px] font-bold uppercase tracking-widest">Arrivals Today</div>
+        <div id="stat-today" class="text-4xl font-black">—</div>
+      </div>
+      <div class="card p-8 rounded-3xl space-y-2">
+        <div class="text-text-muted text-[10px] font-bold uppercase tracking-widest">This Week</div>
+        <div id="stat-week" class="text-4xl font-black">—</div>
+      </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="card rounded-3xl overflow-hidden shadow-2xl">
+      <div class="p-6 border-b border-white/5 bg-white/5 flex justify-between items-center">
+        <h3 class="text-xs font-bold uppercase tracking-widest">Waitlist Manifest</h3>
+        <span id="entry-count" class="text-[10px] font-bold bg-white/10 px-3 py-1 rounded-full text-text-muted">Loading...</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Name</th>
+              <th>Source</th>
+              <th>Aquired</th>
+            </tr>
+          </thead>
+          <tbody id="waitlist-tbody">
+            <!-- Rows injected here -->
+          </tbody>
+        </table>
+      </div>
+      <div class="p-8 text-center bg-white/5 border-t border-white/5">
+        <button id="btn-load-more" onclick="loadEntries()" class="px-10 py-4 btn-outline rounded-2xl font-bold text-xs uppercase tracking-widest">Load More Entries</button>
+      </div>
+    </div>
+
+    <footer class="text-center pt-8 opacity-40">
+      <div class="text-[10px] font-bold uppercase tracking-[0.3em]">&copy; 2026 Mohammed Hassan. Sabeel Studio Admin v1.0</div>
+    </footer>
+  </div>
+
+  <script>
+    let currentOffset = 0;
+    const limit = 50;
+
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/waitlist/stats');
+        const data = await res.json();
+        if (data.ok) {
+          document.getElementById('stat-total').textContent = data.total;
+          document.getElementById('stat-today').textContent = data.today;
+          document.getElementById('stat-week').textContent = data.this_week;
+        }
+      } catch (err) { console.error('Stats error:', err); }
+    }
+
+    async function loadEntries() {
+      const btn = document.getElementById('btn-load-more');
+      const tbody = document.getElementById('waitlist-tbody');
+      const countLabel = document.getElementById('entry-count');
+      
+      try {
+        btn.disabled = true;
+        btn.textContent = "Sourcing...";
+        
+        const res = await fetch(`/api/waitlist/all?limit=${limit}&offset=${currentOffset}`);
+        const data = await res.json();
+        
+        if (data.ok) {
+          data.items.forEach(item => {
+            const row = document.createElement('tr');
+            const date = new Date(item.created_at).toLocaleDateString('en-US', {
+              month: 'short', day: 'numeric', year: 'numeric'
+            });
+            
+            row.innerHTML = `
+              <td class="font-bold flex flex-col">
+                ${item.email}
+                <span class="text-[9px] text-text-muted opacity-60">ID: ${item.id}</span>
+              </td>
+              <td class="text-text-muted font-medium">${item.name || '—'}</td>
+              <td>
+                <span class="px-2 py-1 rounded bg-white/5 text-[10px] font-bold uppercase tracking-wider text-primary">
+                  ${item.source}
+                </span>
+              </td>
+              <td class="text-text-muted text-xs">${date}</td>
+            `;
+            tbody.appendChild(row);
+          });
+          
+          currentOffset += data.items.length;
+          countLabel.textContent = `${currentOffset} of ${data.count} listed`;
+          
+          if (currentOffset >= data.count) {
+            btn.classList.add('hidden');
+          } else {
+            btn.textContent = "Load More Entries";
+            btn.disabled = false;
+          }
+        }
+      } catch (err) {
+        console.error('Fetch error:', err);
+        btn.textContent = "Retry Connection";
+        btn.disabled = false;
+      }
+    }
+
+    // Initialize
+    window.onload = () => {
+      fetchStats();
+      loadEntries();
+    };
+  </script>
+</body>
+</html>
