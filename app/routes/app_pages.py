@@ -122,6 +122,9 @@ STUDIO_SCRIPTS_JS = """
         resultsArea.innerHTML = '<div class="p-4 text-center text-[8px] font-bold text-brand animate-pulse uppercase tracking-widest">Searching Foundation...</div>';
         resultsArea.classList.remove('hidden');
 
+        // Optimization: If it looks like a direct reference, suggest selection immediately
+        const refMatch = query.match(/(\d+)[:.](\d+)/);
+        
         try {
             const res = await fetch(`/api/quran/search?q=${encodeURIComponent(query)}`);
             const data = await res.json();

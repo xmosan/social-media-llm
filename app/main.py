@@ -130,7 +130,8 @@ class ComingSoonMiddleware(BaseHTTPMiddleware):
         # 1. ALLOWED PATHS (Always accessible)
         allowed_prefixes = [
             "/login", "/register", "/auth", "/static", "/api/contact", "/health", "/api-test", "/demo", 
-            "/contact", "/privacy", "/terms", "/docs", "/redoc", "/openapi.json", "/generate-caption", "/generate-quote-card", "/api/waitlist"
+            "/contact", "/privacy", "/terms", "/docs", "/redoc", "/openapi.json", "/generate-caption", "/generate-quote-card", "/api/waitlist",
+            "/api/quran"
         ]
         if path == "/" or any(path.startswith(p) for p in allowed_prefixes):
             # If authenticated and visiting root, redirect to /app

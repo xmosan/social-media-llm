@@ -60,7 +60,7 @@ from app.config import settings
 from app.db import SessionLocal
 from app.models import ContentItem
 from app.services.library_service import generate_topics_slugs
-from app.services.quran_service import search_quran, get_quran_ayahs_by_theme
+from app.services.quran_service import search_quran, get_quran_ayahs_by_theme, get_verse_by_reference
 from app.services.quran_caption_service import generate_ai_caption_from_quran
 
 
@@ -88,7 +88,18 @@ def fetch_quran_verse(topic: str):
     """
     db = SessionLocal()
     try:
-        # 1. Search existing themes in local DB
+        # 1. Try direct reference matching (e.g. "70:5", "Surah 70:5")
+        item = get_verse_by_reference(db, topic)
+        if item:
+            print(f"🎯 [CaptionEngine] Direct reference match found for '{topic}': {item.title}")
+            return {
+                "item": item,
+                "text": item.text,
+                "arabic": item.arabic_text,
+                "reference": item.title
+            }
+
+        # 2. Search existing themes in local DB
         results = get_quran_ayahs_by_theme(db, topic, limit=1)
         if results:
             item = results[0]
