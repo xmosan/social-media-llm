@@ -14,8 +14,8 @@ from app.security.rbac import require_superadmin
 
 router = APIRouter(prefix="/admin", tags=["Admin Backup"])
 
-# Backup directory
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Backup directory (Project Root /backups)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BACKUP_DIR = os.path.join(BASE_DIR, "backups")
 
 def verify_admin_key(admin_key: Optional[str] = Query(None)):

@@ -100,16 +100,34 @@ def get_translations_catalog() -> list:
 
 def get_surah_verses(chapter_number: int, translation_ids: str = "131") -> list:
     """
-    Fetches all verses for a specific chapter (Surah).
+    Fetches all verses for a specific chapter (Surah), handling pagination.
     Default translation: Sahih International (ID 131).
     """
-    params = {
-        "language": "en",
-        "translations": translation_ids,
-        "fields": "text_uthmani,chapter_id"
-    }
-    data = qf_get(f"/verses/by_chapter/{chapter_number}", params=params)
-    return data.get("verses", [])
+    all_verses = []
+    current_page = 1
+    
+    while True:
+        params = {
+            "language": "en",
+            "translations": translation_ids,
+            "fields": "text_uthmani,chapter_id",
+            "per_page": 50,
+            "page": current_page
+        }
+        data = qf_get(f"/verses/by_chapter/{chapter_number}", params=params)
+        verses = data.get("verses", [])
+        if not verses:
+            break
+            
+        all_verses.extend(verses)
+        
+        pagination = data.get("pagination", {})
+        if not pagination.get("next_page"):
+            break
+            
+        current_page += 1
+        
+    return all_verses
 
 def get_verse_by_key(verse_key: str, translation_ids: str = "131") -> dict:
     """
