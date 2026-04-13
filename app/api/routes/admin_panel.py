@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Dict, Any, Optional
@@ -267,3 +267,21 @@ def update_message_status(
         
     db.commit()
     return {"ok": True}
+
+@router.post("/sync/full-quran")
+async def trigger_full_quran_sync(
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_superadmin)
+):
+    """Triggers a full-Quran foundation sync in the background."""
+    from app.services.quran_ingestion import sync_entire_quran
+    
+    # We pass the SessionLocal factory for the background worker
+    from app.db import SessionLocal
+    background_tasks.add_task(sync_entire_quran, SessionLocal)
+    
+    return {
+        "ok": True, 
+        "message": "Full Quran synchronization spawned in background matrix."
+    }

@@ -348,9 +348,12 @@
             <label class="text-[9px] font-black text-text-muted uppercase tracking-widest ml-2">Surah ID (1-114)</label>
             <input type="number" id="sync-surah-id" min="1" max="114" value="1" class="w-32">
           </div>
-          <button onclick="triggerSurahSync()" id="btn-sync-surah" class="btn btn-primary bg-blue-600 hover:bg-blue-700">
+          <button onclick="triggerSurahSync()" id="btn-sync-surah" class="btn btn-outline py-2">
+            Sync Single Surah
+          </button>
+          <button onclick="triggerFullSync()" id="btn-sync-full" class="btn btn-primary bg-blue-600 hover:bg-blue-700">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path></svg>
-            Command Sync
+            Full Matrix Sync
           </button>
         </div>
       </div>
@@ -694,7 +697,26 @@
       } catch(e) { console.error(e); alert("Network failure reaching foundation gateway."); }
       
       btn.disabled = false;
-      btn.textContent = "Command Sync";
+      btn.textContent = "Sync Single Surah";
+      refreshAll();
+    }
+
+    async function triggerFullSync() {
+      if(!confirm("Command entire Quran foundation synchronization? This will manifest 114 Surahs (~6,000+ verses) into the global matrix. Process runs in the background.")) return;
+      
+      const btn = document.getElementById('btn-sync-full');
+      btn.disabled = true;
+      btn.textContent = "Deploying Matrix Sync...";
+      
+      try {
+        const res = await fetch('/api/admin/sync/full-quran', { method: 'POST' });
+        const data = await res.json();
+        if(data.ok) alert("Sync successfully spawned. Monitor the Activity Feed for sequential manifestation.");
+        else alert("Sync deployment anomaly: " + (data.message || "Unknown error"));
+      } catch(e) { console.error(e); alert("Network failure: Core failed to spawn process."); }
+      
+      btn.disabled = false;
+      btn.textContent = "Full Matrix Sync";
       refreshAll();
     }
 

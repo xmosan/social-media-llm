@@ -5,6 +5,7 @@ from app.models import ContentSource, ContentItem
 from app.services.library_service import generate_topics_slugs
 import logging
 import datetime
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +13,7 @@ def sync_surah_to_library(db: Session, chapter_id: int, translation_id: str = "1
     """
     Synchronizes an entire Surah (chapter) from Quran Foundation into the Global Library.
     Returns the number of new verses added.
+    Optimized with bulk existence checks.
     """
     # 1. Get or create the Global QF Source
     source = db.query(ContentSource).filter(
@@ -39,19 +41,21 @@ def sync_surah_to_library(db: Session, chapter_id: int, translation_id: str = "1
         logger.warning(f"No verses returned for chapter {chapter_id}")
         return 0
 
-    # 3. Process and Ingest Verses
+    # 3. Optimized: Fetch all existing verses for THIS surah in one go
+    existing_titles = {
+        item.title for item in db.query(ContentItem.title).filter(
+            ContentItem.source_id == source.id,
+            ContentItem.title.like(f"Surah {chapter_id}, Verse %")
+        ).all()
+    }
+
+    # 4. Process and Ingest Verses
     new_count = 0
     for v in verses:
-        verse_key = v.get("verse_key")
+        verse_number = v.get("verse_number")
+        title = f"Surah {chapter_id}, Verse {verse_number}"
         
-        # Use a simple text filter for JSON metadata to find duplicates
-        # Correctly check for existing verse in this source
-        existing = db.query(ContentItem).filter(
-            ContentItem.source_id == source.id,
-            ContentItem.title == f"Surah {chapter_id}, Verse {v.get('verse_number')}"
-        ).first()
-        
-        if existing:
+        if title in existing_titles:
             continue
             
         # Extract English translation
@@ -63,14 +67,14 @@ def sync_surah_to_library(db: Session, chapter_id: int, translation_id: str = "1
             org_id=None,
             source_id=source.id,
             item_type="quran",
-            title=f"Surah {chapter_id}, Verse {v.get('verse_number')}",
+            title=title,
             text=english_text,
             arabic_text=v.get("text_uthmani"),
             translation="Sahih International",
             meta={
                 "surah_number": chapter_id,
-                "verse_number": v.get("verse_number"),
-                "verse_key": verse_key,
+                "verse_number": verse_number,
+                "verse_key": v.get("verse_key"),
                 "translation_id": translation_id,
                 "ingested_at": datetime.datetime.now().isoformat()
             },
@@ -83,5 +87,30 @@ def sync_surah_to_library(db: Session, chapter_id: int, translation_id: str = "1
         new_count += 1
         
     db.commit()
-    logger.info(f"Successfully synced {new_count} new verses from Surah {chapter_id}")
+    if new_count > 0:
+        logger.info(f"Successfully synced {new_count} new verses from Surah {chapter_id}")
     return new_count
+
+def sync_entire_quran(db_factory: callable):
+    """
+    Background worker to sync all 114 Surahs sequentially.
+    """
+    total_new = 0
+    t0 = time.time()
+    logger.info("🚀 STARTING FULL QURAN FOUNDATION SYNC (114 SURAHS)...")
+    
+    for chapter_id in range(1, 115):
+        db = db_factory()
+        try:
+            count = sync_surah_to_library(db, chapter_id)
+            total_new += count
+            # Yield slightly to avoid overwhelming the API or DB
+            if chapter_id % 10 == 0:
+                logger.info(f"Progress: {chapter_id}/114 Surahs processed...")
+        except Exception as e:
+            logger.error(f"❌ Error syncing Surah {chapter_id}: {e}")
+        finally:
+            db.close()
+            
+    duration = time.time() - t0
+    logger.info(f"✅ FULL SYNC COMPLETE. Added {total_new} new verses. Total time: {duration:.2f}s")
