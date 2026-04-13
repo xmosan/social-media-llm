@@ -17,13 +17,14 @@ def get_platform_overview(
     db: Session = Depends(get_db),
     admin_user: User = Depends(require_superadmin)
 ):
-    """Provides high-level system stats."""
+    from app.models import ContentItem
     return {
         "ok": True,
         "users": db.query(User).count(),
         "orgs": db.query(Org).count(),
         "ig_accounts": db.query(IGAccount).count(),
         "automations": db.query(TopicAutomation).count(),
+        "library": db.query(ContentItem).count(),
         "posts": {
             "total": db.query(Post).count(),
             "scheduled": db.query(Post).filter(Post.status == "scheduled").count(),
@@ -284,4 +285,66 @@ async def trigger_full_quran_sync(
     return {
         "ok": True, 
         "message": "Full Quran synchronization spawned in background matrix."
+    }
+
+@router.get("/system/health")
+def get_system_health(
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_superadmin)
+):
+    """
+    Step 3 & 4: Comprehensive production health check.
+    Calculates table counts and performs a safe transactional write/delete test.
+    """
+    # 1. DB Row Counts
+    try:
+        counts = {
+            "waitlist": db.query(WaitlistEntry).count(),
+            "users": db.query(User).count(),
+            "posts": db.query(Post).count(),
+            "orgs": db.query(Org).count()
+        }
+    except Exception as e:
+        print(f"❌ [HEALTH] Connection Failed: {e}")
+        return {"status": "unhealthy", "database": "disconnected", "error": str(e)}
+
+    # 2. STEP 4: SAFE WRITE TEST
+    write_test = False
+    try:
+        test_email = "healthcheck@sabeel.test"
+        # Cleanup any previous leaked tests
+        db.query(WaitlistEntry).filter(WaitlistEntry.email == test_email).delete()
+        
+        # Insert
+        test_entry = WaitlistEntry(
+            email=test_email, 
+            name="System Health Check", 
+            source="internal_testing"
+        )
+        db.add(test_entry)
+        db.flush()
+        
+        # Query/Verify
+        verified = db.query(WaitlistEntry).filter(WaitlistEntry.email == test_email).first()
+        if verified:
+            # Delete
+            db.delete(verified)
+            db.commit()
+            write_test = True
+    except Exception as e:
+        db.rollback()
+        print(f"❌ [HEALTH] Write Test Failed: {e}")
+        write_error = str(e)
+    
+    if write_test:
+        print("✅ Write test passed")
+        import logging
+        logging.getLogger("social-media-llm").info("[HEALTH] Passed")
+    
+    return {
+        "status": "healthy" if write_test else "degraded",
+        "database": "connected",
+        "write_test": "passed" if write_test else "failed",
+        "tables": counts,
+        "timestamp": datetime.now(timezone.utc).isoformat()
     }

@@ -2,37 +2,46 @@
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
-# Use absolute path for SQLite to avoid permission issues with relative paths in some environments
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# We'll use a new DB name to avoid blocked "app.db" if it has OS-level locks
-DEFAULT_DB_PATH = os.path.join(BASE_DIR, "saas.db")
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DEFAULT_DB_PATH}")
-
 import time
 import logging
-from sqlalchemy import text
+from sqlalchemy import create_engine, text, event
+from sqlalchemy.orm import sessionmaker
 
 logger = logging.getLogger(__name__)
 
+# --- CORE ARCHITECTURE: POSTGRESQL MANDATORY ---
+DATABASE_URL = os.getenv("DATABASE_URL")
+
 def _create_engine_with_retries(db_url: str):
+    if not db_url or "postgresql" not in db_url and "postgres" not in db_url:
+        logger.error("CRITICAL: DATABASE_URL is missing or does not point to a PostgreSQL instance.")
+        # We allow it to fail here, but the app will crash on startup check.
+        raise ValueError("This project has moved fully to PostgreSQL. sqlite is no longer supported for production.")
+
+    # Driver fixes
     if db_url.startswith("postgres://"):
         db_url = db_url.replace("postgres://", "postgresql://", 1)
     if db_url.startswith("postgresql://") and "+psycopg" not in db_url:
+        # Defaulting to psycopg (preferred for PG 16+)
         db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
-    connect_args = {"check_same_thread": False} if db_url.startswith("sqlite") else {}
-    test_engine = create_engine(db_url, connect_args=connect_args, pool_pre_ping=True)
+    # Production-grade pooling
+    engine = create_engine(
+        db_url,
+        pool_size=15,
+        max_overflow=25,
+        pool_recycle=3600,
+        pool_pre_ping=True,
+        connect_args={"connect_timeout": 10}
+    )
     
     retries = 3
     backoff = 2
     for attempt in range(retries):
         try:
-            with test_engine.connect() as conn:
+            with engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
-            return test_engine
+            return engine
         except Exception as e:
             if attempt < retries - 1:
                 logger.warning(f"Database connection failed. Retrying in {backoff}s... ({e})")
@@ -42,50 +51,39 @@ def _create_engine_with_retries(db_url: str):
                 logger.error(f"Failed all DB connection attempts for {db_url}.")
                 raise e
 
+# Initialize the global engine
 try:
+    if not DATABASE_URL:
+        # STEP 1: DATABASE CONNECTION VALIDATION
+        raise RuntimeError("DATABASE_URL is missing. Postgres is required.")
+         
     engine = _create_engine_with_retries(DATABASE_URL)
-    print(f"Connecting to DB: {DATABASE_URL}")
-except Exception as primary_e:
-    secondary_url = os.getenv("SECONDARY_DATABASE_URL")
-    if secondary_url:
-        logger.warning(f"PRIMARY DATABASE ({DATABASE_URL}) FAILED. Falling back to SECONDARY_DATABASE_URL.")
-        engine = _create_engine_with_retries(secondary_url)
-        # Update DATABASE_URL so downstream things (like sqlite pragma) use the new one
-        DATABASE_URL = secondary_url
-    else:
-        raise primary_e
-
-# Enable WAL mode for SQLite to prevent "database is locked" errors during concurrent access
-if DATABASE_URL.startswith("sqlite"):
-    from sqlalchemy import event
-    @event.listens_for(engine, "connect")
-    def set_sqlite_pragma(dbapi_connection, connection_record):
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA journal_mode=WAL")
-        cursor.execute("PRAGMA synchronous=NORMAL")
-        cursor.close()
+    print("✅ Connected to PostgreSQL")
+    # Log for production monitoring
+    logger.info("[DB] Connected to PostgreSQL Matrix")
+except Exception as e:
+    logger.critical(f"DATABASE INITIALIZATION FAILED: {e}")
+    # In a full Postgres move, we don't have a secondary fallback anymore.
+    raise e
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def sync_database_schema(log_func=None):
     """
-    Perform a resilient, granular schema sync.
-    Absolute source of truth for all table columns. 
+    Perform a resilient, granular schema sync for PostgreSQL.
     """
     def _log(msg):
         if log_func: log_func(msg)
         print(f"SCHEMA SYNC: {msg}")
 
-    # Use dialect name which is more reliable than drivername in SQLAlchemy 2.0
-    is_postgres = engine.dialect.name == "postgresql"
-    json_type = "JSONB" if is_postgres else "JSON"
-    ts_type = "TIMESTAMP WITH TIME ZONE" if is_postgres else "TIMESTAMP"
+    _log(f"Starting native Postgres sync (Dialect: {engine.dialect.name}, Driver: {engine.driver})")
     
-    _log(f"Starting resilient sync (Dialect: {engine.dialect.name}, Driver: {engine.driver})")
+    # Constants for PG
+    json_type = "JSONB"
+    ts_type = "TIMESTAMP WITH TIME ZONE"
     
     missing_cols = {
         "posts": [
-            # INTELLIGENCE ENGINE FIELDS (Priority Zero)
             ("intent_type", "VARCHAR"),
             ("target_audience", "VARCHAR"),
             ("source_foundation", "VARCHAR"),
@@ -227,10 +225,8 @@ def sync_database_schema(log_func=None):
         for col, col_def in cols:
             try:
                 with engine.begin() as conn:
-                    if is_postgres:
-                        conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS {col} {col_def}"))
-                    else:
-                        conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN {col} {col_def}"))
+                    # Native Postgres syntax
+                    conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN IF NOT EXISTS {col} {col_def}"))
                 _log(f"SUCCESS: {tbl}.{col} added/verified")
             except Exception as e:
                 _log(f"DETAIL: {tbl}.{col} skip or error: {str(e)[:100]}")
@@ -239,14 +235,13 @@ def sync_database_schema(log_func=None):
     # Ensure Nullability for global content
     try:
         with engine.begin() as conn:
-            if is_postgres:
-                conn.execute(text("ALTER TABLE content_sources ALTER COLUMN org_id DROP NOT NULL"))
-                conn.execute(text("ALTER TABLE content_items ALTER COLUMN org_id DROP NOT NULL"))
-                _log("SUCCESS: org_id nullability updated")
+            conn.execute(text("ALTER TABLE content_sources ALTER COLUMN org_id DROP NOT NULL"))
+            conn.execute(text("ALTER TABLE content_items ALTER COLUMN org_id DROP NOT NULL"))
+            _log("SUCCESS: org_id nullability updated")
     except Exception as e:
         _log(f"DETAIL: Nullability update error: {e}")
     
-    _log("Resilient sync complete.")
+    _log("PostgreSQL native sync complete.")
 
 def get_db():
     db = SessionLocal()

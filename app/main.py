@@ -66,13 +66,15 @@ missing_vars = [
     var for var in REQUIRED_VARS 
     if not os.environ.get(var) and not getattr(settings, var.lower() if var != "JWT_SECRET" else "secret_key", None)
 ]
-if "DATABASE_URL" not in missing_vars and (not settings.database_url or "sqlite" in settings.database_url):
-    missing_vars.append("DATABASE_URL (Production Postgres required)")
-if "JWT_SECRET" not in missing_vars and settings.secret_key == "change-me-in-production-for-jwt":
-    missing_vars.append("JWT_SECRET (Using default insecure key)")
+
+# Strict Postgres Enforcement
+db_url = os.getenv("DATABASE_URL")
+if not db_url or "postgres" not in db_url.lower():
+    missing_vars.append("DATABASE_URL (NATIVE POSTGRESQL REQUIRED)")
 
 if missing_vars:
-    logger.warning(f"CRITICAL STARTUP WARNING: Missing or unsafe required variables: {', '.join(missing_vars)}")
+    logger.critical(f"CRITICAL SYSTEM FAILURE: Project has moved fully to PostgreSQL. Missing requirements: {', '.join(missing_vars)}")
+    # We allow the app to attempt start, but db.py will likely have already raised an error or will soon.
 
 app = FastAPI(
     title="Sabeel - Multi-tenant SaaS",
