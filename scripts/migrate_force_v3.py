@@ -29,12 +29,12 @@ def run_migration():
 
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
-        print("WARNING: DATABASE_URL not found in environment! Falling back to SQLite.")
-        # Fallback to saas.db to match app/db.py
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        database_url = f"sqlite:///{os.path.join(base_dir, 'saas.db')}"
+        print("FATAL: DATABASE_URL not found in environment!")
+        print(f"Available env keys: {list(os.environ.keys())}")
+        print("Sabeel Studio requires PostgreSQL for production. Failing migration.")
+        sys.exit(1)
         
-    print(f"Connecting to: {censor_url(database_url)}")
+    print(f"Connecting to Foundation: {censor_url(database_url)}")
     
     # Standard DB URL cleanup
     if database_url.startswith("postgres://"):

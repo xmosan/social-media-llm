@@ -10,6 +10,12 @@ from sqlalchemy.orm import sessionmaker
 logger = logging.getLogger(__name__)
 
 # --- CORE ARCHITECTURE: POSTGRESQL MANDATORY ---
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 def _create_engine_with_retries(db_url: str):
@@ -54,11 +60,18 @@ def _create_engine_with_retries(db_url: str):
 # Initialize the global engine
 try:
     if not DATABASE_URL:
+        # DIAGNOSTIC DUMP: Help user identify why env var is missing
+        env_keys = list(os.environ.keys())
+        logger.error(f"FATAL: DATABASE_URL is missing in environment. Visible keys: {env_keys}")
+        
         # STEP 1: DATABASE CONNECTION VALIDATION
-        raise RuntimeError("DATABASE_URL is missing. Postgres is required.")
+        raise RuntimeError(
+            "DATABASE_URL is missing. Sabeel Studio requires PostgreSQL for production. "
+            "Please ensure your platform (Railway/Docker) has a DATABASE_URL variable set."
+        )
          
     engine = _create_engine_with_retries(DATABASE_URL)
-    print("✅ Connected to PostgreSQL")
+    print("✅ Connected to PostgreSQL Matrix")
     # Log for production monitoring
     logger.info("[DB] Connected to PostgreSQL Matrix")
 except Exception as e:
