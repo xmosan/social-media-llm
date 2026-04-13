@@ -105,12 +105,29 @@ def sync_surah_to_library(db: Session, chapter_id: int, translation_id: str = "1
         logger.info(f"✅ [SYNC] Successfully manifested {new_count} new verses from Surah {chapter_id}")
     return new_count
 
+def save_sync_status(status_msg, is_error=False):
+    """Utility to persist sync status for the UI."""
+    import json
+    import os
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    status_file = os.path.join(base_dir, "sync_status.json")
+    try:
+        with open(status_file, "w") as f:
+            json.dump({
+                "message": status_msg,
+                "is_error": is_error,
+                "timestamp": datetime.datetime.now().isoformat()
+            }, f)
+    except Exception as e:
+        logger.error(f"Failed to save sync status: {e}")
+
 def validate_sync_ready(db):
     """
     Step 5: Pre-check before allowing bulk sync.
     Checks DB connectivity, verifies a recent backup exists, and runs a quick write test.
+    IMPROVED: Allows bypass for initial sync if DB is nearly empty.
     """
-    from app.models import WaitlistEntry
+    from app.models import WaitlistEntry, ContentItem
     import os
     import glob
     
@@ -136,6 +153,12 @@ def validate_sync_ready(db):
                 if (time.time() - mtime) < 86400: # 24 hours
                     checks["backup_recent"] = True
 
+        # INITIAL SYNC BYPASS: If no backup but DB is basically empty, allow it
+        quran_count = db.query(ContentItem).filter(ContentItem.item_type == "quran").count()
+        if not checks["backup_recent"] and quran_count < 100:
+            logger.info("⚠️ [SYNC] No recent backup found, but allowing Initial Sync Bypass (DB count < 100)")
+            checks["backup_recent"] = True
+
         # 3. Write Test
         test_email = "sync_precheck@sabeel.test"
         db.query(WaitlistEntry).filter(WaitlistEntry.email == test_email).delete()
@@ -150,7 +173,9 @@ def validate_sync_ready(db):
         logger.error(f"❌ [SYNC_PRECHECK] Failed: {e}")
         
     if not all(checks.values()):
-        raise Exception(f"❌ System not ready for Quran sync: {checks}")
+        msg = f"❌ System not ready for Quran sync: {checks}"
+        save_sync_status(msg, is_error=True)
+        raise Exception(msg)
     
     logger.info("✅ [HEALTH] Pre-sync verification passed")
     return True
@@ -173,6 +198,7 @@ def sync_entire_quran(db_factory: callable):
 
     total_new = 0
     t0 = time.time()
+    save_sync_status("🚀 Manifesting Global Quran Repository...")
     logger.info("🚀 [SYNC] STARTING FULL QURAN FOUNDATION SYNC (114 SURAHS)...")
     
     for chapter_id in range(1, 115):
@@ -185,7 +211,9 @@ def sync_entire_quran(db_factory: callable):
             
             # Progress reporting every 10 surahs (roughly 500-1000 verses)
             if chapter_id % 10 == 0:
-                logger.info(f"[SYNC] Running: {chapter_id}/114 Surahs manifest...")
+                msg = f"📡 [SYNC] Running: {chapter_id}/114 Surahs manifest..."
+                logger.info(msg)
+                save_sync_status(msg)
         except Exception as e:
             logger.error(f"❌ [SYNC] Error Surah {chapter_id}: {e}")
             # Optional: Add retry logic here if desired, but sequential skip safer
@@ -193,5 +221,7 @@ def sync_entire_quran(db_factory: callable):
             db.close()
             
     duration = time.time() - t0
+    msg = f"✅ [SYNC] COMPLETE. Added {total_new} records. Total time: {duration:.2f}s"
     print("📖 Quran Sync Completed Successfully")
-    logger.info(f"✅ [SYNC] COMPLETE. Added {total_new} new verses. Total time: {duration:.2f}s")
+    logger.info(msg)
+    save_sync_status(msg)

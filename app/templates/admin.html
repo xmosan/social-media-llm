@@ -379,7 +379,7 @@
     </section>
 
     <!-- 8. Global Library Synchronizer (NEW) -->
-    <section class="space-y-6">
+    <section id="sync-foundation-container" class="space-y-6">
       <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
         <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
         Global Foundation Synchronizer
@@ -388,6 +388,7 @@
         <div class="space-y-2">
           <h3 class="text-lg font-black italic">Quran Foundation Ingestion</h3>
           <p class="text-xs text-text-muted font-medium max-w-md">Synchronize specific Surahs directly from the foundation's API into the global repository for all organizations.</p>
+          <div id="sync-live-status" class="text-[10px] font-bold mt-2 hidden"></div>
         </div>
         <div class="flex flex-wrap gap-4 items-end">
           <div class="space-y-2">
@@ -561,6 +562,22 @@
         document.getElementById('ov-library').textContent = data.library;
         document.getElementById('ov-posts-total').textContent = data.posts.total;
         document.getElementById('ov-posts-pub').textContent = data.posts.published;
+
+        // Sync Logic Visibility (Phase 7)
+        const syncContainer = document.getElementById('sync-foundation-container');
+        if (data.is_quran_synced) {
+           syncContainer.classList.add('hidden');
+        } else {
+           syncContainer.classList.remove('hidden');
+        }
+
+        // Live Status / Error reporting
+        if (data.sync_status && data.sync_status.message) {
+           const statusEl = document.getElementById('sync-live-status');
+           statusEl.classList.remove('hidden');
+           statusEl.textContent = data.sync_status.message;
+           statusEl.className = `text-[10px] font-bold mt-2 ${data.sync_status.is_error ? 'text-rose-500' : 'text-primary'}`;
+        }
       } catch(e) { console.error(e); }
     }
 

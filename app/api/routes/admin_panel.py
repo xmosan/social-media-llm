@@ -18,6 +18,24 @@ def get_platform_overview(
     admin_user: User = Depends(require_superadmin)
 ):
     from app.models import ContentItem
+    import json
+    
+    # Check if synced (manifested Surah 114)
+    fully_synced = db.query(ContentItem).filter(
+        ContentItem.item_type == "quran",
+        ContentItem.title.like("Surah 114, Verse %")
+    ).count() > 0
+    
+    # Read background status
+    sync_status = {}
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    status_file = os.path.join(base_dir, "sync_status.json")
+    if os.path.exists(status_file):
+        try:
+            with open(status_file, "r") as f:
+                sync_status = json.load(f)
+        except: pass
+
     return {
         "ok": True,
         "users": db.query(User).count(),
@@ -25,6 +43,8 @@ def get_platform_overview(
         "ig_accounts": db.query(IGAccount).count(),
         "automations": db.query(TopicAutomation).count(),
         "library": db.query(ContentItem).count(),
+        "is_quran_synced": fully_synced,
+        "sync_status": sync_status,
         "posts": {
             "total": db.query(Post).count(),
             "scheduled": db.query(Post).filter(Post.status == "scheduled").count(),
