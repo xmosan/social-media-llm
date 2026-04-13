@@ -60,7 +60,13 @@
     <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
       <div class="space-y-1">
         <h1 class="text-4xl font-black tracking-tight italic">Sabeel Studio <span class="text-primary">Admin</span></h1>
-        <p class="text-text-muted text-sm font-semibold uppercase tracking-widest opacity-60">Strategic Control Matrix</p>
+        <div class="flex items-center gap-4">
+          <p class="text-text-muted text-[10px] font-black uppercase tracking-widest opacity-60">Strategic Control Matrix</p>
+          <div id="diag-heartbeat" class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/5">
+            <span class="w-1.5 h-1.5 rounded-full bg-text-muted animate-pulse" id="heartbeat-dot"></span>
+            <span class="text-[8px] font-black uppercase tracking-widest text-text-muted" id="heartbeat-text">System Loading...</span>
+          </div>
+        </div>
       </div>
       <div class="flex flex-wrap gap-3">
         <button onclick="refreshAll()" class="btn btn-outline">
@@ -207,20 +213,19 @@
       </div>
     </section>
 
-    <!-- 5. Global Networks & Accounts (PART 6 NEW) -->
-    <section id="accounts-section" class="space-y-6">
-      <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
-        <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-        Connected Networks
-      </h2>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <!-- Accounts Table -->
+    <!-- 5. Network & History Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <!-- 5a. Global Networks & Accounts -->
+      <section id="accounts-section" class="space-y-6">
+        <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
+          <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+          Connected Nodes
+        </h2>
         <div class="card overflow-hidden">
           <table>
             <thead>
               <tr>
                 <th>Account</th>
-                <th>Workspace</th>
                 <th>Status</th>
                 <th>Joined</th>
               </tr>
@@ -228,16 +233,125 @@
             <tbody id="accounts-tbody"></tbody>
           </table>
         </div>
+      </section>
 
-        <!-- Recent Activity (PART 7 NEW) -->
-        <div class="card p-8 space-y-6 flex flex-col">
-          <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted flex justify-between">
-            <span>Recent System Activity</span>
-            <span class="animate-pulse text-accent">Real-time Feed</span>
-          </h3>
-          <div id="activity-feed" class="space-y-4 overflow-y-auto max-h-[400px] pr-2">
+      <!-- 5b. Recent Activity -->
+      <section id="activity-section" class="space-y-6">
+        <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
+          <span class="w-1.5 h-1.5 rounded-full bg-accent"></span>
+          Matrix Feed
+        </h2>
+        <div class="card p-8 space-y-6 flex flex-col h-[300px]">
+          <div id="activity-feed" class="space-y-4 overflow-y-auto pr-2">
             <!-- Feed injected here -->
           </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 6. Failure Investigator & Diagnostics (NEW) -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- 6a. System Health Diagnostics -->
+      <section class="space-y-6">
+        <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
+          <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+          Diagnostics
+        </h2>
+        <div class="card p-8 space-y-6">
+          <div class="space-y-4">
+            <div class="flex justify-between items-center">
+              <span class="text-[10px] font-black uppercase tracking-widest text-text-muted">Scheduler State</span>
+              <span id="diag-sched-status" class="text-[10px] font-bold text-white">—</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-[10px] font-black uppercase tracking-widest text-text-muted">OpenAI Matrix</span>
+              <span id="diag-openai" class="w-2 h-2 rounded-full bg-white/10"></span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-[10px] font-black uppercase tracking-widest text-text-muted">IG Gateway</span>
+              <span id="diag-ig" class="w-2 h-2 rounded-full bg-white/10"></span>
+            </div>
+            <div class="pt-4 border-t border-white/5 space-y-2">
+              <div class="text-[9px] font-black text-text-muted uppercase">Active Worker Threads</div>
+              <div id="diag-jobs" class="text-xl font-black text-white">0</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6b. Failed Post Matrix -->
+      <section class="lg:col-span-2 space-y-6">
+        <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
+          <span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+          Anomalies & Failures
+        </h2>
+        <div class="card overflow-hidden">
+          <div class="max-h-[280px] overflow-y-auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>Topic / Org</th>
+                  <th>Error Intelligence</th>
+                  <th>Detected At</th>
+                </tr>
+              </thead>
+              <tbody id="failed-posts-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 7. Support Hub & Inbound Matrix (NEW) -->
+    <section id="support-hub" class="space-y-6">
+      <div class="flex justify-between items-end">
+        <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          Intelligence Inbound (Support Hub)
+        </h2>
+        <select id="msg-filter-status" class="text-[10px] py-1" onchange="fetchSupportMessages()">
+          <option value="">All Messages</option>
+          <option value="received">Received</option>
+          <option value="resolved">Resolved</option>
+          <option value="archived">Archived</option>
+        </select>
+      </div>
+      <div class="card overflow-hidden">
+        <table>
+          <thead>
+            <tr>
+              <th>Contact Identity</th>
+              <th>Intelligence Query (Subject)</th>
+              <th>Status</th>
+              <th>Intercepted</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="messages-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 8. Global Library Synchronizer (NEW) -->
+    <section class="space-y-6">
+      <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
+        <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+        Global Foundation Synchronizer
+      </h2>
+      <div class="card p-8 flex flex-col md:flex-row items-center justify-between gap-8 border-blue-500/20">
+        <div class="space-y-2">
+          <h3 class="text-lg font-black italic">Quran Foundation Ingestion</h3>
+          <p class="text-xs text-text-muted font-medium max-w-md">Synchronize specific Surahs directly from the foundation's API into the global repository for all organizations.</p>
+        </div>
+        <div class="flex flex-wrap gap-4 items-end">
+          <div class="space-y-2">
+            <label class="text-[9px] font-black text-text-muted uppercase tracking-widest ml-2">Surah ID (1-114)</label>
+            <input type="number" id="sync-surah-id" min="1" max="114" value="1" class="w-32">
+          </div>
+          <button onclick="triggerSurahSync()" id="btn-sync-surah" class="btn btn-primary bg-blue-600 hover:bg-blue-700">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path></svg>
+            Command Sync
+          </button>
         </div>
       </div>
     </section>
@@ -281,12 +395,43 @@
     // --- Core Logic ---
 
     async function refreshAll() {
+      fetchDiagnostics();
       fetchOverview();
       fetchWaitlistStats();
       reloadWaitlist();
       fetchAutomations();
       fetchAccounts();
       fetchActivity();
+      fetchFailedPosts();
+      fetchSupportMessages();
+    }
+
+    async function fetchDiagnostics() {
+      try {
+        const res = await fetch('/api/admin/diagnostics');
+        const data = await res.json();
+        if(!data.ok) return;
+        
+        const heartbeat = document.getElementById('heartbeat-dot');
+        const hbText = document.getElementById('heartbeat-text');
+        
+        if(data.scheduler.status === 'running') {
+          heartbeat.className = "w-1.5 h-1.5 rounded-full bg-primary animate-pulse";
+          hbText.textContent = "Scheduler Active";
+          document.getElementById('diag-sched-status').textContent = "RUNNING";
+          document.getElementById('diag-sched-status').className = "text-[10px] font-black text-primary";
+        } else {
+          heartbeat.className = "w-1.5 h-1.5 rounded-full bg-rose-500";
+          hbText.textContent = "Critical: Scheduler Stopped";
+          document.getElementById('diag-sched-status').textContent = "STOPPED";
+          document.getElementById('diag-sched-status').className = "text-[10px] font-black text-rose-500";
+        }
+        
+        document.getElementById('diag-jobs').textContent = data.scheduler.active_jobs;
+        document.getElementById('diag-openai').className = `w-2 h-2 rounded-full ${data.environment.openai_key ? 'bg-primary' : 'bg-rose-500'}`;
+        document.getElementById('diag-ig').className = `w-2 h-2 rounded-full ${data.environment.ig_client_id ? 'bg-primary' : 'bg-rose-500'}`;
+        
+      } catch(e) { console.error(e); }
     }
 
     async function fetchOverview() {
@@ -465,12 +610,92 @@
           <div class="flex gap-4 items-start pb-4 border-b border-white/5 last:border-0 group">
             <div class="mt-1 w-2 h-2 rounded-full flex-shrink-0 ${getActivityColor(item.type)} shadow-[0_0_8px_rgba(255,255,255,0.1)]"></div>
             <div class="flex-1 space-y-1">
-              <p class="text-[11px] font-medium text-white/90 group-hover:text-white transition-colors leading-relaxed">${esc(item.text)}</p>
+              <p class="text-[11px] font-medium text-white/90 group-hover:text-white transition-colors leading-relaxed truncate max-w-[200px]">${esc(item.text)}</p>
               <div class="text-[8px] font-black uppercase tracking-widest text-text-muted opacity-50 italic">${timeAgo(item.time)}</div>
             </div>
           </div>
         `).join('');
       } catch(e) { console.error(e); }
+    }
+
+    async function fetchFailedPosts() {
+      try {
+        const res = await fetch('/api/admin/failed-posts');
+        const data = await res.json();
+        const tbody = document.getElementById('failed-posts-tbody');
+        tbody.innerHTML = data.items.map(p => `
+          <tr class="group">
+            <td>
+              <div class="text-[10px] font-black text-white italic">${esc(p.topic || 'No Topic')}</div>
+              <div class="text-[8px] font-bold text-text-muted uppercase">Org ID: ${p.org_id}</div>
+            </td>
+            <td>
+              <div class="text-[9px] text-rose-400 font-medium max-w-[300px] truncate group-hover:whitespace-normal transition-all" title="${esc(p.error)}">
+                ${esc(p.error || 'Unknown runtime anomaly')}
+              </div>
+            </td>
+            <td class="text-[9px] font-bold text-text-muted opacity-60">${timeAgo(p.created_at)}</td>
+          </tr>
+        `).join('');
+      } catch(e) { console.error(e); }
+    }
+
+    async function fetchSupportMessages() {
+      const status = document.getElementById('msg-filter-status').value;
+      try {
+        const res = await fetch(`/api/admin/messages?status=${status}`);
+        const data = await res.json();
+        const tbody = document.getElementById('messages-tbody');
+        tbody.innerHTML = data.items.map(m => `
+          <tr class="${m.status === 'received' ? 'bg-emerald-500/5' : ''}">
+            <td>
+              <div class="font-bold text-white">${esc(m.email)}</div>
+              <div class="text-[9px] text-text-muted">${esc(m.name || 'Anonymous')}</div>
+            </td>
+            <td>
+              <div class="text-xs font-semibold text-white/80 mb-1">${esc(m.subject || 'No Subject')}</div>
+              <div class="text-[10px] text-text-muted italic truncate max-w-[250px]">${esc(m.message)}</div>
+            </td>
+            <td><span class="status-badge ${m.status === 'resolved' ? 'status-converted' : 'status-new'}">${m.status}</span></td>
+            <td class="text-[10px] text-text-muted font-bold">${timeAgo(m.created_at)}</td>
+            <td>
+              <div class="flex gap-2">
+                <button onclick="updateMessageStatus(${m.id}, 'resolved')" class="btn btn-outline py-1 px-2 text-[8px] ${m.status === 'resolved' ? 'hidden' : ''}">Resolve</button>
+                <button onclick="updateMessageStatus(${m.id}, 'archived')" class="btn btn-outline py-1 px-2 text-[8px] ${m.status === 'archived' ? 'hidden' : ''}">Archive</button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+      } catch(e) { console.error(e); }
+    }
+
+    async function updateMessageStatus(id, status) {
+      const res = await fetch(`/api/admin/messages/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+      if((await res.json()).ok) fetchSupportMessages();
+    }
+
+    async function triggerSurahSync() {
+      const id = document.getElementById('sync-surah-id').value;
+      const btn = document.getElementById('btn-sync-surah');
+      if(!id || id < 1 || id > 114) return alert("Select a valid Surah ID (1-114)");
+      
+      btn.disabled = true;
+      btn.textContent = "Processing Foundation Sync...";
+      
+      try {
+        const res = await fetch(`/api/admin/library/global/sources/sync-qf?chapter_id=${id}`, { method: 'POST' });
+        const data = await res.json();
+        if(data.status === 'success') alert(`Success! Added ${data.new_verses_added} verses to the global intelligence pool.`);
+        else alert("Sync anomaly detected: " + (data.detail || "Check logs"));
+      } catch(e) { console.error(e); alert("Network failure reaching foundation gateway."); }
+      
+      btn.disabled = false;
+      btn.textContent = "Command Sync";
+      refreshAll();
     }
 
     // --- Actions ---
