@@ -747,7 +747,7 @@ def interpret_prompt(raw: str) -> VisualSpec:
 
 def interpret_text_style(raw: str, experimental: bool = False) -> TextStyleSpec:
     """Maps user text-style prompt to a structured TextStyleSpec."""
-    p = raw.lower().strip()
+    p = (raw or "").lower().strip()
     spec = TextStyleSpec(experimental=experimental)
     
     # 1. Bucket Detection

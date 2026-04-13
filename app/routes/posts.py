@@ -150,7 +150,7 @@ def intake_post(
         
         intent_type=intent_type,
         target_audience=target_audience,
-        source_foundation=source_foundation,
+        source_foundation=source_foundation or ("quran" if source_type == "quran" else None),
         message_hint=message_hint,
         emotion=emotion,
         depth=depth,

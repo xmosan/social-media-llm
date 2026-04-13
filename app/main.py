@@ -314,10 +314,11 @@ app.include_router(profiles.router)
 app.include_router(sources.router)
 app.include_router(admin_library.router)
 app.include_router(admin_global_library.router)
-app.include_router(waitlist.router)
-app.include_router(contact.router)
+from .api.routes import waitlist, contact, admin_panel, quran
+# ...
 app.include_router(admin_panel.router)
 app.include_router(admin_backup.router)
+app.include_router(quran.router)
 
 def bootstrap_saas():
     """Seed initial Org, API Key, and Superadmin User."""

@@ -28,6 +28,8 @@ STUDIO_SCRIPTS_JS = """
     let studioCreationMode = 'preset'; // 'preset' or 'custom'
     let studioEngine       = 'dalle';  // 'dalle' or 'gemini'
     let studioGlossy       = false;    // Frosted glass effect
+    let studioSourceMode   = 'topic';  // 'topic' or 'quran'
+    let selectedAyahId     = null;
 
     function openNewPostModal() {
         document.getElementById('newPostModal').classList.remove('hidden');
@@ -110,6 +112,64 @@ STUDIO_SCRIPTS_JS = """
         invalidateQuoteCard();
     }
 
+    function switchSourceMode(mode) {
+        studioSourceMode = mode;
+        const topicBtn = document.getElementById('btnSourceTopic');
+        const quranBtn = document.getElementById('btnSourceQuran');
+        const topicArea = document.getElementById('topicSourceArea');
+        const quranArea = document.getElementById('quranSourceArea');
+
+        if (mode === 'topic') {
+            topicBtn.classList.add('bg-brand', 'text-white', 'shadow-lg');
+            topicBtn.classList.remove('bg-brand/5', 'text-brand');
+            quranBtn.classList.remove('bg-brand', 'text-white', 'shadow-lg');
+            quranBtn.classList.add('bg-brand/5', 'text-brand');
+            topicArea.classList.remove('hidden');
+            quranArea.classList.add('hidden');
+        } else {
+            quranBtn.classList.add('bg-brand', 'text-white', 'shadow-lg');
+            quranBtn.classList.remove('bg-brand/5', 'text-brand');
+            topicBtn.classList.remove('bg-brand', 'text-white', 'shadow-lg');
+            topicBtn.classList.add('bg-brand/5', 'text-brand');
+            quranArea.classList.remove('hidden');
+            topicArea.classList.add('hidden');
+        }
+    }
+
+    async function searchQuran() {
+        const query = document.getElementById('quranSearchInput').value;
+        const resultsArea = document.getElementById('quranSearchResults');
+        if (query.length < 2) return;
+
+        resultsArea.innerHTML = '<div class="p-4 text-center text-[8px] font-bold text-brand animate-pulse uppercase tracking-widest">Searching Foundation...</div>';
+        resultsArea.classList.remove('hidden');
+
+        try {
+            const res = await fetch(`/api/quran/search?q=${encodeURIComponent(query)}`);
+            const data = await res.json();
+            if (data.length === 0) {
+                resultsArea.innerHTML = '<div class="p-4 text-center text-[8px] font-bold text-rose-500 uppercase tracking-widest">No matching verses found.</div>';
+                return;
+            }
+            resultsArea.innerHTML = data.map(v => `
+                <div onclick="selectAyah('${v.id}', '${v.title.replace(/'/g, "\\'")}', '${v.text.replace(/'/g, "\\'")}')" class="p-4 border-b border-brand/5 hover:bg-brand/5 cursor-pointer transition-all">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="text-[8px] font-black text-brand uppercase tracking-widest">${v.title}</span>
+                    </div>
+                    <div class="text-[10px] text-text-muted font-medium italic line-clamp-2">${v.text}</div>
+                </div>
+            `).join('');
+        } catch (e) { console.error(e); }
+    }
+
+    function selectAyah(id, title, text) {
+        selectedAyahId = id;
+        document.getElementById('selectedAyahBadge').classList.remove('hidden');
+        document.getElementById('selectedAyahTitle').innerText = title;
+        document.getElementById('quranSearchResults').classList.add('hidden');
+        document.getElementById('studioTopic').value = title; // Sync for metadata
+    }
+
     function setStudioEngine(engine, el) {
         studioEngine = engine;
         document.querySelectorAll('.engine-chip').forEach(c => {
@@ -182,10 +242,18 @@ STUDIO_SCRIPTS_JS = """
         text.innerText = 'Crafting Spiritual Essence...';
 
         try {
-            const res = await fetch('/generate-caption', {
+            let endpoint = '/generate-caption';
+            let payload = { topic, intention, tone };
+
+            if (studioSourceMode === 'quran' && selectedAyahId) {
+                endpoint = '/api/quran/generate-caption';
+                payload = { item_id: selectedAyahId, style: tone };
+            }
+
+            const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ topic, intention, tone })
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
             if (data.caption) {
@@ -340,6 +408,8 @@ STUDIO_SCRIPTS_JS = """
         
         // Add library item ID if needed (compatibility)
         formData.append('visual_mode', 'quote_card');
+        formData.append('source_type', studioSourceMode);
+        if (selectedAyahId) formData.append('library_item_id', selectedAyahId);
         formData.append('source_text', document.getElementById('studioTopic').value);
 
         try {
@@ -488,10 +558,37 @@ STUDIO_COMPONENTS_HTML = """
             </div>
 
             <div class="space-y-8">
+                <!-- SOURCE TOGGLE -->
+                <div class="flex p-1.5 bg-brand/[0.03] rounded-2xl border border-brand/5 gap-1">
+                    <button type="button" id="btnSourceTopic" onclick="switchSourceMode('topic')" class="flex-1 py-3 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-brand text-white shadow-lg">General Topic</button>
+                    <button type="button" id="btnSourceQuran" onclick="switchSourceMode('quran')" class="flex-1 py-3 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-brand/5 text-brand">Quran Foundation</button>
+                </div>
+
                 <!-- Topic Input -->
-                <div class="space-y-3">
+                <div id="topicSourceArea" class="space-y-3">
                    <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Reminder Topic</label>
                    <input type="text" id="studioTopic" name="topic" placeholder="e.g. Patience during trials, Gratitude for small blessings..." class="w-full bg-cream/20 border border-brand/5 rounded-2xl px-8 py-6 text-sm font-medium text-brand outline-none focus:border-brand/20 transition-all shadow-inner">
+                </div>
+
+                <!-- Quran Input Area -->
+                <div id="quranSourceArea" class="hidden space-y-4 animate-in fade-in duration-300">
+                    <div class="space-y-3">
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Search or Reference (70:5)</label>
+                        <div class="relative">
+                            <input type="text" id="quranSearchInput" oninput="searchQuran()" placeholder="Type a verse ref or keyword..." class="w-full bg-cream/20 border border-brand/5 rounded-2xl px-8 py-6 text-sm font-medium text-brand outline-none focus:border-brand/20 transition-all shadow-inner">
+                            <div class="absolute right-6 top-1/2 -translate-y-1/2 text-brand/20">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="quranSearchResults" class="hidden max-h-48 overflow-y-auto bg-white border border-brand/10 rounded-2xl shadow-xl custom-scrollbar z-[120]"></div>
+                    <div id="selectedAyahBadge" class="hidden p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                            <span id="selectedAyahTitle" class="text-[10px] font-black text-emerald-800 uppercase tracking-widest"></span>
+                        </div>
+                        <button type="button" onclick="selectedAyahId=null; document.getElementById('selectedAyahBadge').classList.add('hidden');" class="text-[8px] font-bold text-emerald-600 uppercase hover:underline">Change</button>
+                    </div>
                 </div>
 
                 <!-- Intention & Tone Grid -->
