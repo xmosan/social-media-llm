@@ -60,6 +60,8 @@ from app.config import settings
 from app.db import SessionLocal
 from app.models import ContentItem
 from app.services.library_service import generate_topics_slugs
+from app.services.quran_service import search_quran, get_quran_ayahs_by_theme
+from app.services.quran_caption_service import generate_ai_caption_from_quran
 
 
 # -------------------------------
@@ -79,59 +81,43 @@ def build_caption_prompt(intention, topic, tone, tone_description, source_text, 
 # -------------------------------
 # Quran Fetch
 # -------------------------------
-def fetch_quran_verse(topic):
-    # 1. Try Global Library first (Verified Source)
+def fetch_quran_verse(topic: str):
+    """
+    Retrieves a relevant verse from the local Quran Foundation database.
+    Prioritizes theme/slug matches, then falls back to keyword searching.
+    """
     db = SessionLocal()
     try:
-        slugs = generate_topics_slugs(topic, [])
-        if slugs:
-            # Find a matching verse in the library
-            # We look for a Quran item that matches the topic slug
-            item = db.query(ContentItem).filter(
-                ContentItem.item_type == "quran",
-                ContentItem.topics_slugs.contains([slugs[0]])
-            ).first()
-            
-            if item:
-                print(f"📖 [CaptionEngine] Library match found for '{topic}': {item.title}")
-                return {
-                    "text": item.text,
-                    "arabic": item.arabic_text,
-                    "reference": item.title
-                }
+        # 1. Search existing themes in local DB
+        results = get_quran_ayahs_by_theme(db, topic, limit=1)
+        if results:
+            item = results[0]
+            print(f"📖 [CaptionEngine] Local Foundation match found for '{topic}': {item.title}")
+            return {
+                "item": item,
+                "text": item.text,
+                "arabic": item.arabic_text,
+                "reference": item.title
+            }
+        
+        # 2. General keyword search in local DB
+        results = search_quran(db, topic, limit=1)
+        if results:
+            item = results[0]
+            print(f"🔎 [CaptionEngine] Keyword match found for '{topic}': {item.title}")
+            return {
+                "item": item,
+                "text": item.text,
+                "arabic": item.arabic_text,
+                "reference": item.title
+            }
+
+        return None
     except Exception as e:
-        print(f"⚠️ [CaptionEngine] Database search error: {e}")
+        print(f"⚠️ [CaptionEngine] Local Foundation search error: {e}")
+        return None
     finally:
         db.close()
-
-    # 2. Fallback to Quran.com Search API
-    print(f"📡 [CaptionEngine] No library match, falling back to Quran.com for '{topic}'")
-    url = f"https://api.quran.com/api/v4/search?q={topic}&size=1"
-    
-    try:
-        res = requests.get(url).json()
-        if not res.get("search") or not res["search"].get("results"):
-            return None
-            
-        verse = res["search"]["results"][0]
-        
-        # Extract the first English translation
-        translation_text = "Translation not found."
-        if verse.get("translations"):
-            for t in verse["translations"]:
-                if t.get("language_name") == "english":
-                    translation_text = re.sub(r'<[^>]+>', '', t.get("text", ""))
-                    translation_text = html.unescape(translation_text)
-                    break
-
-        return {
-            "text": translation_text, 
-            "arabic": verse.get("text", ""),
-            "reference": f"Qur’an {verse['verse_key']}"
-        }
-    except Exception as e:
-        print("❌ [CaptionEngine] Public fetch error:", e)
-        return None
 
 
 # -------------------------------
@@ -162,18 +148,21 @@ def generate_islamic_caption(intention, topic, tone="calm"):
     }
     tone_instruction = tone_map.get(tone, "TONE: Sincere and grounded.")
 
-    # 2. Fetch Verse
+    # 2. Fetch Verse (Unified Local Foundation Search)
     verse = fetch_quran_verse(topic)
     
-    if verse:
-        source_translation = verse["text"]
-        reference = verse["reference"]
-    else:
-        # High-quality fallback
-        source_translation = "Indeed, with every hardship comes ease."
-        reference = "Qur'an 94:5"
+    if verse and "item" in verse:
+        # HIGH-FIDELITY GROUNDED GENERATION
+        # We delegate to the new caption service for unified quality
+        print(f"🔗 [CaptionEngine] Delegating grounded generation for '{topic}' to Quran Service.")
+        return generate_ai_caption_from_quran(verse["item"], style=tone)
 
-    # 3. Build Prompt
+    # 3. Fallback (If no verse found)
+    # -------------------------------
+    source_translation = "Indeed, with every hardship comes ease."
+    reference = "Qur'an 94:5"
+
+    # Build Prompt
     prompt = build_caption_prompt(
         intention,
         topic,
