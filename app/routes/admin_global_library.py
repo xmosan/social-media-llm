@@ -165,3 +165,27 @@ def delete_global_entry(
     db.delete(item)
     db.commit()
     return {"ok": True}
+
+# --- SYNCING SERVICES ---
+
+@router.post("/sources/sync-qf", status_code=status.HTTP_201_CREATED)
+def sync_quran_foundation(
+    chapter_id: int = Query(..., ge=1, le=114, description="Surah number to sync (1-114)"),
+    translation_id: str = Query("131", description="Translation ID (default Sahih International)"),
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_superadmin)
+):
+    """
+    Triggers a synchronization of a specific Surah from the Quran Foundation API 
+    into the global content library.
+    """
+    from app.services.quran_ingestion import sync_surah_to_library
+    try:
+        new_count = sync_surah_to_library(db, chapter_id, translation_id)
+        return {
+            "status": "success",
+            "message": f"Successfully processed Surah {chapter_id}",
+            "new_verses_added": new_count
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")

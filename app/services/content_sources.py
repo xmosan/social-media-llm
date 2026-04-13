@@ -130,3 +130,10 @@ def import_from_url_list(db: Session, *, org_id: int, source: ContentSource) -> 
     # TODO: Implement URL content extraction (e.g., using newspaper3k or custom scrapers)
     logger.info(f"URL list import triggered for source {source.id} (Not implemented)")
     return 0
+
+def import_from_qf(db: Session, *, chapter_id: int, translation_id: str = "131") -> int:
+    """
+    Imports verses from Quran Foundation into the global library.
+    """
+    from app.services.quran_ingestion import sync_surah_to_library
+    return sync_surah_to_library(db, chapter_id, translation_id)

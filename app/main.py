@@ -14,9 +14,10 @@ from starlette.middleware.sessions import SessionMiddleware
 import uuid
 
 from .db import engine, SessionLocal, get_db
-from .models import Base, Org, ApiKey, IGAccount, User, OrgMember, ContentSource, ContentItem, ContentUsage
+from .models import Base, Org, ApiKey, IGAccount, User, OrgMember, ContentSource, ContentItem, ContentUsage, WaitlistEntry, InboundMessage
 from .security.auth import get_password_hash
 from .routes import posts, admin, orgs, ig_accounts, automations, library, media, auth, profiles, auth_google, auth_ig, public, sources, app_pages, admin_library, admin_global_library
+from .api.routes import waitlist, contact
 from .services.scheduler import start_scheduler
 from .config import settings
 from .logging_setup import setup_logging, request_id_var, log_event
@@ -127,7 +128,7 @@ class ComingSoonMiddleware(BaseHTTPMiddleware):
         # 1. ALLOWED PATHS (Always accessible)
         allowed_prefixes = [
             "/login", "/register", "/auth", "/static", "/api/contact", "/health", "/api-test", "/demo", 
-            "/contact", "/privacy", "/terms", "/docs", "/redoc", "/openapi.json", "/generate-caption", "/generate-quote-card"
+            "/contact", "/privacy", "/terms", "/docs", "/redoc", "/openapi.json", "/generate-caption", "/generate-quote-card", "/api/waitlist"
         ]
         if path == "/" or any(path.startswith(p) for p in allowed_prefixes):
             # If authenticated and visiting root, redirect to /app
@@ -311,6 +312,8 @@ app.include_router(profiles.router)
 app.include_router(sources.router)
 app.include_router(admin_library.router)
 app.include_router(admin_global_library.router)
+app.include_router(waitlist.router)
+app.include_router(contact.router)
 
 def bootstrap_saas():
     """Seed initial Org, API Key, and Superadmin User."""

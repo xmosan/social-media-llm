@@ -822,11 +822,55 @@ COMING_SOON_HTML = """<!doctype html>
       <p class="text-text-muted text-lg font-medium italic opacity-80">Authentic Islamic content creation, grounded in truth. We're refining the engine.</p>
     </div>
     <div class="max-w-md mx-auto w-full flex gap-3">
-        <input type="email" placeholder="Enter your email" class="flex-1 bg-white border border-gray-100 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-primary transition-all shadow-sm">
-        <button class="btn-primary px-8 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl shadow-primary/10 transition-all">Notify Me</button>
+        <input type="email" id="waitlistEmail" placeholder="Enter your email" class="flex-1 bg-white border border-gray-100 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-primary transition-all shadow-sm">
+        <button id="waitlistBtn" onclick="submitToWaitlist()" class="btn-primary px-8 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl shadow-primary/10 transition-all">Notify Me</button>
     </div>
+    <div id="waitlistStatus" class="hidden text-xs font-bold pt-4"></div>
     <footer class="pt-12 border-t border-primary/5 text-[10px] font-bold uppercase tracking-widest text-text-muted/40">© 2026 Sabeel Studio</footer>
   </div>
+
+  <script>
+    async function submitToWaitlist() {
+      const emailInput = document.getElementById('waitlistEmail');
+      const btn = document.getElementById('waitlistBtn');
+      const status = document.getElementById('waitlistStatus');
+      const email = emailInput.value.trim();
+
+      if (!email) return;
+
+      try {
+        btn.disabled = true;
+        btn.textContent = "WAIT...";
+        
+        const res = await fetch('/api/waitlist/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email, source: "homepage" })
+        });
+
+        const data = await res.json();
+        
+        status.classList.remove('hidden');
+        if (res.ok) {
+          status.textContent = data.message || "You're on the list!";
+          status.className = "text-xs font-bold pt-4 text-emerald-600";
+          emailInput.value = "";
+          btn.textContent = "DONE";
+        } else {
+          status.textContent = data.detail || "Error joining list.";
+          status.className = "text-xs font-bold pt-4 text-rose-500";
+          btn.textContent = "NOTIFY ME";
+          btn.disabled = false;
+        }
+      } catch (err) {
+        status.textContent = "Connection error.";
+        status.className = "text-xs font-bold pt-4 text-rose-500";
+        status.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = "NOTIFY ME";
+      }
+    }
+  </script>
 </body>
 </html>
 """
@@ -884,22 +928,6 @@ def demo_page():
 def contact_page():
     return CONTACT_HTML
 
-from pydantic import BaseModel
-class ContactPayload(BaseModel):
-    name: str
-    email: str
-    message: str
-
-@router.post("/api/contact")
-async def process_contact(payload: ContactPayload, db: Session = Depends(get_db)):
-    msg = ContactMessage(
-        name=payload.name,
-        email=payload.email,
-        message=payload.message
-    )
-    db.add(msg)
-    db.commit()
-    return {"status": "success"}
 
 @router.get("/api/auth-debug")
 def api_auth_debug(db: Session = Depends(get_db)):

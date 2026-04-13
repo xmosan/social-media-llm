@@ -57,6 +57,9 @@ import re
 import html
 from openai import OpenAI
 from app.config import settings
+from app.db import SessionLocal
+from app.models import ContentItem
+from app.services.library_service import generate_topics_slugs
 
 
 # -------------------------------
@@ -77,7 +80,32 @@ def build_caption_prompt(intention, topic, tone, tone_description, source_text, 
 # Quran Fetch
 # -------------------------------
 def fetch_quran_verse(topic):
-    # We search for the topic and ensure translations are included
+    # 1. Try Global Library first (Verified Source)
+    db = SessionLocal()
+    try:
+        slugs = generate_topics_slugs(topic, [])
+        if slugs:
+            # Find a matching verse in the library
+            # We look for a Quran item that matches the topic slug
+            item = db.query(ContentItem).filter(
+                ContentItem.item_type == "quran",
+                ContentItem.topics_slugs.contains([slugs[0]])
+            ).first()
+            
+            if item:
+                print(f"📖 [CaptionEngine] Library match found for '{topic}': {item.title}")
+                return {
+                    "text": item.text,
+                    "arabic": item.arabic_text,
+                    "reference": item.title
+                }
+    except Exception as e:
+        print(f"⚠️ [CaptionEngine] Database search error: {e}")
+    finally:
+        db.close()
+
+    # 2. Fallback to Quran.com Search API
+    print(f"📡 [CaptionEngine] No library match, falling back to Quran.com for '{topic}'")
     url = f"https://api.quran.com/api/v4/search?q={topic}&size=1"
     
     try:
@@ -92,7 +120,6 @@ def fetch_quran_verse(topic):
         if verse.get("translations"):
             for t in verse["translations"]:
                 if t.get("language_name") == "english":
-                    # Strip HTML tags like <em>
                     translation_text = re.sub(r'<[^>]+>', '', t.get("text", ""))
                     translation_text = html.unescape(translation_text)
                     break
@@ -100,10 +127,10 @@ def fetch_quran_verse(topic):
         return {
             "text": translation_text, 
             "arabic": verse.get("text", ""),
-            "reference": verse["verse_key"]
+            "reference": f"Qur’an {verse['verse_key']}"
         }
     except Exception as e:
-        print("❌ Quran fetch error:", e)
+        print("❌ [CaptionEngine] Public fetch error:", e)
         return None
 
 

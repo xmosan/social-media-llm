@@ -7,6 +7,9 @@ from sqlalchemy.sql import func
 
 Base = declarative_base()
 
+from .waitlist import WaitlistEntry
+from .inbound_message import InboundMessage
+
 class Org(Base):
     __tablename__ = "orgs"
     id = Column(Integer, primary_key=True, index=True)

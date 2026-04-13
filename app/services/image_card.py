@@ -19,6 +19,10 @@ ZONE_SIZES = {
 }
 
 
+def is_arabic_segment(text: str) -> bool:
+    """Detects if a string contains Arabic characters."""
+    return any("\u0600" <= c <= "\u06FF" or "\u0750" <= c <= "\u077F" for c in text)
+
 def generate_quote_card(
     caption: str,
     style: str = "quran",
@@ -32,69 +36,54 @@ def generate_quote_card(
 ) -> str:
     """
     Parses an Islamic caption and renders a premium quote card.
-
-    Args:
-        caption:       The full multi-part caption (newline-separated).
-        style:         Preset style key (quran/fajr/scholar/madinah/kaaba/laylulqadr)
-                       or 'custom' for visual-prompt-driven mode.
-        visual_prompt: User's description of the desired visual atmosphere.
-        mode:          'preset' | 'custom'
-
-    Returns:
-        Public URL of the generated image.
+    Supports Dual-Language (Arabic + English) detection and layout.
     """
     import re
 
     print(f"\n🖼️  [ImageCard] mode={mode} | style={style}")
-    print(f"📝 [ImageCard] visual_prompt={repr(visual_prompt)}")
-    print(f"📄 [ImageCard] caption[:80]={repr(caption[:80])}")
+    print(f"📝 [ImageCard] caption[:120]={repr(caption[:120])}")
 
     # ── Determine effective mode ──────────────────────────────────────────────
-    # Normalize: if style is 'custom', enforce custom mode
     if style == "custom":
         mode = "custom"
 
-    # ── Parse caption into 3 zones ────────────────────────────────────────────
+    # ── Parse caption into logical zones ──────────────────────────────────────
     clean  = re.sub(r"\*\*|__?|~~", "", caption).strip()
-    # Remove label prefixes AI sometimes adds
     clean  = re.sub(r"^(Line \d:|Source:|Reflection:|Takeaway:|Insight:|Translation:)\s*",
                     "", clean, flags=re.MULTILINE | re.IGNORECASE)
 
-    # Split on double newlines
-    parts  = [p.strip() for p in clean.split("\n\n") if p.strip()]
+    # Split on double newlines for zones
+    raw_zones = [p.strip() for p in clean.split("\n\n") if p.strip()]
+    if len(raw_zones) < 2:
+        raw_zones = [p.strip() for p in clean.split("\n") if p.strip()]
 
-    # Fallback: single newlines if < 2 parts found
-    if len(parts) < 2:
-        parts = [p.strip() for p in clean.split("\n") if p.strip()]
+    # Guard: Pad to at least 3
+    while len(raw_zones) < 3:
+        raw_zones.append("")
 
-    # Guard: ensure exactly 3 parts (pad or trim)
-    while len(parts) < 3:
-        parts.append("")
-    parts = parts[:3]
-
-    # Clean Zone A (reference): strip surrounding quotes
-    ref = parts[0]
-    ref = ref.strip('"').strip("'").strip("\u201c").strip("\u201d").strip()
-    parts[0] = ref
-
-    print(f"📦 [ImageCard] Parts: {[p[:40] for p in parts]}")
-
-    # ── Font sizes ────────────────────────────────────────────────────────────
+    # ── Dual-Language Processing ──────────────────────────────────────────────
+    # Identify if any zone contains Arabic + English or if we have separate 
+    # Arabic/English zones that should be paired.
+    segments = []
     key   = style if style in ZONE_SIZES else "quran"
     sizes = ZONE_SIZES[key]
 
-    # ── Build segments (size only — colors resolved inside renderer) ──────────
-    segments = []
-    for i, text in enumerate(parts):
-        if not text:
-            continue
+    for i, text in enumerate(raw_zones[:3]):
+        if not text: continue
+        
+        # If the segment contains Arabic, we mark it as such for the renderer
+        is_ar = is_arabic_segment(text)
+        
+        # Special Case: If the text contains BOTH Arabic and English (e.g., merged by AI)
+        # We might want to split them, but for now we'll let the renderer handle the font switching
         segments.append({
             "text":  text,
             "size":  sizes[i],
-            "color": (255, 255, 255),  # placeholder — renderer applies palette
+            "is_arabic": is_ar,
+            "color": (255, 255, 255)
         })
 
-    print(f"📦 [ImageCard] Segments: {len(segments)}")
+    print(f"📦 [ImageCard] Final Segments: {len(segments)}")
 
     # ── Render ────────────────────────────────────────────────────────────────
     output_dir = settings.uploads_dir

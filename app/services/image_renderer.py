@@ -27,6 +27,14 @@ from google.genai import types
 import base64
 import io as _io
 
+try:
+    import arabic_reshaper
+    from bidi.algorithm import get_display
+    _ARABIC_OK = True
+except ImportError:
+    _ARABIC_OK = False
+    print("⚠️ arabic-reshaper or python-bidi not found. Arabic rendering will be degraded.")
+
 # ── Visual System Layer ───────────────────────────────────────────────────────
 # Pre-declare as safe defaults so NameError is impossible if import fails
 _VS_OK = False
@@ -60,6 +68,61 @@ def get_openai_client() -> Optional[OpenAI]:
     if not settings.openai_api_key:
         return None
     return OpenAI(api_key=settings.openai_api_key)
+
+# ── Arabic Support ────────────────────────────────────────────────────────────
+ARABIC_FONT_PATH = "assets/fonts/Amiri-Regular.ttf"
+
+def is_arabic_text(text: str) -> bool:
+    """Detects if a string contains Arabic characters, including core, supplement, extended, and presentation forms."""
+    if not text: return False
+    # Check for any Arabic character in the standard blocks
+    return any(
+        "\u0600" <= c <= "\u06FF" or  # Arabic
+        "\u0750" <= c <= "\u077F" or  # Arabic Supplement
+        "\u08A0" <= c <= "\u08FF" or  # Arabic Extended-A
+        "\uFB50" <= c <= "\uFDFF" or  # Arabic Presentation Forms-A
+        "\uFE70" <= c <= "\uFEFF"     # Arabic Presentation Forms-B
+        for c in text
+    )
+
+def reshape_arabic(text: str) -> str:
+    """Correctly reshapes and reorders Arabic text for RTL rendering in PIL."""
+    if not _ARABIC_OK or not text:
+        return text
+    
+    # IDEMPOTENCY CHECK (v3 Absolute Fix)
+    # If the text already contains Presentation Forms, it has likely been reshaped.
+    # Re-reshaping it would DOUBLE-REVERSE the word order back to LTR.
+    if any("\uFB50" <= c <= "\uFEFF" for c in text):
+        return text
+
+    try:
+        # CLEANING: Strip LTR/RTL control marks (v2 Absolute Fix)
+        # Sometimes source data has hidden LTR marks (\u200E) that poisoning the reorderer
+        clean_text = text.replace('\u200E', '').replace('\u200F', '').strip()
+        
+        # Configuration for Quranic Uthmani text
+        configuration = {
+            'delete_harakat': False,
+            'support_zwj': True,
+        }
+        reshaper = arabic_reshaper.ArabicReshaper(configuration=configuration)
+        reshaped_text = reshaper.reshape(clean_text)
+        
+        # BIDI: Force Right-to-Left base direction (v2 Absolute Fix)
+        # This ensures the FIRST word of the sentence is placed at the end of the string
+        # for an LTR rendering engine (which results in it being on the RIGHT side visually).
+        bidi_text = get_display(reshaped_text, base_dir='R')
+        
+        # LOGGING (Debug): Confirming the reordering for the logs
+        first_orig = clean_text[:5]
+        first_bidi = bidi_text[:5]
+        print(f"🧬 [ArabicEngine] Reordered: '{first_orig}...' -> '{first_bidi}...' (base_dir=R)")
+        
+        return bidi_text
+    except Exception as e:
+        print(f"⚠️ Arabic reshape error: {e}")
+        return text
 
 # v8.0 CINEMATIC SETTINGS
 SHOW_READABILITY_MASKS = False
@@ -236,12 +299,23 @@ def fit_text_to_zone(
     draw_tmp: ImageDraw.Draw,
     min_size: int = 24,
     base_ls: int = 0,
-    base_tracking: int = 0
+    base_tracking: int = 0,
+    is_arabic: bool = False
 ):
     """
     Iteratively fits text into a budget using size, tracking, and leading adjustments.
     Returns: (list[str], ImageFont.FreeTypeFont, block_h, final_ls, final_tracking)
     """
+    # MEASUREMENT PREPARATION (v3 Absolute Fix)
+    # We use a temporary reshaped string for width measurement only.
+    # We DO NOT modify the original 'text' variable because we want to 
+    # return logical (un-reversed) lines to the final render loop.
+    meas_text = text
+    if is_arabic:
+        font_path = ARABIC_FONT_PATH
+        # Apply transformation for correct measurement only
+        meas_text = reshape_arabic(text)
+    
     curr_size = start_size
     curr_tracking = base_tracking # extra per-zone boost
     curr_ls = 0 # line spacing adjustment
@@ -250,6 +324,11 @@ def fit_text_to_zone(
     is_long = len(text) > 100
     if is_long:
         curr_size = int(start_size * 0.85)
+
+    if is_arabic:
+        # Enforce zero tracking for Arabic - it breaks ligatures
+        base_tracking = 0
+        curr_tracking = 0
 
     iterations = 0
     max_iterations = 25
@@ -263,15 +342,21 @@ def fit_text_to_zone(
             
         # 1. Wrap
         total_tracking = base_ls + curr_tracking
+        # We wrap on the ORIGINAL text (not the reshaped one) so we get logical lines.
+        # But wait - wrapping on non-reshaped Arabic can miscalculate lengths slightly.
+        # We wrap on the meas_text but we must be careful.
+        # BEST: Wrap on logical text, but measure using the font that will draw reshaped.
         lines = balanced_text_wrap(text, fnt, max_w, draw_tmp, letter_spacing=total_tracking)
         
         # 2. Measure
         block_h = 0
         line_metrics = []
         for line in lines:
-            bbox = draw_tmp.textbbox((0, 0), line, font=fnt)
+            # Measure the RESHAPED version of the line for accuracy
+            meas_line = reshape_arabic(line) if is_arabic else line
+            bbox = draw_tmp.textbbox((0, 0), meas_line, font=fnt)
             lh = bbox[3] - bbox[1]
-            lw = (bbox[2] - bbox[0]) + len(line) * total_tracking
+            lw = (bbox[2] - bbox[0]) + len(meas_line) * total_tracking
             line_metrics.append({"h": lh, "w": lw})
             
         # Base line spacing (1.3x font size or custom)
@@ -1210,6 +1295,26 @@ def apply_text_halo(text_layer, radius=12, halo_color=(255, 255, 255, 255)):
     return halo
 
 
+def draw_glow(
+    draw: ImageDraw.ImageDraw,
+    pos: tuple,
+    text: str,
+    font: ImageFont.FreeTypeFont,
+    color: tuple,
+    radius: float,
+    anchor: str = "mt",
+    tracking: int = 0,
+    is_arabic: bool = False
+):
+    """Draws a soft glow effect behind text by rendering it with slight offsets."""
+    # Force single-unit rendering for Arabic to prevent backwards/broken text
+    active_tracking = 0 if (is_arabic or is_arabic_text(text)) else tracking
+    
+    # Simple multi-pass glow
+    for dx, dy in [(-1,-1), (1,-1), (-1,1), (1,1), (0,-1.5), (0,1.5), (-1.5,0), (1.5,0)]:
+        off_pos = (pos[0] + dx * radius * 0.4, pos[1] + dy * radius * 0.4)
+        draw_text_advanced(draw, off_pos, text, font, color, anchor=anchor, letter_spacing=active_tracking, is_arabic=is_arabic)
+
 def draw_text_advanced(
     draw: ImageDraw.ImageDraw,
     pos: tuple,
@@ -1221,13 +1326,17 @@ def draw_text_advanced(
     shadow_fill: tuple = None,
     shadow_offset: tuple = (0, 0),
     stroke_width: int = 0,
-    stroke_fill: tuple = None
+    stroke_fill: tuple = None,
+    is_arabic: bool = False
 ):
     """
     Advanced text drawing with support for tracking (letter_spacing), 
     shadows, and secondary effects.
     """
-    if letter_spacing == 0:
+    # RTL / Arabic Protection: FORCE Fast Path
+    # Letter spacing DRAWN character-by-character breaks Arabic ligatures 
+    # and reverses the reading direction even after BIDI reshaping.
+    if letter_spacing == 0 or is_arabic or is_arabic_text(text):
         # Standard fast path
         if shadow_fill and shadow_offset != (0, 0):
             draw.text((pos[0] + shadow_offset[0], pos[1] + shadow_offset[1]), text, font=font, fill=shadow_fill, anchor=anchor)
@@ -1587,16 +1696,18 @@ def render_minimal_quote_card(
         if i == 1 and len(seg_text) > 90: start_sz = int(start_sz * 0.88)
         elif i == 0 and len(seg_text) > 40: start_sz = int(start_sz * 0.90)
 
-        lines, fnt, b_h, zd_ls, final_track = fit_text_to_zone(
-            seg_text, font_path, budget[2], budget[3], start_sz, 
-            draw_tmp, min_size=(24 if i != 1 else 32), 
-            base_ls=base_ls, base_tracking=z_boost
+        # 4. Fit to Zone (v9.0 Unified)
+        z_y, z_h, z_w, max_h = BUDGETS[i]
+        zd_ls_base = [0.12, 0.22, 0.12][i]
+        is_ar_seg = seg.get("is_arabic", False)
+
+        lines, fnt, block_h, zd_ls, final_track = fit_text_to_zone(
+            seg_text, font_path, z_w, max_h, int(seg["size"]), draw_tmp, 
+            min_size=24, base_ls=zd_ls_base, is_arabic=is_ar_seg
         )
         
-        z_y = budget[0] + (budget[3] // 2) - (b_h // 2)
-        
         zone_data.append({
-            "font": fnt, "lines": lines, "block_h": b_h, 
+            "lines": lines, "font": fnt, "block_h": block_h, "is_arabic": is_ar_seg,
             "color": col, "opacity": opacity, "ls": zd_ls, "tracking": final_track,
             "y": z_y, "x_center": W // 2, "anchor": "mt", "style_ref": z_style
         })
@@ -1635,7 +1746,7 @@ def render_minimal_quote_card(
     bg_rgba = bg.convert("RGBA")
     g_rgba = typo_spec.glow_rgba if typo_spec else glow_rgba
 
-    # 6. Render Loop
+    # 6. Render Loop (v9.1 Cinematic Dual-Language)
     for i, zd in enumerate(zone_data):
         z_y, cx, anchor, z_font, lp_track, zd_ls = zd["y"], zd["x_center"], zd["anchor"], zd["font"], zd["tracking"], zd["ls"]
         col, opacity = zd["color"], zd["opacity"]
@@ -1644,40 +1755,57 @@ def render_minimal_quote_card(
         z_style = zd["style_ref"]
         shd_fill = tuple(z_style.shadow_fill) if z_style else (0,0,0,128)
         
-        zone_mask = Image.new("RGBA", target_size, (0, 0, 0, 0))
-        z_draw = ImageDraw.Draw(zone_mask)
-        
-        # Scaled Effects
+        # Readiness metrics
         base_rad = 8 * (z_font.size / 74)
         risk = getattr(typo_spec, "readability_risk", "low")
         radius = base_rad * (1.8 if risk == "high" else 1.3 if risk == "medium" else 1.0)
         h_col = (255, 252, 240, 140 if risk == "high" else 100) if (sum(col[:3]) > 400) else (0, 0, 0, 110 if risk == "high" else 70)
         
-        if i == 0:
-            if not getattr(typo_spec, "show_reference", True): continue
-            if typo_spec and typo_spec.has_glow: draw_top_ornament(z_draw, cx, z_y - 22, typo_spec.orn_color)
+        # Create a dedicated layer for this zone's text to apply effects cleanly
+        zone_mask = Image.new("RGBA", target_size, (0, 0, 0, 0))
+        z_draw = ImageDraw.Draw(zone_mask)
         
+        final_lines = zd["lines"]
+        is_ar_zone = zd.get("is_arabic", False)
+        
+        # Starting vertical position
         ty = z_y
-        for ln in zd["lines"]:
-            sw = 1 if (i == 1 and typo_spec and typo_spec.text_style.weight == "Bold") else 0
-            draw_text_advanced(z_draw, (cx, ty), ln, font=z_font, fill=fc, anchor=anchor, letter_spacing=lp_track, stroke_width=sw, stroke_fill=fc)
-            bbox = draw_tmp.textbbox((0, 0), ln, font=z_font)
-            ty += (bbox[3] - bbox[1]) + zd_ls
-
-        if i == 0 and typo_spec and typo_spec.text_style.layout_mode == "Stack":
-            draw_zone_separator(z_draw, cx, ty + zd_ls // 2, typo_spec.orn_color)
-
-        # Layers: Halo -> Shadow -> Text
-        halo_layer = apply_text_halo(zone_mask, radius=int(radius), halo_color=h_col)
-        shd_radius = max(1, int(4 * (z_font.size / 74))) if risk == "high" else max(1, int(2 * (z_font.size / 74)))
-        shadow_mask = zone_mask.split()[-1].filter(ImageFilter.GaussianBlur(shd_radius))
-        shadow_layer = Image.new("RGBA", target_size, shd_fill); shadow_layer.putalpha(shadow_mask)
         
-        if halo_layer: bg_rgba = Image.alpha_composite(bg_rgba, halo_layer)
-        dy = max(1, int(2 * (z_font.size / 74)))
-        shadow_final = Image.new("RGBA", target_size, (0,0,0,0)); shadow_final.paste(shadow_layer, (0, dy))
-        bg_rgba = Image.alpha_composite(bg_rgba, shadow_final)
-        bg_rgba = Image.alpha_composite(bg_rgba, zone_mask)
+        for lyr_idx, line in enumerate(final_lines):
+            # Process Arabic text if needed (Reshaping + BIDI)
+            display_text = reshape_arabic(line) if is_ar_zone else line
+            
+            # 1. Shadow/Glow Pass (Indented Correctly)
+            if z_style:
+                if z_style.glow_style != "none":
+                    draw_glow(z_draw, (cx, ty), display_text, z_font, h_col, radius*1.5, anchor=anchor, tracking=lp_track, is_arabic=is_ar_zone)
+                if z_style.shadow_fill[3] > 0:
+                    # Subtle drop shadow
+                    draw_text_advanced(z_draw, (cx + z_style.shadow_dx, ty + z_style.shadow_dy), display_text, font=z_font, fill=shd_fill, anchor=anchor, letter_spacing=lp_track, is_arabic=is_ar_zone)
+
+            # 2. Ornament Pass (Reference Zone Only)
+            if i == 0 and lyr_idx == 0:
+                if not getattr(typo_spec, "show_reference", True): continue
+                if typo_spec and typo_spec.has_glow:
+                    draw_top_ornament(z_draw, cx, ty - 22, typo_spec.orn_color)
+            
+            # 3. Main Text Stroke (for Bolder legibility)
+            sw = 1 if (i == 1 and typo_spec and typo_spec.text_style.weight == "Bold") else 0
+            
+            # 4. Final Text Draw
+            draw_text_advanced(z_draw, (cx, ty), display_text, font=z_font, fill=fc, anchor=anchor, letter_spacing=lp_track, stroke_width=sw, stroke_fill=fc)
+            
+            # 5. Measure & Advance
+            bbox = draw_tmp.textbbox((0, 0), display_text, font=z_font)
+            line_h = bbox[3] - bbox[1]
+            ty += line_h + zd_ls
+
+        # 6. Zone Separator (if applicable)
+        if i == 0 and typo_spec and typo_spec.text_style.layout_mode == "Stack":
+             draw_zone_separator(z_draw, cx, ty + zd_ls // 2, typo_spec.orn_color)
+
+        # 7. Final Composite
+        bg_rgba.alpha_composite(zone_mask)
         
     final_img = apply_cinematic_layers(bg_rgba, glow_color=list(g_rgba) if g_rgba else None)
     filename = f"qcard_{int(time.time() * 1000)}.jpg"

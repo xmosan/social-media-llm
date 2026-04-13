@@ -209,6 +209,15 @@ def sync_database_schema(log_func=None):
             ("description", "TEXT"),
             ("config", json_type + " DEFAULT '{}'"),
             ("enabled", "BOOLEAN DEFAULT TRUE")
+        ],
+        "waitlist_entries": [
+            ("ip_address", "VARCHAR"),
+            ("user_agent", "VARCHAR"),
+            ("referrer", "VARCHAR"),
+            ("utm_source", "VARCHAR"),
+            ("utm_medium", "VARCHAR"),
+            ("utm_campaign", "VARCHAR"),
+            ("tags", "VARCHAR DEFAULT ''")
         ]
     }
 

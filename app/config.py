@@ -62,4 +62,14 @@ class Settings(BaseSettings):
     axiom_org_id: str | None = Field(default=None, env="AXIOM_ORG_ID")
     axiom_url: str = Field(default="https://api.axiom.co", env="AXIOM_URL")
 
+    # Quran Foundation API
+    qf_client_id: str | None = Field(default=None, env="QF_CLIENT_ID")
+    qf_client_secret: str | None = Field(default=None, env="QF_CLIENT_SECRET")
+    qf_env: str = Field(default="prod", env="QF_ENV")
+
+    # Email Service (Resend)
+    resend_api_key: str | None = Field(default=None, env="RESEND_API_KEY")
+    resend_from_email: str | None = Field(default="onboarding@resend.dev", env="RESEND_FROM_EMAIL")
+    support_autoreply_enabled: bool = Field(default=True, env="SUPPORT_AUTOREPLY_ENABLED")
+
 settings = Settings()
