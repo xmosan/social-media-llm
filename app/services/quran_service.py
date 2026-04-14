@@ -196,29 +196,40 @@ def get_verse_by_id(db: Session, item_id: int) -> Optional[dict]:
     item = db.query(ContentItem).filter(ContentItem.id == item_id, ContentItem.item_type == "quran").first()
     return normalize_quran_verse(item) if item else None
 
-def get_verse_by_key(db: Session, verse_key: str) -> Optional[dict]:
-    """Retrieves normalized verse by string key 'surah:ayah'."""
-    try:
-        surah, ayah = parse_quran_reference(verse_key)
-        item = get_quran_ayah(db, surah, ayah)
-        return normalize_quran_verse(item) if item else None
-    except Exception:
-        return None
 
-def get_quran_ayahs_by_theme(db: Session, theme: str, limit: int = 10) -> List[dict]:
-    """
-    Alias for search but explicitly targeting theme slugs.
-    """
+def get_surah_list():
+    """Returns a list of all 114 surahs with metadata from the static map."""
+    from app.services.quran_serialization import SURAH_MAP
+    surahs = []
+    for num, info in sorted(SURAH_MAP.items()):
+        surahs.append({
+            "number": num,
+            "name_en": info["en"],
+            "name_ar": info["ar"],
+            "total_verses": info["verses"],
+            "revelation_place": info["type"]
+        })
+    return surahs
+
+def get_surah_verses(db: Session, surah_num: int) -> List[dict]:
+    """Retrieves all normalized verses for a specific surah."""
+    # We filter by title pattern "Surah {num}, Verse %" and sort by parsed verse number
+    # This is safer than meta filtering if JSON support is inconsistent.
+    title_prefix = f"Surah {surah_num}, Verse "
     results = db.query(ContentItem).filter(
         ContentItem.item_type == "quran",
-        ContentItem.topics_slugs.contains([theme.lower()])
-    ).limit(limit).all()
+        ContentItem.title.ilike(f"{title_prefix}%")
+    ).all()
     
-    # Fallback to general search if theme slug has no matches
-    if not results:
-        return [normalize_quran_verse(r) for r in search_quran(db, theme, limit)]
-    
-    return [normalize_quran_verse(r) for r in results]
+    # Sort manually by ayah number safely
+    def sort_key(item):
+        try:
+            return int(item.title.split("Verse ")[-1])
+        except:
+            return 0
+            
+    sorted_results = sorted(results, key=sort_key)
+    return [normalize_quran_verse(r) for r in sorted_results]
 
 def get_verse_by_reference(db: Session, reference: str) -> Optional[dict]:
     """

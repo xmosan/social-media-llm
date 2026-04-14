@@ -13,6 +13,7 @@ from typing import List, Optional
 
 router = APIRouter(prefix="/api/quran", tags=["Quran Foundation"])
 
+
 @router.get("/ayah/{surah}/{ayah}")
 async def api_get_ayah(
     surah: int, 
@@ -25,6 +26,37 @@ async def api_get_ayah(
         raise HTTPException(status_code=404, detail=f"Ayah {surah}:{ayah} not found in database.")
     
     return normalize_quran_verse(item)
+
+@router.get("/surahs")
+async def api_get_surahs(
+    user: User = Depends(require_user)
+):
+    from app.services.quran_service import get_surah_list
+    return get_surah_list()
+
+@router.get("/surahs/{number}")
+async def api_get_surah_detail(
+    number: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_user)
+):
+    from app.services.quran_service import get_surah_verses, get_surah_list
+    from app.services.quran_serialization import SURAH_MAP
+    
+    if number not in SURAH_MAP:
+        raise HTTPException(status_code=404, detail="Surah not found")
+        
+    meta = SURAH_MAP[number]
+    verses = get_surah_verses(db, number)
+    
+    return {
+        "number": number,
+        "name_en": meta["en"],
+        "name_ar": meta["ar"],
+        "total_verses": meta["verses"],
+        "revelation_place": meta["type"],
+        "verses": verses
+    }
 
 @router.get("/search")
 async def api_search_quran(
