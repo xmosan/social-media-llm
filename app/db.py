@@ -106,7 +106,8 @@ def sync_database_schema(log_func=None):
             ("post_format", "VARCHAR"),
             ("visual_style", "VARCHAR"),
             ("hook_style", "VARCHAR"),
-            ("strictness_mode", "VARCHAR DEFAULT 'balanced'")
+            ("strictness_mode", "VARCHAR DEFAULT 'balanced'"),
+            ("source_metadata", json_type)
         ],
         "users": [
             ("name", "VARCHAR"),

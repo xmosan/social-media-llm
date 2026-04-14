@@ -34,6 +34,166 @@ def get_quran_ayah(db: Session, surah: int, ayah: int) -> Optional[ContentItem]:
         logger.warning(f"⚠️ [QuranService] Ayah not found: {title}")
     return item
 
+def normalize_reference_input(text: str) -> str:
+    """
+    Normalizes user input to a clean reference string.
+    Removes common labels like 'Surah', 'Verse', 'Ayah', 'Quran', and extra spaces.
+    Example: "Surah 70:5" -> "70:5"
+    """
+    if not text:
+        return ""
+    text = text.strip()
+    # Remove common prefixes/labels case-insensitively
+    labels = ["surah", "verse", "ayah", "quran", "qur'an"]
+    import re
+    for label in labels:
+        text = re.sub(rf"^{label}\s+", "", text, flags=re.IGNORECASE)
+    return text.strip()
+
+def parse_quran_reference(ref: str) -> tuple[int, int]:
+    """
+    Accept only formats like: "70:5", "2:286", "112:1"
+    Returns (surah, ayah)
+    """
+    ref = normalize_reference_input(ref)
+    
+    if ":" not in ref:
+        raise ValueError(f"Invalid reference format: '{ref}'. Expected format 'surah:ayah' (e.g., 70:5)")
+    
+    parts = ref.split(":")
+    if len(parts) != 2:
+        raise ValueError(f"Invalid reference format: '{ref}'. Multiple colons found.")
+    
+    try:
+        surah = int(parts[0].strip())
+        ayah = int(parts[1].strip())
+    except ValueError:
+        raise ValueError(f"Invalid reference format: '{ref}'. Surah and Ayah must be integers.")
+    
+    if surah <= 0 or ayah <= 0:
+        raise ValueError(f"Invalid reference values: '{ref}'. Numbers must be greater than zero.")
+        
+    return surah, ayah
+
+def get_quran_ayah_exact(surah: int, ayah: int, db: Session) -> dict:
+    """
+    Return the exact ayah record and matching translation.
+    No fuzzy logic. No theme matching. No random fallback.
+    """
+    item = get_quran_ayah(db, surah, ayah)
+    
+    if not item:
+        logger.error(f"❌ [QURAN][ERROR] Verse not found: {surah}:{ayah}")
+        raise ValueError(f"Verse not found: {surah}:{ayah}")
+    
+    # Extract translator from meta if available
+    translator = item.meta.get("translation_id", "Unknown")
+    if translator == "131":
+        translator = "Sahih International"
+    
+    payload = {
+        "id": item.id,
+        "source_type": "quran",
+        "surah": surah,
+        "ayah": ayah,
+        "reference": f"Qur'an {surah}:{ayah}",
+        "arabic_text": item.arabic_text,
+        "translation_text": item.text,
+        "translator": translator,
+        "verse_key": f"{surah}:{ayah}"
+    }
+    
+    if not payload["translation_text"]:
+        logger.error(f"❌ [QURAN][ERROR] Translation missing for: {surah}:{ayah}")
+        raise ValueError(f"Translation missing for: {surah}:{ayah}")
+        
+    logger.info(f"✅ [QURAN] Exact verse fetch success: {surah}:{ayah}")
+    return payload
+
+def resolve_quran_input(user_input: str, db: Session) -> dict:
+    """
+    If the input looks like a direct reference, use exact lookup only.
+    If it does not, route to search mode.
+    """
+    user_input = user_input.strip()
+    logger.info(f"📡 [QURAN] Raw input received: {user_input}")
+    
+    # Check if it matches reference pattern (basic check before parsing)
+    # Pattern: Digit(s) followed by colon then Digit(s)
+    import re
+    normalized = normalize_reference_input(user_input)
+    if re.match(r"^\d+:\d+$", normalized):
+        logger.info(f"🎯 [QURAN] Normalized reference: {normalized}")
+        try:
+            surah, ayah = parse_quran_reference(normalized)
+            return get_quran_ayah_exact(surah, ayah, db)
+        except ValueError as e:
+            logger.error(f"❌ [QURAN][ERROR] Invalid reference input: {user_input} - {e}")
+            raise e
+    
+    # Otherwise, it's a search
+    logger.info(f"🔎 [QURAN] Route to keyword search path: '{user_input}'")
+    results = search_quran(db, user_input)
+    # Formatting for return
+    return [
+        {
+            "id": r.id,
+            "title": r.title,
+            "text": r.text,
+            "arabic": r.arabic_text,
+            "meta": r.meta
+        } for r in results
+    ]
+
+def build_quran_quote_payload(user_input: str, db: Session) -> dict:
+    """
+    Build the exact payload used by the quote renderer.
+    """
+    try:
+        data = resolve_quran_input(user_input, db)
+        
+        # If it returned a list (search results), we take the first match or fail
+        # But for direct lookup, it returns a dict.
+        if isinstance(data, list):
+            if not data:
+                raise ValueError(f"No results found for search: '{user_input}'")
+            # In search mode, we might want to let user select, 
+            # but for build_payload (e.g. from studio), we need the exact item.
+            # If resolve_quran_input was called with a direct reference, it returns the dict.
+            # If search, we take the first.
+            item_data = data[0]
+            # Convert search result format back to exact format if needed
+            # Actually, let's just use the item_id to get exact if it came from search
+            item = db.query(ContentItem).filter(ContentItem.id == item_data["id"]).first()
+            surah = item.meta.get("surah_number")
+            ayah = item.meta.get("verse_number")
+            exact_data = get_quran_ayah_exact(surah, ayah, db)
+        else:
+            exact_data = data
+            
+        payload = {
+            "source_type": "quran",
+            "source_reference": exact_data["reference"],
+            "source_metadata": {
+                "surah": exact_data["surah"],
+                "ayah": exact_data["ayah"],
+                "verse_key": exact_data["verse_key"],
+                "translator": exact_data["translator"],
+                "arabic_text": exact_data["arabic_text"],
+                "translation_text": exact_data["translation_text"]
+            },
+            "top_line": exact_data["reference"],
+            "main_text": exact_data["translation_text"],
+            "sub_text": "",
+            "arabic_text": exact_data["arabic_text"]
+        }
+        logger.info(f"✅ [QURAN] Quote payload built: {payload['top_line']}")
+        return payload
+
+    except Exception as e:
+        logger.error(f"❌ [QURAN][ERROR] Failed to build quote payload: {e}")
+        raise e
+
 def search_quran(db: Session, query: str, limit: int = 15) -> List[ContentItem]:
     """
     Searches for verses by keyword in English text or within topic slugs.
@@ -73,12 +233,10 @@ def get_quran_ayahs_by_theme(db: Session, theme: str, limit: int = 10) -> List[C
 def get_verse_by_reference(db: Session, reference: str) -> Optional[ContentItem]:
     """
     Parses a reference like '70:5' or 'Surah 70:5' and returns the verse.
+    NOW uses the strict parser.
     """
-    import re
-    # Match patterns like 70:5 or 70.5
-    match = re.search(r"(\d+)[:.](\d+)", reference)
-    if match:
-        surah = int(match.group(1))
-        ayah = int(match.group(2))
+    try:
+        surah, ayah = parse_quran_reference(reference)
         return get_quran_ayah(db, surah, ayah)
-    return None
+    except Exception:
+        return None

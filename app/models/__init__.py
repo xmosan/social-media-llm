@@ -143,6 +143,7 @@ class Post(Base):
     visual_mode = Column(String, default="upload", nullable=False) # upload, media_library, ai_background, quote_card
     visual_prompt = Column(Text, nullable=True)
     library_item_id = Column(Integer, ForeignKey("content_items.id"), nullable=True)
+    source_metadata = Column(JSON, nullable=True)
 
     # NEW: Islamic Content Intelligence fields
     intent_type = Column(String, nullable=True)

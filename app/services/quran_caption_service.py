@@ -35,10 +35,25 @@ TASK:
 Craft the caption based on the provided verse. Only output the final 3-line structured caption.
 """
 
-def generate_ai_caption_from_quran(item: ContentItem, style: str = "reflective") -> str:
+def generate_ai_caption_from_quran(item_or_payload: any, style: str = "reflective") -> str:
     """
-    Generates an AI caption that is strictly grounded in the provided ContentItem (Quran Verse).
+    Generates an AI caption that is strictly grounded in the provided Quran Verse.
+    Supports either a ContentItem model or a payload dictionary.
     """
+    if isinstance(item_or_payload, dict):
+        reference = item_or_payload.get("reference") or item_or_payload.get("source_reference")
+        arabic_text = item_or_payload.get("arabic_text")
+        translation_text = item_or_payload.get("translation_text") or item_or_payload.get("main_text")
+    else:
+        # Assume ContentItem
+        reference = item_or_payload.title
+        arabic_text = item_or_payload.arabic_text
+        translation_text = item_or_payload.text
+
+    if not translation_text:
+        logger.error("❌ [QuranCaption] Missing translation text for grounding.")
+        return "Allah is with the patient."
+
     if not settings.openai_api_key:
         logger.error("❌ [QuranCaption] Missing OpenAI API Key.")
         return f"{item.text} ({item.title})\n\nTrust in the wisdom of your Creator.\n\nHe knows what you do not."
@@ -54,9 +69,9 @@ def generate_ai_caption_from_quran(item: ContentItem, style: str = "reflective")
     tone_hint = tone_map.get(style, tone_map["reflective"])
 
     prompt = QURAN_GROUNDED_PROMPT.format(
-        reference=item.title,
-        arabic_text=item.arabic_text or "N/A",
-        translation_text=item.text,
+        reference=reference,
+        arabic_text=arabic_text or "N/A",
+        translation_text=translation_text,
         tone_hint=tone_hint
     )
 

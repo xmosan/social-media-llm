@@ -38,22 +38,23 @@ async def api_search_quran(
     db: Session = Depends(get_db),
     user: User = Depends(require_user)
 ):
-    # Try reference lookup first (e.g. 70:5)
-    ref_item = get_verse_by_reference(db, q)
-    if ref_item:
-        results = [ref_item]
-    else:
-        results = search_quran(db, q, limit)
+    from app.services.quran_service import resolve_quran_input
+    
+    try:
+        data = resolve_quran_input(q, db)
         
-    return [
-        {
-            "id": r.id,
-            "title": r.title,
-            "text": r.text,
-            "arabic": r.arabic_text,
-            "meta": r.meta
-        } for r in results
-    ]
+        # If it's a direct reference dict, wrap in a list for the UI list view
+        if isinstance(data, dict):
+            return [data]
+        
+        # If it's a list (search results), return as is
+        return data
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Search failure: {e}")
+        raise HTTPException(status_code=500, detail="An error occurred during search.")
 
 @router.post("/generate-caption")
 async def api_generate_quran_caption(

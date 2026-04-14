@@ -134,6 +134,18 @@ def intake_post(
         # Allow text-only initial intake or fallback if nothing else matched
         print("[INTAKE] No specific media resolve path hit.")
         pass
+    # Enhanced: Handle Quran Source Metadata Traceability
+    source_metadata = None
+    if source_type == "quran" and source_reference:
+        from app.services.quran_service import build_quran_quote_payload
+        try:
+            payload = build_quran_quote_payload(source_reference, db)
+            source_metadata = payload.get("source_metadata")
+            # Ensure foundation is set
+            source_foundation = "quran"
+        except Exception as e:
+            print(f"⚠️ [INTAKE] Failed to fetch Quran metadata for {source_reference}: {e}")
+
     post = Post(
         org_id=org_id,
         ig_account_id=ig_account_id,
@@ -143,6 +155,7 @@ def intake_post(
         topic=topic,
         post_type=post_type,
         source_reference=source_reference,
+        source_metadata=source_metadata,
         media_url=public_url,
         visual_mode=visual_mode,
         visual_prompt=visual_prompt,
