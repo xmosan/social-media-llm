@@ -231,14 +231,25 @@ def get_surah_verses(db: Session, surah_num: int) -> List[dict]:
     sorted_results = sorted(results, key=sort_key)
     return [normalize_quran_verse(r) for r in sorted_results]
 
-def get_verse_by_reference(db: Session, reference: str) -> Optional[dict]:
+def get_quran_ayahs_by_theme(db: Session, theme: str, limit: int = 5) -> List[ContentItem]:
     """
-    Parses a reference like '70:5' or 'Surah 70:5' and returns the verse.
-    NOW uses the strict parser.
+    Retrieves verses matching a specific theme/topic slug.
+    Used by the Caption Engine for grounded generation.
+    """
+    theme = theme.lower().strip()
+    results = db.query(ContentItem).filter(
+        ContentItem.item_type == "quran",
+        ContentItem.topics_slugs.contains([theme])
+    ).limit(limit).all()
+    return results
+
+def get_verse_by_reference(db: Session, reference: str) -> Optional[ContentItem]:
+    """
+    Parses a reference like '70:5' and returns the raw ContentItem object.
+    Used by Caption Engine and other services expecting the SQLAlchemy model.
     """
     try:
         surah, ayah = parse_quran_reference(reference)
-        item = get_quran_ayah(db, surah, ayah)
-        return normalize_quran_verse(item) if item else None
+        return get_quran_ayah(db, surah, ayah)
     except Exception:
         return None
