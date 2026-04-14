@@ -1586,7 +1586,14 @@ def render_minimal_quote_card(
             mode = "preset"
         else:
             bg = dalle_bg
-            bg = apply_vignette(bg, intensity=0.38)
+            # Analyze background to detect if it's too bright/busy
+            center_b = _detect_center_brightness(bg, target_size)
+            if center_b > 180:
+                # Add a subtle dark wash to ensure white text pops or switch to dark text
+                # We'll stick to a subtle wash to preserve the aesthetic
+                bg = apply_vignette(bg, intensity=0.45)
+            else:
+                bg = apply_vignette(bg, intensity=0.38)
 
     if mode == "preset":
         key = style if style in PRESET_CONFIGS else "quran"
@@ -1668,7 +1675,7 @@ def render_minimal_quote_card(
             opacity = 1.0
             z_style = None
             
-        # Font Selection
+        # Font Selection (with robust fallback)
         variant = "Inter"
         if typo_spec and typo_spec.text_style:
             f_base = "Amiri" if typo_spec.text_style.font_family == "Serif" else "Inter"
@@ -1678,9 +1685,20 @@ def render_minimal_quote_card(
             if typo_spec.text_style.italic: variant += "-Italic"
             
         font_path = os.path.join(base_dir, "assets", "fonts", f"{variant}.ttf")
+        
+        # Fallback to base fonts if specific variant missing
         if not os.path.exists(font_path):
-            f_base = "Amiri" if "Amiri" in variant else "Inter"
-            font_path = os.path.join(base_dir, "assets", "fonts", f"{f_base}-Regular.ttf" if f_base == "Amiri" else f"{f_base}.ttf")
+            f_base = "Amiri-Regular" if "Amiri" in variant else "Inter"
+            font_path = os.path.join(base_dir, "assets", "fonts", f"{f_base}.ttf")
+            
+        # Final safety fallback
+        if not os.path.exists(font_path):
+            # Try to find ANY available font in assets/fonts/
+            available = [f for f in os.listdir(os.path.join(base_dir, "assets", "fonts")) if f.endswith(".ttf")]
+            if available:
+                font_path = os.path.join(base_dir, "assets", "fonts", available[0])
+            else:
+                font_path = None # Will trigger load_default()
 
         # Text Preparation
         seg_text = str(seg["text"])
@@ -1804,8 +1822,10 @@ def render_minimal_quote_card(
         if i == 0 and typo_spec and typo_spec.text_style.layout_mode == "Stack":
              draw_zone_separator(z_draw, cx, ty + zd_ls // 2, typo_spec.orn_color)
 
-        # 7. Final Composite
-        bg_rgba.alpha_composite(zone_mask)
+        # 7. Final Composite (Force Alpha Composite for visibility)
+        if zone_mask:
+            bg_rgba = Image.alpha_composite(bg_rgba, zone_mask)
+            print(f"   🖼️  Zone {i} composited.")
         
     final_img = apply_cinematic_layers(bg_rgba, glow_color=list(g_rgba) if g_rgba else None)
     filename = f"qcard_{int(time.time() * 1000)}.jpg"

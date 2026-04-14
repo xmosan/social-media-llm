@@ -3,7 +3,8 @@ Sabeel Studio — Visual System (Theme extraction & DALL-E orchestration)
 """
 from __future__ import annotations
 import os
-import hashlib
+import re
+import random
 from dataclasses import dataclass, field
 from typing import Optional, Tuple, List
 
@@ -570,11 +571,24 @@ _STYLE_FAMILIES = {
 }
 
 def sanitize_for_dalle(prompt: str) -> str:
-    """Removes keywords that reliably trigger calligraphy/mosques in DALL-E."""
-    forbidden = ["islamic", "quran", "koran", "arabic", "muslim", "mosque", "masjid", "script", "allah", "god"]
-    words = prompt.split()
-    safe_words = [w for w in words if w.lower().strip(",.!?") not in forbidden]
-    return " ".join(safe_words)
+    """Removes keywords that reliably trigger calligraphy/mosques/text in DALL-E."""
+    forbidden = {
+        "islamic", "quran", "koran", "arabic", "muslim", "mosque", "masjid", 
+        "script", "allah", "god", "calligraphy", "writing", "lettering", 
+        "alphabet", "verses", "text", "glyphs", "symbols", "typography",
+        "words", "characters", "sentence", "quote", "heading", "title",
+        "label", "inscription", "signature", "watermark", "calligraphic"
+    }
+    words = re.split(r'(\s+|[,.!?])', prompt)
+    safe_words = []
+    for w in words:
+        if not w: continue
+        clean_w = w.lower().strip(",.!? \n\t")
+        if clean_w in forbidden:
+            continue
+        safe_words.append(w)
+    
+    return "".join(safe_words).strip()
 
 _VARIATION_HISTORY = {}
 
@@ -625,18 +639,23 @@ def compose_dalle_prompt(spec: VisualSpec, raw_prompt: str = "") -> str:
     variations_str = ", ".join(var_list)
     
     # Sanitize user input to keep it visual, not semantic
+    # Aggressively remove anything that looks like a request for text
     safe_user_input = sanitize_for_dalle(raw_prompt) if raw_prompt else ""
     
     # Architecture C: Leading with User Input + Randomized Traits
     # This ensures user's specific items (e.g. "small waterfall") are given max weight
+    # but strictly nested within a "NO TEXT" shell.
     final_prompt = (
         f"{_HARD_CONSTRAINTS} "
-        f"A beautiful square background plate image showing: {safe_user_input}. "
-        f"Artistic style traits: {variations_str}. "
+        "IMAGE TYPE: PURE BACKGROUND PLATE. "
+        f"Visual subject: {safe_user_input if safe_user_input else 'abstract landscape'}. "
+        f"Material & Texture: {variations_str}. "
         f"{v_data['core_traits']} "
-        f"Mood: {spec.mood}. "
+        f"Atmosphere & Mood: {spec.mood}. "
         f"{_COMPOSITION} "
-        "NO MESSAGE. NO QUOTES. NO WORDS. PURE MATERIAL TEXTURE ONLY."
+        "FINAL MANDATE: THE OUTPUT MUST BE A TEXT-FREE IMAGE. "
+        "NO TEXT. NO MESSAGE. NO QUOTES. NO LETTERS. NO CALLIGRAPHY. "
+        "PURE VISUAL TEXTURE AND ATMOSPHERE ONLY. ZERO WRITTEN CHARACTERS."
     )
     print(f"\n🌪️ AUTO-VARIATION TRIGGERED [{v_data['family']}]: {v_data['variation_traits']}")
     return final_prompt
