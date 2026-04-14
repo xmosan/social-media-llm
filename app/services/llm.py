@@ -432,3 +432,54 @@ def refine_caption(text: str, refinement_type: str) -> str:
     except Exception as e:
         print(f"[LLM] Refinement failed: {e}")
         return text # Return original if failed
+def generate_card_message_from_topic(topic: str, tone: str = "calm", intent: str = "wisdom") -> dict[str, Any]:
+    """
+    Generates structured content specifically for a visual quote card based on a topic.
+    """
+    client = get_client()
+    if not client:
+        return {
+            "eyebrow": "Timeless Wisdom",
+            "headline": f"Reflecting on {topic}",
+            "supporting_text": "May your heart find peace in remembrance."
+        }
+
+    prompt = f"""
+    Topic: {topic}
+    Tone: {tone}
+    Intent: {intent}
+
+    Task: Generate a deep, soul-stirring 3-part structured message for a premium Islamic visual quote card.
+    
+    IMPORTANT: Do NOT repeat the topic as the headline unless it is part of a larger contemplative phrase. Focus on the spiritual depth, the wisdom behind it, and the emotional resonance.
+
+    Card Structure:
+    1. Eyebrow: A very short (1-3 words) context or category (e.g., 'DIVINE MERCY', 'TRUE PATIENCE', 'INNER PEACE').
+    2. Headline: A powerful, original spiritual realization or wisdom (max 15 words). MUST be punchy and visually striking. Do NOT just say "{topic}". Instead, express the ESSENCE of {topic}. 
+    3. Supporting Text: A deep, 1-sentence reflection to ground the headline in daily practice or heart-work.
+
+    Format: JSON only.
+    {{
+        "eyebrow": "string",
+        "headline": "string",
+        "supporting_text": "string"
+    }}
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a master of spiritual typography and minimalist Islamic content design."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"}
+        )
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        print(f"[LLM] Card message generation failed: {e}")
+        return {
+            "eyebrow": topic.upper(),
+            "headline": f"The Essence of {topic}",
+            "supporting_text": "Searching for deeper meaning in the path of the righteous."
+        }

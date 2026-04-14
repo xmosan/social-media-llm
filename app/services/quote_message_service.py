@@ -13,7 +13,7 @@ def build_quote_card_message(source_type: str, source_payload: Dict[str, Any], t
     if source_type == "quran":
         return build_quran_quote_message(source_payload, tone, intent)
     elif source_type == "manual":
-        return build_manual_quote_message(source_payload)
+        return build_manual_quote_message(source_payload, tone, intent)
     else:
         # Fallback for library or other types
         return {
@@ -46,15 +46,33 @@ def build_quran_quote_message(ayah_record: Dict[str, Any], tone: str, intent: st
     message = {
         "eyebrow": reference,
         "headline": translation,
-        "supporting_text": ""
+        "supporting_text": "",
+        "arabic_text": ayah_record.get("arabic_text", "")
     }
     
     logger.info("[QUOTE_MESSAGE] Card message built successfully")
     return message
 
-def build_manual_quote_message(payload: Dict[str, Any]) -> Dict[str, Any]:
+def build_manual_quote_message(payload: Dict[str, Any], tone: str = "calm", intent: str = "wisdom") -> Dict[str, Any]:
+    # Check if this is a "topic" that needs expansion
+    topic = payload.get("topic") or payload.get("reference")
+    
+    # If we have a specific headline already, use it (custom input)
+    if payload.get("headline") or payload.get("text"):
+        return {
+            "eyebrow": payload.get("eyebrow", ""),
+            "headline": payload.get("headline", payload.get("text", "")),
+            "supporting_text": payload.get("supporting_text", "")
+        }
+    
+    # Otherwise, if we only have a topic, use LLM to expand it
+    if topic:
+        from .llm import generate_card_message_from_topic
+        logger.info(f"[QUOTE_MESSAGE] Expanding topic '{topic}' via LLM")
+        return generate_card_message_from_topic(topic, tone, intent)
+
     return {
-        "eyebrow": payload.get("eyebrow", ""),
-        "headline": payload.get("headline", payload.get("text", "")),
-        "supporting_text": payload.get("supporting_text", "")
+        "eyebrow": "",
+        "headline": "Inspired by Divine Wisdom",
+        "supporting_text": ""
     }

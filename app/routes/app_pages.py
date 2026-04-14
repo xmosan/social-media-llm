@@ -440,6 +440,11 @@ STUDIO_SCRIPTS_JS = """
         try {
             const res = await fetch('/ig-accounts/set-active/' + id, { method: 'POST' });
             if (res.ok) window.location.reload();
+        } catch (e) { console.error("Set active account failed", e); }
+    }
+</script>
+"""
+
 STUDIO_COMPONENTS_HTML = """
 <!-- CONTENT STUDIO MODAL -->
 <div id="newPostModal" class="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[100] flex items-end md:items-center justify-center p-0 md:p-10 hidden">
@@ -486,7 +491,7 @@ STUDIO_COMPONENTS_HTML = """
           <!-- PHASE 1: THE SPARK (Card Message Generation) -->
           <div id="studioSection1" class="studio-section space-y-10 animate-in slide-in-from-right-8 duration-500">
             <div>
-              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 01</label>
+              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 1</label>
               <h4 class="text-3xl font-bold text-brand italic">Ignite the Spark</h4>
               <p class="text-xs text-text-muted mt-2 font-medium">Search the Qur'an or define a topic to build your card's central message.</p>
             </div>
@@ -555,7 +560,7 @@ STUDIO_COMPONENTS_HTML = """
           <!-- PHASE 2: THE VISION (Quote Card) -->
           <div id="studioSection2" class="studio-section hidden space-y-10 animate-in slide-in-from-right-8 duration-500">
             <div>
-              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 02</label>
+              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 2</label>
               <h4 class="text-3xl font-bold text-brand italic">Visualize the Wisdom</h4>
               <p class="text-xs text-text-muted mt-2 font-medium">Select your palette and engine to manifest the card's visual identity.</p>
             </div>
@@ -619,9 +624,9 @@ STUDIO_COMPONENTS_HTML = """
           <!-- PHASE 3: THE PRESENCE (Social Caption) -->
           <div id="studioSection3" class="studio-section hidden space-y-10 animate-in slide-in-from-right-8 duration-500">
             <div>
-              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 03</label>
-              <h4 class="text-3xl font-bold text-brand italic">The Presence</h4>
-              <p class="text-xs text-text-muted mt-2 font-medium">Craft the social media caption and schedule the activation.</p>
+              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 3</label>
+              <h4 class="text-3xl font-bold text-brand italic">The Social Presence</h4>
+              <p class="text-xs text-text-muted mt-2 font-medium">Draft your social engagement copy (Hook, Body, CTA).</p>
             </div>
 
             <div class="space-y-8">
@@ -656,7 +661,7 @@ STUDIO_COMPONENTS_HTML = """
           <!-- PHASE 4: THE MANIFEST (Review) -->
           <div id="studioSection4" class="studio-section hidden space-y-12 animate-in slide-in-from-right-8 duration-500">
             <div>
-              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 04</label>
+              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 4</label>
               <h4 class="text-3xl font-bold text-brand italic">The Manifest</h4>
               <p class="text-xs text-text-muted mt-2 font-medium">Confirm your manifestation parameters.</p>
             </div>
@@ -1730,7 +1735,7 @@ ONBOARDING_HTML = """<!doctype html>
       if (currentStep === 1) {
         card.innerHTML = `
           <div class="space-y-6">
-            <h2 class="text-sm font-black text-indigo-400 uppercase tracking-widest">Step 01</h2>
+            <h2 class="text-sm font-black text-indigo-400 uppercase tracking-widest">Step 1</h2>
             <h3 class="text-4xl font-black italic text-white tracking-tight">Name your workspace.</h3>
             <p class="text-muted text-sm font-medium">This is where your brands and teams will live.</p>
             <div class="pt-4">
@@ -1742,7 +1747,7 @@ ONBOARDING_HTML = """<!doctype html>
       } else if (currentStep === 2) {
         card.innerHTML = `
           <div class="space-y-6">
-            <h2 class="text-sm font-black text-indigo-400 uppercase tracking-widest">Step 02</h2>
+            <h2 class="text-sm font-black text-indigo-400 uppercase tracking-widest">Step 2</h2>
             <h3 class="text-4xl font-black italic text-white tracking-tight">Intelligence Mode.</h3>
             <p class="text-muted text-sm font-medium">How should we source your daily inspiration?</p>
             <div class="grid grid-cols-1 gap-4 pt-4">
@@ -1771,7 +1776,7 @@ ONBOARDING_HTML = """<!doctype html>
       } else if (currentStep === 3) {
         card.innerHTML = `
           <div class="space-y-6">
-            <h2 class="text-sm font-black text-indigo-400 uppercase tracking-widest">Step 03</h2>
+            <h2 class="text-sm font-black text-indigo-400 uppercase tracking-widest">Step 3</h2>
             <h3 class="text-4xl font-black italic text-white tracking-tight">First Automation.</h3>
             <p class="text-muted text-sm font-medium">Let's configure your first daily posting cycle.</p>
             <div class="space-y-4 pt-4">
@@ -1793,7 +1798,7 @@ ONBOARDING_HTML = """<!doctype html>
       } else if (currentStep === 4) {
         card.innerHTML = `
           <div class="space-y-6">
-            <h2 class="text-sm font-black text-indigo-400 uppercase tracking-widest">Step 04</h2>
+            <h2 class="text-sm font-black text-indigo-400 uppercase tracking-widest">Step 4</h2>
             <h3 class="text-4xl font-black italic text-white tracking-tight">System Ready.</h3>
             <div class="bg-indigo-500/10 border border-indigo-500/20 p-8 rounded-[2rem] space-y-4">
                <div class="flex justify-between text-[10px] font-black uppercase tracking-widest"><span>Workspace</span> <span class="text-white">${onboardingData.orgName}</span></div>

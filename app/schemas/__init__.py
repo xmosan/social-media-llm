@@ -15,7 +15,7 @@ class OrgOut(BaseModel):
     name: str
     created_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class IGAccountOut(BaseModel):
     id: int
@@ -29,7 +29,7 @@ class IGAccountOut(BaseModel):
     daily_post_time: str
     created_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class MetaAccountOption(BaseModel):
     ig_user_id: str
@@ -83,7 +83,7 @@ class PostOut(BaseModel):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ApproveIn(BaseModel):
     scheduled_time: datetime | None = None
@@ -128,7 +128,7 @@ class ContentProfileOut(BaseModel):
     updated_at: datetime
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ContentProfileCreate(BaseModel):
     name: str
@@ -180,7 +180,7 @@ class TopicAutomationOut(BaseModel):
     verification_mode: str = "standard"
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class TopicAutomationCreate(BaseModel):
     ig_account_id: int
@@ -294,7 +294,7 @@ class ContentSourceOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ContentSourceCreate(BaseModel):
     name: str
@@ -329,7 +329,7 @@ class ContentItemOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class ContentItemCreate(BaseModel):
     source_id: int | None = None # Optional if source_name is provided
@@ -380,7 +380,7 @@ class MediaAssetOut(BaseModel):
         return v
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class MediaAssetCreate(BaseModel):
     ig_account_id: int | None = None
@@ -407,7 +407,7 @@ class SourceChunkOut(BaseModel):
     chunk_metadata: dict | None = None
     created_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class SourceDocumentOut(BaseModel):
     id: int
@@ -419,7 +419,7 @@ class SourceDocumentOut(BaseModel):
     created_at: datetime
     chunks: list[SourceChunkOut] = []
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class SourceDocumentCreate(BaseModel):
     title: str

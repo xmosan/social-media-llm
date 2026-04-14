@@ -63,17 +63,30 @@ def generate_quote_card(
                 "is_arabic": is_arabic_segment(card_message["eyebrow"]),
                 "color": (255, 255, 255)
             })
+        
+        # 1.5 Arabic Text (Specific to Quranic content or if provided in payload)
+        if card_message.get("arabic_text"):
+            segments.append({
+                "text": card_message["arabic_text"],
+                "size": sizes[1],
+                "is_arabic": True,
+                "color": (255, 255, 255)
+            })
+
         # 2. Headline (The Quote/Verse)
         if card_message.get("headline"):
             segments.append({
                 "text": card_message["headline"],
-                "size": sizes[1],
+                "size": sizes[1] if not card_message.get("arabic_text") else sizes[2],
                 "is_arabic": is_arabic_segment(card_message["headline"]),
                 "color": (255, 255, 255)
             })
+        
         # 3. Supporting Text (Reference/Explanation)
+        # Note: If arabic_text was present, we might have already used up segments.
+        # But render_minimal_quote_card can take multiple segments.
         if card_message.get("supporting_text"):
-            segments.append({
+             segments.append({
                 "text": card_message["supporting_text"],
                 "size": sizes[2],
                 "is_arabic": is_arabic_segment(card_message["supporting_text"]),

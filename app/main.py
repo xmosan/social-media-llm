@@ -237,8 +237,10 @@ async def api_build_quote_message(req: QuoteCardBuildRequest, db: Session = Depe
             "surah": verse.surah_number,
             "ayah": verse.verse_number
         }
-    elif req.source_type == "manual" and req.custom_payload:
-        source_payload = req.custom_payload
+    elif req.source_type == "manual":
+        source_payload = req.custom_payload or {}
+        if req.reference and not source_payload.get("topic"):
+            source_payload["topic"] = req.reference
     
     try:
         msg = build_quote_card_message(req.source_type, source_payload, req.tone, req.intent)
@@ -277,8 +279,10 @@ async def api_generate_caption(req: CaptionGenerateRequest, db: Session = Depend
             "text": verse.text,
             "arabic_text": verse.arabic_text
         }
-    elif req.source_type == "manual" and req.custom_payload:
-        source_payload = req.custom_payload
+    elif req.source_type == "manual":
+        source_payload = req.custom_payload or {}
+        if req.reference and not source_payload.get("text"):
+            source_payload["text"] = req.reference
 
     try:
         caption = generate_caption_from_source(

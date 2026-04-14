@@ -2,7 +2,7 @@
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
 from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, ForeignKey, Boolean, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB
+# from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 
@@ -314,8 +314,8 @@ class ContentItem(Base):
     meta = Column(JSON, nullable=False, default=dict) # New: structured metadata
     tags = Column(JSON, nullable=False, default=list)
     topic = Column(String, nullable=True) # New: primary topic
-    topics = Column(JSONB, nullable=False, default=list) # Multi-topic tags
-    topics_slugs = Column(JSONB, nullable=False, default=list) # Added: normalized slugs for matching
+    topics = Column(JSON, nullable=False, default=list) # Multi-topic tags
+    topics_slugs = Column(JSON, nullable=False, default=list) # Added: normalized slugs for matching
     
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     use_count = Column(Integer, nullable=False, default=0)

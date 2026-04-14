@@ -92,7 +92,7 @@ def sync_database_schema(log_func=None):
     _log(f"Starting native Postgres sync (Dialect: {engine.dialect.name}, Driver: {engine.driver})")
     
     # Constants for PG
-    json_type = "JSONB"
+    json_type = "JSONB" if engine.dialect.name == "postgresql" else "JSON"
     ts_type = "TIMESTAMP WITH TIME ZONE"
     
     missing_cols = {
