@@ -1815,7 +1815,6 @@ function showEmptyState(type) {
             <p class="text-[11px] text-muted font-bold max-w-xs mx-auto mb-10 tracking-wide italic">Ready to broadcast? Use the <b>Content Intake</b> matrix on the left to upload your FIRST LOCAL POSTER.</p>
             <div class="flex items-center justify-center gap-3 text-brand font-black text-[10px] uppercase tracking-widest italic animate-pulse">
                 <svg class="h-5 w-5 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                <span>Follow Step 03 to manifest</span>
             </div>
         </div>`;
     }
