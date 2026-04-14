@@ -206,8 +206,8 @@ def get_surah_list():
             "number": num,
             "name_en": info["en"],
             "name_ar": info["ar"],
-            "total_verses": info["verses"],
-            "revelation_place": info["type"]
+            "verses_count": info["verses"],
+            "revelation_type": info["type"]
         })
     return surahs
 
@@ -253,3 +253,16 @@ def get_verse_by_reference(db: Session, reference: str) -> Optional[ContentItem]
         return get_quran_ayah(db, surah, ayah)
     except Exception:
         return None
+
+def get_verse_by_key(db: Session, key: str) -> Optional[dict]:
+    """Alias for get_verse_by_reference that returns normalized data."""
+    item = get_verse_by_reference(db, key)
+    return normalize_quran_verse(item) if item else None
+
+def get_quran_ayah_by_id(db: Session, item_id: int) -> Optional[ContentItem]:
+    """Retrieves raw ContentItem by ID."""
+    return db.query(ContentItem).filter(ContentItem.id == item_id, ContentItem.item_type == "quran").first()
+
+def get_quran_ayah_by_key(db: Session, key: str) -> Optional[ContentItem]:
+    """Retrieves raw ContentItem by key (surah:ayah)."""
+    return get_verse_by_reference(db, key)

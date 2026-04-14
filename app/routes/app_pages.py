@@ -3091,28 +3091,46 @@ async def app_library_page(
           loadEntries();
       }
 
-      async function loadSources() {
+        async function loadSources() {
           const list = document.getElementById('sourceList');
           list.innerHTML = '<div class="text-center py-10 text-[9px] text-muted font-bold uppercase animate-pulse">Loading Collections...</div>';
           
           try {
-              const res = await fetch(\`/library/sources?scope=\${showGlobalOnly ? 'global' : 'org'}\`);
+              const url = showGlobalOnly ? '/api/quran/surahs' : '/api/sources';
+              const res = await fetch(url);
               const sources = await res.json();
               
+              if (showGlobalOnly) {
+                  // System view: We just show a dummy "System Library" entry or nothing
+                  document.getElementById('sourceCount').textContent = "∞";
+                  list.innerHTML = `
+                    <div onclick="showView('browse_surahs')" class="p-4 px-5 rounded-2xl cursor-pointer transition-all border flex items-center gap-4 group bg-brand/5 border-brand/20 shadow-sm">
+                        <div class="w-8 h-8 rounded-lg bg-brand text-white flex items-center justify-center shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                        </div>
+                        <div class="flex-1 overflow-hidden">
+                            <div class="text-[10px] font-bold truncate text-brand uppercase tracking-wider">Quran Foundation</div>
+                            <div class="text-[8px] font-bold text-muted uppercase mt-0.5">Global Wisdom</div>
+                        </div>
+                    </div>
+                  `;
+                  return;
+              }
+
               document.getElementById('sourceCount').textContent = sources.length;
               list.innerHTML = sources.map(s => {
                   const isActive = currentSourceId == s.id;
-                  return \`
-                    <div onclick="selectSource(\${s.id})" class="p-4 px-5 rounded-2xl cursor-pointer transition-all border flex items-center gap-4 group \${isActive ? 'bg-brand/5 border-brand/20 shadow-sm' : 'bg-white border-transparent hover:bg-brand/[0.02] hover:border-brand/10'}">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors \${isActive ? 'bg-brand text-white' : 'bg-brand/5 text-brand group-hover:bg-brand/10'}">
+                  return `
+                    <div onclick="selectSource(${s.id})" class="p-4 px-5 rounded-2xl cursor-pointer transition-all border flex items-center gap-4 group ${isActive ? 'bg-brand/5 border-brand/20 shadow-sm' : 'bg-white border-transparent hover:bg-brand/[0.02] hover:border-brand/10'}">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${isActive ? 'bg-brand text-white' : 'bg-brand/5 text-brand group-hover:bg-brand/10'}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
                         </div>
                         <div class="flex-1 overflow-hidden">
-                            <div class="text-[10px] font-bold truncate \${isActive ? 'text-brand' : 'text-text-main group-hover:text-brand'} uppercase tracking-wider">\${s.name}</div>
-                            <div class="text-[8px] font-bold text-muted uppercase mt-0.5">\${s.category || 'Collection'}</div>
+                            <div class="text-[10px] font-bold truncate ${isActive ? 'text-brand' : 'text-text-main group-hover:text-brand'} uppercase tracking-wider">${s.name}</div>
+                            <div class="text-[8px] font-bold text-muted uppercase mt-0.5">${s.category || 'Collection'}</div>
                         </div>
                     </div>
-                  \`;
+                  `;
               }).join('');
 
               if (sources.length === 0) {
@@ -3200,8 +3218,6 @@ async def app_library_page(
 
       function openEntryModalById(id) { /* Reuses existing modal logic if needed */ }
       function openEntryModal() { /* Trigger Modal */ }
-    </script> } catch(e) { alert('Network error'); }
-      }
     </script>
     """
     
