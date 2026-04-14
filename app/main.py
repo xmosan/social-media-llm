@@ -131,7 +131,7 @@ class ComingSoonMiddleware(BaseHTTPMiddleware):
         allowed_prefixes = [
             "/login", "/register", "/auth", "/static", "/api/contact", "/health", "/api-test", "/demo", 
             "/contact", "/privacy", "/terms", "/docs", "/redoc", "/openapi.json", "/generate-caption", "/generate-quote-card", "/api/waitlist",
-            "/api/quran"
+            "/api/quran", "/api/quote-card/build-message", "/api/caption/generate"
         ]
         if path == "/" or any(path.startswith(p) for p in allowed_prefixes):
             # If authenticated and visiting root, redirect to /app
@@ -201,6 +201,99 @@ def health_check():
 
 from app.services.caption_engine import generate_islamic_caption
 from app.services.image_card import generate_quote_card
+from pydantic import BaseModel
+from typing import Optional
+
+# --- NEW STUDIO API ENDPOINTS ---
+
+class QuoteCardBuildRequest(BaseModel):
+    source_type: str
+    reference: Optional[str] = None
+    item_id: Optional[str] = None
+    tone: str = "calm"
+    intent: str = "wisdom"
+    custom_payload: Optional[dict] = None
+
+@app.post("/api/quote-card/build-message")
+async def api_build_quote_message(req: QuoteCardBuildRequest, db: Session = Depends(get_db)):
+    from app.services.quote_message_service import build_quote_card_message
+    from app.services.quran_service import get_verse_by_id, get_verse_by_key
+    
+    source_payload = {}
+    if req.source_type == "quran":
+        verse = None
+        if req.item_id:
+            verse = get_verse_by_id(db, int(req.item_id))
+        elif req.reference:
+            verse = get_verse_by_key(db, req.reference)
+        
+        if not verse:
+            return JSONResponse(status_code=404, content={"detail": "Quran verse not found"})
+        
+        source_payload = {
+            "reference": f"Qur'an {verse.verse_key}",
+            "translation_text": verse.text,
+            "arabic_text": verse.arabic_text,
+            "surah": verse.surah_number,
+            "ayah": verse.verse_number
+        }
+    elif req.source_type == "manual" and req.custom_payload:
+        source_payload = req.custom_payload
+    
+    try:
+        msg = build_quote_card_message(req.source_type, source_payload, req.tone, req.intent)
+        return {"card_message": msg, "source_metadata": source_payload}
+    except Exception as e:
+        logger.error(f"Error building card message: {e}")
+        return JSONResponse(status_code=500, content={"detail": str(e)})
+
+class CaptionGenerateRequest(BaseModel):
+    source_type: str
+    reference: Optional[str] = None
+    item_id: Optional[str] = None
+    tone: str = "calm"
+    intent: str = "wisdom"
+    platform: str = "instagram"
+    custom_payload: Optional[dict] = None
+
+@app.post("/api/caption/generate")
+async def api_generate_caption(req: CaptionGenerateRequest, db: Session = Depends(get_db)):
+    from app.services.caption_service import generate_caption_from_source
+    from app.services.quran_service import get_verse_by_id, get_verse_by_key
+    
+    source_payload = {}
+    if req.source_type == "quran":
+        verse = None
+        if req.item_id:
+            verse = get_verse_by_id(db, int(req.item_id))
+        elif req.reference:
+            verse = get_verse_by_key(db, req.reference)
+            
+        if not verse:
+            return JSONResponse(status_code=404, content={"detail": "Quran verse not found"})
+            
+        source_payload = {
+            "reference": f"Qur'an {verse.verse_key}",
+            "text": verse.text,
+            "arabic_text": verse.arabic_text
+        }
+    elif req.source_type == "manual" and req.custom_payload:
+        source_payload = req.custom_payload
+
+    try:
+        caption = generate_caption_from_source(
+            req.source_type, 
+            source_payload, 
+            req.tone, 
+            req.intent, 
+            req.platform
+        )
+        return {"caption_message": caption}
+    except Exception as e:
+        logger.error(f"Error generating caption: {e}")
+        return JSONResponse(status_code=500, content={"detail": str(e)})
+
+# --- LEGACY ENDPOINTS ---
 
 @app.post("/generate-caption")
 async def generate_caption(data: dict):
@@ -219,6 +312,7 @@ async def generate_caption(data: dict):
 @app.post("/generate-quote-card", summary="Generate a Cinematic Quote Card")
 async def api_generate_quote_card(data: dict):
     caption      = data.get("caption", "").strip()
+    card_message  = data.get("card_message")
     style        = data.get("style", "quran")
     visual_prompt = (data.get("visual_prompt") or "").strip()
     text_style_prompt = (data.get("text_style_prompt") or "").strip()
@@ -241,11 +335,14 @@ async def api_generate_quote_card(data: dict):
     print(f"   engine:       {engine}")
     print(f"   glossy:       {glossy}")
     print(f"   visual_prompt:{repr(visual_prompt)[:80]}")
-    print(f"   caption[:60]: {repr(caption[:60])}")
+    if card_message:
+        print(f"   card_msg:     {list(card_message.keys())}")
+    else:
+        print(f"   caption[:60]: {repr(caption[:60])}")
     print(f"{'*'*60}")
 
-    if not caption:
-        return JSONResponse(status_code=400, content={"error": "Caption is required"})
+    if not caption and not card_message:
+        return JSONResponse(status_code=400, content={"error": "Caption or card_message is required"})
 
     if mode == "custom" and not visual_prompt:
         return JSONResponse(status_code=400, content={
@@ -255,7 +352,7 @@ async def api_generate_quote_card(data: dict):
 
     try:
         image_url = generate_quote_card(
-            caption,
+            caption=caption,
             style=style,
             visual_prompt=visual_prompt or None,
             mode=mode,
@@ -263,7 +360,8 @@ async def api_generate_quote_card(data: dict):
             readability_priority=readability_priority,
             experimental_mode=experimental_mode,
             engine=engine,
-            glossy=glossy
+            glossy=glossy,
+            card_message=card_message
         )
         return {
             "image_url":      image_url,
@@ -424,13 +522,6 @@ def on_startup():
     
     # 2. Sequential Migrations
     log_startup("STARTUP: Running migrations...")
-    # 2. Aggressive Library Migration
-    try:
-        run_admin_library_migration()
-    except Exception as e:
-        log_startup(f"STARTUP: Admin library migration failed: {e}")
-
-    # 3. Aggressive Library Migration
     try:
         run_admin_library_migration()
     except Exception as e:

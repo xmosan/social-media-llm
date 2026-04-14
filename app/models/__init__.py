@@ -157,6 +157,10 @@ class Post(Base):
     hook_style = Column(String, nullable=True)
     strictness_mode = Column(String, default="balanced", nullable=False)
 
+    # NEW: Decoupled content storage
+    card_message = Column(JSON, nullable=True)     # eyebrow, headline, supporting_text
+    caption_message = Column(JSON, nullable=True)  # hook, body, cta, hashtags
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

@@ -69,6 +69,8 @@ class PostOut(BaseModel):
     strictness_mode: str = "balanced"
 
     caption: str | None = None
+    card_message: dict[str, Any] | None = None
+    caption_message: dict[str, Any] | None = None
     hashtags: list[str] | None = None
     alt_text: str | None = None
 
@@ -427,6 +429,8 @@ class SourceDocumentCreate(BaseModel):
 
 class PostUpdate(BaseModel):
     caption: str | None = None
+    card_message: dict[str, Any] | None = None
+    caption_message: dict[str, Any] | None = None
     hashtags: list[str] | None = None
     alt_text: str | None = None
     scheduled_time: datetime | None = None

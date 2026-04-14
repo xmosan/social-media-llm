@@ -22,13 +22,17 @@ router = APIRouter()
 
 STUDIO_SCRIPTS_JS = """
 <script>
-    // --- REMINDER STUDIO CORE LOGIC (v3.0) ---
+    // --- REMINDER STUDIO CORE LOGIC (v4.0 - Decoupled) ---
     let currentQuoteCardUrl = null;
     let isQuoteCardOutOfDate = false;
-    let studioCreationMode = 'preset'; // 'preset' or 'custom'
-    let studioEngine       = 'dalle';  // 'dalle' or 'gemini'
-    let studioGlossy       = false;    // Frosted glass effect
+    let studioCreationMode = 'preset'; 
+    let studioEngine       = 'dalle';  
+    let studioGlossy       = false;    
     let selectedAyahId     = null;
+
+    // Structured State
+    let studioCardMessage = null; // { eyebrow, headline, supporting_text }
+    let studioCaptionMessage = null; // { hook, body, cta, hashtags }
 
     function openNewPostModal() {
         document.getElementById('newPostModal').classList.remove('hidden');
@@ -40,7 +44,17 @@ STUDIO_SCRIPTS_JS = """
     }
 
     function switchStudioSection(stepIndex) {
-        // Hide all sections (4 steps)
+        // Step Validation Logic
+        if (stepIndex === 2 && !studioCardMessage) {
+            alert("Please build your card message first.");
+            return;
+        }
+        if (stepIndex === 4 && (!currentQuoteCardUrl || !studioCaptionMessage)) {
+            alert("Please ensure your visual and caption are ready before moving to Manifest.");
+            return;
+        }
+
+        // Hide all sections
         for(let i=1; i<=4; i++) {
            const el = document.getElementById('studioSection' + i);
            if(el) el.classList.add('hidden');
@@ -54,11 +68,6 @@ STUDIO_SCRIPTS_JS = """
                    num.classList.remove('border-brand', 'text-white', 'bg-brand', 'shadow-lg', 'shadow-brand/20');
                    num.classList.add('border-brand/10');
                }
-               const txt = nav.querySelector('.nav-text');
-               if (txt) {
-                   txt.classList.remove('text-brand');
-                   txt.classList.add('text-text-muted');
-               }
            }
         }
         
@@ -66,7 +75,7 @@ STUDIO_SCRIPTS_JS = """
         const target = document.getElementById('studioSection' + stepIndex);
         if(target) {
             target.classList.remove('hidden');
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            target.scrollTo(0, 0);
         }
         
         const targetNav = document.getElementById('navStep' + stepIndex);
@@ -78,20 +87,199 @@ STUDIO_SCRIPTS_JS = """
                num.classList.remove('border-brand/10');
                num.classList.add('border-brand', 'text-white', 'bg-brand', 'shadow-lg', 'shadow-brand/20');
            }
-           const txt = targetNav.querySelector('.nav-text');
-           if (txt) {
-               txt.classList.remove('text-text-muted');
-               txt.classList.add('text-brand');
-           }
         }
 
-        // Section Specific Hooks
-        if (stepIndex === 4) {
-            prepareManifest();
+        if (stepIndex === 4) prepareManifest();
+    }
+
+    // --- SEARCH & SOURCE ---
+    async function searchQuran() {
+        const query = document.getElementById('studioTopic').value;
+        const resultsArea = document.getElementById('quranSearchResults');
+        if (query.length < 2) {
+            resultsArea.classList.add('hidden');
+            return;
+        }
+        resultsArea.innerHTML = '<div class="p-4 text-center text-[8px] font-bold text-brand animate-pulse uppercase tracking-widest">Searching Foundation...</div>';
+        resultsArea.classList.remove('hidden');
+        try {
+            const res = await fetch(`/api/quran/search?q=${encodeURIComponent(query)}`);
+            const data = await res.json();
+            if (data.length === 0) { resultsArea.classList.add('hidden'); return; }
+            resultsArea.innerHTML = data.map(v => `
+                <div onclick="selectAyah('${v.id}', '${v.title.replace(/'/g, "\\'")}', '${v.text.replace(/'/g, "\\'")}')" class="p-4 border-b border-brand/5 hover:bg-brand/5 cursor-pointer transition-all">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="text-[8px] font-black text-brand uppercase tracking-widest">${v.title}</span>
+                    </div>
+                    <div class="text-[10px] text-text-muted font-medium italic line-clamp-2">${v.text}</div>
+                </div>
+            `).join('');
+        } catch (e) { console.error(e); }
+    }
+
+    function selectAyah(id, title, text) {
+        selectedAyahId = id;
+        document.getElementById('selectedAyahBadge').classList.remove('hidden');
+        document.getElementById('selectedAyahTitle').innerText = title;
+        document.getElementById('quranSearchResults').classList.add('hidden');
+        document.getElementById('studioTopic').value = title;
+    }
+
+    // --- PHASE 1: BUILD CARD MESSAGE ---
+    async function buildCardMessage() {
+        const topic = document.getElementById('studioTopic').value;
+        const intention = document.getElementById('studioIntent').value;
+        const tone = document.getElementById('studioTone').value;
+        const btn = document.getElementById('btnBuildMessage');
+        const icon = btn.querySelector('.btn-icon');
+        const text = btn.querySelector('.btn-text');
+
+        if (!topic && !selectedAyahId) {
+            alert('Please define a topic or select a verse.');
+            return;
+        }
+
+        btn.disabled = true;
+        if(icon) icon.classList.add('animate-spin');
+        if(text) text.innerText = 'Architecting Message...';
+
+        try {
+            const res = await fetch('/api/quote-card/build-message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    source_type: selectedAyahId ? 'quran' : 'manual',
+                    item_id: selectedAyahId,
+                    reference: !selectedAyahId ? topic : null,
+                    tone: tone,
+                    intent: intention
+                })
+            });
+            const data = await res.json();
+            if (data.card_message) {
+                studioCardMessage = data.card_message;
+                // Fill UI fields
+                document.getElementById('editEyebrow').value = studioCardMessage.eyebrow;
+                document.getElementById('editHeadline').value = studioCardMessage.headline;
+                document.getElementById('editSupporting').value = studioCardMessage.supporting_text;
+                document.getElementById('cardMessageWorkspace').classList.remove('hidden');
+                invalidateQuoteCard();
+            }
+        } catch (e) {
+            alert('Architecture failed. Please try again.');
+        } finally {
+            btn.disabled = false;
+            if(icon) icon.classList.remove('animate-spin');
+            if(text) text.innerText = 'Build Quote Card Message';
         }
     }
 
-    // --- SELECTION HANDLERS ---
+    function updateStudioCardFromUI() {
+        if(!studioCardMessage) studioCardMessage = {};
+        studioCardMessage.eyebrow = document.getElementById('editEyebrow').value;
+        studioCardMessage.headline = document.getElementById('editHeadline').value;
+        studioCardMessage.supporting_text = document.getElementById('editSupporting').value;
+        invalidateQuoteCard();
+    }
+
+    // --- PHASE 2: GENERATE VISUAL ---
+    async function generateQuoteCard() {
+        if (!studioCardMessage) { alert("Build a message first."); return; }
+        
+        const btn = document.getElementById('btnGenerateCard');
+        const loader = document.getElementById('cardLoader');
+        const preview = document.getElementById('quoteCardPreview');
+        const syncBanner = document.getElementById('outOfSyncBanner');
+
+        btn.disabled = true;
+        btn.innerText = 'Manifesting Visual...';
+        if (loader) loader.classList.remove('hidden');
+        if (preview) preview.classList.add('hidden');
+        if (syncBanner) syncBanner.classList.add('hidden');
+
+        try {
+            const payload = {
+                card_message: studioCardMessage,
+                style: studioCreationMode === 'custom' ? 'custom' : document.getElementById('studioStyle').value,
+                visual_prompt: document.getElementById('studioVisualPrompt')?.value,
+                text_style_prompt: document.getElementById('studioTextStylePrompt')?.value,
+                engine: studioEngine,
+                glossy: studioGlossy,
+                mode: studioCreationMode
+            };
+
+            const res = await fetch('/generate-quote-card', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (data.image_url) {
+                currentQuoteCardUrl = data.image_url;
+                document.getElementById('finalMediaUrl').value = data.image_url;
+                preview.src = data.image_url + '?t=' + Date.now();
+                preview.classList.remove('hidden');
+                if (loader) loader.classList.add('hidden');
+                document.getElementById('cardActions').classList.remove('hidden');
+                isQuoteCardOutOfDate = false;
+            } else {
+                alert('Visual generation failed: ' + (data.error || 'Unknown error'));
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = studioCreationMode === 'custom' ? 'Generate From Description' : 'Generate Cinematic Visual';
+        }
+    }
+
+    // --- PHASE 3: GENERATE CAPTION ---
+    async function generateSocialCaption() {
+        const btn = document.getElementById('btnGenerateCaption');
+        const icon = btn.querySelector('.btn-icon');
+        const text = btn.querySelector('.btn-text');
+        
+        btn.disabled = true;
+        if(icon) icon.classList.add('animate-spin');
+        if(text) text.innerText = 'Crafting Social Presence...';
+
+        try {
+            const res = await fetch('/api/caption/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    source_type: selectedAyahId ? 'quran' : 'manual',
+                    item_id: selectedAyahId,
+                    tone: document.getElementById('studioTone').value,
+                    intent: document.getElementById('studioIntent').value,
+                    custom_payload: !selectedAyahId ? { text: studioCardMessage.headline } : null
+                })
+            });
+            const data = await res.json();
+            if (data.caption_message) {
+                studioCaptionMessage = data.caption_message;
+                const fullText = `${studioCaptionMessage.hook}\n\n${studioCaptionMessage.body}\n\n${studioCaptionMessage.cta}\n\n${studioCaptionMessage.hashtags}`;
+                document.getElementById('studioCaption').value = fullText;
+                document.getElementById('captionResultArea').classList.remove('hidden');
+            }
+        } catch (e) {
+            alert('Social caption generation failed.');
+        } finally {
+            btn.disabled = false;
+            if(icon) icon.classList.remove('animate-spin');
+            if(text) text.innerText = 'Generate Social Caption';
+        }
+    }
+
+    // --- MISC HANDLERS ---
+    function invalidateQuoteCard() {
+        if (currentQuoteCardUrl) {
+            isQuoteCardOutOfDate = true;
+            const banner = document.getElementById('outOfSyncBanner');
+            if(banner) banner.classList.remove('hidden');
+        }
+    }
+
     function setStudioIntent(intent, el) {
         document.getElementById('studioIntent').value = intent;
         document.querySelectorAll('.intent-card').forEach(c => c.classList.remove('active'));
@@ -111,48 +299,6 @@ STUDIO_SCRIPTS_JS = """
         invalidateQuoteCard();
     }
 
-    async function searchQuran() {
-        const query = document.getElementById('studioTopic').value;
-        const resultsArea = document.getElementById('quranSearchResults');
-        if (query.length < 2) {
-            resultsArea.classList.add('hidden');
-            return;
-        }
-
-        resultsArea.innerHTML = '<div class="p-4 text-center text-[8px] font-bold text-brand animate-pulse uppercase tracking-widest">Searching Foundation...</div>';
-        resultsArea.classList.remove('hidden');
-
-        // Optimization: If it looks like a direct reference, suggest selection immediately
-        const refMatch = query.match(/(\d+)[:.](\d+)/);
-        
-        try {
-            const res = await fetch(`/api/quran/search?q=${encodeURIComponent(query)}`);
-            const data = await res.json();
-            if (data.length === 0) {
-                // If no results, we hide area to keep topic entry clean
-                resultsArea.classList.add('hidden');
-                return;
-            }
-            resultsArea.innerHTML = data.map(v => `
-                <div onclick="selectAyah('${v.id}', '${v.title.replace(/'/g, "\\'")}', '${v.text.replace(/'/g, "\\'")}')" class="p-4 border-b border-brand/5 hover:bg-brand/5 cursor-pointer transition-all">
-                    <div class="flex justify-between items-start mb-1">
-                        <span class="text-[8px] font-black text-brand uppercase tracking-widest">${v.title}</span>
-                    </div>
-                    <div class="text-[10px] text-text-muted font-medium italic line-clamp-2">${v.text}</div>
-                </div>
-            `).join('');
-            resultsArea.classList.remove('hidden');
-        } catch (e) { console.error(e); }
-    }
-
-    function selectAyah(id, title, text) {
-        selectedAyahId = id;
-        document.getElementById('selectedAyahBadge').classList.remove('hidden');
-        document.getElementById('selectedAyahTitle').innerText = title;
-        document.getElementById('quranSearchResults').classList.add('hidden');
-        document.getElementById('studioTopic').value = title; // Sync for metadata
-    }
-
     function setStudioEngine(engine, el) {
         studioEngine = engine;
         document.querySelectorAll('.engine-chip').forEach(c => {
@@ -164,199 +310,29 @@ STUDIO_SCRIPTS_JS = """
         invalidateQuoteCard();
     }
 
-    function toggleStudioGlossy(el) {
-        studioGlossy = !studioGlossy;
-        if (studioGlossy) {
-            el.classList.remove('bg-brand/5', 'text-brand');
-            el.classList.add('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
-        } else {
-            el.classList.add('bg-brand/5', 'text-brand');
-            el.classList.remove('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
-        }
-        invalidateQuoteCard();
-    }
-
     function switchStudioMode(mode) {
         studioCreationMode = mode;
         const presetBtn = document.getElementById('btnModePreset');
         const customBtn = document.getElementById('btnModeCustom');
         const presetContainer = document.getElementById('presetModeContainer');
         const customContainer = document.getElementById('customModeContainer');
-        const generateBtn = document.getElementById('btnGenerateCard');
 
         if (mode === 'preset') {
             presetBtn.classList.add('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
             presetBtn.classList.remove('bg-brand/5', 'text-brand');
             customBtn.classList.remove('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
             customBtn.classList.add('bg-brand/5', 'text-brand');
-            
             presetContainer.classList.remove('hidden');
             customContainer.classList.add('hidden');
-            generateBtn.innerText = 'Generate Visual';
         } else {
             customBtn.classList.add('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
             customBtn.classList.remove('bg-brand/5', 'text-brand');
             presetBtn.classList.remove('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
             presetBtn.classList.add('bg-brand/5', 'text-brand');
-            
             customContainer.classList.remove('hidden');
             presetContainer.classList.add('hidden');
-            generateBtn.innerText = 'Generate From Description';
         }
         invalidateQuoteCard();
-    }
-
-    // --- AI GENERATION LOGIC ---
-    async function generateAICaption() {
-        const topic = document.getElementById('studioTopic').value;
-        const intention = document.getElementById('studioIntent').value;
-        const tone = document.getElementById('studioTone').value;
-        const btn = document.getElementById('btnCraftCaption');
-        const icon = document.getElementById('craftIcon');
-        const text = document.getElementById('craftText');
-
-        if (!topic) {
-            alert('Please define a topic to spark the reminder.');
-            return;
-        }
-
-        btn.disabled = true;
-        icon.classList.add('animate-spin');
-        text.innerText = 'Crafting Spiritual Essence...';
-
-        try {
-            let endpoint = '/generate-caption';
-            let payload = { topic, intention, tone };
-
-            if (selectedAyahId) {
-                endpoint = '/api/quran/generate-caption';
-                payload = { item_id: selectedAyahId, style: tone };
-            }
-
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            if (data.caption) {
-                document.getElementById('studioCaption').value = data.caption;
-                document.getElementById('captionResultArea').classList.remove('hidden');
-                invalidateQuoteCard(); // New caption = card out of date
-            }
-        } catch (e) {
-            alert('The Spark failed to ignite. Check your connection.');
-        } finally {
-            btn.disabled = false;
-            icon.classList.remove('animate-spin');
-            text.innerText = 'Craft Cinematic Caption';
-        }
-    }
-
-    async function generateQuoteCard() {
-        const captionEl      = document.getElementById('studioCaption');
-        const visualPromptEl = document.getElementById('studioVisualPrompt');
-        const styleEl        = document.getElementById('studioStyle');
-        const btn            = document.getElementById('btnGenerateCard');
-        const loader         = document.getElementById('cardLoader');
-        const loaderText     = loader ? loader.querySelector('span') : null;
-        const preview        = document.getElementById('quoteCardPreview');
-        const syncBanner     = document.getElementById('outOfSyncBanner');
-        const promptErrEl    = document.getElementById('visualPromptError');
-
-        if (!captionEl || !styleEl || !btn) {
-            console.error('[Studio] Critical element missing');
-            return;
-        }
-
-        const caption      = captionEl.value.trim();
-        const visualPrompt = visualPromptEl ? visualPromptEl.value.trim() : '';
-        const textStylePrompt = document.getElementById('studioTextStylePrompt') ? document.getElementById('studioTextStylePrompt').value.trim() : '';
-        const isCustomMode = (studioCreationMode === 'custom');
-
-        // --- Validation ---
-        if (!caption) {
-            alert('A caption is required. Please complete Step 1 first.');
-            return;
-        }
-
-        if (isCustomMode && !visualPrompt) {
-            if (promptErrEl) {
-                promptErrEl.classList.remove('hidden');
-                promptErrEl.textContent = 'Please describe your card atmosphere before generating.';
-            }
-            if (visualPromptEl) visualPromptEl.focus();
-            return;
-        }
-        if (promptErrEl) promptErrEl.classList.add('hidden');
-
-        // --- Build payload ---
-        const style   = isCustomMode ? 'custom' : (styleEl.value || 'quran');
-        const payload = {
-            caption,
-            style,
-            visual_prompt: isCustomMode ? visualPrompt : '',
-            text_style_prompt: isCustomMode ? textStylePrompt : '',
-            mode:          isCustomMode ? 'custom' : 'preset',
-            engine:        studioEngine, // Choice persists globally
-            glossy:        studioGlossy, // Choice persists globally
-        };
-        console.log('🎨 [Studio] Generate payload:', payload);
-
-        // --- UI State: Loading ---
-        btn.disabled    = true;
-        btn.innerText   = 'Manifesting...';
-        if (loader)     loader.classList.remove('hidden');
-        if (preview)    preview.classList.add('hidden');
-        if (syncBanner) syncBanner.classList.add('hidden');
-        if (loaderText) loaderText.innerText = isCustomMode
-            ? 'Interpreting Your Vision...'
-            : 'Building Atmosphere...';
-
-        try {
-            const res  = await fetch('/generate-quote-card', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify(payload),
-            });
-            const data = await res.json();
-            console.log('🖼️ [Studio] Response:', data);
-
-            if (data.image_url) {
-                currentQuoteCardUrl = data.image_url;
-                document.getElementById('finalMediaUrl').value = data.image_url;
-                preview.src = data.image_url + '?t=' + Date.now();
-                preview.classList.remove('hidden');
-                if (loader)  loader.classList.add('hidden');
-                document.getElementById('cardActions').classList.remove('hidden');
-                isQuoteCardOutOfDate = false;
-
-                // Show badge if custom prompt was applied
-                const badge = document.getElementById('customPromptBadge');
-                if (badge) {
-                    badge.classList.toggle('hidden', !data.prompt_applied);
-                }
-            } else {
-                const errMsg = data.error || data.hint || 'Generation failed.';
-                if (loaderText) loaderText.innerText = 'Failed';
-                alert('⚠️ ' + errMsg);
-                if (loader)  loader.classList.remove('hidden');
-                if (preview) preview.classList.add('hidden');
-            }
-        } catch (e) {
-            console.error('[Studio] Fetch error:', e);
-            if (loaderText) loaderText.innerText = 'Connection Error';
-        } finally {
-            btn.disabled  = false;
-            btn.innerText = isCustomMode ? 'Generate From Description' : 'Generate Cinematic Visual';
-        }
-    }
-
-    function invalidateQuoteCard() {
-        if (currentQuoteCardUrl) {
-            isQuoteCardOutOfDate = true;
-            document.getElementById('outOfSyncBanner').classList.remove('hidden');
-        }
     }
 
     function prepareManifest() {
@@ -380,7 +356,7 @@ STUDIO_SCRIPTS_JS = """
         const btn = document.getElementById('studioSubmitBtn');
         const original = btn.innerText;
 
-        if (isQuoteCardOutOfDate && !confirm("Your quote card no longer matches your latest caption. Manifest anyway?")) {
+        if (isQuoteCardOutOfDate && !confirm("Your quote card no longer matches your latest message. Manifest anyway?")) {
             return;
         }
 
@@ -388,12 +364,13 @@ STUDIO_SCRIPTS_JS = """
         btn.innerHTML = 'MANIFESTING... <span class="animate-pulse">✨</span>';
 
         const formData = new FormData(event.target);
-        
-        // Add library item ID if needed (compatibility)
         formData.append('visual_mode', 'quote_card');
-        formData.append('source_type', studioSourceMode);
         if (selectedAyahId) formData.append('library_item_id', selectedAyahId);
         formData.append('source_text', document.getElementById('studioTopic').value);
+        
+        // Add structured messages
+        formData.append('card_message', JSON.stringify(studioCardMessage));
+        formData.append('caption_message', JSON.stringify(studioCaptionMessage));
 
         try {
             const res = await fetch('/posts/intake', { method: 'POST', body: formData });
@@ -411,7 +388,7 @@ STUDIO_SCRIPTS_JS = """
         }
     }
 
-    // --- ACCOUNT SWITCHER & STATE SYNC (LEGACY SUPPORT) ---
+    // --- LEGACHY / UTILS ---
     async function renderAccountSwitcher() {
         const container = document.getElementById('navbarAccountSwitcher');
         if (!container) return;
@@ -463,30 +440,6 @@ STUDIO_SCRIPTS_JS = """
         try {
             const res = await fetch('/ig-accounts/set-active/' + id, { method: 'POST' });
             if (res.ok) window.location.reload();
-        } catch (e) { console.error(e); }
-    }
-
-    window.addEventListener('click', function(event) {
-        if (!event.target.closest('#accountSwitcherRoot')) {
-            const drop = document.getElementById('switcherDropdown');
-            if (drop && !drop.classList.contains('hidden')) drop.classList.add('hidden');
-        }
-    });
-
-    window.addEventListener('load', function() {
-        renderAccountSwitcher();
-    });
-
-    function setTypoStyle(style) {
-        const el = document.getElementById('studioTextStylePrompt');
-        if (el) {
-            el.value = style;
-            invalidateQuoteCard();
-        }
-    }
-</script>
-"""
-
 STUDIO_COMPONENTS_HTML = """
 <!-- CONTENT STUDIO MODAL -->
 <div id="newPostModal" class="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[100] flex items-end md:items-center justify-center p-0 md:p-10 hidden">
@@ -495,8 +448,8 @@ STUDIO_COMPONENTS_HTML = """
       <!-- Studio Sidebar -->
       <div class="w-full md:w-80 bg-brand/5 border-b md:border-b-0 md:border-r border-brand/5 flex flex-col pt-10 md:pt-12 px-8 z-50 shrink-0">
         <div>
-          <h3 class="text-3xl font-bold text-brand tracking-tighter italic">Reminder<br><span class="text-accent">Creator</span></h3>
-          <p class="text-[9px] font-bold text-text-muted uppercase tracking-[0.3em] mt-2">Guidance Studio v3.0</p>
+          <h3 class="text-3xl font-bold text-brand tracking-tighter italic">Sabeel<br><span class="text-accent">Studio</span></h3>
+          <p class="text-[9px] font-bold text-text-muted uppercase tracking-[0.3em] mt-2">Decoupled Pipeline v4.0</p>
         </div>
         
         <div class="flex-1 mt-12 space-y-6">
@@ -525,35 +478,32 @@ STUDIO_COMPONENTS_HTML = """
 
       <form id="composerForm" onsubmit="submitNewPost(event)" class="flex-1 overflow-hidden flex flex-col relative bg-white">
         <input type="hidden" name="visual_mode" id="studioVisualMode" value="quote_card">
-        <input type="hidden" name="intent_type" id="studioIntent" value="wisdom">
-        <input type="hidden" name="emotion" id="studioTone" value="calm">
         <input type="hidden" name="visual_style" id="studioStyle" value="quran">
         <input type="hidden" name="media_url" id="finalMediaUrl">
 
         <div class="flex-1 overflow-y-auto p-6 md:p-12 pb-32 custom-scrollbar">
           
-          <!-- PHASE 1: THE SPARK (Caption Generation) -->
+          <!-- PHASE 1: THE SPARK (Card Message Generation) -->
           <div id="studioSection1" class="studio-section space-y-10 animate-in slide-in-from-right-8 duration-500">
             <div>
               <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 01</label>
               <h4 class="text-3xl font-bold text-brand italic">Ignite the Spark</h4>
-              <p class="text-xs text-text-muted mt-2 font-medium">Define your topic and spiritual intention to craft a powerful message.</p>
+              <p class="text-xs text-text-muted mt-2 font-medium">Search the Qur'an or define a topic to build your card's central message.</p>
             </div>
 
             <div class="space-y-8">
                 <!-- Unified Topic & Quran Input -->
                 <div class="space-y-4">
                     <div class="space-y-3">
-                       <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Reminder Topic or Spiritual Search</label>
+                       <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Foundation Source</label>
                        <div class="relative">
-                            <input type="text" id="studioTopic" name="topic" oninput="searchQuran()" placeholder="e.g. Patience during trials, 70:5, or Gratitude..." class="w-full bg-cream/20 border border-brand/5 rounded-2xl px-8 py-6 text-sm font-medium text-brand outline-none focus:border-brand/20 transition-all shadow-inner">
+                            <input type="text" id="studioTopic" name="topic" oninput="searchQuran()" placeholder="e.g. Patience, 70:5, or Gratitude..." class="w-full bg-cream/20 border border-brand/5 rounded-2xl px-8 py-6 text-sm font-medium text-brand outline-none focus:border-brand/20 transition-all shadow-inner">
                             <div class="absolute right-6 top-1/2 -translate-y-1/2 text-brand/20">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                             </div>
                        </div>
                     </div>
 
-                    <!-- Foundation Suggestions Results (Shared) -->
                     <div id="quranSearchResults" class="hidden max-h-48 overflow-y-auto bg-white border border-brand/10 rounded-2xl shadow-xl custom-scrollbar z-[120]"></div>
                     
                     <div id="selectedAyahBadge" class="hidden p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between shadow-sm">
@@ -565,46 +515,38 @@ STUDIO_COMPONENTS_HTML = """
                     </div>
                 </div>
 
-                <!-- Intention & Tone Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="space-y-4">
-                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Spiritual Intention</label>
-                        <div class="grid grid-cols-2 gap-2">
-                           <div onclick="setStudioIntent('wisdom', this)" class="intent-card active p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Wisdom</div>
-                           <div onclick="setStudioIntent('reminder', this)" class="intent-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Reminder</div>
-                           <div onclick="setStudioIntent('outreach', this)" class="intent-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Outreach</div>
-                           <div onclick="setStudioIntent('reflection', this)" class="intent-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Reflect</div>
-                        </div>
-                    </div>
-                    <div class="space-y-4">
-                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Guidance Tone</label>
-                        <div class="grid grid-cols-2 gap-2">
-                           <div onclick="setStudioTone('calm', this)" class="tone-card active p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Calm</div>
-                           <div onclick="setStudioTone('direct', this)" class="tone-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Direct</div>
-                           <div onclick="setStudioTone('poetic', this)" class="tone-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Poetic</div>
-                           <div onclick="setStudioTone('scholarly', this)" class="tone-card p-4 rounded-xl border-2 border-brand/5 bg-cream/10 cursor-pointer text-center text-[9px] font-black uppercase tracking-widest">Scholarly</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Craft Action -->
+                <!-- Build Card Message Action -->
                 <div class="pt-4">
-                    <button type="button" id="btnCraftCaption" onclick="generateAICaption()" class="w-full py-6 bg-brand text-white rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all flex items-center justify-center gap-3 group">
-                        <span id="craftIcon">✨</span>
-                        <span id="craftText">Craft Cinematic Caption</span>
+                    <button type="button" id="btnBuildMessage" onclick="buildCardMessage()" class="w-full py-6 bg-brand text-white rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all flex items-center justify-center gap-3">
+                        <span class="btn-icon">✨</span>
+                        <span class="btn-text">Build Quote Card Message</span>
                     </button>
                 </div>
 
-                <!-- Caption Result area -->
-                <div id="captionResultArea" class="hidden animate-in fade-in slide-in-from-top-4 duration-500 space-y-4">
-                    <div class="flex justify-between items-center ml-1">
-                        <label class="text-[9px] font-black text-brand uppercase tracking-widest">Generated Message</label>
-                        <button type="button" onclick="generateAICaption()" class="text-[8px] font-bold text-accent uppercase tracking-widest hover:underline">Regenerate</button>
+                <!-- Editable Workspace for Card Content -->
+                <div id="cardMessageWorkspace" class="hidden animate-in fade-in slide-in-from-top-4 duration-500 space-y-6 bg-brand/[0.02] p-8 rounded-[2.5rem] border border-brand/5">
+                    <div class="flex justify-between items-center px-2">
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest">Quote Card Workspace</label>
+                        <span class="text-[7px] font-bold text-accent uppercase tracking-widest">Verified Grounding</span>
                     </div>
-                    <textarea id="studioCaption" name="caption" class="w-full bg-white border border-brand/10 rounded-[2.5rem] p-10 text-sm font-medium text-brand min-h-[220px] outline-none focus:border-brand/30 transition-all shadow-xl leading-relaxed custom-scrollbar" oninput="invalidateQuoteCard()"></textarea>
                     
-                    <div class="flex justify-end pt-4">
-                       <button type="button" onclick="switchStudioSection(2)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/20">The Vision &rarr;</button>
+                    <div class="space-y-4">
+                        <div class="space-y-2">
+                            <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Eyebrow (Top Label)</label>
+                            <input type="text" id="editEyebrow" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-bold text-brand outline-none focus:border-brand/30">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Headline (The Quote)</label>
+                            <textarea id="editHeadline" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-medium text-brand outline-none focus:border-brand/30 h-24 resize-none"></textarea>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Supporting Text (Reference)</label>
+                            <input type="text" id="editSupporting" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-bold text-brand outline-none focus:border-brand/30">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                       <button type="button" onclick="switchStudioSection(2)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/20">Design The Vision &rarr;</button>
                     </div>
                 </div>
             </div>
@@ -615,246 +557,137 @@ STUDIO_COMPONENTS_HTML = """
             <div>
               <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 02</label>
               <h4 class="text-3xl font-bold text-brand italic">Visualize the Wisdom</h4>
-              <p class="text-xs text-text-muted mt-2 font-medium">Transform your message into a high-impact cinematic visual.</p>
+              <p class="text-xs text-text-muted mt-2 font-medium">Select your palette and engine to manifest the card's visual identity.</p>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <!-- Style Selector -->
                 <div class="space-y-8">
-                    <!-- MODE TOGGLE -->
                     <div class="flex p-1.5 bg-brand/[0.03] rounded-2xl border border-brand/5 gap-1">
                         <button type="button" id="btnModePreset" onclick="switchStudioMode('preset')" class="flex-1 py-3 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-brand text-white shadow-lg shadow-brand/20">Sabeel Presets</button>
                         <button type="button" id="btnModeCustom" onclick="switchStudioMode('custom')" class="flex-1 py-3 px-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all bg-brand/5 text-brand">Prophetic Vision</button>
                     </div>
 
-                    <div id="presetModeContainer" class="space-y-6 animate-in fade-in duration-300">
-                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Choose Your Spiritual Atmosphere</label>
+                    <div id="presetModeContainer" class="space-y-4 animate-in fade-in duration-300">
                         <div class="grid grid-cols-2 gap-3">
-
-                            <!-- Qur'an -->
                             <div onclick="setStudioStyle('quran', this)" class="style-card active p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
                                <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all">
                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
                                </div>
                                <div class="text-[9px] font-black text-brand uppercase tracking-widest">Qur'an</div>
-                               <div class="text-[7px] text-brand/40 font-medium">Sacred Emerald</div>
                             </div>
-
-                            <!-- Fajr -->
-                            <div onclick="setStudioStyle('fajr', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
-                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all">
-                                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 3v1m0 16v1M4.22 4.22l.707.707M18.364 18.364l.707.707M1 12h1m20 0h1M4.22 19.78l.707-.707M18.364 5.636l.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
-                               </div>
-                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Fajr</div>
-                               <div class="text-[7px] text-brand/40 font-medium">Pre-Dawn Navy</div>
-                            </div>
-
-                            <!-- Scholar -->
-                            <div onclick="setStudioStyle('scholar', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
-                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all">
-                                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-                               </div>
-                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Scholar</div>
-                               <div class="text-[7px] text-brand/40 font-medium">Old Parchment</div>
-                            </div>
-
-                            <!-- Madinah -->
                             <div onclick="setStudioStyle('madinah', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
                                <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all">
                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></svg>
                                </div>
                                <div class="text-[9px] font-black text-brand uppercase tracking-widest">Madinah</div>
-                               <div class="text-[7px] text-brand/40 font-medium">Warm Amber Gold</div>
                             </div>
-
-                            <!-- Kaaba -->
-                            <div onclick="setStudioStyle('kaaba', this)" class="style-card p-5 rounded-2xl border-2 border-brand/5 bg-cream/10 cursor-pointer transition-all hover:bg-brand/[0.02] text-center space-y-3 group">
-                               <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand mx-auto group-[.active]:bg-brand group-[.active]:text-white transition-all">
-                                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 9h18" stroke-width="1.5" stroke-linecap="round"/></svg>
-                               </div>
-                               <div class="text-[9px] font-black text-brand uppercase tracking-widest">Kaaba</div>
-                               <div class="text-[7px] text-brand/40 font-medium">Sacred Black</div>
-                            </div>
-
                         </div>
                     </div>
 
-                    <div id="customModeContainer" class="hidden space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <!-- ENGINE SELECTION -->
-                        <div class="flex flex-col gap-4">
-                            <div class="flex-1 space-y-2">
-                                <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Background Engine</label>
-                                <div class="flex gap-2">
-                                    <button type="button" onclick="setStudioEngine('dalle', this)" class="engine-chip flex-1 py-3 px-4 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all bg-brand text-white shadow-lg shadow-brand/20 border border-brand/10">DALL-E 3</button>
-                                    <button type="button" onclick="setStudioEngine('gemini', this)" class="engine-chip flex-1 py-3 px-4 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all bg-brand/5 text-brand border border-brand/10">Gemini 1.5</button>
-                                </div>
-                            </div>
-                            <div class="flex-1 space-y-2">
-                                <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Atmosphere Tone</label>
-                                <button type="button" onclick="toggleStudioGlossy(this)" class="w-full py-3 px-4 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all bg-brand/5 text-brand border border-brand/10 flex items-center justify-center gap-2">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
-                                    Frosted Glass Layer
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="space-y-2">
-                            <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Describe Your Card</label>
-                            <textarea id="studioVisualPrompt"
-                                placeholder="e.g. black marble with gold borders and a cinematic center light..."
-                                class="w-full bg-white border border-brand/10 rounded-3xl p-6 text-sm font-medium text-brand outline-none focus:border-brand/40 placeholder:text-brand/20 transition-all resize-none h-32 shadow-sm custom-scrollbar" oninput="invalidateQuoteCard()"></textarea>
-                            <!-- Inline validation error -->
-                            <p id="visualPromptError" class="hidden text-[9px] font-black text-red-500 uppercase tracking-widest ml-1">
-                                Please describe your card before generating.
-                            </p>
-                        </div>
-                    </div>
-
-                    <!-- UNIVERSAL TYPOGRAPHY EXPERIENCE -->
-                    <div class="mt-8 pt-8 border-t border-brand/5 space-y-6">
-                        <div class="space-y-4">
-                            <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1 opacity-60">Elevate Your Typography</label>
-                            
-                            <!-- QUICK STYLE CHIPS -->
-                            <div class="flex flex-wrap gap-2">
-                                <button type="button" onclick="setTypoStyle('Editorial ivory serif')" class="typo-chip px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/10 text-[8px] font-bold text-brand uppercase tracking-widest hover:bg-brand/10 transition-all">Modern Serif</button>
-                                <button type="button" onclick="setTypoStyle('Modern Bold uppercase wide tracking')" class="typo-chip px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/10 text-[8px] font-bold text-brand uppercase tracking-widest hover:bg-brand/10 transition-all">Bold Impact</button>
-                                <button type="button" onclick="setTypoStyle('Manuscript gold italic')" class="typo-chip px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/10 text-[8px] font-bold text-brand uppercase tracking-widest hover:bg-brand/10 transition-all">Sacred Script</button>
-                                <button type="button" onclick="setTypoStyle('Minimalist wide tracking light')" class="typo-chip px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/10 text-[8px] font-bold text-brand uppercase tracking-widest hover:bg-brand/10 transition-all">Minimalist</button>
-                            </div>
-
-                            <input type="text" id="studioTextStylePrompt"
-                                placeholder="e.g. Editorial serif, Ivory theme, Bold tracking..."
-                                class="w-full bg-white border border-brand/10 rounded-2xl px-6 py-4 text-sm font-medium text-brand outline-none focus:border-brand/40 placeholder:text-brand/20 transition-all shadow-sm" oninput="invalidateQuoteCard()">
-
-                            <p class="text-[8px] font-bold text-text-muted/40 uppercase tracking-widest leading-loose ml-1">
-                                Try: Editorial &bull; Modern Bold &bull; Italic &bull; Uppercase &bull; Wide Tracking
-                            </p>
-                        </div>
+                    <div id="customModeContainer" class="hidden space-y-4">
+                        <textarea id="studioVisualPrompt" placeholder="Describe atmosphere..." class="w-full bg-white border border-brand/10 rounded-3xl p-6 text-sm font-medium text-brand outline-none h-32"></textarea>
                     </div>
 
                     <button type="button" id="btnGenerateCard" onclick="generateQuoteCard()" class="w-full py-6 bg-brand text-white rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all">
-                        Generate Visual
+                        Generate Cinematic Visual
                     </button>
                 </div>
 
-                <!-- Card Preview -->
                 <div class="flex flex-col items-center gap-6">
-                    <div id="cardPreviewContainer" class="w-full max-w-[340px] aspect-square bg-cream rounded-[3rem] border-8 border-brand/5 overflow-hidden relative shadow-2xl flex items-center justify-center transition-all">
+                    <div id="cardPreviewContainer" class="w-full max-w-[340px] aspect-square bg-cream rounded-[3rem] border-8 border-brand/5 overflow-hidden relative shadow-2xl flex items-center justify-center">
                         <img id="quoteCardPreview" class="hidden w-full h-full object-cover">
-                        <div id="cardLoader" class="flex flex-col items-center gap-4 text-brand/20">
+                        <div id="cardLoader" class="hidden flex flex-col items-center gap-4 text-brand/20">
                             <div class="w-12 h-12 rounded-full border-4 border-t-brand animate-spin"></div>
-                            <span class="text-[9px] font-black uppercase tracking-widest">Awaiting Creation</span>
+                            <span class="text-[9px] font-black uppercase tracking-widest">Manifesting...</span>
                         </div>
-                        <!-- Out of sync warning -->
-                        <div id="outOfSyncBanner" class="hidden absolute top-0 inset-x-0 bg-amber-500/90 backdrop-blur-md p-4 flex flex-col items-center gap-1 text-white animate-in slide-in-from-top-full">
-                           <span class="text-[8px] font-black uppercase tracking-widest">Caption out of sync</span>
-                           <span class="text-[7px] font-bold text-white/80 text-center leading-tight">Your card no longer matches the latest caption.</span>
+                        <div id="outOfSyncBanner" class="hidden absolute top-0 inset-x-0 bg-amber-500/90 backdrop-blur-md p-4 flex flex-col items-center gap-1 text-white">
+                           <span class="text-[8px] font-black uppercase tracking-widest">Out of Sync</span>
                         </div>
                     </div>
 
-                    <div id="cardActions" class="hidden flex gap-3 text-brand">
-                        <button type="button" onclick="generateQuoteCard()" class="px-5 py-3 border border-brand/10 rounded-xl text-[9px] font-bold uppercase tracking-widest hover:bg-brand/5 transition-all">Refine Visual</button>
-                        <button type="button" onclick="switchStudioSection(3)" class="px-8 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-brand/20 hover:scale-[1.02] transition-all">Use This Visual</button>
-                    </div>
-                    <!-- Custom prompt applied badge -->
-                    <div id="customPromptBadge" class="hidden flex items-center gap-2 px-4 py-2 bg-brand/8 border border-brand/15 rounded-full">
-                        <span class="text-brand text-[9px]">✦</span>
-                        <span class="text-[8px] font-black text-brand uppercase tracking-widest">Generated from your description</span>
+                    <div id="cardActions" class="hidden flex gap-3">
+                        <button type="button" onclick="switchStudioSection(3)" class="px-8 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg shadow-brand/20">Confirm Visual &rarr;</button>
                     </div>
                 </div>
             </div>
-
+            
             <div class="pt-8 border-t border-brand/5 flex justify-between">
-               <button type="button" onclick="switchStudioSection(1)" class="px-8 py-4 text-text-muted hover:text-brand font-bold text-[10px] uppercase tracking-widest transition-all">&larr; The Spark</button>
+               <button type="button" onclick="switchStudioSection(1)" class="px-8 py-4 text-text-muted hover:text-brand font-bold text-[10px] uppercase tracking-widest transition-all">&larr; Back to Spark</button>
             </div>
           </div>
 
-          <!-- PHASE 3: THE PRESENCE (Configuration) -->
-          <div id="studioSection3" class="studio-section hidden space-y-12 animate-in slide-in-from-right-8 duration-500">
+          <!-- PHASE 3: THE PRESENCE (Social Caption) -->
+          <div id="studioSection3" class="studio-section hidden space-y-10 animate-in slide-in-from-right-8 duration-500">
             <div>
               <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 03</label>
-              <h4 class="text-3xl font-bold text-brand italic">Define the Presence</h4>
-              <p class="text-xs text-text-muted mt-2 font-medium">Configure your target workspace and activation parameters.</p>
+              <h4 class="text-3xl font-bold text-brand italic">The Presence</h4>
+              <p class="text-xs text-text-muted mt-2 font-medium">Craft the social media caption and schedule the activation.</p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div class="space-y-6 bg-brand/[0.02] p-10 rounded-[2.5rem] border border-brand/5">
-                    <div class="space-y-4">
-                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Target Account</label>
-                        <div class="relative group">
-                            <select name="ig_account_id" id="studioAccount" class="w-full bg-white border border-brand/10 rounded-2xl px-6 py-5 text-sm font-bold text-brand outline-none shadow-sm transition-all hover:bg-brand/5 appearance-none focus:border-brand/30">
+            <div class="space-y-8">
+                <button type="button" id="btnGenerateCaption" onclick="generateSocialCaption()" class="w-full py-6 bg-brand/5 text-brand border border-brand/10 rounded-[2rem] font-black text-xs uppercase tracking-widest hover:bg-brand/10 transition-all flex items-center justify-center gap-3">
+                    <span class="btn-icon">💬</span>
+                    <span class="btn-text">Generate Social Caption</span>
+                </button>
+
+                <div id="captionResultArea" class="hidden space-y-6">
+                    <textarea id="studioCaption" name="caption" class="w-full bg-white border border-brand/10 rounded-[2.5rem] p-10 text-sm font-medium text-brand min-h-[300px] outline-none shadow-xl leading-relaxed custom-scrollbar"></textarea>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-brand/[0.02] p-8 rounded-[2rem] border border-brand/5">
+                        <div class="space-y-2">
+                            <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Activation Account</label>
+                            <select name="ig_account_id" id="studioAccount" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-bold text-brand outline-none appearance-none">
                                 {account_options}
                             </select>
-                            <div class="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none text-brand/20 group-hover:text-brand transition-colors">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Schedule Time</label>
+                            <input type="datetime-local" id="studioSchedule" name="scheduled_time" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-bold text-brand outline-none">
                         </div>
                     </div>
-                    <div class="space-y-2">
-                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Activation Time</label>
-                        <input type="datetime-local" id="studioSchedule" name="scheduled_time" class="w-full bg-white border border-brand/10 rounded-2xl px-6 py-5 text-sm font-bold text-brand outline-none shadow-sm focus:border-brand/30">
+
+                    <div class="flex justify-end pt-4">
+                       <button type="button" onclick="switchStudioSection(4)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-brand/20">Final Review &rarr;</button>
                     </div>
                 </div>
-
-                <div class="flex flex-col justify-center gap-4 p-8 bg-cream/30 rounded-3xl border border-brand/5">
-                    <div class="flex items-center gap-4 text-emerald-600">
-                        <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg></div>
-                        <span class="text-[10px] font-black uppercase tracking-widest">Message Integrity Valid</span>
-                    </div>
-                    <div class="flex items-center gap-4 text-emerald-600">
-                        <div class="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg></div>
-                        <span class="text-[10px] font-black uppercase tracking-widest">Visual Asset Ready</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="pt-8 border-t border-brand/5 flex justify-between">
-               <button type="button" onclick="switchStudioSection(2)" class="px-8 py-4 text-text-muted hover:text-brand font-bold text-[10px] uppercase tracking-widest transition-all">&larr; The Vision</button>
-               <button type="button" onclick="switchStudioSection(4)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/20">Final Review &rarr;</button>
             </div>
           </div>
 
-          <!-- PHASE 4: THE MANIFEST (Final Review) -->
+          <!-- PHASE 4: THE MANIFEST (Review) -->
           <div id="studioSection4" class="studio-section hidden space-y-12 animate-in slide-in-from-right-8 duration-500">
-            <div class="flex justify-between items-end">
-              <div>
-                <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 04</label>
-                <h4 class="text-3xl font-bold text-brand italic">The Manifest</h4>
-                <p class="text-xs text-text-muted mt-2 font-medium">Review your spiritual architecture before manifestation.</p>
-              </div>
+            <div>
+              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 04</label>
+              <h4 class="text-3xl font-bold text-brand italic">The Manifest</h4>
+              <p class="text-xs text-text-muted mt-2 font-medium">Confirm your manifestation parameters.</p>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-               <!-- Left: Final Preview -->
                <div class="flex justify-center">
                   <div class="w-full max-w-[320px] aspect-square bg-cream rounded-[3rem] border-8 border-brand/5 overflow-hidden relative shadow-2xl">
                      <img id="finalPreviewImage" class="w-full h-full object-cover">
                   </div>
                </div>
 
-               <!-- Right: Final Actions -->
                <div class="space-y-8 bg-brand/[0.02] p-10 rounded-[2.5rem] border border-brand/5 flex flex-col justify-between">
                   <div class="space-y-6">
-                      <div class="space-y-1">
+                      <div>
                           <label class="text-[8px] font-black text-brand uppercase tracking-widest opacity-60">Manifesting to</label>
-                          <div id="manifestAccount" class="text-xs font-bold text-brand uppercase">@username</div>
+                          <div id="manifestAccount" class="text-xs font-bold text-brand uppercase"></div>
                       </div>
-                      <div class="space-y-1">
+                      <div>
                           <label class="text-[8px] font-black text-brand uppercase tracking-widest opacity-60">Activation</label>
-                          <div id="manifestTime" class="text-xs font-bold text-brand uppercase">Tomorrow, 09:00 AM</div>
+                          <div id="manifestTime" class="text-xs font-bold text-brand uppercase"></div>
                       </div>
                       <div class="pt-4 space-y-2">
-                        <label class="text-[8px] font-black text-brand uppercase tracking-widest opacity-60">Message Summary</label>
-                        <p id="manifestCaption" class="text-[11px] text-text-muted font-medium italic line-clamp-4 leading-relaxed"></p>
+                        <label class="text-[8px] font-black text-brand uppercase tracking-widest opacity-60">Presence Summary</label>
+                        <p id="manifestCaption" class="text-[11px] text-text-muted font-medium italic line-clamp-6 leading-relaxed"></p>
                       </div>
                   </div>
 
                   <div class="space-y-4 pt-6">
-                      <button type="submit" id="studioSubmitBtn" class="w-full py-6 bg-brand text-white rounded-3xl font-black text-[12px] uppercase tracking-[0.3em] shadow-2xl shadow-brand/20 hover:bg-brand-hover active:scale-[0.98] transition-all">
+                      <button type="submit" id="studioSubmitBtn" class="w-full py-6 bg-brand text-white rounded-3xl font-black text-[12px] uppercase tracking-[0.3em] shadow-2xl shadow-brand/20">
                          Schedule Manifestation
                       </button>
-                      <button type="button" onclick="switchStudioSection(3)" class="w-full text-center py-2 text-[9px] font-bold text-text-muted uppercase tracking-widest hover:text-brand transition-colors">&larr; Adjust Details</button>
                   </div>
                </div>
             </div>

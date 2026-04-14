@@ -1,10 +1,7 @@
-"""
-Sabeel Studio — Visual System (Theme extraction & DALL-E orchestration)
-"""
-from __future__ import annotations
 import os
 import re
 import random
+import hashlib
 from dataclasses import dataclass, field
 from typing import Optional, Tuple, List
 

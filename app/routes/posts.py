@@ -63,6 +63,8 @@ def intake_post(
     visual_style: str | None = Form(None),
     hook_style: str | None = Form(None),
     strictness_mode: str = Form("balanced"),
+    card_message: str | None = Form(None),
+    caption_message: str | None = Form(None),
 
     org_id: int = Depends(get_current_org_id),
 ):
@@ -72,6 +74,22 @@ def intake_post(
         try:
             lib_id = int(library_item_id)
         except ValueError:
+            pass
+
+    # Parse structured messages
+    import json
+    parsed_card_msg = None
+    if card_message:
+        try:
+            parsed_card_msg = json.loads(card_message)
+        except:
+            pass
+    
+    parsed_caption_msg = None
+    if caption_message:
+        try:
+            parsed_caption_msg = json.loads(caption_message)
+        except:
             pass
 
     print(f"DEBUG: Intake attempt - Account={ig_account_id}, AI={use_ai_image}, File={image.filename if image else 'None'}")
@@ -161,6 +179,9 @@ def intake_post(
         visual_prompt=visual_prompt,
         library_item_id=lib_id,
         
+        card_message=parsed_card_msg,
+        caption_message=parsed_caption_msg,
+
         intent_type=intent_type,
         target_audience=target_audience,
         source_foundation=source_foundation or ("quran" if source_type == "quran" else None),

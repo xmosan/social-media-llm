@@ -107,7 +107,9 @@ def sync_database_schema(log_func=None):
             ("visual_style", "VARCHAR"),
             ("hook_style", "VARCHAR"),
             ("strictness_mode", "VARCHAR DEFAULT 'balanced'"),
-            ("source_metadata", json_type)
+            ("source_metadata", json_type),
+            ("card_message", json_type),
+            ("caption_message", json_type)
         ],
         "users": [
             ("name", "VARCHAR"),

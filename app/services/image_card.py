@@ -24,7 +24,7 @@ def is_arabic_segment(text: str) -> bool:
     return any("\u0600" <= c <= "\u06FF" or "\u0750" <= c <= "\u077F" for c in text)
 
 def generate_quote_card(
-    caption: str,
+    caption: str = None,
     style: str = "quran",
     visual_prompt: str = None,
     mode: str = "preset",
@@ -32,7 +32,8 @@ def generate_quote_card(
     readability_priority: bool = True,
     experimental_mode: bool = False,
     engine: str = "dalle",
-    glossy: bool = False
+    glossy: bool = False,
+    card_message: dict = None
 ) -> str:
     """
     Parses an Islamic caption and renders a premium quote card.
@@ -41,47 +42,66 @@ def generate_quote_card(
     import re
 
     print(f"\n🖼️  [ImageCard] mode={mode} | style={style}")
-    print(f"📝 [ImageCard] caption[:120]={repr(caption[:120])}")
-
+    
     # ── Determine effective mode ──────────────────────────────────────────────
     if style == "custom":
         mode = "custom"
 
     # ── Parse caption into logical zones ──────────────────────────────────────
-    clean  = re.sub(r"\*\*|__?|~~", "", caption).strip()
-    clean  = re.sub(r"^(Line \d:|Source:|Reflection:|Takeaway:|Insight:|Translation:)\s*",
-                    "", clean, flags=re.MULTILINE | re.IGNORECASE)
-
-    # Split on double newlines for zones
-    raw_zones = [p.strip() for p in clean.split("\n\n") if p.strip()]
-    if len(raw_zones) < 2:
-        raw_zones = [p.strip() for p in clean.split("\n") if p.strip()]
-
-    # Guard: Pad to at least 3
-    while len(raw_zones) < 3:
-        raw_zones.append("")
-
-    # ── Dual-Language Processing ──────────────────────────────────────────────
-    # Identify if any zone contains Arabic + English or if we have separate 
-    # Arabic/English zones that should be paired.
     segments = []
     key   = style if style in ZONE_SIZES else "quran"
     sizes = ZONE_SIZES[key]
 
-    for i, text in enumerate(raw_zones[:3]):
-        if not text: continue
-        
-        # If the segment contains Arabic, we mark it as such for the renderer
-        is_ar = is_arabic_segment(text)
-        
-        # Special Case: If the text contains BOTH Arabic and English (e.g., merged by AI)
-        # We might want to split them, but for now we'll let the renderer handle the font switching
-        segments.append({
-            "text":  text,
-            "size":  sizes[i],
-            "is_arabic": is_ar,
-            "color": (255, 255, 255)
-        })
+    if card_message:
+        print(f"📦 [ImageCard] Using structured card_message")
+        # Map structured message to zones
+        # 1. Eyebrow
+        if card_message.get("eyebrow"):
+            segments.append({
+                "text": card_message["eyebrow"],
+                "size": sizes[0],
+                "is_arabic": is_arabic_segment(card_message["eyebrow"]),
+                "color": (255, 255, 255)
+            })
+        # 2. Headline (The Quote/Verse)
+        if card_message.get("headline"):
+            segments.append({
+                "text": card_message["headline"],
+                "size": sizes[1],
+                "is_arabic": is_arabic_segment(card_message["headline"]),
+                "color": (255, 255, 255)
+            })
+        # 3. Supporting Text (Reference/Explanation)
+        if card_message.get("supporting_text"):
+            segments.append({
+                "text": card_message["supporting_text"],
+                "size": sizes[2],
+                "is_arabic": is_arabic_segment(card_message["supporting_text"]),
+                "color": (255, 255, 255)
+            })
+    else:
+        # Fallback to legacy caption parsing
+        print(f"📝 [ImageCard] Fallback to caption parsing: caption[:120]={repr(caption[:120]) if caption else 'None'}")
+        if not caption:
+             return ""
+
+        clean  = re.sub(r"\*\*|__?|~~", "", caption).strip()
+        clean  = re.sub(r"^(Line \d:|Source:|Reflection:|Takeaway:|Insight:|Translation:)\s*",
+                        "", clean, flags=re.MULTILINE | re.IGNORECASE)
+
+        # Split on double newlines for zones
+        raw_zones = [p.strip() for p in clean.split("\n\n") if p.strip()]
+        if len(raw_zones) < 2:
+            raw_zones = [p.strip() for p in clean.split("\n") if p.strip()]
+
+        for i, text in enumerate(raw_zones[:3]):
+            if not text: continue
+            segments.append({
+                "text":  text,
+                "size":  sizes[i],
+                "is_arabic": is_arabic_segment(text),
+                "color": (255, 255, 255)
+            })
 
     print(f"📦 [ImageCard] Final Segments: {len(segments)}")
 
