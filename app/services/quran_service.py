@@ -6,6 +6,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, text
 from app.models import ContentItem, ContentSource
+from app.services.quran_serialization import normalize_quran_verse
 
 logger = logging.getLogger(__name__)
 
@@ -91,17 +92,7 @@ def get_quran_ayah_exact(surah: int, ayah: int, db: Session) -> dict:
     if translator == "131":
         translator = "Sahih International"
     
-    payload = {
-        "id": item.id,
-        "source_type": "quran",
-        "surah": surah,
-        "ayah": ayah,
-        "reference": f"Qur'an {surah}:{ayah}",
-        "arabic_text": item.arabic_text,
-        "translation_text": item.text,
-        "translator": translator,
-        "verse_key": f"{surah}:{ayah}"
-    }
+    payload = normalize_quran_verse(item)
     
     if not payload["translation_text"]:
         logger.error(f"❌ [QURAN][ERROR] Translation missing for: {surah}:{ayah}")
@@ -135,15 +126,7 @@ def resolve_quran_input(user_input: str, db: Session) -> dict:
     logger.info(f"🔎 [QURAN] Route to keyword search path: '{user_input}'")
     results = search_quran(db, user_input)
     # Formatting for return
-    return [
-        {
-            "id": r.id,
-            "title": r.title,
-            "text": r.text,
-            "arabic": r.arabic_text,
-            "meta": r.meta
-        } for r in results
-    ]
+    return [normalize_quran_verse(r) for r in results]
 
 def build_quran_quote_payload(user_input: str, db: Session) -> dict:
     """
@@ -174,14 +157,7 @@ def build_quran_quote_payload(user_input: str, db: Session) -> dict:
         payload = {
             "source_type": "quran",
             "source_reference": exact_data["reference"],
-            "source_metadata": {
-                "surah": exact_data["surah"],
-                "ayah": exact_data["ayah"],
-                "verse_key": exact_data["verse_key"],
-                "translator": exact_data["translator"],
-                "arabic_text": exact_data["arabic_text"],
-                "translation_text": exact_data["translation_text"]
-            },
+            "source_metadata": exact_data,
             "top_line": exact_data["reference"],
             "main_text": exact_data["translation_text"],
             "sub_text": "",
@@ -215,7 +191,21 @@ def search_quran(db: Session, query: str, limit: int = 15) -> List[ContentItem]:
     logger.info(f"🔎 [QuranService] Search for '{query}' returned {len(results)} results.")
     return results
 
-def get_quran_ayahs_by_theme(db: Session, theme: str, limit: int = 10) -> List[ContentItem]:
+def get_verse_by_id(db: Session, item_id: int) -> Optional[dict]:
+    """Retrieves normalized verse by integer ID."""
+    item = db.query(ContentItem).filter(ContentItem.id == item_id, ContentItem.item_type == "quran").first()
+    return normalize_quran_verse(item) if item else None
+
+def get_verse_by_key(db: Session, verse_key: str) -> Optional[dict]:
+    """Retrieves normalized verse by string key 'surah:ayah'."""
+    try:
+        surah, ayah = parse_quran_reference(verse_key)
+        item = get_quran_ayah(db, surah, ayah)
+        return normalize_quran_verse(item) if item else None
+    except Exception:
+        return None
+
+def get_quran_ayahs_by_theme(db: Session, theme: str, limit: int = 10) -> List[dict]:
     """
     Alias for search but explicitly targeting theme slugs.
     """
@@ -226,17 +216,18 @@ def get_quran_ayahs_by_theme(db: Session, theme: str, limit: int = 10) -> List[C
     
     # Fallback to general search if theme slug has no matches
     if not results:
-        return search_quran(db, theme, limit)
+        return [normalize_quran_verse(r) for r in search_quran(db, theme, limit)]
     
-    return results
+    return [normalize_quran_verse(r) for r in results]
 
-def get_verse_by_reference(db: Session, reference: str) -> Optional[ContentItem]:
+def get_verse_by_reference(db: Session, reference: str) -> Optional[dict]:
     """
     Parses a reference like '70:5' or 'Surah 70:5' and returns the verse.
     NOW uses the strict parser.
     """
     try:
         surah, ayah = parse_quran_reference(reference)
-        return get_quran_ayah(db, surah, ayah)
+        item = get_quran_ayah(db, surah, ayah)
+        return normalize_quran_verse(item) if item else None
     except Exception:
         return None

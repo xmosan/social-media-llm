@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.db import get_db
 from app.services.quran_service import get_quran_ayah, search_quran, get_verse_by_reference
+from app.services.quran_serialization import normalize_quran_verse
 from app.services.quran_caption_service import generate_ai_caption_from_quran
 from app.models import User
 from app.security.auth import require_user
@@ -23,13 +24,7 @@ async def api_get_ayah(
     if not item:
         raise HTTPException(status_code=404, detail=f"Ayah {surah}:{ayah} not found in database.")
     
-    return {
-        "id": item.id,
-        "title": item.title,
-        "text": item.text,
-        "arabic": item.arabic_text,
-        "meta": item.meta
-    }
+    return normalize_quran_verse(item)
 
 @router.get("/search")
 async def api_search_quran(

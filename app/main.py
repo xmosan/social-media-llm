@@ -231,11 +231,12 @@ async def api_build_quote_message(req: QuoteCardBuildRequest, db: Session = Depe
             return JSONResponse(status_code=404, content={"detail": "Quran verse not found"})
         
         source_payload = {
-            "reference": f"Qur'an {verse.verse_key}",
-            "translation_text": verse.text,
-            "arabic_text": verse.arabic_text,
-            "surah": verse.surah_number,
-            "ayah": verse.verse_number
+            "reference": verse["reference"],
+            "translation_text": verse["translation_text"],
+            "arabic_text": verse["arabic_text"],
+            "surah": verse["surah_number"],
+            "ayah": verse["ayah_number"],
+            "surah_name_en": verse["surah_name_en"]
         }
     elif req.source_type == "manual":
         source_payload = req.custom_payload or {}
@@ -275,9 +276,10 @@ async def api_generate_caption(req: CaptionGenerateRequest, db: Session = Depend
             return JSONResponse(status_code=404, content={"detail": "Quran verse not found"})
             
         source_payload = {
-            "reference": f"Qur'an {verse.verse_key}",
-            "text": verse.text,
-            "arabic_text": verse.arabic_text
+            "reference": verse["reference"],
+            "text": verse["translation_text"],
+            "arabic_text": verse["arabic_text"],
+            "surah_name_en": verse["surah_name_en"]
         }
     elif req.source_type == "manual":
         source_payload = req.custom_payload or {}
