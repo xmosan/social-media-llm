@@ -64,17 +64,28 @@ async def api_generate_quran_caption(
     item_id = data.get("item_id")
     style = data.get("style", "reflective")
     
-    if not item_id:
-        raise HTTPException(status_code=400, detail="item_id (Quran verse ID) is required.")
+    # Robust ID parsing
+    try:
+        final_item_id = int(item_id)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Invalid item_id format.")
     
     from app.models import ContentItem
-    item = db.query(ContentItem).filter(ContentItem.id == item_id, ContentItem.item_type == "quran").first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Quran verse not found.")
+    try:
+        item = db.query(ContentItem).filter(ContentItem.id == final_item_id, ContentItem.item_type == "quran").first()
+        if not item:
+            raise HTTPException(status_code=404, detail="Quran verse not found in Foundation.")
+            
+        print(f"📡 [GroundedAPI] Generating for: {item.title} (ID: {item.id})")
+        caption = generate_ai_caption_from_quran(item, style)
         
-    caption = generate_ai_caption_from_quran(item, style)
-    return {
-        "caption": caption,
-        "reference": item.title,
-        "item_id": item.id
-    }
+        return {
+            "caption": caption,
+            "reference": item.title,
+            "item_id": item.id
+        }
+    except Exception as e:
+        import traceback
+        print(f"🔴 [GroundedAPI] CRITICAL FAILURE: {e}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
