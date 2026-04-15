@@ -108,6 +108,25 @@ def list_library_entries(
         ))
     return q.order_by(ContentItem.created_at.desc()).all()
 
+@router.get("/entries/{item_id}", response_model=ContentItemOut)
+def get_library_entry(
+    item_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_user)
+):
+    """Retrieves a single library entry by ID with scoping checks."""
+    org_id = user.active_org_id
+    item = db.query(ContentItem).filter(ContentItem.id == item_id).first()
+    
+    if not item:
+        raise HTTPException(status_code=404, detail="Library entry not found")
+        
+    # Scoping check: must be global, owned by user, or in user's active org
+    if item.org_id is not None and item.org_id != org_id and item.owner_user_id != user.id:
+        raise HTTPException(status_code=403, detail="Access denied to this library entry")
+        
+    return item
+
 @router.post("/entries", response_model=ContentItemOut)
 def add_library_entry(
     data: ContentItemCreate,
@@ -396,7 +415,7 @@ class InteractionTrackRequest(BaseModel):
     entity_id: str
     context: str
 
-@router.post("/library/track-use")
+@router.post("/track-use")
 async def track_user_interaction(
     payload: InteractionTrackRequest,
     user: User = Depends(require_user),

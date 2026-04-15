@@ -2704,6 +2704,19 @@ async def app_library_page(
         </div>
       </div>
 
+      <!-- RECOMMENDED TRACK -->
+      <div id="recommendedTrackWrapper" class="hidden flex-col border-b border-brand/5 bg-gradient-to-b from-brand/5 to-transparent shrink-0">
+        <div class="px-6 md:px-8 py-3 flex items-center justify-between">
+          <h3 class="text-[9px] font-black uppercase tracking-widest text-brand flex items-center gap-2">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143z"/></svg>
+            Recommended For You
+          </h3>
+        </div>
+        <div id="recommendedCards" class="flex gap-4 px-6 md:px-8 pb-4 overflow-x-auto hide-scrollbar">
+          <!-- Loaded via JS -->
+        </div>
+      </div>
+
       <!-- Main Layout -->
       <div class="flex flex-col lg:flex-row gap-8 flex-1 overflow-hidden min-h-0">
         <!-- Sidebar Navigation -->
@@ -2926,6 +2939,7 @@ async def app_library_page(
           checkPendingVerse();
           loadTopics();
           loadSources();
+          loadRecommendations();
           showView('browse_surahs');
       });
 
@@ -2939,6 +2953,58 @@ async def app_library_page(
                   }
               }, 500);
           }
+      }
+
+      async function loadRecommendations() {
+          const track = document.getElementById('recommendedTrackWrapper');
+          const cards = document.getElementById('recommendedCards');
+          if (!track || !cards) return;
+
+          try {
+              const res = await fetch('/library/recommendations');
+              const data = await res.json();
+              if (!data || data.length === 0) {
+                  track.classList.add('hidden');
+                  return;
+              }
+              track.classList.remove('hidden');
+              cards.innerHTML = data.map(item => {
+                  libraryEntries[item.id] = item;
+                  return `
+                    <div onclick="selectRecommendation(${item.id})" class="min-w-[280px] p-6 bg-white border border-brand/5 rounded-[2rem] hover:border-brand/20 hover:shadow-xl hover:shadow-brand/5 transition-all cursor-pointer group">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-8 h-8 rounded-lg bg-brand/5 text-brand flex items-center justify-center text-[10px] font-black">${item.item_type.substring(0,1).toUpperCase()}</div>
+                            <div class="text-[9px] font-black text-brand uppercase tracking-widest truncate">${item.reference || item.title || 'Wisdom Entry'}</div>
+                        </div>
+                        <p class="text-[11px] text-text-muted font-medium line-clamp-2 leading-relaxed italic">"${item.text}"</p>
+                    </div>
+                  `;
+              }).join('');
+          } catch (e) {
+              console.error("Recommendations failed:", e);
+              track.classList.add('hidden');
+          }
+      }
+
+      function selectRecommendation(id) {
+          const entry = libraryEntries[id];
+          if (!entry) return;
+          trackInteraction('selected_recommendation', id, 'library_track');
+          if (entry.item_type === 'quran') {
+              useInQuoteCard(id);
+          } else {
+              openEntryModalById(id);
+          }
+      }
+
+      async function trackInteraction(type, entityId, context) {
+          try {
+              await fetch('/library/track-use', {
+                  method: 'POST',
+                  headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify({ action_type: type, entity_id: String(entityId), context: context || 'library' })
+              });
+          } catch(e) { console.warn("Interaction tracking failed", e); }
       }
 
       function showView(view, data = null) {
@@ -2965,16 +3031,17 @@ async def app_library_page(
       }
 
       async function loadSurahs() {
-          const canvas = document.getElementById('entryList');
-          canvas.innerHTML = '<div class="col-span-full text-center py-20 text-[10px] text-muted font-bold uppercase animate-pulse">Illuminating Surahs...</div>';
-          
+
           try {
+              console.log("Fetching surahs...");
               const res = await fetch('/api/quran/surahs');
+              if (!res.ok) throw new Error("API Status: " + res.status);
               const surahs = await res.json();
               
+              const canvas = document.getElementById('entryList');
               canvas.className = "flex-1 overflow-y-auto p-4 md:p-8 hide-scrollbar bg-cream/20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6";
               canvas.innerHTML = surahs.map(s => `
-                <div onclick="showView('surah_reading', {number: ${s.number}, name: '${s.name_en}'})" 
+                <div onclick="showView('surah_reading', {number: ${s.number}, name: '${(s.name_en || '').replace(/'/g, "\\'")}'})" 
                      class="surah-card glass p-6 rounded-[2rem] bg-white border border-brand/5 hover:border-brand/20 hover:shadow-xl hover:shadow-brand/5 transition-all cursor-pointer group flex items-center justify-between">
                     <div class="flex items-center gap-4 overflow-hidden">
                         <div class="surah-number w-10 h-10 rounded-xl bg-brand/5 border border-brand/10 text-brand flex items-center justify-center text-[10px] font-black transition-all group-hover:bg-brand group-hover:text-white">
@@ -2991,7 +3058,9 @@ async def app_library_page(
                 </div>
               `).join('');
           } catch(e) {
-              canvas.innerHTML = '<div class="col-span-full py-20 text-center text-rose-500 font-bold">Failed to load Surahs.</div>';
+              console.error("Surah load failed", e);
+              alert("Error loading Library: " + e.message);
+              document.getElementById('entryList').innerHTML = `<div class="col-span-full py-20 text-center text-rose-500 font-bold uppercase text-[10px]">Critical Error: ${e.message}</div>`;
           }
       }
 
@@ -3015,11 +3084,14 @@ async def app_library_page(
                   \`;
               }
 
-              versesHtml += surah.verses.map(v => \`
+              versesHtml += surah.verses.map(v => {
+                  // Cache for bridge
+                  libraryEntries[v.id] = v;
+                  return `
                 <div class="verse-card group relative p-10 rounded-[2.5rem] border border-transparent transition-all">
                     <!-- Actions -->
                     <div class="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-all flex gap-3">
-                         <button onclick='useInQuoteCard(\${JSON.stringify(v).replace(/'/g, "&apos;")})' class="px-5 py-2.5 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-brand/20">
+                         <button onclick='useInQuoteCard(${v.id})' class="px-5 py-2.5 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-brand/20">
                             Use in Quote Card
                         </button>
                     </div>
@@ -3027,49 +3099,54 @@ async def app_library_page(
                     <div class="flex flex-col gap-8">
                         <div class="flex justify-between items-start gap-6">
                             <div class="w-10 h-10 shrink-0 rounded-full border border-brand/10 flex items-center justify-center text-[9px] font-black text-brand/40">
-                                \${v.ayah_number}
+                                ${v.ayah_number}
                             </div>
                             <p class="dir-rtl font-serif text-3xl text-brand-dark leading-[1.8] text-right flex-1">
-                                \${v.arabic_text}
+                                ${v.arabic_text}
                             </p>
                         </div>
                         <div class="pl-16">
                             <p class="text-text-main text-lg leading-relaxed font-medium mb-4 opacity-90">
-                                \${v.translation_text}
+                                ${v.translation_text}
                             </p>
                             <div class="flex items-center gap-4">
-                               <span class="text-[9px] font-black text-brand uppercase tracking-widest">Reference: \${v.reference}</span>
+                               <span class="text-[9px] font-black text-brand uppercase tracking-widest">Reference: ${v.reference}</span>
                                <span class="w-1 h-1 rounded-full bg-brand/30"></span>
-                               <span class="text-[9px] font-bold text-text-muted uppercase tracking-widest">\${v.translator}</span>
+                               <span class="text-[9px] font-bold text-text-muted uppercase tracking-widest">${v.translator}</span>
                             </div>
                         </div>
                     </div>
                 </div>
-              \`).join('');
+              `).join('');
               
               canvas.innerHTML = versesHtml;
               canvas.scrollTo(0, 0);
           } catch(e) {
-              canvas.innerHTML = '<div class="col-span-full py-20 text-center text-rose-500 font-bold">Failed to load verses.</div>';
+              console.error("Verses load failed", e);
+              canvas.innerHTML = '<div class="col-span-full py-20 text-center text-rose-500 font-bold uppercase text-[10px]">Failed to load verses</div>';
           }
       }
 
-      function useInQuoteCard(verseData) {
-          console.log("Bridge: Setting pending verse...", verseData);
+      function useInQuoteCard(id) {
+          const entry = libraryEntries[id];
+          if (!entry) return;
+
+          console.log("Bridge: Setting pending verse...", entry);
+          trackInteraction('used_entry', id, 'library');
+
           sessionStorage.setItem('sabeel_pending_quote_item', JSON.stringify({
+              id: entry.id,
               type: 'quran_verse',
-              text: verseData.translation_text,
-              arabic_text: verseData.arabic_text,
-              reference: verseData.reference,
-              meta: verseData
+              text: entry.translation_text || entry.text,
+              arabic_text: entry.arabic_text,
+              reference: entry.reference || entry.title,
+              meta: entry
           }));
           
-          // Trigger the quote card flow
-          if (typeof openStudio === 'function') {
-              openStudio();
+          if (typeof openNewPostModal === 'function') {
+              openNewPostModal();
           } else {
-              // Fallback if openStudio isn't available on path
-              window.location.href = '/studio?pending=true';
+              window.location.href = '/app?studio=true'; // Better fallback for app-wide studio trigger
           }
       }
 
@@ -3078,16 +3155,17 @@ async def app_library_page(
               const res = await fetch('/library/topics');
               const topics = await res.json();
               const chips = document.getElementById('sidebarTopicList');
-              chips.innerHTML = topics.slice(0, 20).map(t => \`
-                  <button onclick="filterByTopic('\${t.slug}')" class="px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/5 text-[9px] font-bold uppercase tracking-widest text-brand/50 hover:bg-brand/10 hover:border-brand/20 hover:text-brand transition-all">
-                      \${t.slug.replace(/_/g, ' ')}
+              chips.innerHTML = topics.slice(0, 20).map(t => `
+                  <button onclick="filterByTopic('${t.slug}')" class="px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/5 text-[9px] font-bold uppercase tracking-widest text-brand/50 hover:bg-brand/10 hover:border-brand/20 hover:text-brand transition-all">
+                      ${t.slug.replace(/_/g, ' ')}
                   </button>
-              \`).join('');
+              `).join('');
           } catch(e) { console.error("Topic load failed", e); }
       }
 
       function filterByTopic(slug) {
           document.getElementById('entrySearch').value = slug;
+          trackInteraction('selected_topic', slug, 'library_filters');
           loadEntries();
       }
 
@@ -3096,8 +3174,9 @@ async def app_library_page(
           list.innerHTML = '<div class="text-center py-10 text-[9px] text-muted font-bold uppercase animate-pulse">Loading Collections...</div>';
           
           try {
-              const url = showGlobalOnly ? '/api/quran/surahs' : '/api/sources';
+              const url = showGlobalOnly ? '/api/quran/surahs' : '/library/sources';
               const res = await fetch(url);
+              if (!res.ok) throw new Error("Sources API error: " + res.status);
               const sources = await res.json();
               
               if (showGlobalOnly) {
@@ -3163,10 +3242,10 @@ async def app_library_page(
           list.className = "flex-1 overflow-y-auto p-4 md:p-8 hide-scrollbar bg-cream/20 space-y-4";
 
           try {
-              let url = \`/library/entries?query=\${encodeURIComponent(query)}\`;
-              if (currentSourceId) url += \`&source_id=\${currentSourceId}\`;
-              if (category) url += \`&item_type=\${encodeURIComponent(category)}\`;
-              url += \`&scope=\${showGlobalOnly ? 'global' : 'org'}\`;
+              let url = `/library/entries?query=${encodeURIComponent(query)}`;
+              if (currentSourceId) url += `&source_id=${currentSourceId}`;
+              if (category) url += `&item_type=${encodeURIComponent(category)}`;
+              url += `&scope=${showGlobalOnly ? 'global' : 'org'}`;
               
               const res = await fetch(url);
               const entries = await res.json();
@@ -3176,28 +3255,30 @@ async def app_library_page(
                   return;
               }
 
-              list.innerHTML = entries.map(e => \`
+              list.innerHTML = entries.map(e => {
+                libraryEntries[e.id] = e;
+                return `
                 <div class="glass p-8 bg-white border border-brand/5 hover:border-brand/20 transition-all rounded-[2rem] group relative">
                     <div class="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-all flex gap-3">
-                         \${e.item_type === 'quran' ? \`<button onclick='useInQuoteCard(\${JSON.stringify(e).replace(/'/g, "&apos;")})' class="px-4 py-2 bg-brand text-white rounded-xl text-[8px] font-black uppercase tracking-widest">Use in card</button>\` : ''}
-                         <button onclick="openEntryModalById(\${e.id})" class="p-3 bg-white border border-brand/10 rounded-xl text-brand hover:scale-110 transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                         ${e.item_type === 'quran' || e.item_type === 'quote' ? `<button onclick='useInQuoteCard(${e.id})' class="px-4 py-2 bg-brand text-white rounded-xl text-[8px] font-black uppercase tracking-widest">Use in card</button>` : ''}
+                         <button onclick="openEntryModalById(${e.id})" class="p-3 bg-white border border-brand/10 rounded-xl text-brand hover:scale-110 transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
                     </div>
                     <div class="flex items-center gap-4 mb-6">
-                        <div class="w-10 h-10 rounded-xl bg-brand/5 text-brand flex items-center justify-center border border-brand/10 uppercase text-[8px] font-black tracking-widest">\${e.item_type.substring(0,3)}</div>
+                        <div class="w-10 h-10 rounded-xl bg-brand/5 text-brand flex items-center justify-center border border-brand/10 uppercase text-[8px] font-black tracking-widest">${e.item_type.substring(0,3)}</div>
                         <div>
-                            <div class="text-[8px] font-black uppercase text-text-muted">\${e.item_type} Node</div>
-                            <div class="text-[10px] font-bold text-brand uppercase truncate">\${e.meta.reference || e.title || 'Knowledge Point'}</div>
+                            <div class="text-[8px] font-black uppercase text-text-muted">${e.item_type} Node</div>
+                            <div class="text-[10px] font-bold text-brand uppercase truncate">${e.reference || e.title || 'Knowledge Point'}</div>
                         </div>
                     </div>
                     <p class="text-text-main text-sm leading-relaxed font-medium mb-6 line-clamp-4">
-                        \${e.text}
+                        ${e.text}
                     </p>
                     <div class="flex flex-wrap gap-2 pt-6 border-t border-brand/5">
-                        \${(e.topics || []).map(t => \`<span class="px-2.5 py-1 bg-cream rounded-lg text-[8px] font-bold uppercase tracking-tighter text-brand/60">\${t}</span>\`).join('')}
+                        ${(e.topics || []).map(t => `<span class="px-2.5 py-1 bg-cream rounded-lg text-[8px] font-bold uppercase tracking-tighter text-brand/60">${t}</span>`).join('')}
                     </div>
                 </div>
-              \`).join('');
-          } catch(e) { console.error(e); }
+              `).join('');
+          } catch(e) { console.error("Entries load failed", e); }
       }
 
       function debounceEntryQuery() {
@@ -3216,8 +3297,22 @@ async def app_library_page(
           loadEntries();
       }
 
-      function openEntryModalById(id) { /* Reuses existing modal logic if needed */ }
-      function openEntryModal() { /* Trigger Modal */ }
+      function openEntryModalById(id) {
+          const entry = libraryEntries[id];
+          if (!entry) return;
+          document.getElementById('entryId').value = entry.id;
+          document.getElementById('entryText').value = entry.text;
+          document.getElementById('entryModal').classList.remove('hidden');
+          // More implementation details would go here for mapping other fields...
+      }
+      function openEntryModal() {
+          document.getElementById('entryId').value = '';
+          document.getElementById('entryText').value = '';
+          document.getElementById('entryModal').classList.remove('hidden');
+      }
+      function hideEntryModal() {
+          document.getElementById('entryModal').classList.add('hidden');
+      }
     </script>
     """
     
