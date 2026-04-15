@@ -2973,6 +2973,30 @@ async def app_library_page(
       const orgId = {org_id_js};
       let currentView = 'browse_surahs'; // 'browse_surahs' | 'surah_reading' | 'search_results'
 
+      // --- DEFENSIVE NORMALIZATION (Emergency Stabilization) ---
+      function normalizeLibraryEntry(raw) {
+          if (!raw) return null;
+          try {
+              return {
+                  id: raw.id ?? Math.random().toString(36).substring(2, 9),
+                  item_type: raw.item_type || raw.type || "unknown",
+                  title: raw.reference || raw.title || "Untitled Entry",
+                  reference: raw.reference || raw.title || "Untitled Entry",
+                  text: raw.translation_text || raw.text || raw.content || "Content unavailable",
+                  arabic_text: raw.arabic_text || "",
+                  topics: Array.isArray(raw.topics) ? raw.topics : (raw.topics ? [raw.topics] : []),
+                  meta: raw.meta || {},
+                  surah_number: raw.surah_number || raw.meta?.surah_number || null,
+                  ayah_number: raw.ayah_number || raw.meta?.ayah_number || null,
+                  surah_name_en: raw.surah_name_en || raw.meta?.surah_name_en || "",
+                  surah_name_ar: raw.surah_name_ar || raw.meta?.surah_name_ar || ""
+              };
+          } catch (e) {
+              console.error("[LIBRARY][NORMALIZE_CRASH]", e, raw);
+              return null;
+          }
+      }
+
       // --- INITIALIZATION ---
       window.addEventListener('DOMContentLoaded', async () => {
           console.log("Library System: Initializing [Premium Mode]");
@@ -3225,11 +3249,20 @@ async def app_library_page(
               const res = await fetch('/library/topics');
               const topics = await res.json();
               const chips = document.getElementById('sidebarTopicList');
-              chips.innerHTML = topics.slice(0, 25).map(t => `
-                  <button onclick="filterByTopic('${t.slug}')" class="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-[0.2em] text-white/40 hover:bg-brand/20 hover:border-brand/40 hover:text-brand transition-all">
-                      ${t.slug.replace(/_/g, ' ')}
-                  </button>
-              `).join('');
+              if (!Array.isArray(topics)) {
+                  console.warn("[LIBRARY] Topics payload is not an array");
+                  chips.innerHTML = '';
+                  return;
+              }
+              chips.innerHTML = topics.slice(0, 25).map(t => {
+                  try {
+                      return `
+                        <button onclick="filterByTopic('${t.slug || ''}')" class="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-[0.2em] text-white/40 hover:bg-brand/20 hover:border-brand/40 hover:text-brand transition-all">
+                            ${(t.slug || 'unknown').replace(/_/g, ' ')}
+                        </button>
+                      `;
+                  } catch (e) { return ''; }
+              }).join('');
           } catch(e) { console.error("Topic load failed", e); }
       }
 
@@ -3239,8 +3272,9 @@ async def app_library_page(
           loadEntries();
       }
 
-        async function loadSources() {
+      async function loadSources() {
           const list = document.getElementById('sourceList');
+          if (!list) return;
           list.innerHTML = Array(3).fill(0).map(() => `<div class="skeleton h-14 rounded-2xl mb-2 opacity-30"></div>`).join('');
           
           try {
@@ -3249,17 +3283,22 @@ async def app_library_page(
               if (!res.ok) throw new Error("Sources API error: " + res.status);
               const sources = await res.json();
               
+              if (!Array.isArray(sources)) {
+                console.warn("[LIBRARY] Sources payload is not an array:", sources);
+                list.innerHTML = `<div class="p-8 text-center text-white/10 font-bold text-[8px] uppercase tracking-widest">Format Error</div>`;
+                return;
+              }
+
               if (showGlobalOnly) {
-                  // System view: We just show a dummy "System Library" entry or nothing
                   document.getElementById('sourceCount').textContent = "∞";
                   list.innerHTML = `
-                    <div onclick="showView('browse_surahs')" class="p-4 px-5 rounded-2xl cursor-pointer transition-all border flex items-center gap-4 group bg-brand/5 border-brand/20 shadow-sm">
-                        <div class="w-8 h-8 rounded-lg bg-brand text-white flex items-center justify-center shrink-0">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                    <div onclick="showView('browse_surahs')" class="p-4 px-6 rounded-2xl cursor-pointer transition-all border flex items-center gap-4 group bg-brand/10 border-brand/30 shadow-lg">
+                        <div class="w-10 h-10 rounded-2xl bg-brand text-white flex items-center justify-center shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
                         </div>
                         <div class="flex-1 overflow-hidden">
-                            <div class="text-[10px] font-bold truncate text-brand uppercase tracking-wider">Quran Foundation</div>
-                            <div class="text-[8px] font-bold text-muted uppercase mt-0.5">Global Wisdom</div>
+                            <div class="text-[10px] font-black truncate text-brand uppercase tracking-wider">Quran Foundation</div>
+                            <div class="text-[8px] font-bold text-white/20 uppercase mt-0.5">Global Wisdom</div>
                         </div>
                     </div>
                   `;
@@ -3268,15 +3307,16 @@ async def app_library_page(
 
               document.getElementById('sourceCount').textContent = sources.length;
               list.innerHTML = sources.map(s => {
-                const isActive = s.id === currentSourceId;
+                const isActive = s && s.id === currentSourceId;
+                if (!s) return '';
                 return `
                 <div onclick="filterBySource(${s.id})" class="p-4 px-6 rounded-2xl cursor-pointer transition-all border flex items-center gap-4 group ${isActive ? 'bg-brand/10 border-brand/30 shadow-lg' : 'hover:bg-white/5 border-transparent hover:border-white/10'}">
                     <div class="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 transition-all group-hover:scale-110">
                         <span class="text-xs">📂</span>
                     </div>
                     <div class="flex-1 overflow-hidden">
-                        <div class="text-[10px] font-black truncate ${isActive ? 'text-brand' : 'text-white/60'} group-hover:text-white uppercase tracking-wider">${s.name}</div>
-                        <div class="text-[7px] font-bold text-white/20 uppercase mt-0.5 tracking-[0.2em]">${s.source_type} • ${s.items_count || 0} Entries</div>
+                        <div class="text-[10px] font-black truncate ${isActive ? 'text-brand' : 'text-white/60'} group-hover:text-white uppercase tracking-wider">${s.name || 'Untitled'}</div>
+                        <div class="text-[7px] font-bold text-white/20 uppercase mt-0.5 tracking-[0.2em]">${s.source_type || 'Unknown'} • ${s.items_count || 0} Entries</div>
                     </div>
                 </div>
                 `;
@@ -3325,29 +3365,38 @@ async def app_library_page(
                   return;
               }
 
-              list.innerHTML = entries.map(e => {
-                libraryEntries[e.id] = e;
-                return `
-                <div class="premium-glass p-10 rounded-[3rem] group relative hover:bg-white/[0.04] transition-all border-l-4 border-l-transparent hover:border-l-brand">
-                    <div class="absolute top-8 right-10 opacity-0 group-hover:opacity-100 transition-all flex gap-3 z-10">
-                         ${e.item_type === 'quran' || e.item_type === 'quote' ? `<button onclick='useInQuoteCard(${e.id})' class="px-6 py-3 bg-brand text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-brand/40 hover:scale-105 active:scale-95 transition-all">Manifest in Card</button>` : ''}
-                         <button onclick="openEntryModalById(${e.id})" class="p-3 bg-white/10 border border-white/10 rounded-2xl text-white hover:bg-brand hover:border-brand transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg></button>
-                    </div>
-                    <div class="flex items-center gap-6 mb-8">
-                        <div class="w-12 h-12 rounded-2xl bg-brand/10 text-brand flex items-center justify-center border border-brand/20 uppercase text-[9px] font-black tracking-tighter">${e.item_type.substring(0,3)}</div>
-                        <div>
-                            <div class="text-[8px] font-black uppercase text-white/30 tracking-widest">${e.item_type} Intelligence</div>
-                            <div class="text-[11px] font-black text-white uppercase tracking-wider truncate">${e.reference || e.title || 'Knowledge Point'}</div>
+              list.innerHTML = entries.map(raw => {
+                const e = normalizeLibraryEntry(raw);
+                if (!e) return '';
+                
+                try {
+                    libraryEntries[e.id] = e;
+                    return `
+                    <div class="premium-glass p-10 rounded-[3rem] group relative hover:bg-white/[0.04] transition-all border-l-4 border-l-transparent hover:border-l-brand">
+                        <div class="absolute top-8 right-10 opacity-0 group-hover:opacity-100 transition-all flex gap-3 z-10">
+                             ${e.item_type === 'quran' || e.item_type === 'quote' ? `<button onclick='useInQuoteCard(${e.id})' class="px-6 py-3 bg-brand text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-brand/40 hover:scale-105 active:scale-95 transition-all">Manifest in Card</button>` : ''}
+                             <button onclick="openEntryModalById(${e.id})" class="p-3 bg-white/10 border border-white/10 rounded-2xl text-white hover:bg-brand hover:border-brand transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg></button>
+                        </div>
+                        <div class="flex items-center gap-6 mb-8">
+                            <div class="w-12 h-12 rounded-2xl bg-brand/10 text-brand flex items-center justify-center border border-brand/20 uppercase text-[9px] font-black tracking-tighter">${(e.item_type || "NOD").substring(0,3)}</div>
+                            <div>
+                                <div class="text-[8px] font-black uppercase text-white/30 tracking-widest">${e.item_type} Intelligence</div>
+                                <div class="text-[11px] font-black text-white uppercase tracking-wider truncate">${e.reference || e.title}</div>
+                            </div>
+                        </div>
+                        <p class="text-white/80 text-lg leading-relaxed font-medium mb-8 line-clamp-4 italic">
+                            "${e.text}"
+                        </p>
+                        <div class="flex flex-wrap gap-2.5 pt-8 border-t border-white/5">
+                            ${(e.topics || []).map(t => `<span class="px-3 py-1.5 bg-white/5 border border-white/5 rounded-xl text-[8px] font-black uppercase tracking-widest text-brand/60 hover:text-white transition-colors cursor-pointer">${t}</span>`).join('')}
                         </div>
                     </div>
-                    <p class="text-white/80 text-lg leading-relaxed font-medium mb-8 line-clamp-4 italic">
-                        "${e.text}"
-                    </p>
-                    <div class="flex flex-wrap gap-2.5 pt-8 border-t border-white/5">
-                        ${(e.topics || []).map(t => `<span class="px-3 py-1.5 bg-white/5 border border-white/5 rounded-xl text-[8px] font-black uppercase tracking-widest text-brand/60 hover:text-white transition-colors cursor-pointer">${t}</span>`).join('')}
-                    </div>
-                </div>
-              `).join('');
+                  `;
+                } catch (err) {
+                    console.error("[LIBRARY][CARD_RENDER_FAIL]", err, raw);
+                    return '';
+                }
+              }).join('');
           } catch(e) { console.error("Entries load failed", e); }
       }
 

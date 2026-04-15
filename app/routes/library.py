@@ -99,14 +99,38 @@ def list_library_entries(
         q = q.filter(cast(ContentItem.topics_slugs, String).ilike(f'%"{topic}"%'))
     if item_type:
         q = q.filter(ContentItem.item_type == item_type)
-    if query:
-        q = q.filter(or_(
-            ContentItem.text.ilike(f"%{query}%"),
-            ContentItem.title.ilike(f"%{query}%"),
-            ContentItem.arabic_text.ilike(f"%{query}%"),
-            ContentItem.topic.ilike(f"%{query}%")
-        ))
-    return q.order_by(ContentItem.created_at.desc()).all()
+    results = q.order_by(ContentItem.created_at.desc()).all()
+    
+    # --- DEFENSIVE NORMALIZATION & DIAGNOSTICS ---
+    normalized = []
+    stats = {"total": len(results), "quran": 0, "missing_text": 0, "missing_ref": 0}
+    
+    for item in results:
+        # Counters
+        if item.item_type == "quran": stats["quran"] += 1
+        if not item.text: stats["missing_text"] += 1
+        if not item.title and not item.reference: stats["missing_ref"] += 1
+        
+        # Safe Object Construction
+        entry_meta = item.meta or {}
+        normalized.append({
+            "id": item.id,
+            "item_type": item.item_type or "note",
+            "title": item.title or item.reference or "Untitled Entry",
+            "reference": item.reference or item.title or "Untitled Entry",
+            "text": item.text or "Content unavailable",
+            "arabic_text": item.arabic_text or "",
+            "topics": item.topics or [],
+            "topics_slugs": item.topics_slugs or [],
+            "meta": entry_meta,
+            "created_at": item.created_at,
+            "owner_user_id": item.owner_user_id,
+            "org_id": item.org_id,
+            "source_id": item.source_id
+        })
+
+    print(f"📡 [LIBRARY] Returning {stats['total']} entries. Quran: {stats['quran']} | Missing Text: {stats['missing_text']} | Missing Ref: {stats['missing_ref']}")
+    return normalized
 
 @router.get("/entries/{item_id}", response_model=ContentItemOut)
 def get_library_entry(
@@ -125,7 +149,21 @@ def get_library_entry(
     if item.org_id is not None and item.org_id != org_id and item.owner_user_id != user.id:
         raise HTTPException(status_code=403, detail="Access denied to this library entry")
         
-    return item
+    return {
+        "id": item.id,
+        "item_type": item.item_type or "note",
+        "title": item.title or item.reference or "Untitled Entry",
+        "reference": item.reference or item.title or "Untitled Entry",
+        "text": item.text or "Content unavailable",
+        "arabic_text": item.arabic_text or "",
+        "topics": item.topics or [],
+        "topics_slugs": item.topics_slugs or [],
+        "meta": item.meta or {},
+        "created_at": item.created_at,
+        "owner_user_id": item.owner_user_id,
+        "org_id": item.org_id,
+        "source_id": item.source_id
+    }
 
 @router.post("/entries", response_model=ContentItemOut)
 def add_library_entry(
