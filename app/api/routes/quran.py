@@ -104,6 +104,7 @@ async def api_generate_quran_caption(
             raise HTTPException(status_code=404, detail="Quran verse not found in Foundation.")
             
         print(f"📡 [GroundedAPI] Generating for: {item.title} (ID: {item.id})")
+        from app.services.quran_caption_service import generate_ai_caption_from_quran
         caption = generate_ai_caption_from_quran(item, style)
         
         return {
@@ -113,6 +114,8 @@ async def api_generate_quran_caption(
         }
     except Exception as e:
         import traceback
+        logger.error(f"Generate caption failure: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
         print(f"🔴 [GroundedAPI] CRITICAL FAILURE: {e}")
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=str(e))
