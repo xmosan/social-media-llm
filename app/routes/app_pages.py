@@ -2599,10 +2599,12 @@ async def app_media_page(
                           .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
                           .replace("{extra_js}", f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>')
 
+@router.get("/library", response_class=HTMLResponse)
 @router.get("/app/library", response_class=HTMLResponse)
 async def app_library_page(
-    user: User | None = Depends(optional_user),
-    db: Session = Depends(get_db)
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_user)
 ):
     if not user:
         return RedirectResponse(url="/login")
@@ -2998,13 +3000,13 @@ async def app_library_page(
       };
 
       console.log("Library System: Ready");
+      window.isSabeelAdmin = "{is_superadmin_js}" === "true";
+      window.sabeelOrgId = parseInt("{org_id_js}" || "0");
       let libraryEntries = {}; 
       let currentSourceId = null;
       let showGlobalOnly = true;
       let entrySearchTimeout = null;
       let selectedTopic = null;
-      const isSuperAdmin = "{is_superadmin_js}" === "true";
-      const orgId = parseInt("{org_id_js}" || "0");
       let currentView = 'browse_surahs'; 
 
       // --- DEFENSIVE NORMALIZATION (Emergency Stabilization) ---
@@ -3033,28 +3035,18 @@ async def app_library_page(
 
       // --- INITIALIZATION ---
       window.addEventListener('DOMContentLoaded', async () => {
-          console.log("Library System: Initializing [Premium Mode]");
+          console.log("Library System: Initializing [Ultra-Hardened Mode]");
           
-          try { checkPendingVerse(); } catch (e) { console.warn("Init Error: pending", e); }
-          
-          // Parallel non-blocking init
-          const parallelInits = [
-              { name: 'Topics', fn: loadTopics },
-              { name: 'Sources', fn: loadSources },
-              { name: 'Recommendations', fn: loadRecommendations }
-          ];
+          const list = document.getElementById('entryList');
+          if (list) {
+              list.innerHTML = `
+                <div class="col-span-full py-20 flex flex-col items-center justify-center space-y-4">
+                    <div class="w-16 h-16 border-4 border-brand/10 border-t-brand rounded-full animate-spin"></div>
+                    <div class="text-[10px] font-black text-brand uppercase tracking-widest animate-pulse">Manifesting Wisdom...</div>
+                </div>
+              `;
+          }
 
-          parallelInits.forEach(async step => {
-              try {
-                  console.log(`[INIT] Running: ${step.name}`);
-                  await step.fn();
-              } catch (e) {
-                  console.error(`Library: Step ${step.name} failed`, e);
-                  showDebugError(`${step.name} Sync Failed: ${e.message}`);
-              }
-          });
-
-          // Core view init
           try {
               // Forced sync of buttons to match default state
               const orgBtn = document.getElementById('orgViewBtn');
@@ -3065,11 +3057,16 @@ async def app_library_page(
               if (globalBtn) globalBtn.className = showGlobalOnly ? activeClass : inactiveClass;
               if (orgBtn) orgBtn.className = !showGlobalOnly ? activeClass : inactiveClass;
 
-              showView('browse_surahs');
+              // 1. Load Sources
+              await loadSources();
+              
+              // 2. Load Initial View
+              await loadSurahs();
+              
+              console.log("Library System: Manifestation Complete");
           } catch (e) {
-              console.error("Library: Failed to manifest main view", e);
-              const list = document.getElementById('entryList');
-              if (list) list.innerHTML = `<div class="p-20 text-center text-rose-500 font-bold uppercase tracking-widest">Library Manifestation Failed. Check Connection.</div>`;
+              console.error("Library System: Initialization Blocked", e);
+              showDebugError(`Init Blocked: ${e.message}`);
           }
       });
 
