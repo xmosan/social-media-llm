@@ -2817,6 +2817,14 @@ async def app_library_page(
             <div id="globalToggleContainer" class="hidden"></div>
             <input type="hidden" id="filterCategory" value="">
             <input type="hidden" id="filterTopic" value="">
+            
+            <!-- Visual Debugger (Temporary) -->
+            <div id="libraryDebugger" class="fixed bottom-4 right-4 max-w-sm bg-rose-500 text-white p-3 rounded-xl shadow-2xl z-[9999] text-[10px] font-black uppercase hidden pointer-events-none">
+                <div class="flex items-center gap-2">
+                    <span class="animate-pulse">⚠️</span>
+                    <span id="debugMessage">Console Error Detected</span>
+                </div>
+            </div>
         </div>
       </div>
     </div>
@@ -3099,8 +3107,28 @@ async def app_library_page(
           } catch(e) { console.warn("Interaction tracking failed", e); }
       }
 
+      // --- GLOBAL ERROR HANDLING ---
+      window.onerror = function(msg, url, line) {
+          const debug = document.getElementById('libraryDebugger');
+          const msgEl = document.getElementById('debugMessage');
+          if (debug && msgEl) {
+              debug.classList.remove('hidden');
+              msgEl.textContent = `JS Error: ${msg} (Line ${line})`;
+          }
+      };
+
+      window.onunhandledrejection = function(event) {
+          const debug = document.getElementById('libraryDebugger');
+          const msgEl = document.getElementById('debugMessage');
+          if (debug && msgEl) {
+              debug.classList.remove('hidden');
+              msgEl.textContent = `Promise Failed: ${event.reason}`;
+          }
+      };
+
       function showView(view, data = null) {
           currentView = view;
+          const list = document.getElementById('entryList');
           const breadcrumbChild = document.getElementById('libraryBreadcrumbChild');
           const breadcrumbName = document.getElementById('libraryBreadcrumbName');
           
@@ -3110,7 +3138,20 @@ async def app_library_page(
               
               if (breadcrumbChild) breadcrumbChild.classList.add('hidden');
               if (breadcrumbName) breadcrumbName.textContent = '';
-              loadSurahs();
+              
+              if (showGlobalOnly) {
+                  loadSurahs();
+              } else {
+                  if (list) list.innerHTML = `
+                    <div class="flex flex-col items-center justify-center p-20 text-center space-y-4">
+                        <div class="w-16 h-16 rounded-full bg-brand/5 flex items-center justify-center text-2xl">📁</div>
+                        <div class="space-y-1">
+                            <div class="text-[10px] font-black text-brand uppercase tracking-widest">Your Wisdom Space</div>
+                            <div class="text-[8px] text-text-muted uppercase">Select a collection from the sidebar or switch to System view</div>
+                        </div>
+                    </div>
+                  `;
+              }
           }
           if (view === 'surah_reading' && data) {
               if (breadcrumbChild) breadcrumbChild.classList.remove('hidden');
@@ -3125,7 +3166,6 @@ async def app_library_page(
           if (view === 'search_results') {
               if (breadcrumbChild) breadcrumbChild.classList.remove('hidden');
               if (breadcrumbName) breadcrumbName.textContent = 'Search Results';
-              // loadEntries handles the canvas
           }
       }
 
