@@ -402,7 +402,6 @@ app.mount("/uploads", StaticFiles(directory=settings.uploads_dir), name="uploads
 
 # Include Routers
 app.include_router(public.router)
-app.include_router(app_pages.router)
 app.include_router(posts.router)
 app.include_router(admin.router)
 app.include_router(orgs.router)
@@ -419,6 +418,7 @@ app.include_router(profiles.router)
 app.include_router(sources.router)
 app.include_router(admin_library.router)
 app.include_router(admin_global_library.router)
+app.include_router(app_pages.router)
 from .api.routes import waitlist, contact, admin_panel, quran
 # ...
 app.include_router(admin_panel.router)

@@ -1520,7 +1520,8 @@ SELECT_ACCOUNT_HTML = """<!doctype html>
         </div>
 
         <!-- Continue Action -->
-        <div id="cta-container" class="pt-6 hidden">
+        <div id="libraryContainer" class="flex flex-col h-full bg-[#F8F6F2]">
+        <!-- UI VERSION: 5.2 (ULTRA-HARDENED) -->
             <button id="continue-btn" onclick="saveSelected()" class="w-full py-4 bg-brand text-white rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/10 hover:shadow-brand/20 disabled:opacity-50 disabled:cursor-not-allowed">
                 Continue to Dashboard
             </button>
@@ -3106,7 +3107,7 @@ async def app_library_page(
                         <p class="text-[11px] text-text-muted font-medium line-clamp-2 leading-relaxed italic">"${item.text}"</p>
                     </div>
                   `;
-              }).join('');
+                }).join('');
           } catch (e) {
               console.error("Recommendations failed:", e);
               track.classList.add('hidden');
@@ -3248,14 +3249,15 @@ async def app_library_page(
                         <div class="surah-number w-12 h-12 rounded-2xl bg-brand/5 border border-brand/10 text-brand flex items-center justify-center text-[11px] font-black tracking-tighter transition-all group-hover:bg-brand group-hover:text-white group-hover:scale-110">
                             ${s.number}
                         </div>
-                        <div class="overflow-hidden">
-                            <h4 class="text-sm font-black text-text-main group-hover:text-brand transition-colors truncate">${s.name_en}</h4>
-                            <p class="text-[9px] font-bold text-text-muted/40 uppercase tracking-widest mt-1">${s.verses_count} Verses • ${s.revelation_type}</p>
+                        <div class="overflow-hidden text-left">
+                            <h4 class="text-sm font-black text-text-main group-hover:text-brand transition-colors truncate text-left">${s.name_en}</h4>
+                            <p class="text-[9px] font-bold text-text-muted/40 uppercase tracking-widest mt-1 text-left">${s.verses_count} Verses • ${s.revelation_type}</p>
                         </div>
                     </div>
                     <div class="text-2xl font-serif text-brand/10 group-hover:text-brand transition-colors pl-4">${s.name_ar}</div>
                 </div>
-              `).join('');
+              `;
+            }).join('');
           } catch(e) {
               console.error("Surah load failed", e);
               canvas.innerHTML = `<div class="col-span-full py-20 text-center text-rose-500 font-bold uppercase text-[10px]">Critical Error: ${e.message}</div>`;
@@ -3320,7 +3322,8 @@ async def app_library_page(
                         </div>
                     </div>
                 </div>
-              `).join('');
+              `;
+            }).join('');
               
               canvas.innerHTML = versesHtml;
               canvas.scrollTo(0, 0);
