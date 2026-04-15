@@ -2811,7 +2811,10 @@ async def app_library_page(
                 <!-- Loaded via JS -->
             </div>
 
-            <!-- Hidden State Storage to prevent JS crashes -->
+            <!-- Hidden Structural Elements to prevent JS crashes -->
+            <div id="libraryBreadcrumbChild" class="hidden"></div>
+            <div id="libraryBreadcrumbName" class="hidden"></div>
+            <div id="globalToggleContainer" class="hidden"></div>
             <input type="hidden" id="filterCategory" value="">
             <input type="hidden" id="filterTopic" value="">
         </div>
@@ -3101,19 +3104,25 @@ async def app_library_page(
           const breadcrumbChild = document.getElementById('libraryBreadcrumbChild');
           const breadcrumbName = document.getElementById('libraryBreadcrumbName');
           
-          console.log("[LIBRARY] Navigating to view:", view);
-
-          // Clear Search if navigating back to surahs
           if (view === 'browse_surahs') {
-              document.getElementById('entrySearch').value = '';
+              const searchInput = document.getElementById('entrySearch');
+              if (searchInput) searchInput.value = '';
+              
               if (breadcrumbChild) breadcrumbChild.classList.add('hidden');
               if (breadcrumbName) breadcrumbName.textContent = '';
               loadSurahs();
-          } else if (view === 'surah_reading') {
+          }
+          if (view === 'surah_reading' && data) {
               if (breadcrumbChild) breadcrumbChild.classList.remove('hidden');
               if (breadcrumbName) breadcrumbName.textContent = data.name;
               loadSurahVerses(data.number);
-          } else if (view === 'search_results') {
+          }
+          if (view === 'collection_view' && data) {
+              if (breadcrumbChild) breadcrumbChild.classList.remove('hidden');
+              if (breadcrumbName) breadcrumbName.textContent = data.name;
+              loadEntries();
+          }
+          if (view === 'search_results') {
               if (breadcrumbChild) breadcrumbChild.classList.remove('hidden');
               if (breadcrumbName) breadcrumbName.textContent = 'Search Results';
               // loadEntries handles the canvas
@@ -3423,12 +3432,18 @@ async def app_library_page(
       }
 
       function updateCharCount() {
-          const text = document.getElementById('entryText').value;
-          document.getElementById('charCount').textContent = `${text.length} / 3000`;
+          const area = document.getElementById('entryText');
+          const counter = document.getElementById('charCount');
+          if (area && counter) {
+              const text = area.value;
+              counter.textContent = `${text.length} / 3000`;
+          }
       }
 
       function setEntryType(type, element) {
-          document.getElementById('entryType').value = type;
+          const typeInput = document.getElementById('entryType');
+          if (typeInput) typeInput.value = type;
+          
           // Toggle UI state
           document.querySelectorAll('.type-btn').forEach(btn => {
               btn.classList.remove('bg-brand', 'text-white', 'shadow-xl', 'shadow-brand/20');
@@ -3447,7 +3462,9 @@ async def app_library_page(
       }
 
       function checkNewSource() {
-          const val = document.getElementById('sourceSelect').value;
+          const select = document.getElementById('sourceSelect');
+          if (!select) return;
+          const val = select.value;
           const container = document.getElementById('newSourceFields');
           if (container) {
               container.classList.toggle('hidden', val !== '');
@@ -3528,9 +3545,16 @@ async def app_library_page(
           const entry = libraryEntries[id];
           if (!entry) return;
           
-          document.getElementById('entryId').value = entry.id;
-          document.getElementById('entryText').value = entry.text || '';
-          document.getElementById('entryModalTitle').innerHTML = `Edit <span class="text-accent">${(entry.item_type || 'Knowledge').toUpperCase()}</span>`;
+          const idInput = document.getElementById('entryId');
+          const area = document.getElementById('entryText');
+          const title = document.getElementById('entryModalTitle');
+          const globalCheck = document.getElementById('isGlobalCheckbox');
+          const sourceSelect = document.getElementById('sourceSelect');
+          const modal = document.getElementById('entryModal');
+
+          if (idInput) idInput.value = entry.id;
+          if (area) area.value = entry.text || '';
+          if (title) title.innerHTML = `Edit <span class="text-accent">${(entry.item_type || 'Knowledge').toUpperCase()}</span>`;
           
           // Set type
           const type = entry.item_type || 'note';
@@ -3538,23 +3562,26 @@ async def app_library_page(
           setEntryType(type, typeBtn);
 
           // Meta / Global
-          const globalCheck = document.getElementById('isGlobalCheckbox');
           if (globalCheck) globalCheck.checked = entry.meta?.is_global === true;
 
           // Select source
-          const sourceSelect = document.getElementById('sourceSelect');
           if (sourceSelect) sourceSelect.value = entry.source_id || '';
           checkNewSource();
 
-          document.getElementById('entryModal').classList.remove('hidden');
+          if (modal) modal.classList.remove('hidden');
           updateCharCount();
       }
 
       function openEntryModal() {
-          document.getElementById('entryId').value = '';
-          document.getElementById('entryText').value = '';
-          document.getElementById('entryModalTitle').innerHTML = `Add <span class="text-accent">Knowledge</span>`;
-          document.getElementById('entryModal').classList.remove('hidden');
+          const idInput = document.getElementById('entryId');
+          const area = document.getElementById('entryText');
+          const title = document.getElementById('entryModalTitle');
+          const modal = document.getElementById('entryModal');
+
+          if (idInput) idInput.value = '';
+          if (area) area.value = '';
+          if (title) title.innerHTML = `Add <span class="text-accent">Knowledge</span>`;
+          if (modal) modal.classList.remove('hidden');
           
           // Reset to default type
           const noteBtn = document.querySelector(`.type-btn[onclick*="'note'"]`);
