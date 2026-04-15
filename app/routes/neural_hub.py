@@ -248,7 +248,7 @@ async def neural_library_page(request: Request, user: User = Depends(require_use
     return APP_LAYOUT_HTML.format(
         title="Knowledge Library",
         content=final_content,
-        user_name=user.full_name,
+        user_name=user.name or user.email,
         org_name=getattr(user.organization, 'name', 'Foundation'),
         active_dashboard="",
         active_calendar="",
