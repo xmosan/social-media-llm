@@ -3768,8 +3768,8 @@ async def app_library_page(
     
     return APP_LAYOUT_HTML.replace("{content}", content.replace("{library_controls}", f"""
             <div class="flex p-1 bg-brand/5 rounded-xl border border-brand/10 gap-2">
-                <button onclick="toggleGlobalView(false)" id="orgViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-md">Org</button>
-                <button onclick="toggleGlobalView(true)" id="globalViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-brand/40 hover:text-brand">System</button>
+                <button onclick="toggleGlobalView(false)" id="orgViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-brand/40 hover:text-brand">Org</button>
+                <button onclick="toggleGlobalView(true)" id="globalViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-md">System</button>
                 <button onclick="openSynonymModal()" class="px-3 py-1.5 border border-brand/10 rounded-lg text-brand hover:bg-white hover:shadow-sm transition-all focus:ring-2 focus:ring-brand/20">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
                 </button>
