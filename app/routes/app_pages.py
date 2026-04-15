@@ -3097,19 +3097,21 @@ async def app_library_page(
           const breadcrumbChild = document.getElementById('libraryBreadcrumbChild');
           const breadcrumbName = document.getElementById('libraryBreadcrumbName');
           
+          console.log("[LIBRARY] Navigating to view:", view);
+
           // Clear Search if navigating back to surahs
           if (view === 'browse_surahs') {
               document.getElementById('entrySearch').value = '';
-              breadcrumbChild.classList.add('hidden');
-              breadcrumbName.textContent = '';
+              if (breadcrumbChild) breadcrumbChild.classList.add('hidden');
+              if (breadcrumbName) breadcrumbName.textContent = '';
               loadSurahs();
           } else if (view === 'surah_reading') {
-              breadcrumbChild.classList.remove('hidden');
-              breadcrumbName.textContent = data.name;
+              if (breadcrumbChild) breadcrumbChild.classList.remove('hidden');
+              if (breadcrumbName) breadcrumbName.textContent = data.name;
               loadSurahVerses(data.number);
           } else if (view === 'search_results') {
-              breadcrumbChild.classList.remove('hidden');
-              breadcrumbName.textContent = 'Search Results';
+              if (breadcrumbChild) breadcrumbChild.classList.remove('hidden');
+              if (breadcrumbName) breadcrumbName.textContent = 'Search Results';
               // loadEntries handles the canvas
           }
       }
@@ -3339,11 +3341,13 @@ async def app_library_page(
 
       async function loadEntries() {
           const list = document.getElementById('entryList');
+          if (!list) return;
           const query = document.getElementById('entrySearch').value;
           const category = document.getElementById('filterCategory').value;
           
           if (!query && !category && !currentSourceId) {
-              if (currentView !== 'browse_surahs') showView('browse_surahs');
+              // Forced refresh of surahs if in global mode
+              showView('browse_surahs');
               return;
           }
 
@@ -3416,6 +3420,11 @@ async def app_library_page(
           if (orgBtn) orgBtn.className = !global ? activeClass : inactiveClass;
           
           currentSourceId = null;
+          
+          // Reset UI state to trigger fresh manifestation
+          const query = document.getElementById('entrySearch');
+          if (query) query.value = '';
+          
           loadSources();
           loadEntries();
       }
