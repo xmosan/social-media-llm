@@ -128,9 +128,11 @@ class ComingSoonMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         
         # 1. ALLOWED PATHS (Always accessible)
+        allowed_prefixes = [
             "/login", "/register", "/auth", "/static", "/api/contact", "/health", "/api-test", "/demo", 
             "/contact", "/privacy", "/terms", "/docs", "/redoc", "/openapi.json", "/generate-caption", "/generate-quote-card", "/api/waitlist",
             "/api/quran", "/api/quote-card/build-message", "/api/caption/generate", "/library", "/api/library"
+        ]
         if path == "/" or any(path.startswith(p) for p in allowed_prefixes):
             # If authenticated and visiting root, redirect to /app
             if path == "/" and request.cookies.get("access_token"):
