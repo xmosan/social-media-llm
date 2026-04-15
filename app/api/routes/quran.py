@@ -1,15 +1,10 @@
 # Copyright (c) 2026 Mohammed Hassan. All rights reserved.
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from app.db import get_db
-from app.services.quran_service import get_quran_ayah, search_quran, get_verse_by_reference
-from app.services.quran_serialization import normalize_quran_verse
-from app.services.quran_caption_service import generate_ai_caption_from_quran
-from app.models import User
-from app.security.auth import require_user
-from typing import List, Optional
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/quran", tags=["Quran Foundation"])
 
