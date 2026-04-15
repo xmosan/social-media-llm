@@ -127,9 +127,9 @@ LIBRARY_HTML = """
                 const data = await res.json();
                 
                 list.innerHTML = data.map(s => `
-                    <button onclick="NeuralLibrary.setSource('${s.number || s.id}')" class="source-item w-full text-left p-4 rounded-xl border border-brand/5 hover:bg-brand/5 transition-all group \${this.state.sourceId == (s.number || s.id) ? 'bg-brand/5 border-brand/20' : ''}">
-                        <div class="text-[11px] font-black text-brand uppercase tracking-widest opacity-60 group-hover:opacity-100">\${s.name_en || s.title || s.name}</div>
-                        \${(s.name_ar || s.english_name) ? \`<div class="text-[9px] text-text-muted font-bold tracking-tight opacity-40 group-hover:opacity-100 transition-opacity">\${s.name_ar || s.english_name}</div>\` : ''}
+                    <button onclick="NeuralLibrary.setSource('${{s.number || s.id}}')" class="source-item w-full text-left p-4 rounded-xl border border-brand/5 hover:bg-brand/5 transition-all group ${{this.state.sourceId == (s.number || s.id) ? 'bg-brand/5 border-brand/20' : ''}}">
+                        <div class="text-[11px] font-black text-brand uppercase tracking-widest opacity-60 group-hover:opacity-100">${{s.name_en || s.title || s.name}}</div>
+                        ${{(s.name_ar || s.english_name) ? `<div class="text-[9px] text-text-muted font-bold tracking-tight opacity-40 group-hover:opacity-100 transition-opacity">${{s.name_ar || s.english_name}}</div>` : ''}}
                     </button>
                 `).join('');
                 
@@ -152,8 +152,8 @@ LIBRARY_HTML = """
             
             try {{
                 const url = this.state.scope === 'global' 
-                    ? \`/api/quran/surahs/\${this.state.sourceId || 1}\`
-                    : \`/api/library/entries?scope=org\${this.state.sourceId ? '&source_id='+this.state.sourceId : ''}\`;
+                    ? `/api/quran/surahs/${{this.state.sourceId || 1}}`
+                    : `/api/library/entries?scope=org${{this.state.sourceId ? '&source_id='+this.state.sourceId : ''}}`;
                 
                 const res = await fetch(url);
                 const data = await res.json();
@@ -164,19 +164,19 @@ LIBRARY_HTML = """
                 grid.innerHTML = items.map((v, idx) => `
                     <div class="entry-card card p-8 group relative overflow-hidden bg-white hover:bg-brand/[0.01]">
                         <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
-                            <span class="text-4xl font-black text-brand italic">#\${v.verse_number || idx + 1}</span>
+                            <span class="text-4xl font-black text-brand italic">#${{v.verse_number || idx + 1}}</span>
                         </div>
                         <div class="space-y-6 relative z-10">
-                            \${v.text_arabic ? \`<div class="text-2xl text-right font-arabic leading-loose text-brand/80 pb-2">\${v.text_arabic}</div>\` : ''}
+                            ${{v.text_arabic ? `<div class="text-2xl text-right font-arabic leading-loose text-brand/80 pb-2">${{v.text_arabic}}</div>` : ''}}
                             <div class="text-[13px] text-text-main font-medium leading-relaxed italic opacity-80 group-hover:opacity-100 transition-opacity">
-                                "\${v.text || v.translation_text || v.content}"
+                                "${{v.text || v.translation_text || v.content}}"
                             </div>
                             <div class="pt-6 border-t border-brand/5 flex justify-between items-center">
                                 <div>
-                                    <div class="text-[10px] font-black text-brand uppercase tracking-widest">\${v.reference || sourceTitle || 'ARCHIVE'}</div>
-                                    <div class="text-[8px] font-bold text-accent uppercase tracking-[0.2em] mt-1">\${this.state.scope === 'global' ? 'Foundation Intelligence' : 'Organizational Node'}</div>
+                                    <div class="text-[10px] font-black text-brand uppercase tracking-widest">${{v.reference || sourceTitle || 'ARCHIVE'}}</div>
+                                    <div class="text-[8px] font-bold text-accent uppercase tracking-[0.2em] mt-1">${{this.state.scope === 'global' ? 'Foundation Intelligence' : 'Organizational Node'}}</div>
                                 </div>
-                                <button onclick="NeuralLibrary.manifest('\${this.state.scope === 'global' ? 'quran' : 'entry'}', '\${v.id}', \\\`\${(v.text || v.translation_text || v.content).replace(/\`/g, "\\'").replace(/"/g, '&quot;')}\\\`, '\${v.reference || sourceTitle}')" class="px-6 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl shadow-brand/10 hover:scale-[1.05] active:scale-95 transition-all">Manifest</button>
+                                <button onclick="NeuralLibrary.manifest('${{this.state.scope === 'global' ? 'quran' : 'entry'}}', '${{v.id}}', \`${{((v.text || v.translation_text || v.content) || '').replace(/`/g, "\\'").replace(/"/g, '&quot;')}}\`, '${{v.reference || sourceTitle}}')" class="px-6 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl shadow-brand/10 hover:scale-[1.05] active:scale-95 transition-all">Manifest</button>
                             </div>
                         </div>
                     </div>
@@ -200,8 +200,8 @@ LIBRARY_HTML = """
             
             try {{
                 const url = this.state.scope === 'global'
-                    ? \`/api/quran/search?q=\${encodeURIComponent(query)}\`
-                    : \`/api/library/entries?query=\${encodeURIComponent(query)}&scope=org\`;
+                    ? `/api/quran/search?q=${{encodeURIComponent(query)}}`
+                    : `/api/library/entries?query=${{encodeURIComponent(query)}}&scope=org`;
                 
                 const res = await fetch(url);
                 const data = await res.json();
@@ -209,13 +209,13 @@ LIBRARY_HTML = """
                 grid.innerHTML = data.map((v, idx) => `
                     <div class="entry-card card p-8 group relative bg-white overflow-hidden border border-brand/5">
                         <div class="space-y-6">
-                            \${v.text_arabic ? \`<div class="text-xl text-right font-arabic leading-loose text-brand/60">\${v.text_arabic}</div>\` : ''}
+                            ${{v.text_arabic ? `<div class="text-xl text-right font-arabic leading-loose text-brand/60">${{v.text_arabic}}</div>` : ''}}
                             <div class="text-[13px] text-text-main font-medium leading-relaxed italic opacity-80 group-hover:opacity-100 transition-opacity">
-                                "\${v.text || v.translation_text || v.content}"
+                                "${{v.text || v.translation_text || v.content}}"
                             </div>
                             <div class="pt-6 border-t border-brand/5 flex justify-between items-center">
-                                <div class="text-[10px] font-black text-brand uppercase tracking-widest">\${v.title || v.reference || 'ARCHIVE'}</div>
-                                <button onclick="NeuralLibrary.manifest('entry', '\${v.id}', \\\`\${(v.text || v.translation_text || v.content).replace(/\`/g, "\\'").replace(/"/g, '&quot;')}\\\`, '\${v.title || v.reference}')" class="px-6 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl shadow-brand/10 hover:scale-[1.05] transition-all">Manifest</button>
+                                <div class="text-[10px] font-black text-brand uppercase tracking-widest">${{v.title || v.reference || 'ARCHIVE'}}</div>
+                                <button onclick="NeuralLibrary.manifest('entry', '${{v.id}}', \`${{((v.text || v.translation_text || v.content) || '').replace(/`/g, "\\'").replace(/"/g, '&quot;')}}\`, '${{v.title || v.reference}}')" class="px-6 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl shadow-brand/10 hover:scale-[1.05] transition-all">Manifest</button>
                             </div>
                         </div>
                     </div>
