@@ -3761,7 +3761,7 @@ async def app_library_page(
               const data = await res.json();
               if (data.suggestions && data.suggestions.length > 0) {
                   const suggestion = data.suggestions[0].topic;
-                  if (confirm("Suggested Topic: " + suggestion + "\nApply filter?")) {
+                  if (confirm("Suggested Topic: " + suggestion + "\\nApply filter?")) {
                       document.getElementById('entrySearch').value = suggestion;
                       loadEntries();
                   }
@@ -3808,6 +3808,7 @@ async def app_library_page(
                           .replace("{active_media}", "")\
                           .replace("{is_superadmin_js}", "true" if user.is_superadmin else "false")\
                           .replace("{org_id_js}", str(user.active_org_id or 0))\
+                          .replace("{org_id}", str(user.active_org_id or 0))\
                           .replace("{studio_modal}", STUDIO_COMPONENTS_HTML)\
                           .replace("{account_options}", "")\
                           .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
