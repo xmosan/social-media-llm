@@ -238,18 +238,26 @@ LIBRARY_HTML = """
 </script>
 """
 
+from app.db import get_db
+from sqlalchemy.orm import Session
+from app.models import Org
+
 @router.get("/library", response_class=HTMLResponse)
 @router.get("/app/library", response_class=HTMLResponse)
-async def neural_library_page(request: Request, user: User = Depends(require_user)):
+async def neural_library_page(request: Request, user: User = Depends(require_user), db: Session = Depends(get_db)):
     # Render with the isolated layout and core components
     final_content = LIBRARY_HTML
+    
+    # Fetch Org name safely
+    org = db.query(Org).filter(Org.id == user.active_org_id).first()
+    org_name = org.name if org else "Foundation"
     
     # Bundle components and scripts into the layout
     return APP_LAYOUT_HTML.format(
         title="Knowledge Library",
         content=final_content,
         user_name=user.name or user.email,
-        org_name=getattr(user.organization, 'name', 'Foundation'),
+        org_name=org_name,
         active_dashboard="",
         active_calendar="",
         active_automations="",
@@ -261,5 +269,5 @@ async def neural_library_page(request: Request, user: User = Depends(require_use
         connect_instagram_modal="",
         extra_js="",
         studio_js=STUDIO_SCRIPTS_JS,
-        org_id=user.organization_id or "0"
+        org_id=str(user.active_org_id or 0)
     )
