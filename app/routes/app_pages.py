@@ -3028,9 +3028,11 @@ async def app_library_page(
 
           parallelInits.forEach(async step => {
               try {
+                  console.log(`[INIT] Running: ${step.name}`);
                   await step.fn();
               } catch (e) {
-                  console.error(`Library: ${step.name} failed to load`, e);
+                  console.error(`Library: Step ${step.name} failed`, e);
+                  showDebugError(`${step.name} Sync Failed: ${e.message}`);
               }
           });
 
@@ -3201,7 +3203,14 @@ async def app_library_page(
           try {
               console.log("Fetching surahs...");
               const res = await fetch('/api/quran/surahs');
-              if (!res.ok) throw new Error("API Status: " + res.status);
+              
+              const contentType = res.headers.get("content-type");
+              if (contentType && contentType.includes("text/html")) {
+                  console.error("API Error: Received HTML instead of JSON (Redirect detected)");
+                  showDebugError("Foundation Access Blocked: API Redirected to Login/Landing");
+                  throw new Error("API_REDIRECTED");
+              }
+
               const surahs = await res.json();
               
               if (!surahs || !Array.isArray(surahs) || surahs.length === 0) {
@@ -3365,6 +3374,15 @@ async def app_library_page(
           try {
               const url = showGlobalOnly ? '/api/quran/surahs' : '/library/sources';
               const res = await fetch(url);
+              
+              const contentType = res.headers.get("content-type");
+              if (contentType && contentType.includes("text/html")) {
+                  console.error("[LIBRARY] Sources API returned HTML. Check middleware whitelist.");
+                  showDebugError("Sources Access Blocked (HTML Redirect)");
+                  list.innerHTML = `<div class="p-8 text-center text-rose-400 font-bold text-[8px] uppercase tracking-widest">Network Blocked</div>`;
+                  return;
+              }
+
               if (!res.ok) throw new Error("Sources API error: " + res.status);
               const sources = await res.json();
               
