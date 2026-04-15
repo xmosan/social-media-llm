@@ -2678,11 +2678,11 @@ async def app_library_page(
     content = """
     <style>
         :root {
-            --library-bg: #040D0B;
-            --library-surface: rgba(255, 255, 255, 0.03);
-            --library-border: rgba(255, 255, 255, 0.08);
-            --library-text: #F4F7F5;
-            --library-accent: #C2A87E; /* Subtle Gold */
+            --library-bg: #F8F6F2;
+            --library-surface: #FFFFFF;
+            --library-border: rgba(15, 61, 46, 0.06);
+            --library-text: #1A1A1A;
+            --library-accent: #0F3D2E;
         }
         
         .dir-rtl { direction: rtl; unicode-bidi: bidi-override; }
@@ -2691,26 +2691,27 @@ async def app_library_page(
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
         .library-container {
-            background: radial-gradient(circle at top right, #0A1F1A, #040D0B);
+            background-color: var(--library-bg);
             min-height: 100vh;
             color: var(--library-text);
         }
 
-        .premium-glass {
+        .glass-card {
             background: var(--library-surface);
-            backdrop-blur: 20px;
             border: 1px solid var(--library-border);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 12px rgba(15, 61, 46, 0.04);
+            transition: all 0.3s ease;
         }
 
         .surah-card {
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background: #FFFFFF;
+            border: 1px solid rgba(15, 61, 46, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .surah-card:hover {
-            background: rgba(255, 255, 255, 0.06);
             border-color: var(--brand);
-            transform: translateY(-4px);
-            box-shadow: 0 20px 40px -10px rgba(15, 61, 46, 0.4);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(15, 61, 46, 0.08);
         }
         
         .verse-card {
@@ -2718,11 +2719,11 @@ async def app_library_page(
         }
         .verse-card:hover {
             border-left-color: var(--brand);
-            background: rgba(255, 255, 255, 0.02);
+            background: rgba(15, 61, 46, 0.02);
         }
 
         .skeleton {
-            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
+            background: linear-gradient(90deg, #F0EDE8 25%, #F8F6F2 50%, #F0EDE8 75%);
             background-size: 200% 100%;
             animation: skeleton-loading 1.5s infinite;
         }
@@ -2735,15 +2736,15 @@ async def app_library_page(
     <div class="library-container -m-6 md:-m-10 p-6 md:p-10 space-y-8 h-full flex flex-col">
       <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 px-2">
         <div>
-          <h1 class="text-4xl font-black text-white tracking-tighter flex items-center gap-4">
-            <span id="libraryBreadcrumbRoot" onclick="showView('browse_surahs')" class="cursor-pointer hover:text-brand transition-all opacity-90">Library</span>
-            <span id="libraryBreadcrumbChild" class="hidden text-white/20 font-light">&rsaquo;</span>
+          <h1 class="text-4xl font-black text-text-main tracking-tighter flex items-center gap-4">
+            <span id="libraryBreadcrumbRoot" onclick="showView('browse_surahs')" class="cursor-pointer hover:text-brand transition-all">Library</span>
+            <span id="libraryBreadcrumbChild" class="hidden text-brand/20 font-light">&rsaquo;</span>
             <span id="libraryBreadcrumbName" class="text-brand text-3xl font-bold"></span>
           </h1>
-          <p id="librarySubtitle" class="text-[10px] font-black text-brand uppercase tracking-[0.4em] mt-2 opacity-80">Foundation Wisdom • Organizational Intelligence</p>
+          <p id="librarySubtitle" class="text-[10px] font-black text-brand uppercase tracking-[0.4em] mt-2">Foundation Wisdom • Organizational Intelligence</p>
         </div>
         <div class="flex gap-4">
-          <button onclick="openEntryModal()" class="px-8 py-4 bg-brand rounded-2xl font-black text-[10px] uppercase tracking-widest text-white shadow-2xl shadow-brand/40 hover:bg-brand-hover hover:scale-105 active:scale-95 transition-all flex items-center gap-3">
+          <button onclick="openEntryModal()" class="px-8 py-4 bg-brand rounded-2xl font-black text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover hover:scale-105 active:scale-95 transition-all flex items-center gap-3">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
             Add Wisdom
           </button>
@@ -2751,7 +2752,7 @@ async def app_library_page(
       </div>
 
       <!-- RECOMMENDED TRACK -->
-      <div id="recommendedTrackWrapper" class="hidden flex-col border-y border-white/5 bg-white/[0.02] shrink-0">
+      <div id="recommendedTrackWrapper" class="hidden flex-col border-y border-brand/5 bg-white shrink-0 shadow-sm">
         <div class="px-6 md:px-10 py-4 flex items-center justify-between">
           <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-brand flex items-center gap-3">
             <div class="w-1.5 h-1.5 rounded-full bg-brand animate-ping"></div>
@@ -2768,24 +2769,24 @@ async def app_library_page(
         <!-- Sidebar Navigation -->
         <div class="w-full lg:w-80 flex flex-col gap-8 shrink-0">
             <!-- Source Selector -->
-            <div class="premium-glass rounded-[2.5rem] overflow-hidden">
-                <div class="p-8 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
-                    <h3 class="text-[10px] font-black uppercase tracking-widest text-white/40">Collections</h3>
-                    <div id="sourceCount" class="text-[9px] font-black text-brand bg-brand/10 px-3 py-1 rounded-full border border-brand/20">0</div>
+            <div class="glass-card rounded-[2.5rem] overflow-hidden">
+                <div class="p-8 border-b border-brand/5 bg-brand/[0.01] flex justify-between items-center">
+                    <h3 class="text-[10px] font-black uppercase tracking-widest text-text-muted">Collections</h3>
+                    <div id="sourceCount" class="text-[9px] font-black text-brand bg-brand/5 px-3 py-1 rounded-full border border-brand/10">0</div>
                 </div>
                 <div id="sourceList" class="p-4 space-y-2 overflow-y-auto max-h-[400px] hide-scrollbar">
                     <!-- Loaded via JS -->
                 </div>
                 
-                <div class="p-6 bg-white/[0.01] border-t border-white/5">
+                <div class="p-6 bg-brand/[0.01] border-t border-brand/5">
                     {library_controls}
                 </div>
             </div>
             
             <!-- Quick Filters (Topics) -->
-            <div class="premium-glass rounded-[2.5rem] overflow-hidden flex-1 flex flex-col min-h-0">
-                <div class="p-8 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
-                    <h3 class="text-[10px] font-black uppercase tracking-widest text-white/40">Knowledge Tags</h3>
+            <div class="glass-card rounded-[2.5rem] overflow-hidden flex-1 flex flex-col min-h-0">
+                <div class="p-8 border-b border-brand/5 bg-brand/[0.01] flex justify-between items-center">
+                    <h3 class="text-[10px] font-black uppercase tracking-widest text-text-muted">Knowledge Tags</h3>
                     <button onclick="suggestTopicFromSearch()" class="text-brand hover:scale-125 transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg></button>
                 </div>
                 <div id="sidebarTopicList" class="p-6 flex flex-wrap gap-2.5 overflow-y-auto hide-scrollbar">
@@ -2799,10 +2800,10 @@ async def app_library_page(
         <div class="flex-1 flex flex-col min-w-0 gap-8">
             <div class="relative group">
                 <div class="absolute inset-y-0 left-8 flex items-center pointer-events-none">
-                    <svg class="w-5 h-5 text-white/20 group-focus-within:text-brand transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+                    <svg class="w-5 h-5 text-text-muted/30 group-focus-within:text-brand transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
                 </div>
                 <input type="text" id="entrySearch" oninput="debounceSearch()" 
-                       class="w-full premium-glass rounded-3xl pl-16 pr-8 py-6 text-sm text-white outline-none focus:ring-2 focus:ring-brand/40 transition-all placeholder:text-white/10" 
+                       class="w-full bg-white border border-brand/10 rounded-3xl pl-16 pr-8 py-6 text-sm text-text-main outline-none focus:ring-2 focus:ring-brand/10 transition-all placeholder:text-text-muted/40 shadow-sm" 
                        placeholder="Search through scripture, wisdom, and organization intelligence...">
             </div>
             
@@ -3055,9 +3056,9 @@ async def app_library_page(
               cards.innerHTML = data.map(item => {
                   libraryEntries[item.id] = item;
                   return `
-                    <div onclick="selectRecommendation(${item.id})" class="min-w-[280px] p-6 bg-white border border-brand/5 rounded-[2rem] hover:border-brand/20 hover:shadow-xl hover:shadow-brand/5 transition-all cursor-pointer group">
+                    <div onclick="selectRecommendation(${item.id})" class="min-w-[280px] p-6 bg-white border border-brand/5 rounded-[2rem] hover:border-brand/20 hover:shadow-lg transition-all cursor-pointer group">
                         <div class="flex items-center gap-3 mb-4">
-                            <div class="w-8 h-8 rounded-lg bg-brand/5 text-brand flex items-center justify-center text-[10px] font-black">${item.item_type.substring(0,1).toUpperCase()}</div>
+                            <div class="w-8 h-8 rounded-lg bg-brand/5 text-brand flex items-center justify-center text-[10px] font-black">${(item.item_type || 'K').substring(0,1).toUpperCase()}</div>
                             <div class="text-[9px] font-black text-brand uppercase tracking-widest truncate">${item.reference || item.title || 'Wisdom Entry'}</div>
                         </div>
                         <p class="text-[11px] text-text-muted font-medium line-clamp-2 leading-relaxed italic">"${item.text}"</p>
@@ -3115,9 +3116,10 @@ async def app_library_page(
 
       async function loadSurahs() {
           const canvas = document.getElementById('entryList');
+          if (!canvas) return;
           // Loading Skeleton
-          canvas.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8";
-          canvas.innerHTML = Array(9).fill(0).map(() => `<div class="skeleton h-32 rounded-[2.5rem] premium-glass opacity-50"></div>`).join('');
+          canvas.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-20";
+          canvas.innerHTML = Array(9).fill(0).map(() => `<div class="skeleton h-32 rounded-[2.5rem] bg-white border border-brand/5"></div>`).join('');
 
           try {
               console.log("Fetching surahs...");
@@ -3126,29 +3128,28 @@ async def app_library_page(
               const surahs = await res.json();
               
               if (!surahs || surahs.length === 0) {
-                  canvas.innerHTML = `<div class="col-span-full py-32 text-center text-white/20 font-black uppercase tracking-[0.5em]">No Foundation Records Found</div>`;
+                  canvas.innerHTML = `<div class="col-span-full py-32 text-center text-text-muted font-black uppercase tracking-[0.5em]">No Foundation Records Found</div>`;
                   return;
               }
 
               canvas.innerHTML = surahs.map(s => `
                 <div onclick="showView('surah_reading', {number: ${s.number}, name: '${(s.name_en || '').replace(/'/g, "\\'")}'})" 
-                     class="surah-card premium-glass p-8 rounded-[2.5rem] transition-all cursor-pointer group flex items-center justify-between">
+                     class="surah-card p-8 rounded-[2.5rem] cursor-pointer group flex items-center justify-between">
                     <div class="flex items-center gap-6 overflow-hidden">
-                        <div class="surah-number w-12 h-12 rounded-2xl bg-brand/10 border border-brand/20 text-brand flex items-center justify-center text-[11px] font-black tracking-tighter transition-all group-hover:bg-brand group-hover:text-white group-hover:scale-110">
+                        <div class="surah-number w-12 h-12 rounded-2xl bg-brand/5 border border-brand/10 text-brand flex items-center justify-center text-[11px] font-black tracking-tighter transition-all group-hover:bg-brand group-hover:text-white group-hover:scale-110">
                             ${s.number}
                         </div>
                         <div class="overflow-hidden">
-                            <h4 class="text-sm font-black text-white group-hover:text-brand transition-colors truncate">${s.name_en}</h4>
-                            <p class="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1">${s.verses_count} Verses • ${s.revelation_type}</p>
+                            <h4 class="text-sm font-black text-text-main group-hover:text-brand transition-colors truncate">${s.name_en}</h4>
+                            <p class="text-[9px] font-bold text-text-muted/40 uppercase tracking-widest mt-1">${s.verses_count} Verses • ${s.revelation_type}</p>
                         </div>
                     </div>
-                    <div class="text-2xl font-serif text-brand/20 group-hover:text-brand/40 transition-colors pl-4">${s.name_ar}</div>
+                    <div class="text-2xl font-serif text-brand/10 group-hover:text-brand transition-colors pl-4">${s.name_ar}</div>
                 </div>
               `).join('');
           } catch(e) {
               console.error("Surah load failed", e);
-              alert("Error loading Library: " + e.message);
-              document.getElementById('entryList').innerHTML = `<div class="col-span-full py-20 text-center text-rose-500 font-bold uppercase text-[10px]">Critical Error: ${e.message}</div>`;
+              canvas.innerHTML = `<div class="col-span-full py-20 text-center text-rose-500 font-bold uppercase text-[10px]">Critical Error: ${e.message}</div>`;
           }
       }
 
@@ -3158,15 +3159,15 @@ async def app_library_page(
               const surah = await res.json();
               
               const canvas = document.getElementById('entryList');
-              canvas.className = "flex-1 space-y-8";
+              canvas.className = "flex-1 space-y-8 pb-32";
               
               let versesHtml = `
-                <div class="premium-glass p-12 rounded-[3rem] mb-12 flex flex-col md:flex-row justify-between items-center gap-8 border-b-4 border-b-brand/30">
+                <div class="bg-white p-12 rounded-[3rem] shadow-sm mb-12 flex flex-col md:flex-row justify-between items-center gap-8 border-l-8 border-l-brand">
                     <div class="text-center md:text-left">
-                        <h2 class="text-4xl font-black text-white tracking-tighter mb-2">${surah.name_en}</h2>
+                        <h2 class="text-4xl font-black text-text-main tracking-tighter mb-2">${surah.name_en}</h2>
                         <p class="text-[10px] font-black text-brand uppercase tracking-[0.4em]">${surah.total_verses} Ayahs • Revealed in ${surah.revelation_place}</p>
                     </div>
-                    <div class="text-6xl font-serif text-brand/40">${surah.name_ar}</div>
+                    <div class="text-6xl font-serif text-brand/10">${surah.name_ar}</div>
                 </div>
               `;
 
@@ -3179,34 +3180,33 @@ async def app_library_page(
               }
 
               versesHtml += surah.verses.map(v => {
-                  // Cache for bridge
                   libraryEntries[v.id] = v;
                   return `
-                <div class="verse-card premium-glass group relative p-12 rounded-[3rem] transition-all hover:bg-white/[0.04]">
+                <div class="verse-card bg-white p-12 rounded-[3rem] transition-all hover:shadow-lg border border-brand/5 relative group">
                     <!-- Actions -->
-                    <div class="absolute top-6 right-10 opacity-0 group-hover:opacity-100 transition-all flex gap-3 z-10">
-                         <button onclick='useInQuoteCard(${v.id})' class="px-6 py-3 bg-brand text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-brand/40 hover:scale-105 active:scale-95 transition-all">
+                    <div class="absolute top-8 right-10 opacity-0 group-hover:opacity-100 transition-all flex gap-3 z-10">
+                         <button onclick='useInQuoteCard(${v.id})' class="px-6 py-3 bg-brand text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-xl shadow-brand/20 hover:scale-105 active:scale-95 transition-all">
                             Manifest in Card
                         </button>
                     </div>
 
                     <div class="space-y-10">
                         <div class="flex flex-col md:flex-row justify-between items-start gap-10">
-                            <div class="w-12 h-12 shrink-0 rounded-2xl border border-white/10 flex items-center justify-center text-[10px] font-black text-white/20 bg-white/5 transition-all group-hover:border-brand/40 group-hover:text-brand">
+                            <div class="w-12 h-12 shrink-0 rounded-2xl border border-brand/10 flex items-center justify-center text-[10px] font-black text-brand/20 bg-brand/5 transition-all group-hover:bg-brand group-hover:text-white">
                                 ${v.ayah_number}
                             </div>
-                            <p class="dir-rtl font-serif text-4xl text-white leading-[2] text-right flex-1 tracking-tight">
+                            <p class="dir-rtl font-serif text-4xl text-text-main leading-[2.2] text-right flex-1 tracking-tight">
                                 ${v.arabic_text}
                             </p>
                         </div>
                         <div class="pl-20">
-                            <p class="text-white/90 text-xl leading-[1.8] font-medium mb-6">
+                            <p class="text-text-main/90 text-xl leading-[1.8] font-medium mb-6">
                                 ${v.translation_text}
                             </p>
                             <div class="flex items-center gap-6">
                                <span class="text-[9px] font-black text-brand uppercase tracking-[0.3em]">Ref: ${v.reference}</span>
-                               <div class="w-1 h-1 rounded-full bg-white/20"></div>
-                               <span class="text-[9px] font-bold text-white/30 uppercase tracking-widest">${v.translator}</span>
+                               <div class="w-1 h-1 rounded-full bg-brand/10"></div>
+                               <span class="text-[9px] font-bold text-text-muted uppercase tracking-widest">${v.translator}</span>
                             </div>
                         </div>
                     </div>
@@ -3257,7 +3257,7 @@ async def app_library_page(
               chips.innerHTML = topics.slice(0, 25).map(t => {
                   try {
                       return `
-                        <button onclick="filterByTopic('${t.slug || ''}')" class="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-[0.2em] text-white/40 hover:bg-brand/20 hover:border-brand/40 hover:text-brand transition-all">
+                        <button onclick="filterByTopic('${t.slug || ''}')" class="px-4 py-2 rounded-xl bg-brand/5 border border-brand/10 text-[9px] font-black uppercase tracking-[0.2em] text-brand/60 hover:bg-brand hover:text-white transition-all">
                             ${(t.slug || 'unknown').replace(/_/g, ' ')}
                         </button>
                       `;
@@ -3292,13 +3292,13 @@ async def app_library_page(
               if (showGlobalOnly) {
                   document.getElementById('sourceCount').textContent = "∞";
                   list.innerHTML = `
-                    <div onclick="showView('browse_surahs')" class="p-4 px-6 rounded-2xl cursor-pointer transition-all border flex items-center gap-4 group bg-brand/10 border-brand/30 shadow-lg">
+                    <div onclick="showView('browse_surahs')" class="p-4 px-6 rounded-2xl cursor-pointer transition-all border flex items-center gap-4 group bg-brand/5 border-brand/20 shadow-sm">
                         <div class="w-10 h-10 rounded-2xl bg-brand text-white flex items-center justify-center shrink-0">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
                         </div>
                         <div class="flex-1 overflow-hidden">
                             <div class="text-[10px] font-black truncate text-brand uppercase tracking-wider">Quran Foundation</div>
-                            <div class="text-[8px] font-bold text-white/20 uppercase mt-0.5">Global Wisdom</div>
+                            <div class="text-[8px] font-bold text-text-muted uppercase mt-0.5">Global Wisdom</div>
                         </div>
                     </div>
                   `;
@@ -3310,13 +3310,13 @@ async def app_library_page(
                 const isActive = s && s.id === currentSourceId;
                 if (!s) return '';
                 return `
-                <div onclick="filterBySource(${s.id})" class="p-4 px-6 rounded-2xl cursor-pointer transition-all border flex items-center gap-4 group ${isActive ? 'bg-brand/10 border-brand/30 shadow-lg' : 'hover:bg-white/5 border-transparent hover:border-white/10'}">
-                    <div class="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 transition-all group-hover:scale-110">
+                <div onclick="filterBySource(${s.id})" class="p-4 px-6 rounded-2xl cursor-pointer transition-all border flex items-center gap-4 group ${isActive ? 'bg-brand/5 border-brand/20 shadow-sm' : 'hover:bg-brand/[0.02] border-transparent hover:border-brand/10'}">
+                    <div class="w-10 h-10 rounded-2xl bg-brand/5 border border-brand/10 flex items-center justify-center shrink-0 transition-all group-hover:scale-110">
                         <span class="text-xs">📂</span>
                     </div>
                     <div class="flex-1 overflow-hidden">
-                        <div class="text-[10px] font-black truncate ${isActive ? 'text-brand' : 'text-white/60'} group-hover:text-white uppercase tracking-wider">${s.name || 'Untitled'}</div>
-                        <div class="text-[7px] font-bold text-white/20 uppercase mt-0.5 tracking-[0.2em]">${s.source_type || 'Unknown'} • ${s.items_count || 0} Entries</div>
+                        <div class="text-[10px] font-black truncate ${isActive ? 'text-brand' : 'text-text-muted'} group-hover:text-brand uppercase tracking-wider">${s.name || 'Untitled'}</div>
+                        <div class="text-[7px] font-bold text-text-muted/50 uppercase mt-0.5 tracking-[0.2em]">${s.source_type || 'Unknown'} • ${s.items_count || 0} Entries</div>
                     </div>
                 </div>
                 `;
@@ -3372,23 +3372,23 @@ async def app_library_page(
                 try {
                     libraryEntries[e.id] = e;
                     return `
-                    <div class="premium-glass p-10 rounded-[3rem] group relative hover:bg-white/[0.04] transition-all border-l-4 border-l-transparent hover:border-l-brand">
+                    <div class="bg-white p-10 rounded-[3rem] group relative hover:shadow-xl transition-all border border-brand/5 border-l-4 border-l-transparent hover:border-l-brand">
                         <div class="absolute top-8 right-10 opacity-0 group-hover:opacity-100 transition-all flex gap-3 z-10">
-                             ${e.item_type === 'quran' || e.item_type === 'quote' ? `<button onclick='useInQuoteCard(${e.id})' class="px-6 py-3 bg-brand text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-brand/40 hover:scale-105 active:scale-95 transition-all">Manifest in Card</button>` : ''}
-                             <button onclick="openEntryModalById(${e.id})" class="p-3 bg-white/10 border border-white/10 rounded-2xl text-white hover:bg-brand hover:border-brand transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg></button>
+                             ${e.item_type === 'quran' || e.item_type === 'quote' ? `<button onclick='useInQuoteCard(${e.id})' class="px-6 py-3 bg-brand text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-xl shadow-brand/20 hover:scale-105 active:scale-95 transition-all">Manifest in Card</button>` : ''}
+                             <button onclick="openEntryModalById(${e.id})" class="p-3 bg-brand/5 border border-brand/10 rounded-2xl text-brand hover:bg-brand hover:text-white transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg></button>
                         </div>
                         <div class="flex items-center gap-6 mb-8">
-                            <div class="w-12 h-12 rounded-2xl bg-brand/10 text-brand flex items-center justify-center border border-brand/20 uppercase text-[9px] font-black tracking-tighter">${(e.item_type || "NOD").substring(0,3)}</div>
+                            <div class="w-12 h-12 rounded-2xl bg-brand/5 text-brand flex items-center justify-center border border-brand/10 uppercase text-[9px] font-black tracking-tighter">${(e.item_type || "NOD").substring(0,3)}</div>
                             <div>
-                                <div class="text-[8px] font-black uppercase text-white/30 tracking-widest">${e.item_type} Intelligence</div>
-                                <div class="text-[11px] font-black text-white uppercase tracking-wider truncate">${e.reference || e.title}</div>
+                                <div class="text-[8px] font-black uppercase text-text-muted/60 tracking-widest">${e.item_type} Intelligence</div>
+                                <div class="text-[11px] font-black text-text-main uppercase tracking-wider truncate">${e.reference || e.title}</div>
                             </div>
                         </div>
-                        <p class="text-white/80 text-lg leading-relaxed font-medium mb-8 line-clamp-4 italic">
+                        <p class="text-text-main/80 text-lg leading-relaxed font-medium mb-8 line-clamp-4 italic">
                             "${e.text}"
                         </p>
-                        <div class="flex flex-wrap gap-2.5 pt-8 border-t border-white/5">
-                            ${(e.topics || []).map(t => `<span class="px-3 py-1.5 bg-white/5 border border-white/5 rounded-xl text-[8px] font-black uppercase tracking-widest text-brand/60 hover:text-white transition-colors cursor-pointer">${t}</span>`).join('')}
+                        <div class="flex flex-wrap gap-2.5 pt-8 border-t border-brand/5">
+                            ${(e.topics || []).map(t => `<span class="px-3 py-1.5 bg-brand/5 border border-brand/10 rounded-xl text-[8px] font-black uppercase tracking-widest text-brand/60 hover:text-brand transition-colors cursor-pointer">${t}</span>`).join('')}
                         </div>
                     </div>
                   `;
@@ -3409,8 +3409,12 @@ async def app_library_page(
           showGlobalOnly = global;
           const orgBtn = document.getElementById('orgViewBtn');
           const globalBtn = document.getElementById('globalViewBtn');
-          if (globalBtn) globalBtn.className = global ? "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter bg-brand text-white shadow-lg" : "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter text-white/40 hover:text-white";
-          if (orgBtn) orgBtn.className = !global ? "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter bg-brand text-white shadow-lg" : "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter text-white/40 hover:text-white";
+          const activeClass = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter bg-brand text-white shadow-md transition-all";
+          const inactiveClass = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter text-brand/40 hover:text-brand transition-all";
+          
+          if (globalBtn) globalBtn.className = global ? activeClass : inactiveClass;
+          if (orgBtn) orgBtn.className = !global ? activeClass : inactiveClass;
+          
           currentSourceId = null;
           loadSources();
           loadEntries();
@@ -3436,10 +3440,10 @@ async def app_library_page(
     """
     
     return APP_LAYOUT_HTML.replace("{content}", content.replace("{library_controls}", f"""
-            <div class="flex p-1 bg-white/5 rounded-xl border border-white/10 gap-2">
-                <button onclick="toggleGlobalView(false)" id="orgViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-lg">Org</button>
-                <button onclick="toggleGlobalView(true)" id="globalViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-white/40 hover:text-white">System</button>
-                <button onclick="openSynonymModal()" class="px-3 py-1.5 border border-brand/20 rounded-lg text-brand hover:bg-brand hover:text-white transition-all">
+            <div class="flex p-1 bg-brand/5 rounded-xl border border-brand/10 gap-2">
+                <button onclick="toggleGlobalView(false)" id="orgViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all bg-brand text-white shadow-md">Org</button>
+                <button onclick="toggleGlobalView(true)" id="globalViewBtn" class="flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter transition-all text-brand/40 hover:text-brand">System</button>
+                <button onclick="openSynonymModal()" class="px-3 py-1.5 border border-brand/10 rounded-lg text-brand hover:bg-white hover:shadow-sm transition-all focus:ring-2 focus:ring-brand/20">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
                 </button>
             </div>
