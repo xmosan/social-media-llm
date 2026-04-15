@@ -2799,7 +2799,6 @@ async def app_library_page(
         </div>
 
         <!-- Main Workspace -->
-        <!-- Search & Content Area -->
         <div class="flex-1 flex flex-col min-w-0 gap-8">
             <div class="relative group">
                 <div class="absolute inset-y-0 left-8 flex items-center pointer-events-none">
@@ -2813,15 +2812,8 @@ async def app_library_page(
             <div id="entryList" class="flex-1 overflow-y-auto hide-scrollbar">
                 <!-- Loaded via JS -->
             </div>
-
-            <!-- Hidden Structural Elements to prevent JS crashes -->
-            <div id="libraryBreadcrumbChild" class="hidden"></div>
-            <div id="libraryBreadcrumbName" class="hidden"></div>
-            <div id="globalToggleContainer" class="hidden"></div>
-            <input type="hidden" id="filterCategory" value="">
-            <input type="hidden" id="filterTopic" value="">
             
-            <!-- Visual Debugger (Temporary) -->
+            <!-- Hidden Visual Debugger -->
             <div id="libraryDebugger" class="fixed bottom-4 right-4 max-w-sm bg-rose-500 text-white p-3 rounded-xl shadow-2xl z-[9999] text-[10px] font-black uppercase hidden pointer-events-none">
                 <div class="flex items-center gap-2">
                     <span class="animate-pulse">⚠️</span>
@@ -2854,7 +2846,6 @@ async def app_library_page(
                     <label class="text-[10px] font-bold uppercase tracking-[0.3em] text-brand">Collection Name</label>
                     <select id="sourceSelect" onchange="checkNewSource()" class="w-full bg-white border border-brand/10 rounded-2xl px-6 py-4 text-sm text-brand outline-none focus:ring-2 focus:ring-brand font-bold appearance-none">
                         <option value="">Select or Create New...</option>
-                        <!-- Populated via JS -->
                     </select>
                 </div>
 
@@ -2871,17 +2862,10 @@ async def app_library_page(
                         <button onclick="setEntryType('quran', this)" class="type-btn p-4 rounded-2xl border border-brand/5 bg-white hover:bg-brand/5 text-[10px] font-bold uppercase tracking-wider text-text-muted transition-all flex flex-col items-center gap-2">
                             <span class="text-xs">📖</span> Quran
                         </button>
-                        <button onclick="setEntryType('hadith', this)" class="type-btn p-4 rounded-2xl border border-brand/5 bg-white hover:bg-brand/5 text-[10px] font-bold uppercase tracking-wider text-text-muted transition-all flex flex-col items-center gap-2">
-                            <span class="text-xs">📜</span> Hadith
-                        </button>
                         <button onclick="setEntryType('quote', this)" class="type-btn p-4 rounded-2xl border border-brand/5 bg-white hover:bg-brand/5 text-[10px] font-bold uppercase tracking-wider text-text-muted transition-all flex flex-col items-center gap-2">
                             <span class="text-xs">💬</span> Quote
                         </button>
-                        <button onclick="setEntryType('book', this)" class="type-btn p-4 rounded-2xl border border-brand/5 bg-white hover:bg-brand/5 text-[10px] font-bold uppercase tracking-wider text-text-muted transition-all flex flex-col items-center gap-2">
-                            <span class="text-xs">📚</span> Book
-                        </button>
                     </div>
-                    <input type="hidden" id="entryType" value="note">
                 </div>
                 <div id="globalToggleContainer" class="hidden py-4 border-t border-brand/5 mt-6 animate-in slide-in-from-bottom-2">
                     <label class="flex items-center gap-3 cursor-pointer group">
@@ -2904,10 +2888,6 @@ async def app_library_page(
                     <textarea id="entryText" oninput="updateCharCount()" rows="8" class="w-full bg-cream border border-brand/10 rounded-[2rem] px-8 py-8 text-sm text-brand outline-none focus:ring-2 focus:ring-brand leading-relaxed placeholder:text-brand/10" placeholder="Paste the verse, hadith, or quote text here..."></textarea>
                 </div>
 
-                <div id="dynamicMetadata" class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
-                    <!-- Dynamic fields based on type -->
-                </div>
-
                 <div class="flex gap-4 pt-10">
                     <button onclick="hideEntryModal()" class="flex-1 py-5 bg-white border border-brand/10 rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] text-brand hover:bg-brand/5 transition-all">Cancel</button>
                     <button onclick="saveEntry()" class="flex-[2] py-5 bg-brand rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] text-white shadow-2xl shadow-brand/40 hover:bg-brand-hover transition-all">Commit Knowledge</button>
@@ -2917,72 +2897,32 @@ async def app_library_page(
       </div>
     </div>
 
-    <!-- Library Picker Modal (Reused) -->
-    <div id="libraryPickerModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[150] hidden flex items-end md:items-center justify-center p-0 md:p-6">
-      <div class="glass w-full md:max-w-2xl pb-safe rounded-t-[2.5rem] md:rounded-[2.5rem] p-6 md:p-8 space-y-6 border-t md:border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div class="flex justify-between items-center">
-            <h2 class="text-xl font-black italic text-white tracking-tight">Insert <span class="text-brand">Knowledge</span></h2>
-            <button onclick="closeLibraryPicker()" class="p-2 hover:bg-white/10 rounded-full transition-all text-white/40">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-            </button>
-        </div>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="relative flex-1">
-                <input type="text" id="pickerSearch" oninput="loadPickerEntries()" placeholder="Filter knowledge..." class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none focus:border-brand/40 transition-all placeholder:text-white/20">
-            </div>
-            <div class="flex gap-2">
-                <select id="pickerTopic" onchange="loadPickerEntries()" class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none appearance-none">
-                    <option value="">All Topics</option>
-                </select>
-                <select id="pickerType" onchange="loadPickerEntries()" class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none appearance-none font-black uppercase">
-                    <option value="">All Types</option>
-                    <option value="quran">Quran</option>
-                    <option value="hadith">Hadith</option>
-                    <option value="quote">Quote</option>
-                </select>
-            </div>
-        </div>
-        
-        <div class="flex justify-end px-2">
-            <button onclick="suggestPickerTopic()" class="text-[9px] font-black uppercase text-brand flex items-center gap-2 hover:text-white transition-all">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-                Suggest from my prompt
-            </button>
-        </div>
-
-        <div id="pickerResults" class="flex-1 overflow-y-auto space-y-3 min-h-[300px] pr-2 custom-scrollbar">
-            <!-- Results via JS -->
-        </div>
-      </div>
-    </div>
-
-    <!-- Synonym Management Modal (Admin Only) -->
+    <!-- Synonym Modal -->
     <div id="synonymModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[150] hidden flex items-center justify-center p-6">
-      <div class="glass max-w-xl w-full p-8 rounded-[2.5rem] space-y-6 border border-brand/20 shadow-2xl flex flex-col max-h-[80vh]">
+      <div class="glass max-w-xl w-full p-8 rounded-[2.5rem] space-y-6 border border-brand/20 shadow-2xl flex flex-col max-h-[80vh] bg-white">
         <div class="flex justify-between items-center">
-            <h2 class="text-xl font-black italic text-white tracking-tight">Topic <span class="text-brand">Synonyms</span></h2>
-            <button onclick="closeSynonymModal()" class="p-2 hover:bg-white/10 rounded-full transition-all text-white/40">
+            <h2 class="text-xl font-black italic text-brand tracking-tight">Topic <span class="text-text-main">Synonyms</span></h2>
+            <button onclick="closeSynonymModal()" class="p-2 hover:bg-brand/5 rounded-full transition-all text-text-muted">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
             </button>
         </div>
         
-        <div class="bg-white/5 p-6 rounded-2xl border border-white/5 space-y-4">
+        <div class="bg-brand/5 p-6 rounded-2xl border border-brand/10 space-y-4">
             <div class="grid grid-cols-2 gap-4">
-                <input type="text" id="syn_slug" placeholder="topic_slug" class="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none">
-                <input type="text" id="syn_list" placeholder="comma, separated, synonyms" class="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[10px] font-bold text-white outline-none">
+                <input type="text" id="syn_slug" placeholder="topic_slug" class="bg-white border border-brand/10 rounded-xl px-4 py-3 text-[10px] font-bold text-brand outline-none">
+                <input type="text" id="syn_list" placeholder="comma, separated, synonyms" class="bg-white border border-brand/10 rounded-xl px-4 py-3 text-[10px] font-bold text-brand outline-none">
             </div>
             <button onclick="saveSynonym()" class="w-full py-3 bg-brand text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:scale-105 transition-all">Register Synonyms</button>
         </div>
 
-        <div id="synonymTable" class="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+        <div id="synonymTable" class="flex-1 overflow-y-auto space-y-2 pr-2 hide-scrollbar">
             <!-- List via JS -->
         </div>
       </div>
     </div>
 
     <script>
-      // --- GLOBAL ERROR HANDLING (Top Level) ---
+      // --- GLOBAL ERROR HANDLING ---
       function showDebugError(msg) {
           const deb = document.getElementById('libraryDebugger');
           const txt = document.getElementById('debugMessage');
@@ -2996,163 +2936,49 @@ async def app_library_page(
           showDebugError(`Runtime Error: ${msg} (Line ${line})`);
       };
       window.onunhandledrejection = (e) => {
-          console.error("[LIBRARY_HANG]", e);
-          showDebugError(`Network Hang: ${e.reason}`);
+          console.error("[LIBRARY_REJECTION]", e);
+          showDebugError(`Promise Failure: ${e.reason}`);
       };
 
-      console.log("Library System: Ready");
+      // --- INITIALIZATION ---
       window.isSabeelAdmin = "{is_superadmin_js}" === "true";
       window.sabeelOrgId = parseInt("{org_id_js}" || "0");
       let libraryEntries = {}; 
       let currentSourceId = null;
       let showGlobalOnly = true;
       let entrySearchTimeout = null;
-      let selectedTopic = null;
       let currentView = 'browse_surahs'; 
 
-      // --- DEFENSIVE NORMALIZATION (Emergency Stabilization) ---
-      function normalizeLibraryEntry(raw) {
-          if (!raw) return null;
-          try {
-              return {
-                  id: raw.id ?? Math.random().toString(36).substring(2, 9),
-                  item_type: raw.item_type || raw.type || "unknown",
-                  title: raw.reference || raw.title || "Untitled Entry",
-                  reference: raw.reference || raw.title || "Untitled Entry",
-                  text: raw.translation_text || raw.text || raw.content || "Content unavailable",
-                  arabic_text: raw.arabic_text || "",
-                  topics: Array.isArray(raw.topics) ? raw.topics : (raw.topics ? [raw.topics] : []),
-                  meta: raw.meta || {},
-                  surah_number: raw.surah_number || raw.meta?.surah_number || null,
-                  ayah_number: raw.ayah_number || raw.meta?.ayah_number || null,
-                  surah_name_en: raw.surah_name_en || raw.meta?.surah_name_en || "",
-                  surah_name_ar: raw.surah_name_ar || raw.meta?.surah_name_ar || ""
-              };
-          } catch (e) {
-              console.error("[LIBRARY][NORMALIZE_CRASH]", e, raw);
-              return null;
-          }
-      }
-
-      // --- INITIALIZATION ---
       window.addEventListener('DOMContentLoaded', async () => {
-          console.log("Library System: Initializing [Ultra-Hardened Mode]");
+          console.log("Library System: Initializing [Total Reset Mode]");
+          await loadSources();
+          await loadSurahs();
+          await loadRecommendations();
           
-          const list = document.getElementById('entryList');
-          if (list) {
-              list.innerHTML = `
-                <div class="col-span-full py-20 flex flex-col items-center justify-center space-y-4">
-                    <div class="w-16 h-16 border-4 border-brand/10 border-t-brand rounded-full animate-spin"></div>
-                    <div class="text-[10px] font-black text-brand uppercase tracking-widest animate-pulse">Manifesting Wisdom...</div>
-                </div>
-              `;
-          }
-
-          try {
-              // Forced sync of buttons to match default state
-              const orgBtn = document.getElementById('orgViewBtn');
-              const globalBtn = document.getElementById('globalViewBtn');
-              const activeClass = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter bg-brand text-white shadow-md transition-all";
-              const inactiveClass = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter text-brand/40 hover:text-brand transition-all";
-              
-              if (globalBtn) globalBtn.className = showGlobalOnly ? activeClass : inactiveClass;
-              if (orgBtn) orgBtn.className = !showGlobalOnly ? activeClass : inactiveClass;
-
-              // 1. Load Sources
-              await loadSources();
-              
-              // 2. Load Initial View
-              await loadSurahs();
-              
-              console.log("Library System: Manifestation Complete");
-          } catch (e) {
-              console.error("Library System: Initialization Blocked", e);
-              showDebugError(`Init Blocked: ${e.message}`);
-          }
+          // Sync UI toggles
+          const orgBtn = document.getElementById('orgViewBtn');
+          const globalBtn = document.getElementById('globalViewBtn');
+          const activeClass = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter bg-brand text-white shadow-md transition-all";
+          const inactiveClass = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter text-brand/40 hover:text-brand transition-all";
+          if (globalBtn) globalBtn.className = showGlobalOnly ? activeClass : inactiveClass;
+          if (orgBtn) orgBtn.className = !showGlobalOnly ? activeClass : inactiveClass;
       });
 
-      function checkPendingVerse() {
-          const pending = sessionStorage.getItem('sabeel_pending_quote_item');
-          if (pending) {
-              console.log("Bridge: Found pending verse, opening Studio...");
-              setTimeout(() => {
-                  if (typeof openStudio === 'function') {
-                      openStudio();
-                  }
-              }, 500);
-          }
+      function normalizeLibraryEntry(raw) {
+          if (!raw) return null;
+          return {
+              id: raw.id ?? Math.random().toString(36).substr(2, 9),
+              item_type: raw.item_type || raw.type || "unknown",
+              title: raw.reference || raw.title || "Untitled",
+              reference: raw.reference || raw.title || "Untitled",
+              text: raw.translation_text || raw.text || raw.content || "",
+              arabic_text: raw.arabic_text || "",
+              topics: Array.isArray(raw.topics) ? raw.topics : (raw.topics ? [raw.topics] : []),
+              meta: raw.meta || {},
+              surah_number: raw.surah_number || raw.meta?.surah_number,
+              ayah_number: raw.ayah_number || raw.meta?.ayah_number
+          };
       }
-
-      async function loadRecommendations() {
-          const track = document.getElementById('recommendedTrackWrapper');
-          const cards = document.getElementById('recommendedCards');
-          if (!track || !cards) return;
-
-          try {
-              const res = await fetch('/library/recommendations');
-              const data = await res.json();
-              if (!data || data.length === 0) {
-                  track.classList.add('hidden');
-                  return;
-              }
-              track.classList.remove('hidden');
-              cards.innerHTML = data.map(item => {
-                  libraryEntries[item.id] = item;
-                  return `
-                    <div onclick="selectRecommendation(${item.id})" class="min-w-[280px] p-6 bg-white border border-brand/5 rounded-[2rem] hover:border-brand/20 hover:shadow-lg transition-all cursor-pointer group">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-8 h-8 rounded-lg bg-brand/5 text-brand flex items-center justify-center text-[10px] font-black">${(item.item_type || 'K').substring(0,1).toUpperCase()}</div>
-                            <div class="text-[9px] font-black text-brand uppercase tracking-widest truncate">${item.reference || item.title || 'Wisdom Entry'}</div>
-                        </div>
-                        <p class="text-[11px] text-text-muted font-medium line-clamp-2 leading-relaxed italic">"${item.text}"</p>
-                    </div>
-                  `;
-                }).join('');
-          } catch (e) {
-              console.error("Recommendations failed:", e);
-              track.classList.add('hidden');
-          }
-      }
-
-      function selectRecommendation(id) {
-          const entry = libraryEntries[id];
-          if (!entry) return;
-          trackInteraction('selected_recommendation', id, 'library_track');
-          if (entry.item_type === 'quran') {
-              useInQuoteCard(id);
-          } else {
-              openEntryModalById(id);
-          }
-      }
-
-      async function trackInteraction(type, entityId, context) {
-          try {
-              await fetch('/library/track-use', {
-                  method: 'POST',
-                  headers: {'Content-Type': 'application/json'},
-                  body: JSON.stringify({ action_type: type, entity_id: String(entityId), context: context || 'library' })
-              });
-          } catch(e) { console.warn("Interaction tracking failed", e); }
-      }
-
-      // --- GLOBAL ERROR HANDLING ---
-      window.onerror = function(msg, url, line) {
-          const debug = document.getElementById('libraryDebugger');
-          const msgEl = document.getElementById('debugMessage');
-          if (debug && msgEl) {
-              debug.classList.remove('hidden');
-              msgEl.textContent = `JS Error: ${msg} (Line ${line})`;
-          }
-      };
-
-      window.onunhandledrejection = function(event) {
-          const debug = document.getElementById('libraryDebugger');
-          const msgEl = document.getElementById('debugMessage');
-          if (debug && msgEl) {
-              debug.classList.remove('hidden');
-              msgEl.textContent = `Promise Failed: ${event.reason}`;
-          }
-      };
 
       function showView(view, data = null) {
           currentView = view;
@@ -3161,289 +2987,101 @@ async def app_library_page(
           const breadcrumbName = document.getElementById('libraryBreadcrumbName');
           
           if (view === 'browse_surahs') {
-              const searchInput = document.getElementById('entrySearch');
-              if (searchInput) searchInput.value = '';
-              
               if (breadcrumbChild) breadcrumbChild.classList.add('hidden');
               if (breadcrumbName) breadcrumbName.textContent = '';
-              
-              if (showGlobalOnly) {
-                  loadSurahs();
-              } else {
-                  if (list) list.innerHTML = `
-                    <div class="flex flex-col items-center justify-center p-20 text-center space-y-4">
-                        <div class="w-16 h-16 rounded-full bg-brand/5 flex items-center justify-center text-2xl">📁</div>
-                        <div class="space-y-1">
-                            <div class="text-[10px] font-black text-brand uppercase tracking-widest">Your Wisdom Space</div>
-                            <div class="text-[8px] text-text-muted uppercase">Select a collection from the sidebar or switch to System view</div>
-                        </div>
-                    </div>
-                  `;
-              }
-          }
-          if (view === 'surah_reading' && data) {
+              loadSurahs();
+          } else if (view === 'surah_reading' && data) {
               if (breadcrumbChild) breadcrumbChild.classList.remove('hidden');
               if (breadcrumbName) breadcrumbName.textContent = data.name;
               loadSurahVerses(data.number);
-          }
-          if (view === 'collection_view' && data) {
+          } else if (view === 'collection_view' && data) {
               if (breadcrumbChild) breadcrumbChild.classList.remove('hidden');
               if (breadcrumbName) breadcrumbName.textContent = data.name;
               loadEntries();
-          }
-          if (view === 'search_results') {
-              if (breadcrumbChild) breadcrumbChild.classList.remove('hidden');
-              if (breadcrumbName) breadcrumbName.textContent = 'Search Results';
           }
       }
 
       async function loadSurahs() {
           const canvas = document.getElementById('entryList');
           if (!canvas) return;
-          
-          // High-contrast Loading State
-          canvas.className = "flex flex-col items-center justify-center space-y-8 py-32";
-          canvas.innerHTML = `
-            <div class="flex flex-col items-center gap-6 animate-pulse">
-                <div class="w-16 h-16 rounded-3xl bg-brand/5 border border-brand/10 flex items-center justify-center text-3xl">📖</div>
-                <div class="space-y-2 text-center">
-                    <div class="text-[10px] font-black text-brand uppercase tracking-[0.5em]">Sabeel Foundation</div>
-                    <div class="text-[8px] font-bold text-text-muted uppercase tracking-widest">Synchronizing Scripture Database...</div>
-                </div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-12">
-                ${Array(6).fill(0).map(() => `<div class="skeleton h-32 rounded-[2.5rem] bg-white border border-brand/5"></div>`).join('')}
-            </div>
-          `;
+          canvas.innerHTML = '<div class="col-span-full py-20 text-center animate-pulse text-[10px] font-black text-brand uppercase tracking-widest">Manifesting Wisdom...</div>';
 
           try {
-              console.log("Fetching surahs...");
               const res = await fetch('/api/quran/surahs');
-              
-              const contentType = res.headers.get("content-type");
-              if (contentType && contentType.includes("text/html")) {
-                  console.error("API Error: Received HTML instead of JSON (Redirect detected)");
-                  showDebugError("Foundation Access Blocked: API Redirected to Login/Landing");
-                  throw new Error("API_REDIRECTED");
-              }
-
-              const surahs = await res.json();
-              
-              if (!surahs || !Array.isArray(surahs) || surahs.length === 0) {
-                  canvas.className = "flex flex-col items-center justify-center p-32 text-center space-y-6";
-                  canvas.innerHTML = `
-                    <div class="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center text-3xl">⚠️</div>
-                    <div class="space-y-1">
-                        <div class="text-[10px] font-black text-rose-500 uppercase tracking-widest">Foundation Offline</div>
-                        <div class="text-[8px] text-text-muted uppercase max-w-xs mx-auto">The Quranic database is currently unreachable or empty. Please ensure your organization has successfully synced with the Sabeel Global Index.</div>
-                    </div>
-                  `;
-                  return;
-              }
-
+              const data = await res.json();
               canvas.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-20";
-              canvas.innerHTML = surahs.map(s => `
-                <div onclick="showView('surah_reading', {number: ${s.number}, name: '${(s.name_en || '').replace(/'/g, "\\'")}'})" 
-                     class="surah-card p-8 rounded-[2.5rem] cursor-pointer group flex items-center justify-between">
-                    <div class="flex items-center gap-6 overflow-hidden">
-                        <div class="surah-number w-12 h-12 rounded-2xl bg-brand/5 border border-brand/10 text-brand flex items-center justify-center text-[11px] font-black tracking-tighter transition-all group-hover:bg-brand group-hover:text-white group-hover:scale-110">
-                            ${s.number}
-                        </div>
-                        <div class="overflow-hidden text-left">
-                            <h4 class="text-sm font-black text-text-main group-hover:text-brand transition-colors truncate text-left">${s.name_en}</h4>
-                            <p class="text-[9px] font-bold text-text-muted/40 uppercase tracking-widest mt-1 text-left">${s.verses_count} Verses • ${s.revelation_type}</p>
+              canvas.innerHTML = data.map(s => {
+                  return `
+                  <div onclick="showView('surah_reading', {number: ${s.number}, name: '${s.name_en}'})" class="surah-card p-8 rounded-[2.5rem] cursor-pointer group flex items-center justify-between">
+                    <div class="flex items-center gap-6">
+                        <div class="w-12 h-12 rounded-2xl bg-brand/5 border border-brand/10 text-brand flex items-center justify-center text-[11px] font-black group-hover:bg-brand group-hover:text-white transition-all">${s.number}</div>
+                        <div class="text-left">
+                            <h4 class="text-sm font-black text-text-main group-hover:text-brand transition-colors">${s.name_en}</h4>
+                            <p class="text-[9px] font-bold text-text-muted/40 uppercase tracking-widest">${s.verses_count} Verses</p>
                         </div>
                     </div>
-                    <div class="text-2xl font-serif text-brand/10 group-hover:text-brand transition-colors pl-4">${s.name_ar}</div>
-                </div>
-              `;
-            }).join('');
-          } catch(e) {
-              console.error("Surah load failed", e);
-              canvas.innerHTML = `<div class="col-span-full py-20 text-center text-rose-500 font-bold uppercase text-[10px]">Critical Error: ${e.message}</div>`;
-          }
+                    <div class="text-2xl font-serif text-brand/10 group-hover:text-brand transition-colors">${s.name_ar}</div>
+                  </div>
+                `;
+              }).join('');
+          } catch(e) { canvas.innerHTML = 'Error loading surahs.'; }
       }
 
-      async function loadSurahVerses(surahNumber) {
+      async function loadSurahVerses(num) {
+          const canvas = document.getElementById('entryList');
+          canvas.innerHTML = '<div class="py-20 text-center animate-pulse text-[10px] font-black text-brand uppercase tracking-widest">Exposing Neural Nodes...</div>';
           try {
-              const res = await fetch(`/api/quran/surahs/${surahNumber}`);
+              const res = await fetch(`/api/quran/surahs/${num}`);
               const surah = await res.json();
-              
-              const canvas = document.getElementById('entryList');
-              canvas.className = "flex-1 space-y-8 pb-32";
-              
-              let versesHtml = `
-                <div class="bg-white p-12 rounded-[3rem] shadow-sm mb-12 flex flex-col md:flex-row justify-between items-center gap-8 border-l-8 border-l-brand">
-                    <div class="text-center md:text-left">
-                        <h2 class="text-4xl font-black text-text-main tracking-tighter mb-2">${surah.name_en}</h2>
-                        <p class="text-[10px] font-black text-brand uppercase tracking-[0.4em]">${surah.total_verses} Ayahs • Revealed in ${surah.revelation_place}</p>
-                    </div>
-                    <div class="text-6xl font-serif text-brand/10">${surah.name_ar}</div>
-                </div>
-              `;
-
-              if (surahNumber !== 1 && surahNumber !== 9) {
-                  versesHtml += `
-                    <div class="text-center py-16 opacity-80">
-                        <p class="font-serif text-4xl text-brand tracking-widest leading-loose">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</p>
-                    </div>
-                  `;
-              }
-
-              versesHtml += surah.verses.map(v => {
+              canvas.className = "flex flex-col gap-8 pb-32";
+              canvas.innerHTML = surah.verses.map(v => {
                   libraryEntries[v.id] = v;
                   return `
-                <div class="verse-card bg-white p-12 rounded-[3rem] transition-all hover:shadow-lg border border-brand/5 relative group">
-                    <!-- Actions -->
-                    <div class="absolute top-8 right-10 opacity-0 group-hover:opacity-100 transition-all flex gap-3 z-10">
-                         <button onclick='useInQuoteCard(${v.id})' class="px-6 py-3 bg-brand text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-xl shadow-brand/20 hover:scale-105 active:scale-95 transition-all">
-                            Manifest in Card
-                        </button>
+                  <div class="verse-card bg-white p-12 rounded-[3rem] border border-brand/5 group relative">
+                    <div class="absolute top-8 right-10 opacity-0 group-hover:opacity-100 transition-all z-10">
+                        <button onclick='useInQuoteCard(${v.id})' class="px-6 py-3 bg-brand text-white rounded-2xl text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all">Manifest</button>
                     </div>
-
-                    <div class="space-y-10">
-                        <div class="flex flex-col md:flex-row justify-between items-start gap-10">
-                            <div class="w-12 h-12 shrink-0 rounded-2xl border border-brand/10 flex items-center justify-center text-[10px] font-black text-brand/20 bg-brand/5 transition-all group-hover:bg-brand group-hover:text-white">
-                                ${v.ayah_number}
-                            </div>
-                            <p class="dir-rtl font-serif text-4xl text-text-main leading-[2.2] text-right flex-1 tracking-tight">
-                                ${v.arabic_text}
-                            </p>
-                        </div>
-                        <div class="pl-20">
-                            <p class="text-text-main/90 text-xl leading-[1.8] font-medium mb-6">
-                                ${v.translation_text}
-                            </p>
-                            <div class="flex items-center gap-6">
-                               <span class="text-[9px] font-black text-brand uppercase tracking-[0.3em]">Ref: ${v.reference}</span>
-                               <div class="w-1 h-1 rounded-full bg-brand/10"></div>
-                               <span class="text-[9px] font-bold text-text-muted uppercase tracking-widest">${v.translator}</span>
-                            </div>
-                        </div>
+                    <div class="flex flex-col md:flex-row justify-between items-start gap-10">
+                        <div class="w-10 h-10 rounded-xl bg-brand/5 border border-brand/10 flex items-center justify-center text-[10px] font-black text-brand">${v.ayah_number}</div>
+                        <p class="dir-rtl font-serif text-3xl text-right flex-1 leading-[2.5]">${v.arabic_text}</p>
                     </div>
-                </div>
-              `;
-            }).join('');
-              
-              canvas.innerHTML = versesHtml;
-              canvas.scrollTo(0, 0);
-          } catch(e) {
-              console.error("Verses load failed", e);
-              document.getElementById('entryList').innerHTML = '<div class="col-span-full py-20 text-center text-rose-500 font-bold uppercase text-[10px]">Failed to load verses</div>';
-          }
-      }
-
-      function useInQuoteCard(id) {
-          const entry = libraryEntries[id];
-          if (!entry) return;
-
-          console.log("Bridge: Setting pending verse...", entry);
-          trackInteraction('used_entry', id, 'library');
-
-          sessionStorage.setItem('sabeel_pending_quote_item', JSON.stringify({
-              id: entry.id,
-              type: 'quran_verse',
-              text: entry.translation_text || entry.text,
-              arabic_text: entry.arabic_text,
-              reference: entry.reference || entry.title,
-              meta: entry
-          }));
-          
-          if (typeof openNewPostModal === 'function') {
-              openNewPostModal();
-          } else {
-              window.location.href = '/app?studio=true'; // Better fallback for app-wide studio trigger
-          }
-      }
-
-      async function loadTopics() {
-          try {
-              const res = await fetch('/library/topics');
-              const topics = await res.json();
-              const chips = document.getElementById('sidebarTopicList');
-              if (!Array.isArray(topics)) {
-                  console.warn("[LIBRARY] Topics payload is not an array");
-                  chips.innerHTML = '';
-                  return;
-              }
-              chips.innerHTML = topics.slice(0, 25).map(t => {
-                  try {
-                      return `
-                        <button onclick="filterByTopic('${t.slug || ''}')" class="px-4 py-2 rounded-xl bg-brand/5 border border-brand/10 text-[9px] font-black uppercase tracking-[0.2em] text-brand/60 hover:bg-brand hover:text-white transition-all">
-                            ${(t.slug || 'unknown').replace(/_/g, ' ')}
-                        </button>
-                      `;
-                  } catch (e) { return ''; }
+                    <p class="text-text-main/90 text-lg leading-relaxed mt-8 pl-20 font-medium">${v.translation_text}</p>
+                  </div>
+                `;
               }).join('');
-          } catch(e) { console.error("Topic load failed", e); }
-      }
-
-      function filterByTopic(slug) {
-          document.getElementById('entrySearch').value = slug;
-          trackInteraction('selected_topic', slug, 'library_filters');
-          loadEntries();
+          } catch(e) { canvas.innerHTML = 'Error loading verses.'; }
       }
 
       async function loadSources() {
           const list = document.getElementById('sourceList');
           if (!list) return;
-          list.innerHTML = Array(3).fill(0).map(() => `<div class="skeleton h-14 rounded-2xl mb-2 opacity-30"></div>`).join('');
-          
           try {
               const url = showGlobalOnly ? '/api/quran/surahs' : '/library/sources';
               const res = await fetch(url);
+              const data = await res.json();
               
-              const contentType = res.headers.get("content-type");
-              if (contentType && contentType.includes("text/html")) {
-                  console.error("[LIBRARY] Sources API returned HTML. Check middleware whitelist.");
-                  showDebugError("Sources Access Blocked (HTML Redirect)");
-                  list.innerHTML = `<div class="p-8 text-center text-rose-400 font-bold text-[8px] uppercase tracking-widest">Network Blocked</div>`;
-                  return;
-              }
-
-              if (!res.ok) throw new Error("Sources API error: " + res.status);
-              const sources = await res.json();
-              
-              if (!Array.isArray(sources)) {
-                console.warn("[LIBRARY] Sources payload is not an array:", sources);
-                list.innerHTML = `<div class="p-8 text-center text-white/10 font-bold text-[8px] uppercase tracking-widest">Format Error</div>`;
-                return;
-              }
-
               if (showGlobalOnly) {
-                  document.getElementById('sourceCount').textContent = "∞";
                   list.innerHTML = `
-                    <div onclick="showView('browse_surahs')" class="p-4 px-6 rounded-2xl cursor-pointer transition-all border flex items-center gap-4 group bg-brand/5 border-brand/20 shadow-sm">
-                        <div class="w-10 h-10 rounded-2xl bg-brand text-white flex items-center justify-center shrink-0">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-                        </div>
-                        <div class="flex-1 overflow-hidden">
-                            <div class="text-[10px] font-black truncate text-brand uppercase tracking-wider">Quran Foundation</div>
-                            <div class="text-[8px] font-bold text-text-muted uppercase mt-0.5">Global Wisdom</div>
-                        </div>
+                    <div onclick="showView('browse_surahs')" class="p-4 px-6 rounded-2xl cursor-pointer bg-brand/5 border-brand/20 border flex items-center gap-4 group">
+                        <div class="w-10 h-10 rounded-2xl bg-brand text-white flex items-center justify-center">🏛️</div>
+                        <div class="text-left"><div class="text-[10px] font-black text-brand uppercase text-left">Quran Foundation</div><div class="text-[7px] text-text-muted uppercase text-left">Global Wisdom</div></div>
                     </div>
                   `;
                   return;
               }
-
-              document.getElementById('sourceCount').textContent = sources.length;
-              const mapHtml = sources.map(s => {
-                const isActive = s && s.id === currentSourceId;
-                if (!s) return '';
-                return `
-                <div onclick="filterBySource(${s.id})" class="p-4 px-6 rounded-2xl cursor-pointer transition-all border flex items-center gap-4 group ${isActive ? 'bg-brand/5 border-brand/20 shadow-sm' : 'hover:bg-brand/[0.02] border-transparent hover:border-brand/10'}">
-                    <div class="w-10 h-10 rounded-2xl bg-brand/5 border border-brand/10 flex items-center justify-center shrink-0 transition-all group-hover:scale-110">
-                        <span class="text-xs">📂</span>
-                    </div>
-                    <div class="flex-1 overflow-hidden">
-                        <div class="text-[10px] font-black truncate ${isActive ? 'text-brand' : 'text-text-muted'} group-hover:text-brand uppercase tracking-wider">${s.name || 'Untitled'}</div>
-                        <div class="text-[7px] font-bold text-text-muted/50 uppercase mt-0.5 tracking-[0.2em]">${s.source_type || 'Unknown'} • ${s.items_count || 0} Entries</div>
-                    </div>
-                </div>
+              
+              const sources = data;
+              list.innerHTML = sources.map(s => {
+                  return `
+                  <div onclick="selectSource(${s.id})" class="p-4 px-6 rounded-2xl cursor-pointer border hover:bg-brand/5 transition-all border-transparent hover:border-brand/10 flex items-center gap-4 group">
+                      <div class="w-10 h-10 rounded-2xl bg-brand/5 text-brand flex items-center justify-center uppercase font-black text-[10px]">${(s.name || 'C').substring(0,1)}</div>
+                      <div class="text-left overflow-hidden">
+                          <div class="text-[10px] font-black truncate uppercase text-brand text-left">${s.name || 'Untitled'}</div>
+                          <div class="text-[7px] font-bold text-text-muted uppercase text-left">${s.items_count || 0} Entries</div>
+                      </div>
+                  </div>
                 `;
               }).join('');
-
-              list.innerHTML = mapHtml;
 
               // Populate Modal Dropdown
               const modalSelect = document.getElementById('sourceSelect');
@@ -3451,13 +3089,28 @@ async def app_library_page(
                   const options = sources.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
                   modalSelect.innerHTML = `<option value="">Create New...</option>${options}`;
               }
+          } catch(e) { list.innerHTML = 'Sources Offline'; }
+      }
 
-              if (sources.length === 0) {
-                  list.innerHTML = `<div class="p-8 text-center text-white/10 font-bold text-[8px] uppercase tracking-widest">No Private Collections</div>`;
-              }
-          } catch(e) {
-              list.innerHTML = '<div class="text-rose-400 text-[10px] font-bold p-10">Sync failed.</div>';
-          }
+      function selectSource(id) {
+          currentSourceId = id;
+          currentView = 'collection_view';
+          // Find source name for breadcrumb
+          const source = document.querySelector(`[onclick="selectSource(${id})"] .text-brand`)?.textContent || 'Collection';
+          showView('collection_view', { name: source });
+      }
+
+      function useInQuoteCard(id) {
+          const entry = libraryEntries[id];
+          if (!entry) return;
+          sessionStorage.setItem('sabeel_pending_quote_item', JSON.stringify({
+              id: entry.id,
+              type: 'quran_verse',
+              text: entry.translation_text || entry.text,
+              arabic_text: entry.arabic_text,
+              reference: entry.reference || `${entry.surah_name_en} ${entry.ayah_number}`
+          }));
+          window.location.href = '/app?studio=true';
       }
 
       function selectSource(id) {
@@ -3467,67 +3120,95 @@ async def app_library_page(
           loadEntries();
       }
 
+      async function loadRecommendations() {
+          const cards = document.getElementById('recommendedCards');
+          const wrap = document.getElementById('recommendedTrackWrapper');
+          if (!cards || !wrap) return;
+          try {
+              const res = await fetch('/library/recommendations');
+              const data = await res.json();
+              if (!data.length) return wrap.classList.add('hidden');
+              wrap.classList.remove('hidden');
+              cards.innerHTML = data.map(item => {
+                  libraryEntries[item.id] = item;
+                  return `
+                  <div onclick="selectRecommendation(${item.id})" class="min-w-[280px] p-6 bg-white border border-brand/5 rounded-[2rem] hover:shadow-lg cursor-pointer transition-all">
+                      <div class="text-[9px] font-black text-brand uppercase tracking-widest mb-2 text-left">${item.reference || 'Wisdom'}</div>
+                      <p class="text-[11px] text-text-muted italic text-left">"${item.text || item.content || ''}"</p>
+                  </div>
+                `;
+              }).join('');
+          } catch(e) { wrap.classList.add('hidden'); }
+      }
+
+      function selectRecommendation(id) { 
+          const e = libraryEntries[id];
+          if (e && (e.item_type === 'quran' || e.item_type === 'quran_verse')) useInQuoteCard(id);
+          else openEntryModalById(id);
+      }
+
+      function toggleGlobalView(global) {
+          console.log("Library System: Manifesting " + (global ? 'System' : 'Org') + " View");
+          showGlobalOnly = global;
+          currentView = 'browse_surahs';
+          
+          // Reset UI
+          const list = document.getElementById('entryList');
+          const breadcrumbChild = document.getElementById('libraryBreadcrumbChild');
+          const breadcrumbName = document.getElementById('libraryBreadcrumbName');
+          if (breadcrumbChild) breadcrumbChild.classList.add('hidden');
+          if (breadcrumbName) breadcrumbName.textContent = '';
+          
+          // Re-init
+          window.dispatchEvent(new Event('DOMContentLoaded'));
+      }
+
+      async function openEntryModalById(id) {
+          const e = libraryEntries[id];
+          if (!e) return;
+          
+          document.getElementById('entryId').value = e.id;
+          document.getElementById('entryText').value = e.text;
+          document.getElementById('sourceSelect').value = e.source_id || "";
+          setEntryType(e.item_type, null);
+          openEntryModal();
+      }
+
       async function loadEntries() {
           const list = document.getElementById('entryList');
           if (!list) return;
           const query = document.getElementById('entrySearch')?.value || '';
-          const category = document.getElementById('filterCategory')?.value || '';
           
-          if (!query && !category && !currentSourceId) {
-              // Forced refresh of surahs if in global mode
-              showView('browse_surahs');
-              return;
-          }
-
-          showView('search_results');
-          list.innerHTML = '<div class="text-center py-20 text-[10px] text-brand font-black uppercase tracking-[0.4em] animate-pulse">Scanning Neural Nodes...</div>';
-          list.className = "flex-1 space-y-6 pb-20";
+          // If in browse mode and no query, don't show list (show surahs instead)
+          if (currentView === 'browse_surahs' && !query) return;
 
           try {
-              let url = `/library/entries?query=${encodeURIComponent(query)}`;
-              if (currentSourceId) url += `&source_id=${currentSourceId}`;
-              if (category) url += `&item_type=${encodeURIComponent(category)}`;
-              url += `&scope=${showGlobalOnly ? 'global' : 'org'}`;
-              
+              const url = `/library/entries?query=${encodeURIComponent(query)}&scope=${showGlobalOnly ? 'global' : 'org'}${currentSourceId ? '&source_id='+currentSourceId : ''}`;
               const res = await fetch(url);
-              const entries = await res.json();
+              const data = await res.json();
               
-              if (entries.length === 0) {
+              if (!data.length) {
                   list.innerHTML = '<div class="py-20 text-center text-[10px] font-black uppercase text-text-muted">No nodes found in this scope</div>';
                   return;
               }
-
-              list.innerHTML = entries.map(raw => {
-                const e = normalizeLibraryEntry(raw);
-                if (!e) return '';
-                
-                try {
-                    libraryEntries[e.id] = e;
-                    return `
-                    <div class="bg-white p-10 rounded-[3rem] group relative hover:shadow-xl transition-all border border-brand/5 border-l-4 border-l-transparent hover:border-l-brand">
-                        <div class="absolute top-8 right-10 opacity-0 group-hover:opacity-100 transition-all flex gap-3 z-10">
-                             ${e.item_type === 'quran' || e.item_type === 'quote' ? `<button onclick='useInQuoteCard(${e.id})' class="px-6 py-3 bg-brand text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-xl shadow-brand/20 hover:scale-105 active:scale-95 transition-all">Manifest in Card</button>` : ''}
-                             <button onclick="openEntryModalById(${e.id})" class="p-3 bg-brand/5 border border-brand/10 rounded-2xl text-brand hover:bg-brand hover:text-white transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg></button>
-                        </div>
-                        <div class="flex items-center gap-6 mb-8">
-                            <div class="w-12 h-12 rounded-2xl bg-brand/5 text-brand flex items-center justify-center border border-brand/10 uppercase text-[9px] font-black tracking-tighter">${(e.item_type || "NOD").substring(0,3)}</div>
-                            <div>
-                                <div class="text-[8px] font-black uppercase text-text-muted/60 tracking-widest">${e.item_type} Intelligence</div>
-                                <div class="text-[11px] font-black text-text-main uppercase tracking-wider truncate">${e.reference || e.title}</div>
-                            </div>
-                        </div>
-                        <p class="text-text-main/80 text-lg leading-relaxed font-medium mb-8 line-clamp-4 italic">
-                            "${e.text}"
-                        </p>
-                        <div class="flex flex-wrap gap-2.5 pt-8 border-t border-brand/5">
-                            ${(e.topics || []).map(t => `<span class="px-3 py-1.5 bg-brand/5 border border-brand/10 rounded-xl text-[8px] font-black uppercase tracking-widest text-brand/60 hover:text-brand transition-colors cursor-pointer">${t}</span>`).join('')}
-                        </div>
-                    </div>
-                  `;
-                } catch (err) {
-                    console.error("[LIBRARY][CARD_RENDER_FAIL]", err, raw);
-                    return '';
-                }
+              
+              list.className = "flex flex-col gap-6 pb-20";
+              list.innerHTML = data.map(raw => {
+                  const e = normalizeLibraryEntry(raw);
+                  libraryEntries[e.id] = e;
+                  return `
+                  <div class="bg-white p-10 rounded-[3rem] border border-brand/5 group relative hover:shadow-xl transition-all h-full">
+                      <div class="absolute top-8 right-10 opacity-0 group-hover:opacity-100 transition-all z-10 flex gap-2">
+                          <button onclick="useInQuoteCard(${e.id})" class="px-6 py-3 bg-brand text-white rounded-2xl text-[9px] font-black uppercase tracking-widest">Manifest</button>
+                          <button onclick="openEntryModalById(${e.id})" class="p-3 bg-brand/5 rounded-2xl text-brand hover:bg-brand hover:text-white transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg></button>
+                      </div>
+                      <div class="flex items-center gap-4 mb-6">
+                        <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand text-[8px] font-black uppercase text-left">${e.item_type.substring(0,3)}</div>
+                        <div class="text-left"><div class="text-[10px] font-black text-text-main truncate text-left">${e.reference}</div></div>
+                      </div>
+                      <p class="text-text-main/80 text-lg leading-relaxed italic text-left">"${e.text}"</p>
+                  </div>
+                `;
               }).join('');
           } catch(e) { console.error("Entries load failed", e); }
       }
@@ -3567,16 +3248,6 @@ async def app_library_page(
           }
       }
 
-      function checkNewSource() {
-          const select = document.getElementById('sourceSelect');
-          if (!select) return;
-          const val = select.value;
-          const container = document.getElementById('newSourceFields');
-          if (container) {
-              container.classList.toggle('hidden', val !== '');
-          }
-      }
-
       async function saveEntry() {
           const btn = event?.currentTarget;
           if (btn) {
@@ -3602,7 +3273,7 @@ async def app_library_page(
 
               const res = await fetch(url, {
                   method: method,
-                  headers: { 'Content-Type': 'application/json', 'X-Org-Id': orgId },
+                  headers: { 'Content-Type': 'application/json', 'X-Org-Id': window.sabeelOrgId },
                   body: JSON.stringify(payload)
               });
 
@@ -3615,7 +3286,7 @@ async def app_library_page(
               loadSources();
               loadEntries();
               
-              if (typeof showToast === 'function') showToast("Knowledge persisted successfully", "success");
+              if (window.showToast) window.showToast("Knowledge manifested successfully", "success");
           } catch (e) {
               console.error("Save failed", e);
               alert("Error: " + e.message);
@@ -3627,31 +3298,45 @@ async def app_library_page(
           }
       }
 
-      function toggleGlobalView(global) {
-          console.log("View Switch:", global ? 'System' : 'Org');
-          showGlobalOnly = global;
-          const orgBtn = document.getElementById('orgViewBtn');
-          const globalBtn = document.getElementById('globalViewBtn');
-          const activeClass = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter bg-brand text-white shadow-md transition-all";
-          const inactiveClass = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter text-brand/40 hover:text-brand transition-all";
-          
-          if (globalBtn) globalBtn.className = global ? activeClass : inactiveClass;
-          if (orgBtn) orgBtn.className = !global ? activeClass : inactiveClass;
-          
-          currentSourceId = null;
-          
-          // Reset UI state to trigger fresh manifestation
-          const query = document.getElementById('entrySearch');
-          if (query) query.value = '';
-          
-          // Parallel non-blocking refresh
-          Promise.allSettled([loadSources(), loadEntries()]).then(() => {
-              console.log("View manifested successfully");
-          });
+      function openSynonymModal() { document.getElementById('synonymModal').classList.remove('hidden'); loadSynonyms(); }
+      function closeSynonymModal() { document.getElementById('synonymModal').classList.add('hidden'); }
+
+      async function saveSynonym() {
+          const slug = document.getElementById('syn_slug').value;
+          const list = document.getElementById('syn_list').value;
+          if (!slug || !list) return;
+
+          try {
+              const res = await fetch('/api/admin/library/synonyms', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ slug, synonyms: list.split(',').map(s => s.trim()) })
+              });
+              if (res.ok) {
+                  document.getElementById('syn_slug').value = '';
+                  document.getElementById('syn_list').value = '';
+                  loadSynonyms();
+              }
+          } catch(e) { console.error("Synonym save failed", e); }
       }
 
-      function openEntryModalById(id) {
-          const entry = libraryEntries[id];
+      async function loadSynonyms() {
+          try {
+              const res = await fetch('/api/admin/library/synonyms');
+              const data = await res.json();
+              const table = document.getElementById('synonymTable');
+              if (!table) return;
+              table.innerHTML = (data || []).map(s => `
+                  <div class="flex justify-between items-center p-4 bg-brand/5 rounded-xl border border-brand/10 mb-2">
+                      <div class="overflow-hidden">
+                          <div class="text-[10px] font-black text-brand uppercase truncate text-left">${s.slug}</div>
+                          <div class="text-[8px] text-text-muted truncate text-left">${(s.synonyms || []).join(', ')}</div>
+                      </div>
+                  </div>
+              `).join('');
+          } catch(e) { console.error("Synonym load failed", e); }
+      }
+
           if (!entry) return;
           
           const idInput = document.getElementById('entryId');
