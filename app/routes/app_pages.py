@@ -2979,15 +2979,33 @@ async def app_library_page(
     </div>
 
     <script>
+      // --- GLOBAL ERROR HANDLING (Top Level) ---
+      function showDebugError(msg) {
+          const deb = document.getElementById('libraryDebugger');
+          const txt = document.getElementById('debugMessage');
+          if (deb && txt) {
+              txt.textContent = msg;
+              deb.classList.remove('hidden');
+          }
+      }
+      window.onerror = (msg, url, line) => {
+          console.error("[LIBRARY_CRASH]", msg, "at", line);
+          showDebugError(`Runtime Error: ${msg} (Line ${line})`);
+      };
+      window.onunhandledrejection = (e) => {
+          console.error("[LIBRARY_HANG]", e);
+          showDebugError(`Network Hang: ${e.reason}`);
+      };
+
       console.log("Library System: Ready");
-      let libraryEntries = {}; // Global entry map for safer access
+      let libraryEntries = {}; 
       let currentSourceId = null;
       let showGlobalOnly = true;
       let entrySearchTimeout = null;
       let selectedTopic = null;
-      const isSuperAdmin = {is_superadmin_js};
-      const orgId = {org_id_js};
-      let currentView = 'browse_surahs'; // 'browse_surahs' | 'surah_reading' | 'search_results'
+      const isSuperAdmin = "{is_superadmin_js}" === "true";
+      const orgId = parseInt("{org_id_js}" || "0");
+      let currentView = 'browse_surahs'; 
 
       // --- DEFENSIVE NORMALIZATION (Emergency Stabilization) ---
       function normalizeLibraryEntry(raw) {
@@ -3610,6 +3628,7 @@ async def app_library_page(
       }
 
       function toggleGlobalView(global) {
+          console.log("View Switch:", global ? 'System' : 'Org');
           showGlobalOnly = global;
           const orgBtn = document.getElementById('orgViewBtn');
           const globalBtn = document.getElementById('globalViewBtn');
@@ -3625,8 +3644,10 @@ async def app_library_page(
           const query = document.getElementById('entrySearch');
           if (query) query.value = '';
           
-          loadSources();
-          loadEntries();
+          // Parallel non-blocking refresh
+          Promise.allSettled([loadSources(), loadEntries()]).then(() => {
+              console.log("View manifested successfully");
+          });
       }
 
       function openEntryModalById(id) {
