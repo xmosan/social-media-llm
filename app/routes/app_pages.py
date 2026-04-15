@@ -2810,6 +2810,10 @@ async def app_library_page(
             <div id="entryList" class="flex-1 overflow-y-auto hide-scrollbar">
                 <!-- Loaded via JS -->
             </div>
+
+            <!-- Hidden State Storage to prevent JS crashes -->
+            <input type="hidden" id="filterCategory" value="">
+            <input type="hidden" id="filterTopic" value="">
         </div>
       </div>
     </div>
@@ -3129,7 +3133,7 @@ async def app_library_page(
               if (!res.ok) throw new Error("API Status: " + res.status);
               const surahs = await res.json();
               
-              if (!surahs || surahs.length === 0) {
+              if (!surahs || !Array.isArray(surahs) || surahs.length === 0) {
                   canvas.innerHTML = `<div class="col-span-full py-32 text-center text-text-muted font-black uppercase tracking-[0.5em]">No Foundation Records Found</div>`;
                   return;
               }
@@ -3351,8 +3355,8 @@ async def app_library_page(
       async function loadEntries() {
           const list = document.getElementById('entryList');
           if (!list) return;
-          const query = document.getElementById('entrySearch').value;
-          const category = document.getElementById('filterCategory').value;
+          const query = document.getElementById('entrySearch')?.value || '';
+          const category = document.getElementById('filterCategory')?.value || '';
           
           if (!query && !category && !currentSourceId) {
               // Forced refresh of surahs if in global mode
