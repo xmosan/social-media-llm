@@ -583,23 +583,23 @@ APP_LAYOUT_HTML = """<!doctype html>
   <title>{title} | Sabeel Studio</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: { brand: '#0F3D2E', 'brand-hover': '#0A2D22', accent: '#C9A96E', 'text-main': '#1A1A1A', 'text-muted': '#6B6B6B', cream: '#F8F6F2' }
-        }
-      }
-    }
+    tailwind.config = {{
+      theme: {{
+        extend: {{
+          colors: {{ brand: '#0F3D2E', 'brand-hover': '#0A2D22', accent: '#C9A96E', 'text-main': '#1A1A1A', 'text-muted': '#6B6B6B', cream: '#F8F6F2' }}
+        }}
+      }}
+    }}
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    :root { --brand: #0F3D2E; --brand-hover: #0A2D22; --main-bg: #F8F6F2; --surface: #FFFFFF; --accent: #C9A96E; --text-main: #1A1A1A; --text-muted: #6B6B6B; --border: rgba(15, 61, 46, 0.08); }
-    body { font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: var(--text-main); -webkit-font-smoothing: antialiased; }
-    .card { background: #FFFFFF; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(15, 61, 46, 0.04); border-radius: 12px; transition: all 150ms ease; }
-    .card:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15, 61, 46, 0.08); }
-    .nav-link.active { color: var(--brand); border-bottom: 2px solid var(--brand); font-weight: 700; }
-    .nav-link { transition: all 150ms ease; border-bottom: 2px solid transparent; color: var(--text-muted); opacity: 0.8; }
-    .nav-link:hover { color: var(--brand); opacity: 1; }
+    :root {{ --brand: #0F3D2E; --brand-hover: #0A2D22; --main-bg: #F8F6F2; --surface: #FFFFFF; --accent: #C9A96E; --text-main: #1A1A1A; --text-muted: #6B6B6B; --border: rgba(15, 61, 46, 0.08); }}
+    body {{ font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: var(--text-main); -webkit-font-smoothing: antialiased; }}
+    .card {{ background: #FFFFFF; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(15, 61, 46, 0.04); border-radius: 12px; transition: all 150ms ease; }}
+    .card:hover {{ transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15, 61, 46, 0.08); }}
+    .nav-link.active {{ color: var(--brand); border-bottom: 2px solid var(--brand); font-weight: 700; }}
+    .nav-link {{ transition: all 150ms ease; border-bottom: 2px solid transparent; color: var(--text-muted); opacity: 0.8; }}
+    .nav-link:hover {{ color: var(--brand); opacity: 1; }}
   </style>
 </head>
 <body class="min-h-screen">
@@ -630,9 +630,9 @@ APP_LAYOUT_HTML = """<!doctype html>
     <a href="/app/library" class="flex-1 flex flex-col items-center gap-1 py-1 mobile-tab {active_library}"><span class="text-[8px] font-bold uppercase tracking-widest">Library</span></a>
   </nav>
   <script>
-    async function logout() { await fetch('/auth/logout', { method: 'POST' }); window.location.href = '/'; }
-    function openNewPostModal() { document.getElementById('newPostModal').classList.remove('hidden'); }
-    function closeNewPostModal() { document.getElementById('newPostModal').classList.add('hidden'); }
+    async function logout() {{ await fetch('/auth/logout', {{ method: 'POST' }}); window.location.href = '/'; }}
+    function openNewPostModal() {{ document.getElementById('newPostModal').classList.remove('hidden'); }}
+    function closeNewPostModal() {{ document.getElementById('newPostModal').classList.add('hidden'); }}
   </script>
   {studio_modal}
   {connect_instagram_modal}
