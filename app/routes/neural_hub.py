@@ -87,73 +87,73 @@ LIBRARY_HTML = """
 </div>
 
 <style>
-    .scope-btn.active {{ border-color: var(--brand); background: rgba(15, 61, 46, 0.05); color: var(--brand); }}
-    .scope-btn {{ border-color: transparent; }}
-    .source-item {{ transition: all 150ms ease; }}
-    .source-item:hover {{ transform: translateX(4px); }}
-    .entry-card {{ transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1); }}
-    .entry-card:hover {{ transform: translateY(-8px); }}
+    .scope-btn.active { border-color: var(--brand); background: rgba(15, 61, 46, 0.05); color: var(--brand); }
+    .scope-btn { border-color: transparent; }
+    .source-item { transition: all 150ms ease; }
+    .source-item:hover { transform: translateX(4px); }
+    .entry-card { transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1); }
+    .entry-card:hover { transform: translateY(-8px); }
 </style>
 
 <script>
-    const NeuralLibrary = {{
-        state: {{
+    const NeuralLibrary = {
+        state: {
             scope: 'global', // global | org
             sourceId: null,
             loading: false
-        }},
+        },
 
-        init() {{
+        init() {
             console.log("Neural Hub: Initializing discovery engine...");
             this.loadSources();
             this.loadEntries();
-        }},
+        },
 
-        setScope(s) {{
+        setScope(s) {
             this.state.scope = s;
             document.querySelectorAll('.scope-btn').forEach(b => b.classList.remove('active'));
             document.getElementById('scope' + s.charAt(0).toUpperCase() + s.slice(1)).classList.add('active');
             this.state.sourceId = null;
             this.loadSources();
             this.loadEntries();
-        }},
+        },
 
-        async loadSources() {{
+        async loadSources() {
             const list = document.getElementById('sourcesList');
             if (!list) return;
-            try {{
+            try {
                 const url = this.state.scope === 'global' ? '/api/quran/surahs' : '/api/library/sources';
                 const res = await fetch(url);
                 const data = await res.json();
                 
                 list.innerHTML = data.map(s => `
-                    <button onclick="NeuralLibrary.setSource('${{s.number || s.id}}')" class="source-item w-full text-left p-4 rounded-xl border border-brand/5 hover:bg-brand/5 transition-all group ${{this.state.sourceId == (s.number || s.id) ? 'bg-brand/5 border-brand/20' : ''}}">
-                        <div class="text-[11px] font-black text-brand uppercase tracking-widest opacity-60 group-hover:opacity-100">${{s.name_en || s.title || s.name}}</div>
-                        ${{(s.name_ar || s.english_name) ? `<div class="text-[9px] text-text-muted font-bold tracking-tight opacity-40 group-hover:opacity-100 transition-opacity">${{s.name_ar || s.english_name}}</div>` : ''}}
+                    <button onclick="NeuralLibrary.setSource('${s.number || s.id}')" class="source-item w-full text-left p-4 rounded-xl border border-brand/5 hover:bg-brand/5 transition-all group \${this.state.sourceId == (s.number || s.id) ? 'bg-brand/5 border-brand/20' : ''}">
+                        <div class="text-[11px] font-black text-brand uppercase tracking-widest opacity-60 group-hover:opacity-100">\${s.name_en || s.title || s.name}</div>
+                        \${(s.name_ar || s.english_name) ? \`<div class="text-[9px] text-text-muted font-bold tracking-tight opacity-40 group-hover:opacity-100 transition-opacity">\${s.name_ar || s.english_name}</div>\` : ''}
                     </button>
                 `).join('');
                 
                 document.getElementById('collectionCount').innerText = data.length;
-            }} catch (e) {{
+            } catch (e) {
                 console.error("Neural Hub Source Error:", e);
-            }}
-        }},
+            }
+        },
 
-        setSource(id) {{
+        setSource(id) {
             this.state.sourceId = id;
             this.loadSources();
             this.loadEntries();
-        }},
+        },
 
-        async loadEntries() {{
+        async loadEntries() {
             const grid = document.getElementById('libraryGrid');
             if (!grid) return;
             grid.innerHTML = '<div class="col-span-full py-20 text-center animate-pulse text-[10px] font-black text-brand uppercase tracking-[0.4em]">Synthesizing Neural Nodes...</div>';
             
-            try {{
+            try {
                 const url = this.state.scope === 'global' 
-                    ? `/api/quran/surahs/${{this.state.sourceId || 1}}`
-                    : `/api/library/entries?scope=org${{this.state.sourceId ? '&source_id='+this.state.sourceId : ''}}`;
+                    ? \`/api/quran/surahs/\${this.state.sourceId || 1}\`
+                    : \`/api/library/entries?scope=org\${this.state.sourceId ? '&source_id='+this.state.sourceId : ''}\`;
                 
                 const res = await fetch(url);
                 const data = await res.json();
@@ -164,44 +164,44 @@ LIBRARY_HTML = """
                 grid.innerHTML = items.map((v, idx) => `
                     <div class="entry-card card p-8 group relative overflow-hidden bg-white hover:bg-brand/[0.01]">
                         <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
-                            <span class="text-4xl font-black text-brand italic">#${{v.verse_number || idx + 1}}</span>
+                            <span class="text-4xl font-black text-brand italic">#\${v.verse_number || idx + 1}</span>
                         </div>
                         <div class="space-y-6 relative z-10">
-                            ${{v.text_arabic ? `<div class="text-2xl text-right font-arabic leading-loose text-brand/80 pb-2">${{v.text_arabic}}</div>` : ''}}
+                            \${v.text_arabic ? \`<div class="text-2xl text-right font-arabic leading-loose text-brand/80 pb-2">\${v.text_arabic}</div>\` : ''}
                             <div class="text-[13px] text-text-main font-medium leading-relaxed italic opacity-80 group-hover:opacity-100 transition-opacity">
-                                "${{v.text || v.translation_text || v.content}}"
+                                "\${v.text || v.translation_text || v.content}"
                             </div>
                             <div class="pt-6 border-t border-brand/5 flex justify-between items-center">
                                 <div>
-                                    <div class="text-[10px] font-black text-brand uppercase tracking-widest">${{v.reference || sourceTitle || 'ARCHIVE'}}</div>
-                                    <div class="text-[8px] font-bold text-accent uppercase tracking-[0.2em] mt-1">${{this.state.scope === 'global' ? 'Foundation Intelligence' : 'Organizational Node'}}</div>
+                                    <div class="text-[10px] font-black text-brand uppercase tracking-widest">\${v.reference || sourceTitle || 'ARCHIVE'}</div>
+                                    <div class="text-[8px] font-bold text-accent uppercase tracking-[0.2em] mt-1">\${this.state.scope === 'global' ? 'Foundation Intelligence' : 'Organizational Node'}</div>
                                 </div>
-                                <button onclick="NeuralLibrary.manifest('${{this.state.scope === 'global' ? 'quran' : 'entry'}}', '${{v.id}}', \`${{((v.text || v.translation_text || v.content) || '').replace(/`/g, "\\'").replace(/"/g, '&quot;')}}\`, '${{v.reference || sourceTitle}}')" class="px-6 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl shadow-brand/10 hover:scale-[1.05] active:scale-95 transition-all">Manifest</button>
+                                <button onclick="NeuralLibrary.manifest('\${this.state.scope === 'global' ? 'quran' : 'entry'}', '\${v.id}', \\\`\${((v.text || v.translation_text || v.content) || '').replace(/\`/g, "\\'").replace(/"/g, '&quot;')}\\\`, '\${v.reference || sourceTitle}')" class="px-6 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl shadow-brand/10 hover:scale-[1.05] active:scale-95 transition-all">Manifest</button>
                             </div>
                         </div>
                     </div>
                 `).join('');
                 
-            }} catch (e) {{
+            } catch (e) {
                 console.error("Neural Hub Entry Error:", e);
                 grid.innerHTML = '<div class="col-span-full py-20 text-center text-rose-500 font-bold uppercase tracking-widest">Neural Link Severed • Retry in T-minus 5s</div>';
-            }}
-        }},
+            }
+        },
 
-        async search() {{
+        async search() {
             const grid = document.getElementById('libraryGrid');
             const query = document.getElementById('libSearch').value;
-            if (query.length < 3) {{
+            if (query.length < 3) {
                 if (query.length === 0) this.loadEntries();
                 return;
-            }}
+            }
 
             grid.innerHTML = '<div class="col-span-full py-20 text-center animate-pulse text-[10px] font-black text-brand uppercase tracking-[0.4em]">Filtering Foundational Matrices...</div>';
             
-            try {{
+            try {
                 const url = this.state.scope === 'global'
-                    ? `/api/quran/search?q=${{encodeURIComponent(query)}}`
-                    : `/api/library/entries?query=${{encodeURIComponent(query)}}&scope=org`;
+                    ? \`/api/quran/search?q=\${encodeURIComponent(query)}\`
+                    : \`/api/library/entries?query=\${encodeURIComponent(query)}&scope=org\`;
                 
                 const res = await fetch(url);
                 const data = await res.json();
@@ -209,33 +209,33 @@ LIBRARY_HTML = """
                 grid.innerHTML = data.map((v, idx) => `
                     <div class="entry-card card p-8 group relative bg-white overflow-hidden border border-brand/5">
                         <div class="space-y-6">
-                            ${{v.text_arabic ? `<div class="text-xl text-right font-arabic leading-loose text-brand/60">${{v.text_arabic}}</div>` : ''}}
+                            \${v.text_arabic ? \`<div class="text-xl text-right font-arabic leading-loose text-brand/60">\${v.text_arabic}</div>\` : ''}
                             <div class="text-[13px] text-text-main font-medium leading-relaxed italic opacity-80 group-hover:opacity-100 transition-opacity">
-                                "${{v.text || v.translation_text || v.content}}"
+                                "\${v.text || v.translation_text || v.content}"
                             </div>
                             <div class="pt-6 border-t border-brand/5 flex justify-between items-center">
-                                <div class="text-[10px] font-black text-brand uppercase tracking-widest">${{v.title || v.reference || 'ARCHIVE'}}</div>
-                                <button onclick="NeuralLibrary.manifest('entry', '${{v.id}}', \`${{((v.text || v.translation_text || v.content) || '').replace(/`/g, "\\'").replace(/"/g, '&quot;')}}\`, '${{v.title || v.reference}}')" class="px-6 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl shadow-brand/10 hover:scale-[1.05] transition-all">Manifest</button>
+                                <div class="text-[10px] font-black text-brand uppercase tracking-widest">\${v.title || v.reference || 'ARCHIVE'}</div>
+                                <button onclick="NeuralLibrary.manifest('entry', '\${v.id}', \\\`\${((v.text || v.translation_text || v.content) || '').replace(/\`/g, "\\'").replace(/"/g, '&quot;')}\\\`, '\${v.title || v.reference}')" class="px-6 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl shadow-brand/10 hover:scale-[1.05] transition-all">Manifest</button>
                             </div>
                         </div>
                     </div>
                 `).join('');
-            }} catch (e) {{ console.error(e); }}
-        }},
+            } catch (e) { console.error(e); }
+        },
 
-        manifest(type, id, text, reference) {{
+        manifest(type, id, text, reference) {
             console.log("Neural Hub: Manifesting Node " + id);
-            const bridge = {{
+            const bridge = {
                 type: type === 'quran' ? 'quran_verse' : 'quote',
                 id: id,
                 text: text,
                 reference: reference,
                 timestamp: Date.now()
-            }};
+            };
             sessionStorage.setItem('sabeel_pending_quote_item', JSON.stringify(bridge));
             window.location.href = '/app?studio=true';
-        }}
-    }};
+        }
+    };
 
     window.addEventListener('load', () => NeuralLibrary.init());
 </script>
