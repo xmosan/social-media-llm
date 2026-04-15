@@ -2677,99 +2677,137 @@ async def app_library_page(
 
     content = """
     <style>
+        :root {
+            --library-bg: #040D0B;
+            --library-surface: rgba(255, 255, 255, 0.03);
+            --library-border: rgba(255, 255, 255, 0.08);
+            --library-text: #F4F7F5;
+            --library-accent: #C2A87E; /* Subtle Gold */
+        }
+        
         .dir-rtl { direction: rtl; unicode-bidi: bidi-override; }
         .font-serif { font-family: 'Amiri', 'Traditional Arabic', serif; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        .surah-card:hover .surah-number { background: var(--brand); color: white; border-color: var(--brand); }
-        .verse-card:hover { border-color: var(--brand); shadow: 0 10px 40px -10px rgba(15, 61, 46, 0.1); }
+        .library-container {
+            background: radial-gradient(circle at top right, #0A1F1A, #040D0B);
+            min-height: 100vh;
+            color: var(--library-text);
+        }
+
+        .premium-glass {
+            background: var(--library-surface);
+            backdrop-blur: 20px;
+            border: 1px solid var(--library-border);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .surah-card {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .surah-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: var(--brand);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -10px rgba(15, 61, 46, 0.4);
+        }
+        
+        .verse-card {
+            border-left: 4px solid transparent;
+        }
+        .verse-card:hover {
+            border-left-color: var(--brand);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
+            background-size: 200% 100%;
+            animation: skeleton-loading 1.5s infinite;
+        }
+        @keyframes skeleton-loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
     </style>
     
-    <div class="space-y-8 h-full flex flex-col">
-      <div class="flex justify-between items-center px-2">
+    <div class="library-container -m-6 md:-m-10 p-6 md:p-10 space-y-8 h-full flex flex-col">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 px-2">
         <div>
-          <h1 class="text-3xl font-bold text-brand tracking-tight flex items-center gap-3">
-            <span id="libraryBreadcrumbRoot" onclick="showView('browse_surahs')" class="cursor-pointer hover:text-brand-hover transition-colors">Library</span>
-            <span id="libraryBreadcrumbChild" class="hidden text-text-muted/40 font-light">&rsaquo;</span>
-            <span id="libraryBreadcrumbName" class="text-accent text-2xl"></span>
+          <h1 class="text-4xl font-black text-white tracking-tighter flex items-center gap-4">
+            <span id="libraryBreadcrumbRoot" onclick="showView('browse_surahs')" class="cursor-pointer hover:text-brand transition-all opacity-90">Library</span>
+            <span id="libraryBreadcrumbChild" class="hidden text-white/20 font-light">&rsaquo;</span>
+            <span id="libraryBreadcrumbName" class="text-brand text-3xl font-bold"></span>
           </h1>
-          <p id="librarySubtitle" class="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em] mt-1">Foundational Truths & Organizational Knowledge</p>
+          <p id="librarySubtitle" class="text-[10px] font-black text-brand uppercase tracking-[0.4em] mt-2 opacity-80">Foundation Wisdom • Organizational Intelligence</p>
         </div>
         <div class="flex gap-4">
-          <button onclick="openEntryModal()" class="px-8 py-3.5 bg-brand rounded-xl font-bold text-[10px] uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center gap-3">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+          <button onclick="openEntryModal()" class="px-8 py-4 bg-brand rounded-2xl font-black text-[10px] uppercase tracking-widest text-white shadow-2xl shadow-brand/40 hover:bg-brand-hover hover:scale-105 active:scale-95 transition-all flex items-center gap-3">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
             Add Wisdom
           </button>
         </div>
       </div>
 
       <!-- RECOMMENDED TRACK -->
-      <div id="recommendedTrackWrapper" class="hidden flex-col border-b border-brand/5 bg-gradient-to-b from-brand/5 to-transparent shrink-0">
-        <div class="px-6 md:px-8 py-3 flex items-center justify-between">
-          <h3 class="text-[9px] font-black uppercase tracking-widest text-brand flex items-center gap-2">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143z"/></svg>
-            Recommended For You
+      <div id="recommendedTrackWrapper" class="hidden flex-col border-y border-white/5 bg-white/[0.02] shrink-0">
+        <div class="px-6 md:px-10 py-4 flex items-center justify-between">
+          <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-brand flex items-center gap-3">
+            <div class="w-1.5 h-1.5 rounded-full bg-brand animate-ping"></div>
+            Curated For Your Voice
           </h3>
         </div>
-        <div id="recommendedCards" class="flex gap-4 px-6 md:px-8 pb-4 overflow-x-auto hide-scrollbar">
+        <div id="recommendedCards" class="flex gap-6 px-6 md:px-10 pb-8 overflow-x-auto hide-scrollbar">
           <!-- Loaded via JS -->
         </div>
       </div>
 
       <!-- Main Layout -->
-      <div class="flex flex-col lg:flex-row gap-8 flex-1 overflow-hidden min-h-0">
+      <div class="flex flex-col lg:flex-row gap-10 flex-1 overflow-hidden min-h-0">
         <!-- Sidebar Navigation -->
-        <div class="w-full lg:w-72 flex flex-col gap-6 shrink-0">
+        <div class="w-full lg:w-80 flex flex-col gap-8 shrink-0">
             <!-- Source Selector -->
-            <div class="glass rounded-[2rem] bg-white border border-brand/5 overflow-hidden">
-                <div class="p-6 border-b border-brand/5 bg-brand/5 flex justify-between items-center">
-                    <h3 class="text-[9px] font-black uppercase tracking-widest text-brand/60">Collections</h3>
-                    <div id="sourceCount" class="text-[8px] font-bold text-brand bg-white px-2 py-0.5 rounded-full border border-brand/10">0</div>
+            <div class="premium-glass rounded-[2.5rem] overflow-hidden">
+                <div class="p-8 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
+                    <h3 class="text-[10px] font-black uppercase tracking-widest text-white/40">Collections</h3>
+                    <div id="sourceCount" class="text-[9px] font-black text-brand bg-brand/10 px-3 py-1 rounded-full border border-brand/20">0</div>
                 </div>
-                <div id="sourceList" class="p-3 space-y-1 overflow-y-auto max-h-[400px] hide-scrollbar">
+                <div id="sourceList" class="p-4 space-y-2 overflow-y-auto max-h-[400px] hide-scrollbar">
                     <!-- Loaded via JS -->
                 </div>
                 
-                <div class="p-4 bg-brand/5 border-t border-brand/5">
+                <div class="p-6 bg-white/[0.01] border-t border-white/5">
                     {library_controls}
                 </div>
             </div>
             
             <!-- Quick Filters (Topics) -->
-            <div class="glass rounded-[2rem] bg-white border border-brand/5 overflow-hidden flex-1 flex flex-col min-h-0">
-                <div class="p-6 border-b border-brand/5 bg-brand/5 flex justify-between items-center">
-                    <h3 class="text-[9px] font-black uppercase tracking-widest text-brand/60">Trending Topics</h3>
-                    <button onclick="suggestTopicFromSearch()" class="text-brand hover:scale-110 transition-all"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+            <div class="premium-glass rounded-[2.5rem] overflow-hidden flex-1 flex flex-col min-h-0">
+                <div class="p-8 border-b border-white/5 bg-white/[0.02] flex justify-between items-center">
+                    <h3 class="text-[10px] font-black uppercase tracking-widest text-white/40">Knowledge Tags</h3>
+                    <button onclick="suggestTopicFromSearch()" class="text-brand hover:scale-125 transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg></button>
                 </div>
-                <div id="sidebarTopicList" class="p-4 flex flex-wrap gap-2 overflow-y-auto hide-scrollbar">
+                <div id="sidebarTopicList" class="p-6 flex flex-wrap gap-2.5 overflow-y-auto hide-scrollbar">
                     <!-- Populated via JS -->
                 </div>
             </div>
         </div>
 
         <!-- Main Workspace -->
-        <div class="flex-1 glass rounded-[3rem] bg-white border border-brand/5 flex flex-col overflow-hidden">
-            <!-- Reading Header -->
-            <div class="p-6 border-b border-brand/5 bg-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div class="relative flex-1 max-w-xl group">
-                    <input type="text" id="entrySearch" oninput="debounceEntryQuery()" placeholder="Search through scripture and knowledge..." class="w-full bg-cream/50 border border-brand/10 rounded-2xl px-6 py-4 text-xs font-bold text-brand outline-none focus:border-brand/30 focus:bg-white focus:shadow-lg focus:shadow-brand/5 transition-all placeholder:text-brand/20">
-                    <svg class="w-4 h-4 absolute right-5 top-1/2 -translate-y-1/2 text-brand/30 group-focus-within:text-brand transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+        <!-- Search & Content Area -->
+        <div class="flex-1 flex flex-col min-w-0 gap-8">
+            <div class="relative group">
+                <div class="absolute inset-y-0 left-8 flex items-center pointer-events-none">
+                    <svg class="w-5 h-5 text-white/20 group-focus-within:text-brand transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
                 </div>
-                <div class="flex items-center gap-3">
-                    <select id="filterCategory" onchange="loadEntries()" class="bg-brand/5 border border-brand/5 rounded-xl px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-brand outline-none hover:bg-brand/10 transition-all cursor-pointer">
-                        <option value="">All Knowledge</option>
-                        <option value="quran">Qur'an Only</option>
-                        <option value="hadith">Hadith Only</option>
-                        <option value="quote">Quotes Only</option>
-                        <option value="book">Books Only</option>
-                    </select>
-                </div>
+                <input type="text" id="entrySearch" oninput="debounceSearch()" 
+                       class="w-full premium-glass rounded-3xl pl-16 pr-8 py-6 text-sm text-white outline-none focus:ring-2 focus:ring-brand/40 transition-all placeholder:text-white/10" 
+                       placeholder="Search through scripture, wisdom, and organization intelligence...">
             </div>
-
-            <!-- Reading Canvas -->
-            <div id="entryList" class="flex-1 overflow-y-auto p-4 md:p-8 hide-scrollbar bg-cream/20">
-                <!-- Initial empty / loading state handled by JS -->
+            
+            <div id="entryList" class="flex-1 overflow-y-auto hide-scrollbar">
+                <!-- Loaded via JS -->
             </div>
         </div>
       </div>
@@ -2932,15 +2970,37 @@ async def app_library_page(
       let entrySearchTimeout = null;
       let selectedTopic = null;
       const isSuperAdmin = {is_superadmin_js};
+      const orgId = {org_id_js};
       let currentView = 'browse_surahs'; // 'browse_surahs' | 'surah_reading' | 'search_results'
 
       // --- INITIALIZATION ---
-      window.addEventListener('DOMContentLoaded', () => {
-          checkPendingVerse();
-          loadTopics();
-          loadSources();
-          loadRecommendations();
-          showView('browse_surahs');
+      window.addEventListener('DOMContentLoaded', async () => {
+          console.log("Library System: Initializing [Premium Mode]");
+          
+          try { checkPendingVerse(); } catch (e) { console.warn("Init Error: pending", e); }
+          
+          // Parallel non-blocking init
+          const parallelInits = [
+              { name: 'Topics', fn: loadTopics },
+              { name: 'Sources', fn: loadSources },
+              { name: 'Recommendations', fn: loadRecommendations }
+          ];
+
+          parallelInits.forEach(async step => {
+              try {
+                  await step.fn();
+              } catch (e) {
+                  console.error(`Library: ${step.name} failed to load`, e);
+              }
+          });
+
+          // Core view init
+          try {
+              showView('browse_surahs');
+          } catch (e) {
+              console.error("Library: Failed to manifest main view", e);
+              document.getElementById('entryList').innerHTML = `<div class="p-20 text-center text-rose-500 font-bold uppercase tracking-widest">Library Manifestation Failed. Check Foundation Connection.</div>`;
+          }
       });
 
       function checkPendingVerse() {
@@ -3009,7 +3069,6 @@ async def app_library_page(
 
       function showView(view, data = null) {
           currentView = view;
-          const canvas = document.getElementById('entryList');
           const breadcrumbChild = document.getElementById('libraryBreadcrumbChild');
           const breadcrumbName = document.getElementById('libraryBreadcrumbName');
           
@@ -3031,6 +3090,10 @@ async def app_library_page(
       }
 
       async function loadSurahs() {
+          const canvas = document.getElementById('entryList');
+          // Loading Skeleton
+          canvas.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8";
+          canvas.innerHTML = Array(9).fill(0).map(() => `<div class="skeleton h-32 rounded-[2.5rem] premium-glass opacity-50"></div>`).join('');
 
           try {
               console.log("Fetching surahs...");
@@ -3038,23 +3101,24 @@ async def app_library_page(
               if (!res.ok) throw new Error("API Status: " + res.status);
               const surahs = await res.json();
               
-              const canvas = document.getElementById('entryList');
-              canvas.className = "flex-1 overflow-y-auto p-4 md:p-8 hide-scrollbar bg-cream/20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6";
+              if (!surahs || surahs.length === 0) {
+                  canvas.innerHTML = `<div class="col-span-full py-32 text-center text-white/20 font-black uppercase tracking-[0.5em]">No Foundation Records Found</div>`;
+                  return;
+              }
+
               canvas.innerHTML = surahs.map(s => `
                 <div onclick="showView('surah_reading', {number: ${s.number}, name: '${(s.name_en || '').replace(/'/g, "\\'")}'})" 
-                     class="surah-card glass p-6 rounded-[2rem] bg-white border border-brand/5 hover:border-brand/20 hover:shadow-xl hover:shadow-brand/5 transition-all cursor-pointer group flex items-center justify-between">
-                    <div class="flex items-center gap-4 overflow-hidden">
-                        <div class="surah-number w-10 h-10 rounded-xl bg-brand/5 border border-brand/10 text-brand flex items-center justify-center text-[10px] font-black transition-all group-hover:bg-brand group-hover:text-white">
+                     class="surah-card premium-glass p-8 rounded-[2.5rem] transition-all cursor-pointer group flex items-center justify-between">
+                    <div class="flex items-center gap-6 overflow-hidden">
+                        <div class="surah-number w-12 h-12 rounded-2xl bg-brand/10 border border-brand/20 text-brand flex items-center justify-center text-[11px] font-black tracking-tighter transition-all group-hover:bg-brand group-hover:text-white group-hover:scale-110">
                             ${s.number}
                         </div>
                         <div class="overflow-hidden">
-                            <h3 class="text-xs font-black text-brand uppercase truncate">${s.name_en}</h3>
-                            <p class="text-[8px] font-bold text-text-muted uppercase tracking-widest ">${s.revelation_type} • ${s.verses_count} Verses</p>
+                            <h4 class="text-sm font-black text-white group-hover:text-brand transition-colors truncate">${s.name_en}</h4>
+                            <p class="text-[9px] font-bold text-white/30 uppercase tracking-widest mt-1">${s.verses_count} Verses • ${s.revelation_type}</p>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <div class="font-serif text-lg text-brand font-bold">${s.name_ar}</div>
-                    </div>
+                    <div class="text-2xl font-serif text-brand/20 group-hover:text-brand/40 transition-colors pl-4">${s.name_ar}</div>
                 </div>
               `).join('');
           } catch(e) {
@@ -3065,54 +3129,60 @@ async def app_library_page(
       }
 
       async function loadSurahVerses(surahNumber) {
-          const canvas = document.getElementById('entryList');
-          canvas.innerHTML = '<div class="col-span-full text-center py-20 text-[10px] text-muted font-bold uppercase animate-pulse">Retrieving Verses...</div>';
-          
           try {
-              const res = await fetch(\`/api/quran/surahs/\${surahNumber}\`);
+              const res = await fetch(`/api/quran/surahs/${surahNumber}`);
               const surah = await res.json();
               
-              canvas.className = "flex-1 overflow-y-auto p-4 md:p-12 hide-scrollbar bg-white space-y-16";
+              const canvas = document.getElementById('entryList');
+              canvas.className = "flex-1 space-y-8";
               
-              let versesHtml = "";
-              if (surahNumber !== 1 && surahNumber !== 9) {
-                  versesHtml += \`
-                    <div class="text-center py-10 opacity-60">
-                        <div class="font-serif text-3xl text-brand mb-2">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
-                        <div class="text-[9px] font-bold uppercase tracking-widest text-text-muted">In the name of Allah, the Entirely Merciful, the Especially Merciful</div>
+              let versesHtml = `
+                <div class="premium-glass p-12 rounded-[3rem] mb-12 flex flex-col md:flex-row justify-between items-center gap-8 border-b-4 border-b-brand/30">
+                    <div class="text-center md:text-left">
+                        <h2 class="text-4xl font-black text-white tracking-tighter mb-2">${surah.name_en}</h2>
+                        <p class="text-[10px] font-black text-brand uppercase tracking-[0.4em]">${surah.total_verses} Ayahs • Revealed in ${surah.revelation_place}</p>
                     </div>
-                  \`;
+                    <div class="text-6xl font-serif text-brand/40">${surah.name_ar}</div>
+                </div>
+              `;
+
+              if (surahNumber !== 1 && surahNumber !== 9) {
+                  versesHtml += `
+                    <div class="text-center py-16 opacity-80">
+                        <p class="font-serif text-4xl text-brand tracking-widest leading-loose">بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ</p>
+                    </div>
+                  `;
               }
 
               versesHtml += surah.verses.map(v => {
                   // Cache for bridge
                   libraryEntries[v.id] = v;
                   return `
-                <div class="verse-card group relative p-10 rounded-[2.5rem] border border-transparent transition-all">
+                <div class="verse-card premium-glass group relative p-12 rounded-[3rem] transition-all hover:bg-white/[0.04]">
                     <!-- Actions -->
-                    <div class="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-all flex gap-3">
-                         <button onclick='useInQuoteCard(${v.id})' class="px-5 py-2.5 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-lg shadow-brand/20">
-                            Use in Quote Card
+                    <div class="absolute top-6 right-10 opacity-0 group-hover:opacity-100 transition-all flex gap-3 z-10">
+                         <button onclick='useInQuoteCard(${v.id})' class="px-6 py-3 bg-brand text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-brand/40 hover:scale-105 active:scale-95 transition-all">
+                            Manifest in Card
                         </button>
                     </div>
 
-                    <div class="flex flex-col gap-8">
-                        <div class="flex justify-between items-start gap-6">
-                            <div class="w-10 h-10 shrink-0 rounded-full border border-brand/10 flex items-center justify-center text-[9px] font-black text-brand/40">
+                    <div class="space-y-10">
+                        <div class="flex flex-col md:flex-row justify-between items-start gap-10">
+                            <div class="w-12 h-12 shrink-0 rounded-2xl border border-white/10 flex items-center justify-center text-[10px] font-black text-white/20 bg-white/5 transition-all group-hover:border-brand/40 group-hover:text-brand">
                                 ${v.ayah_number}
                             </div>
-                            <p class="dir-rtl font-serif text-3xl text-brand-dark leading-[1.8] text-right flex-1">
+                            <p class="dir-rtl font-serif text-4xl text-white leading-[2] text-right flex-1 tracking-tight">
                                 ${v.arabic_text}
                             </p>
                         </div>
-                        <div class="pl-16">
-                            <p class="text-text-main text-lg leading-relaxed font-medium mb-4 opacity-90">
+                        <div class="pl-20">
+                            <p class="text-white/90 text-xl leading-[1.8] font-medium mb-6">
                                 ${v.translation_text}
                             </p>
-                            <div class="flex items-center gap-4">
-                               <span class="text-[9px] font-black text-brand uppercase tracking-widest">Reference: ${v.reference}</span>
-                               <span class="w-1 h-1 rounded-full bg-brand/30"></span>
-                               <span class="text-[9px] font-bold text-text-muted uppercase tracking-widest">${v.translator}</span>
+                            <div class="flex items-center gap-6">
+                               <span class="text-[9px] font-black text-brand uppercase tracking-[0.3em]">Ref: ${v.reference}</span>
+                               <div class="w-1 h-1 rounded-full bg-white/20"></div>
+                               <span class="text-[9px] font-bold text-white/30 uppercase tracking-widest">${v.translator}</span>
                             </div>
                         </div>
                     </div>
@@ -3123,7 +3193,7 @@ async def app_library_page(
               canvas.scrollTo(0, 0);
           } catch(e) {
               console.error("Verses load failed", e);
-              canvas.innerHTML = '<div class="col-span-full py-20 text-center text-rose-500 font-bold uppercase text-[10px]">Failed to load verses</div>';
+              document.getElementById('entryList').innerHTML = '<div class="col-span-full py-20 text-center text-rose-500 font-bold uppercase text-[10px]">Failed to load verses</div>';
           }
       }
 
@@ -3155,8 +3225,8 @@ async def app_library_page(
               const res = await fetch('/library/topics');
               const topics = await res.json();
               const chips = document.getElementById('sidebarTopicList');
-              chips.innerHTML = topics.slice(0, 20).map(t => `
-                  <button onclick="filterByTopic('${t.slug}')" class="px-3 py-1.5 rounded-lg bg-brand/5 border border-brand/5 text-[9px] font-bold uppercase tracking-widest text-brand/50 hover:bg-brand/10 hover:border-brand/20 hover:text-brand transition-all">
+              chips.innerHTML = topics.slice(0, 25).map(t => `
+                  <button onclick="filterByTopic('${t.slug}')" class="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[9px] font-black uppercase tracking-[0.2em] text-white/40 hover:bg-brand/20 hover:border-brand/40 hover:text-brand transition-all">
                       ${t.slug.replace(/_/g, ' ')}
                   </button>
               `).join('');
@@ -3171,7 +3241,7 @@ async def app_library_page(
 
         async function loadSources() {
           const list = document.getElementById('sourceList');
-          list.innerHTML = '<div class="text-center py-10 text-[9px] text-muted font-bold uppercase animate-pulse">Loading Collections...</div>';
+          list.innerHTML = Array(3).fill(0).map(() => `<div class="skeleton h-14 rounded-2xl mb-2 opacity-30"></div>`).join('');
           
           try {
               const url = showGlobalOnly ? '/api/quran/surahs' : '/library/sources';
@@ -3198,22 +3268,22 @@ async def app_library_page(
 
               document.getElementById('sourceCount').textContent = sources.length;
               list.innerHTML = sources.map(s => {
-                  const isActive = currentSourceId == s.id;
-                  return `
-                    <div onclick="selectSource(${s.id})" class="p-4 px-5 rounded-2xl cursor-pointer transition-all border flex items-center gap-4 group ${isActive ? 'bg-brand/5 border-brand/20 shadow-sm' : 'bg-white border-transparent hover:bg-brand/[0.02] hover:border-brand/10'}">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${isActive ? 'bg-brand text-white' : 'bg-brand/5 text-brand group-hover:bg-brand/10'}">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
-                        </div>
-                        <div class="flex-1 overflow-hidden">
-                            <div class="text-[10px] font-bold truncate ${isActive ? 'text-brand' : 'text-text-main group-hover:text-brand'} uppercase tracking-wider">${s.name}</div>
-                            <div class="text-[8px] font-bold text-muted uppercase mt-0.5">${s.category || 'Collection'}</div>
-                        </div>
+                const isActive = s.id === currentSourceId;
+                return `
+                <div onclick="filterBySource(${s.id})" class="p-4 px-6 rounded-2xl cursor-pointer transition-all border flex items-center gap-4 group ${isActive ? 'bg-brand/10 border-brand/30 shadow-lg' : 'hover:bg-white/5 border-transparent hover:border-white/10'}">
+                    <div class="w-10 h-10 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 transition-all group-hover:scale-110">
+                        <span class="text-xs">📂</span>
                     </div>
-                  `;
+                    <div class="flex-1 overflow-hidden">
+                        <div class="text-[10px] font-black truncate ${isActive ? 'text-brand' : 'text-white/60'} group-hover:text-white uppercase tracking-wider">${s.name}</div>
+                        <div class="text-[7px] font-bold text-white/20 uppercase mt-0.5 tracking-[0.2em]">${s.source_type} • ${s.items_count || 0} Entries</div>
+                    </div>
+                </div>
+                `;
               }).join('');
 
               if (sources.length === 0) {
-                  list.innerHTML = '<div class="p-10 text-center text-muted font-black text-[9px] uppercase tracking-widest">No collections found</div>';
+                  list.innerHTML = `<div class="p-8 text-center text-white/10 font-bold text-[8px] uppercase tracking-widest">No Private Collections</div>`;
               }
           } catch(e) {
               list.innerHTML = '<div class="text-rose-400 text-[10px] font-bold p-10">Sync failed.</div>';
@@ -3238,8 +3308,8 @@ async def app_library_page(
           }
 
           showView('search_results');
-          list.innerHTML = '<div class="text-center py-20 text-[10px] text-muted font-bold uppercase animate-pulse">Scanning Library Nodes...</div>';
-          list.className = "flex-1 overflow-y-auto p-4 md:p-8 hide-scrollbar bg-cream/20 space-y-4";
+          list.innerHTML = '<div class="text-center py-20 text-[10px] text-brand font-black uppercase tracking-[0.4em] animate-pulse">Scanning Neural Nodes...</div>';
+          list.className = "flex-1 space-y-6 pb-20";
 
           try {
               let url = `/library/entries?query=${encodeURIComponent(query)}`;
@@ -3258,23 +3328,23 @@ async def app_library_page(
               list.innerHTML = entries.map(e => {
                 libraryEntries[e.id] = e;
                 return `
-                <div class="glass p-8 bg-white border border-brand/5 hover:border-brand/20 transition-all rounded-[2rem] group relative">
-                    <div class="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-all flex gap-3">
-                         ${e.item_type === 'quran' || e.item_type === 'quote' ? `<button onclick='useInQuoteCard(${e.id})' class="px-4 py-2 bg-brand text-white rounded-xl text-[8px] font-black uppercase tracking-widest">Use in card</button>` : ''}
-                         <button onclick="openEntryModalById(${e.id})" class="p-3 bg-white border border-brand/10 rounded-xl text-brand hover:scale-110 transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></button>
+                <div class="premium-glass p-10 rounded-[3rem] group relative hover:bg-white/[0.04] transition-all border-l-4 border-l-transparent hover:border-l-brand">
+                    <div class="absolute top-8 right-10 opacity-0 group-hover:opacity-100 transition-all flex gap-3 z-10">
+                         ${e.item_type === 'quran' || e.item_type === 'quote' ? `<button onclick='useInQuoteCard(${e.id})' class="px-6 py-3 bg-brand text-white rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-brand/40 hover:scale-105 active:scale-95 transition-all">Manifest in Card</button>` : ''}
+                         <button onclick="openEntryModalById(${e.id})" class="p-3 bg-white/10 border border-white/10 rounded-2xl text-white hover:bg-brand hover:border-brand transition-all"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg></button>
                     </div>
-                    <div class="flex items-center gap-4 mb-6">
-                        <div class="w-10 h-10 rounded-xl bg-brand/5 text-brand flex items-center justify-center border border-brand/10 uppercase text-[8px] font-black tracking-widest">${e.item_type.substring(0,3)}</div>
+                    <div class="flex items-center gap-6 mb-8">
+                        <div class="w-12 h-12 rounded-2xl bg-brand/10 text-brand flex items-center justify-center border border-brand/20 uppercase text-[9px] font-black tracking-tighter">${e.item_type.substring(0,3)}</div>
                         <div>
-                            <div class="text-[8px] font-black uppercase text-text-muted">${e.item_type} Node</div>
-                            <div class="text-[10px] font-bold text-brand uppercase truncate">${e.reference || e.title || 'Knowledge Point'}</div>
+                            <div class="text-[8px] font-black uppercase text-white/30 tracking-widest">${e.item_type} Intelligence</div>
+                            <div class="text-[11px] font-black text-white uppercase tracking-wider truncate">${e.reference || e.title || 'Knowledge Point'}</div>
                         </div>
                     </div>
-                    <p class="text-text-main text-sm leading-relaxed font-medium mb-6 line-clamp-4">
-                        ${e.text}
+                    <p class="text-white/80 text-lg leading-relaxed font-medium mb-8 line-clamp-4 italic">
+                        "${e.text}"
                     </p>
-                    <div class="flex flex-wrap gap-2 pt-6 border-t border-brand/5">
-                        ${(e.topics || []).map(t => `<span class="px-2.5 py-1 bg-cream rounded-lg text-[8px] font-bold uppercase tracking-tighter text-brand/60">${t}</span>`).join('')}
+                    <div class="flex flex-wrap gap-2.5 pt-8 border-t border-white/5">
+                        ${(e.topics || []).map(t => `<span class="px-3 py-1.5 bg-white/5 border border-white/5 rounded-xl text-[8px] font-black uppercase tracking-widest text-brand/60 hover:text-white transition-colors cursor-pointer">${t}</span>`).join('')}
                     </div>
                 </div>
               `).join('');
@@ -3336,6 +3406,7 @@ async def app_library_page(
                           .replace("{active_library}", "active")\
                           .replace("{active_media}", "")\
                           .replace("{is_superadmin_js}", "true" if user.is_superadmin else "false")\
+                          .replace("{org_id_js}", str(user.active_org_id or 0))\
                           .replace("{studio_modal}", STUDIO_COMPONENTS_HTML)\
                           .replace("{account_options}", "")\
                           .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
