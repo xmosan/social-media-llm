@@ -2982,7 +2982,7 @@ async def app_library_page(
       console.log("Library System: Ready");
       let libraryEntries = {}; // Global entry map for safer access
       let currentSourceId = null;
-      let showGlobalOnly = false;
+      let showGlobalOnly = true;
       let entrySearchTimeout = null;
       let selectedTopic = null;
       const isSuperAdmin = {is_superadmin_js};
@@ -3036,10 +3036,20 @@ async def app_library_page(
 
           // Core view init
           try {
+              // Forced sync of buttons to match default state
+              const orgBtn = document.getElementById('orgViewBtn');
+              const globalBtn = document.getElementById('globalViewBtn');
+              const activeClass = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter bg-brand text-white shadow-md transition-all";
+              const inactiveClass = "flex-1 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-tighter text-brand/40 hover:text-brand transition-all";
+              
+              if (globalBtn) globalBtn.className = showGlobalOnly ? activeClass : inactiveClass;
+              if (orgBtn) orgBtn.className = !showGlobalOnly ? activeClass : inactiveClass;
+
               showView('browse_surahs');
           } catch (e) {
               console.error("Library: Failed to manifest main view", e);
-              document.getElementById('entryList').innerHTML = `<div class="p-20 text-center text-rose-500 font-bold uppercase tracking-widest">Library Manifestation Failed. Check Foundation Connection.</div>`;
+              const list = document.getElementById('entryList');
+              if (list) list.innerHTML = `<div class="p-20 text-center text-rose-500 font-bold uppercase tracking-widest">Library Manifestation Failed. Check Connection.</div>`;
           }
       });
 
@@ -3172,9 +3182,21 @@ async def app_library_page(
       async function loadSurahs() {
           const canvas = document.getElementById('entryList');
           if (!canvas) return;
-          // Loading Skeleton
-          canvas.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-20";
-          canvas.innerHTML = Array(9).fill(0).map(() => `<div class="skeleton h-32 rounded-[2.5rem] bg-white border border-brand/5"></div>`).join('');
+          
+          // High-contrast Loading State
+          canvas.className = "flex flex-col items-center justify-center space-y-8 py-32";
+          canvas.innerHTML = `
+            <div class="flex flex-col items-center gap-6 animate-pulse">
+                <div class="w-16 h-16 rounded-3xl bg-brand/5 border border-brand/10 flex items-center justify-center text-3xl">📖</div>
+                <div class="space-y-2 text-center">
+                    <div class="text-[10px] font-black text-brand uppercase tracking-[0.5em]">Sabeel Foundation</div>
+                    <div class="text-[8px] font-bold text-text-muted uppercase tracking-widest">Synchronizing Scripture Database...</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl px-12">
+                ${Array(6).fill(0).map(() => `<div class="skeleton h-32 rounded-[2.5rem] bg-white border border-brand/5"></div>`).join('')}
+            </div>
+          `;
 
           try {
               console.log("Fetching surahs...");
@@ -3183,10 +3205,18 @@ async def app_library_page(
               const surahs = await res.json();
               
               if (!surahs || !Array.isArray(surahs) || surahs.length === 0) {
-                  canvas.innerHTML = `<div class="col-span-full py-32 text-center text-text-muted font-black uppercase tracking-[0.5em]">No Foundation Records Found</div>`;
+                  canvas.className = "flex flex-col items-center justify-center p-32 text-center space-y-6";
+                  canvas.innerHTML = `
+                    <div class="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center text-3xl">⚠️</div>
+                    <div class="space-y-1">
+                        <div class="text-[10px] font-black text-rose-500 uppercase tracking-widest">Foundation Offline</div>
+                        <div class="text-[8px] text-text-muted uppercase max-w-xs mx-auto">The Quranic database is currently unreachable or empty. Please ensure your organization has successfully synced with the Sabeel Global Index.</div>
+                    </div>
+                  `;
                   return;
               }
 
+              canvas.className = "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pb-20";
               canvas.innerHTML = surahs.map(s => `
                 <div onclick="showView('surah_reading', {number: ${s.number}, name: '${(s.name_en || '').replace(/'/g, "\\'")}'})" 
                      class="surah-card p-8 rounded-[2.5rem] cursor-pointer group flex items-center justify-between">
