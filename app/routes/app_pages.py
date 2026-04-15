@@ -3308,7 +3308,7 @@ async def app_library_page(
               }
 
               document.getElementById('sourceCount').textContent = sources.length;
-              list.innerHTML = sources.map(s => {
+              const mapHtml = sources.map(s => {
                 const isActive = s && s.id === currentSourceId;
                 if (!s) return '';
                 return `
@@ -3323,6 +3323,15 @@ async def app_library_page(
                 </div>
                 `;
               }).join('');
+
+              list.innerHTML = mapHtml;
+
+              // Populate Modal Dropdown
+              const modalSelect = document.getElementById('sourceSelect');
+              if (modalSelect) {
+                  const options = sources.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                  modalSelect.innerHTML = `<option value="">Create New...</option>${options}`;
+              }
 
               if (sources.length === 0) {
                   list.innerHTML = `<div class="p-8 text-center text-white/10 font-bold text-[8px] uppercase tracking-widest">No Private Collections</div>`;
@@ -3404,9 +3413,91 @@ async def app_library_page(
           } catch(e) { console.error("Entries load failed", e); }
       }
 
-      function debounceEntryQuery() {
+      function debounceSearch() {
           clearTimeout(entrySearchTimeout);
           entrySearchTimeout = setTimeout(() => loadEntries(), 500);
+      }
+
+      function updateCharCount() {
+          const text = document.getElementById('entryText').value;
+          document.getElementById('charCount').textContent = `${text.length} / 3000`;
+      }
+
+      function setEntryType(type, element) {
+          document.getElementById('entryType').value = type;
+          // Toggle UI state
+          document.querySelectorAll('.type-btn').forEach(btn => {
+              btn.classList.remove('bg-brand', 'text-white', 'shadow-xl', 'shadow-brand/20');
+              btn.classList.add('bg-white', 'text-text-muted');
+          });
+          if (element) {
+              element.classList.remove('bg-white', 'text-text-muted');
+              element.classList.add('bg-brand', 'text-white', 'shadow-xl', 'shadow-brand/20');
+          }
+          
+          // Show/Hide global toggle only for certain types if needed
+          const globalToggle = document.getElementById('globalToggleContainer');
+          if (globalToggle) {
+              globalToggle.classList.toggle('hidden', !['quran', 'hadith', 'quote'].includes(type));
+          }
+      }
+
+      function checkNewSource() {
+          const val = document.getElementById('sourceSelect').value;
+          const container = document.getElementById('newSourceFields');
+          if (container) {
+              container.classList.toggle('hidden', val !== '');
+          }
+      }
+
+      async function saveEntry() {
+          const btn = event?.currentTarget;
+          if (btn) {
+              btn.disabled = true;
+              btn.textContent = "Committing...";
+          }
+
+          try {
+              const id = document.getElementById('entryId').value;
+              const sourceId = document.getElementById('sourceSelect').value;
+              const payload = {
+                  source_id: sourceId || null,
+                  source_name: sourceId ? null : document.getElementById('newSourceName').value,
+                  item_type: document.getElementById('entryType').value,
+                  text: document.getElementById('entryText').value,
+                  meta: {
+                    is_global: document.getElementById('isGlobalCheckbox').checked
+                  }
+              };
+
+              const url = id ? `/api/admin/library/entries/${id}` : '/api/admin/library/entries';
+              const method = id ? 'PATCH' : 'POST';
+
+              const res = await fetch(url, {
+                  method: method,
+                  headers: { 'Content-Type': 'application/json', 'X-Org-Id': orgId },
+                  body: JSON.stringify(payload)
+              });
+
+              if (!res.ok) {
+                  const err = await res.json();
+                  throw new Error(err.detail || "Failed to save knowledge");
+              }
+
+              hideEntryModal();
+              loadSources();
+              loadEntries();
+              
+              if (typeof showToast === 'function') showToast("Knowledge persisted successfully", "success");
+          } catch (e) {
+              console.error("Save failed", e);
+              alert("Error: " + e.message);
+          } finally {
+              if (btn) {
+                  btn.disabled = false;
+                  btn.textContent = "Commit Knowledge";
+              }
+          }
       }
 
       function toggleGlobalView(global) {
@@ -3432,19 +3523,127 @@ async def app_library_page(
       function openEntryModalById(id) {
           const entry = libraryEntries[id];
           if (!entry) return;
+          
           document.getElementById('entryId').value = entry.id;
-          document.getElementById('entryText').value = entry.text;
+          document.getElementById('entryText').value = entry.text || '';
+          document.getElementById('entryModalTitle').innerHTML = `Edit <span class="text-accent">${(entry.item_type || 'Knowledge').toUpperCase()}</span>`;
+          
+          // Set type
+          const type = entry.item_type || 'note';
+          const typeBtn = document.querySelector(`.type-btn[onclick*="'${type}'"]`);
+          setEntryType(type, typeBtn);
+
+          // Meta / Global
+          const globalCheck = document.getElementById('isGlobalCheckbox');
+          if (globalCheck) globalCheck.checked = entry.meta?.is_global === true;
+
+          // Select source
+          const sourceSelect = document.getElementById('sourceSelect');
+          if (sourceSelect) sourceSelect.value = entry.source_id || '';
+          checkNewSource();
+
           document.getElementById('entryModal').classList.remove('hidden');
-          // More implementation details would go here for mapping other fields...
+          updateCharCount();
       }
+
       function openEntryModal() {
           document.getElementById('entryId').value = '';
           document.getElementById('entryText').value = '';
+          document.getElementById('entryModalTitle').innerHTML = `Add <span class="text-accent">Knowledge</span>`;
           document.getElementById('entryModal').classList.remove('hidden');
+          
+          // Reset to default type
+          const noteBtn = document.querySelector(`.type-btn[onclick*="'note'"]`);
+          setEntryType('note', noteBtn);
+          
+          updateCharCount();
       }
+      async function saveSynonym() {
+          const slug = document.getElementById('syn_slug').value;
+          const list = document.getElementById('syn_list').value;
+          if (!slug || !list) return;
+
+          try {
+              const res = await fetch('/api/admin/library/synonyms', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ slug, synonyms: list.split(',').map(s => s.trim()) })
+              });
+              if (res.ok) {
+                  document.getElementById('syn_slug').value = '';
+                  document.getElementById('syn_list').value = '';
+                  loadSynonyms();
+              }
+          } catch (e) { console.error(e); }
+      }
+
+      async function loadSynonyms() {
+          try {
+              const res = await fetch('/api/admin/library/synonyms');
+              const data = await res.json();
+              const table = document.getElementById('synonymTable');
+              table.innerHTML = (data || []).map(s => `
+                  <div class="flex justify-between items-center p-4 bg-brand/5 rounded-xl border border-brand/10 mb-2">
+                      <div class="overflow-hidden">
+                          <div class="text-[10px] font-black text-brand uppercase truncate">${s.slug}</div>
+                          <div class="text-[8px] text-text-muted truncate">${(s.synonyms || []).join(', ')}</div>
+                      </div>
+                      <button onclick="deleteSynonym('${s.slug}')" class="text-rose-500 hover:scale-125 transition-all ml-4 shrink-0">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                      </button>
+                  </div>
+              `).join('');
+          } catch (e) { console.error(e); }
+      }
+
+      async function deleteSynonym(slug) {
+          if (!confirm("Delete synonyms for " + slug + "?")) return;
+          try {
+              await fetch(`/api/admin/library/synonyms/${slug}`, { method: 'DELETE' });
+              loadSynonyms();
+          } catch (e) { console.error(e); }
+      }
+
+      function openSynonymModal() {
+          document.getElementById('synonymModal').classList.remove('hidden');
+          loadSynonyms();
+      }
+      async function suggestTopicFromSearch() {
+          const query = document.getElementById('entrySearch').value;
+          if (!query || query.length < 3) return;
+
+          try {
+              const res = await fetch('/library/topic-suggest', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ text: query, max: 1 })
+              });
+              const data = await res.json();
+              if (data.suggestions && data.suggestions.length > 0) {
+                  const suggestion = data.suggestions[0].topic;
+                  if (confirm("Suggested Topic: " + suggestion + "\nApply filter?")) {
+                      document.getElementById('entrySearch').value = suggestion;
+                      loadEntries();
+                  }
+              }
+          } catch (e) {
+              console.warn("Topic suggestion failed", e);
+          }
+      }
+
       function hideEntryModal() {
           document.getElementById('entryModal').classList.add('hidden');
       }
+
+      function closeSynonymModal() {
+          document.getElementById('synonymModal').classList.add('hidden');
+      }
+
+      // Add character count listener for the search bar as well if needed
+      document.addEventListener('DOMContentLoaded', () => {
+          const area = document.getElementById('entryText');
+          if (area) area.addEventListener('input', updateCharCount);
+      });
     </script>
     """
     
