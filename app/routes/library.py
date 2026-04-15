@@ -21,7 +21,7 @@ from app.services.library_service import (
 from app.security.auth import require_user
 from app.models import User
 
-router = APIRouter(prefix="/library", tags=["library"])
+router = APIRouter(prefix="/api/library", tags=["library"])
 
 # --- STRUCTURED LIBRARY (Sources & Entries) ---
 

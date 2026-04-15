@@ -401,6 +401,8 @@ os.makedirs(settings.uploads_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.uploads_dir), name="uploads")
 
 # Include Routers
+from .routes import neural_hub
+app.include_router(neural_hub.router)
 app.include_router(public.router)
 app.include_router(posts.router)
 app.include_router(admin.router)
