@@ -593,13 +593,36 @@ APP_LAYOUT_HTML = """<!doctype html>
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    :root {{ --brand: #0F3D2E; --brand-hover: #0A2D22; --main-bg: #F8F6F2; --surface: #FFFFFF; --accent: #C9A96E; --text-main: #1A1A1A; --text-muted: #6B6B6B; --border: rgba(15, 61, 46, 0.08); }}
+    :root {{ 
+      --brand: #0F3D2E; 
+      --brand-hover: #0A2D22; 
+      --main-bg: #F8F6F2; 
+      --surface: #FFFFFF; 
+      --accent: #C9A96E; 
+      --text-main: #1A1A1A; 
+      --text-muted: #6B6B6B; 
+      --border: rgba(15, 61, 46, 0.08); 
+    }}
     body {{ font-family: 'Inter', sans-serif; background-color: var(--main-bg); color: var(--text-main); -webkit-font-smoothing: antialiased; }}
-    .card {{ background: #FFFFFF; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(15, 61, 46, 0.04); border-radius: 12px; transition: all 150ms ease; }}
-    .card:hover {{ transform: translateY(-1px); box-shadow: 0 12px 24px rgba(15, 61, 46, 0.08); }}
-    .nav-link.active {{ color: var(--brand); border-bottom: 2px solid var(--brand); font-weight: 700; }}
-    .nav-link {{ transition: all 150ms ease; border-bottom: 2px solid transparent; color: var(--text-muted); opacity: 0.8; }}
+    
+    /* Premium Design System */
+    .card {{ background: #FFFFFF; border: 1px solid var(--border); box-shadow: 0 1px 4px rgba(15, 61, 46, 0.02); border-radius: 20px; transition: all 250ms cubic-bezier(0.16, 1, 0.3, 1); }}
+    .card:hover {{ transform: translateY(-3px); box-shadow: 0 12px 32px rgba(15, 61, 46, 0.08); border-color: rgba(15,61,46,0.12); }}
+    
+    .nav-link.active {{ color: var(--brand); border-bottom: 2px solid var(--brand); font-weight: 900; }}
+    .nav-link {{ transition: all 150ms ease; border-bottom: 2px solid transparent; color: var(--text-muted); opacity: 0.65; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; }}
     .nav-link:hover {{ color: var(--brand); opacity: 1; }}
+    
+    .heading-premium {{ font-family: 'Inter', sans-serif !important; font-weight: 950 !important; font-style: italic !important; letter-spacing: -0.05em !important; color: var(--brand) !important; line-height: 0.9 !important; }}
+    .text-premium-muted {{ font-size: 13px; font-weight: 500; font-style: italic; color: var(--text-muted); opacity: 0.8; }}
+    .badge-premium {{ font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.3em; color: var(--brand); opacity: 0.4; }}
+    
+    /* Utility Overrides for Brand */
+    .bg-brand-premium {{ background-color: var(--brand) !important; }}
+    .bg-brand {{ background-color: var(--brand) !important; }}
+    .bg-brand-hover {{ background-color: var(--brand-hover) !important; }}
+    .text-brand {{ color: var(--brand) !important; }}
+    .border-brand {{ border-color: var(--brand) !important; }}
   </style>
 </head>
 <body class="min-h-screen">
@@ -642,17 +665,21 @@ APP_LAYOUT_HTML = """<!doctype html>
 </html>
 """
 
-GET_STARTED_CARD_HTML = """<div id="gettingStartedCard" class="card p-8 md:p-10 mb-8 animate-in slide-in-from-top-4 duration-500">
-  <div class="flex justify-between items-start mb-6">
+GET_STARTED_CARD_HTML = """<div id="gettingStartedCard" class="card shadow-2xl shadow-brand/[0.03] p-10 md:p-14 mb-12 animate-in slide-in-from-top-6 duration-700 bg-white relative overflow-hidden">
+  <div class="absolute top-0 right-0 w-64 h-64 bg-brand/[0.01] rounded-full -mr-32 -mt-32"></div>
+  <div class="flex justify-between items-start mb-10 relative">
     <div>
-      <h3 class="text-2xl md:text-3xl font-bold text-brand tracking-tight">Assalamu Alaykum, <span class="text-accent">{user_name}</span></h3>
-      <p class="text-xs text-text-muted mt-1 font-medium">Your space for meaningful reminders is ready.</p>
+      <h3 class="heading-premium text-4xl md:text-5xl">Assalamu Alaykum, <span class="text-accent">{user_name}</span></h3>
+      <p class="text-premium-muted mt-3">Your dedicated space for meaningful reminders is now ready.</p>
     </div>
   </div>
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-    <div class="md:col-span-2 card p-8 border-brand/10 bg-brand/[0.02] flex flex-col justify-between group cursor-pointer" onclick="openNewPostModal()">
-      <h4 class="text-xl font-bold text-brand">Craft your next reminder</h4>
-      <div class="mt-8 flex items-center gap-2 text-xs font-bold text-brand uppercase tracking-widest group-hover:translate-x-2 transition-transform">Begin Your Reminder &rarr;</div>
+  <div class="grid grid-cols-1 md:grid-cols-1 gap-8 relative">
+    <div class="card p-10 border-brand/10 bg-brand/[0.02] flex flex-col md:flex-row justify-between items-center group cursor-pointer hover:bg-brand/[0.04]" onclick="openNewPostModal()">
+      <div class="space-y-2 text-center md:text-left">
+          <h4 class="text-2xl font-black text-brand tracking-tight italic">Craft your first reminder</h4>
+          <p class="text-[11px] font-bold text-text-muted uppercase tracking-widest">Ignite the spark of guidance</p>
+      </div>
+      <div class="mt-6 md:mt-0 px-8 py-4 bg-brand text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-brand/20 group-hover:translate-x-2 transition-all">Begin Your Reminder &rarr;</div>
     </div>
   </div>
 </div>"""

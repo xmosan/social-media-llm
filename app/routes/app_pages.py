@@ -25,68 +25,68 @@ from .ui_assets import *
 
 APP_DASHBOARD_CONTENT = """
     <!-- Header -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-16">
       <div>
-        <h1 class="text-4xl font-bold text-brand tracking-tighter">Studio <span class="text-accent underline decoration-accent/20 decoration-4 underline-offset-8">Guidance</span></h1>
-        <div class="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em] mt-3 flex items-center gap-4">
+        <h1 class="heading-premium text-5xl md:text-6xl">Studio <span class="text-accent underline decoration-accent/10 decoration-8 underline-offset-[12px]">Guidance</span></h1>
+        <div class="badge-premium mt-6 flex items-center gap-6">
             <div class="flex items-center gap-2">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               Interface Active
             </div>
             {connected_account_info}
         </div>
       </div>
       <div class="flex items-center gap-4">
-        <button onclick="openNewPostModal()" class="px-8 py-4 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-2xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center gap-3 group">
-            <svg class="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+        <button onclick="openNewPostModal()" class="px-10 py-5 bg-brand text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center gap-3 group">
+            <svg class="w-4 h-4 group-hover:rotate-90 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
             Create Reminder
         </button>
-        <button onclick="syncAccounts()" class="w-12 h-12 flex items-center justify-center bg-white border border-brand/10 text-brand rounded-2xl font-bold hover:border-brand/30 transition-all shadow-sm" title="Sync Status">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+        <button onclick="syncAccounts()" class="w-14 h-14 flex items-center justify-center bg-white border border-brand/10 text-brand rounded-2xl font-bold hover:border-brand/30 transition-all shadow-sm group" title="Sync Status">
+            <svg class="w-6 h-6 group-hover:rotate-180 transition-transform duration-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
         </button>
       </div>
     </div>
 
     <!-- Quick Stats Cluster -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-      <div class="card p-6 border-brand/5 bg-white flex flex-col justify-between min-h-[120px]">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+      <div class="card p-8 border-brand/5 bg-white flex flex-col justify-between min-h-[140px]">
         <div class="flex justify-between items-start">
-            <div class="text-[9px] font-bold text-text-muted uppercase tracking-widest">Output</div>
-            <div class="p-1.5 bg-brand/5 rounded-lg text-brand"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+            <div class="badge-premium">Output</div>
+            <div class="p-2 bg-brand/5 rounded-xl text-brand"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg></div>
         </div>
         <div>
-            <div class="text-2xl font-bold text-brand tracking-tight">{weekly_post_count} <span class="text-xs text-text-muted font-medium">Posts</span></div>
-            <div class="text-[8px] font-bold text-emerald-600 uppercase tracking-widest mt-1">Last 7 Days</div>
+            <div class="text-3xl font-black text-brand tracking-tight">{weekly_post_count} <span class="text-xs text-text-muted font-bold uppercase tracking-widest ml-1">Posts</span></div>
+            <div class="text-[9px] font-black text-emerald-600 uppercase tracking-[0.3em] mt-2">Last 7 Days</div>
         </div>
       </div>
-      <div class="card p-6 border-brand/5 bg-white flex flex-col justify-between min-h-[120px]">
+      <div class="card p-8 border-brand/5 bg-white flex flex-col justify-between min-h-[140px]">
         <div class="flex justify-between items-start">
-            <div class="text-[9px] font-bold text-text-muted uppercase tracking-widest">Growth</div>
-            <div class="p-1.5 bg-brand/5 rounded-lg text-brand"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+            <div class="badge-premium">Growth</div>
+            <div class="p-2 bg-brand/5 rounded-xl text-brand"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg></div>
         </div>
         <div>
-            <div class="text-2xl font-bold text-brand tracking-tight">{account_count} <span class="text-xs text-text-muted font-medium">Platforms</span></div>
-            <div class="text-[8px] font-bold text-brand uppercase tracking-widest mt-1">Network Active</div>
+            <div class="text-3xl font-black text-brand tracking-tight">{account_count} <span class="text-xs text-text-muted font-bold uppercase tracking-widest ml-1">Platforms</span></div>
+            <div class="text-[9px] font-black text-brand uppercase tracking-[0.3em] mt-2">Network Active</div>
         </div>
       </div>
-      <div class="card p-6 border-brand/5 bg-white flex flex-col justify-between min-h-[120px]">
+      <div class="card p-8 border-brand/5 bg-white flex flex-col justify-between min-h-[140px]">
         <div class="flex justify-between items-start">
-            <div class="text-[9px] font-bold text-text-muted uppercase tracking-widest">Assistant</div>
-            <div class="p-1.5 bg-brand/5 rounded-lg text-brand"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9l-.505.505a4.125 4.125 0 005.758 5.758l.505-.505m9.393-9.393l.505-.505a4.125 4.125 0 10-5.758-5.758l-.505.505" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+            <div class="badge-premium">Assistant</div>
+            <div class="p-2 bg-brand/5 rounded-xl text-brand"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9l-.505.505a4.125 4.125 0 005.758 5.758l.505-.505m9.393-9.393l.505-.505a4.125 4.125 0 10-5.758-5.758l-.505.505" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg></div>
         </div>
         <div>
-            <div class="text-2xl font-bold text-brand tracking-tight underline decoration-emerald-500/30 decoration-2">Ready</div>
-            <div class="text-[8px] font-bold text-text-muted uppercase tracking-widest mt-1">Guidance Engine</div>
+            <div class="text-3xl font-black text-brand tracking-tight underline decoration-emerald-500/30 decoration-4">Ready</div>
+            <div class="text-[9px] font-black text-text-muted uppercase tracking-[0.3em] mt-2">Guidance Engine</div>
         </div>
       </div>
-      <div class="card p-6 border-brand/5 bg-white flex flex-col justify-between min-h-[120px]">
+      <div class="card p-8 border-brand/5 bg-white flex flex-col justify-between min-h-[140px]">
         <div class="flex justify-between items-start">
-            <div class="text-[9px] font-bold text-text-muted uppercase tracking-widest">Guidance</div>
-            <div class="p-1.5 bg-accent/10 rounded-lg text-accent"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
+            <div class="badge-premium">Guidance</div>
+            <div class="p-2 bg-accent/10 rounded-xl text-accent"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg></div>
         </div>
         <div>
-            <div class="text-2xl font-bold text-accent tracking-tighter">{next_post_countdown}</div>
-            <div class="text-[8px] font-bold text-accent uppercase tracking-widest mt-1">Until Next Reminder</div>
+            <div class="text-3xl font-black text-accent tracking-tighter">{next_post_countdown}</div>
+            <div class="text-[9px] font-black text-accent uppercase tracking-[0.3em] mt-2">Until Next Reminder</div>
         </div>
       </div>
     </div>
@@ -674,6 +674,39 @@ ONBOARDING_HTML = """<!doctype html>
 </html>
 """
 
+def render_app_page(title, content, user, org, active_tab, extras=None):
+    from .ui_assets import APP_LAYOUT_HTML, STUDIO_COMPONENTS_HTML, STUDIO_SCRIPTS_JS, CONNECT_INSTAGRAM_MODAL_HTML
+    
+    # Active state map
+    active_map = {
+        "dashboard": "",
+        "calendar": "",
+        "automations": "",
+        "library": "",
+        "media": ""
+    }
+    if active_tab in active_map:
+        active_map[active_tab] = "active"
+        
+    return APP_LAYOUT_HTML.format(
+        title=title,
+        content=content,
+        user_name=user.name or user.email,
+        org_name=org.name if org else "Personal Workspace",
+        admin_link=('<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""),
+        active_dashboard=active_map["dashboard"],
+        active_calendar=active_map["calendar"],
+        active_automations=active_map["automations"],
+        active_library=active_map["library"],
+        active_media=active_map["media"],
+        studio_modal=STUDIO_COMPONENTS_HTML,
+        studio_js=STUDIO_SCRIPTS_JS,
+        connected_account_info=(extras.get("connected_account_info", "") if extras else ""),
+        connect_instagram_modal=CONNECT_INSTAGRAM_MODAL_HTML,
+        extra_js=(extras.get("extra_js", "") if extras else ""),
+        org_id=str(user.active_org_id or 0)
+    )
+
 @router.get("/app", response_class=HTMLResponse)
 async def app_dashboard_page(
     user: User = Depends(require_user),
@@ -831,31 +864,31 @@ async def app_dashboard_page(
             """
 
         recent_posts_html += f"""
-        <div class="card p-5 bg-white border-brand/5 flex flex-col gap-5 hover:shadow-xl hover:shadow-brand/[0.03] transition-all group">
+        <div class="card p-6 bg-white border-brand/5 flex flex-col gap-6 group">
           <div class="flex items-start justify-between">
             <div class="flex items-center gap-4">
-                <div class="w-10 h-10 rounded-xl bg-cream overflow-hidden border border-brand/5 shrink-0 shadow-inner">
-                    {f'<img src="{p.media_url}" class="w-full h-full object-cover">' if p.media_url else '<div class="w-full h-full flex items-center justify-center text-[7px] font-bold text-text-muted/40 uppercase">Null</div>'}
+                <div class="w-12 h-12 rounded-2xl bg-cream overflow-hidden border border-brand/8 shrink-0 shadow-inner">
+                    {f'<img src="{p.media_url}" class="w-full h-full object-cover">' if p.media_url else '<div class="w-full h-full flex items-center justify-center text-[8px] font-black text-brand/20 uppercase tracking-widest">NULL</div>'}
                 </div>
                 <div>
-                   <div class="text-[7px] font-black text-accent uppercase tracking-[0.2em] mb-1">{p_type}</div>
-                   <div class="px-2 py-0.5 {status_bg} {status_color} rounded-md text-[6px] font-black uppercase tracking-widest inline-block">{status_label}</div>
+                   <div class="badge-premium mb-1">{p_type}</div>
+                   <div class="px-2.5 py-1 {status_bg} {status_color} rounded-lg text-[7px] font-black uppercase tracking-[0.2em] inline-block border border-brand/5">{status_label}</div>
                 </div>
             </div>
-            <div class="text-[8px] font-bold text-text-muted/40 uppercase tracking-widest">{date_str}</div>
+            <div class="text-[9px] font-black text-brand/20 uppercase tracking-[0.3em]">{date_str}</div>
           </div>
 
-          <div class="space-y-3">
-              <p class="text-[11px] font-bold text-brand leading-relaxed line-clamp-3 italic opacity-80 group-hover:opacity-100 transition-opacity">
+          <div class="space-y-4">
+              <p class="text-[12px] font-bold text-brand/80 leading-relaxed line-clamp-3 italic group-hover:text-brand transition-colors">
                 "{p.caption[:120] if p.caption else "Suggested Reminder"}"
               </p>
           </div>
 
-          <div class="flex items-center gap-2 pt-2 border-t border-brand/[0.03]">
-             <button onclick="openEditPostModal('{p.id}', {caption_json}, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}')" class="flex-1 py-2.5 bg-white border border-brand/5 rounded-xl text-[8px] font-black uppercase tracking-widest text-text-muted hover:text-brand hover:border-brand/20 transition-all">Edit</button>
-             {approve_btn}
-             <button onclick="document.getElementById('editPostId').value='{p.id}'; showDeleteConfirm(); openEditPostModal('{p.id}', {caption_json})" class="p-2.5 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+          <div class="flex items-center gap-3 pt-4 border-t border-brand/[0.04]">
+             <button onclick="openEditPostModal('{p.id}', {caption_json}, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}')" class="flex-1 py-3 bg-white border border-brand/10 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] text-brand/60 hover:text-brand hover:border-brand/30 transition-all">Refine</button>
+             {approve_btn.replace('rounded-xl', 'rounded-xl border border-brand/5 py-3 flex-1').replace('text-[8px]', 'text-[9px]')}
+             <button onclick="document.getElementById('editPostId').value='{p.id}'; showDeleteConfirm(); openEditPostModal('{p.id}', {caption_json})" class="p-3 text-rose-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
              </button>
           </div>
         </div>
@@ -865,15 +898,15 @@ async def app_dashboard_page(
     connection_cta = ""
     if account_count == 0:
         connection_cta = f"""
-        <div class="card p-12 text-center space-y-8 animate-in slide-in-from-bottom-4 duration-1000 border-dashed border-2 border-brand/10 bg-brand/[0.01]">
-          <div class="w-20 h-20 bg-brand/5 rounded-[2rem] flex items-center justify-center text-brand mx-auto">
-            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+        <div class="card p-16 text-center space-y-10 animate-in slide-in-from-bottom-6 duration-1000 border-dashed border-2 border-brand/10 bg-brand/[0.01]">
+          <div class="w-24 h-24 bg-brand/5 rounded-[2.5rem] flex items-center justify-center text-brand mx-auto border border-brand/5 shadow-inner">
+            <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
           </div>
-          <div class="space-y-3">
-            <h3 class="text-2xl font-bold text-brand tracking-tighter">Connect Instagram</h3>
-            <p class="text-text-muted text-sm max-w-lg mx-auto font-medium leading-relaxed">Your studio is ready to create. Link your Instagram account to start sharing your content automatically with your community.</p>
+          <div class="space-y-4">
+            <h3 class="heading-premium text-4xl">Connect <span class="text-accent">Instagram</span></h3>
+            <p class="text-premium-muted max-w-lg mx-auto opacity-70">Your studio is ready to manifest. Link your Professional Meta account to begin automated guidance cycles.</p>
           </div>
-          <button onclick="openConnectInstagramModal()" class="px-10 py-4 bg-brand rounded-2xl font-bold text-xs uppercase tracking-widest text-white shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Link Now</button>
+          <button onclick="openConnectInstagramModal()" class="px-12 py-5 bg-brand rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] text-white shadow-2xl shadow-brand/40 hover:bg-brand-hover hover:scale-[1.02] transition-all">Link Foundation Now</button>
         </div>
         """
     
@@ -953,22 +986,17 @@ async def app_dashboard_page(
     if not accs:
         account_options = '<option value="">No accounts connected</option>'
 
-    return HTMLResponse(content=APP_LAYOUT_HTML.replace("{content}", content)\
-                          .replace("{title}", "Dashboard")\
-                          .replace("{user_name}", user.name or user.email)\
-                          .replace("{org_name}", org.name if org else "Personal Workspace")\
-                          .replace("{admin_link}", admin_link)\
-                          .replace("{active_dashboard}", "active")\
-                          .replace("{active_calendar}", "")\
-                          .replace("{active_automations}", "")\
-                          .replace("{active_library}", "")\
-                          .replace("{active_media}", "")\
-                          .replace("{studio_modal}", STUDIO_COMPONENTS_HTML)\
-                          .replace("{studio_js}", STUDIO_SCRIPTS_JS)\
-                          .replace("{account_options}", account_options)\
-                          .replace("{connected_account_info}", connected_account_info)\
-                          .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
-                          .replace("{extra_js}", f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>'))
+    return render_app_page(
+        title="Dashboard",
+        content=content,
+        user=user,
+        org=org,
+        active_tab="dashboard",
+        extras={
+            "connected_account_info": connected_account_info,
+            "extra_js": f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>'
+        }
+    )
 
 @router.get("/app/select-account", response_class=HTMLResponse)
 @router.get("/select-account", response_class=HTMLResponse)
@@ -1022,12 +1050,12 @@ async def app_calendar_page(
     calendar_html = ""
     headers = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     for h in headers:
-        calendar_html += f'<div class="py-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted text-center">{h}</div>'
+        calendar_html += f'<div class="py-5 text-[9px] font-black uppercase tracking-[0.4em] text-brand/40 text-center">{h}</div>'
         
     for week in month_days:
         for day in week:
             if day == 0:
-                calendar_html += '<div class="aspect-square glass/5 border border-white/5 opacity-20"></div>'
+                calendar_html += '<div class="aspect-square bg-brand/[0.01] border border-brand/5 rounded-[2rem] opacity-20"></div>'
             else:
                 day_posts = post_map.get(day, [])
                 posts_html = ""
@@ -1041,8 +1069,8 @@ async def app_calendar_page(
                     
                     # Status logic
                     status_class = "bg-brand/5 text-brand"
-                    if dp.status == "published": status_class = "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                    elif dp.status == "draft": status_class = "bg-amber-50 text-amber-600 border border-amber-100"
+                    if dp.status == "published": status_class = "bg-emerald-50 text-emerald-600 border border-emerald-100/50"
+                    elif dp.status == "draft": status_class = "bg-amber-50 text-amber-600 border border-amber-100/50"
                     else: status_class = "bg-brand/5 text-brand border border-brand/10"
                     
                     # Preview (approx 8-12 words in 40-50 chars)
@@ -1053,26 +1081,26 @@ async def app_calendar_page(
                     elif dp.status == "draft": display_status = "Reflection Draft"
                     
                     posts_html += f"""
-                    <div class="p-2 rounded-xl border border-brand/5 bg-white/40 space-y-1.5 overflow-hidden group/post cursor-pointer hover:bg-white transition-colors" onclick="openEditPostModal('{dp.id}', `{dp.caption}`, '{dp.scheduled_time.isoformat()}')">
-                        <div class="flex justify-between items-center">
-                            <span class="text-[6px] font-black uppercase tracking-widest text-accent/60 group-hover/post:text-accent">{p_type}</span>
-                            <span class="px-1 py-0.5 rounded-md {status_class} text-[5px] font-black uppercase tracking-tighter">{display_status}</span>
+                    <div class="p-3 rounded-2xl border border-brand/5 bg-white/60 space-y-2 overflow-hidden group/post cursor-pointer hover:bg-white transition-all shadow-sm" onclick="openEditPostModal('{dp.id}', `{dp.caption}`, '{dp.scheduled_time.isoformat()}')">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[7px] font-black uppercase tracking-[0.2em] text-accent/60 group-hover/post:text-accent transition-colors">{p_type}</span>
+                            <span class="px-1.5 py-0.5 rounded-lg {status_class} text-[6px] font-black uppercase tracking-widest">{display_status}</span>
                         </div>
-                        <p class="text-[8px] font-bold text-brand/60 group-hover/post:text-brand leading-snug line-clamp-2 italic">"{preview}"</p>
+                        <p class="text-[9px] font-bold text-brand/60 group-hover/post:text-brand leading-snug line-clamp-2 italic transition-colors">"{preview}"</p>
                     </div>
                     """
                 
                 is_today = (day == today.day and month == today.month and year == today.year)
-                today_class = "border-brand/40 bg-brand/[0.02] shadow-[inner_0_0_20px_rgba(15,61,46,0.02)]" if is_today else "border-brand/5 hover:border-brand/10 bg-white"
+                today_cell_class = "border-brand/40 bg-brand/[0.03] shadow-inner" if is_today else "border-brand/5 hover:border-brand/10 bg-white"
                 
                 calendar_html += f"""
-                <div class="min-h-[140px] glass border rounded-3xl p-3 flex flex-col gap-2 transition-all {today_class}">
+                <div class="min-h-[160px] card border rounded-[2rem] p-4 flex flex-col gap-3 transition-all {today_cell_class}">
                     <div class="flex justify-between items-center mb-1">
-                        <span class="text-[10px] font-black { 'text-brand' if is_today else 'text-text-muted/30' }">{day}</span>
-                        { '<span class="text-[7px] font-black bg-brand text-white px-2 py-0.5 rounded-full uppercase tracking-widest">Today</span>' if is_today else '' }
+                        <span class="text-xs font-black { 'text-brand' if is_today else 'text-brand/20' }">{day}</span>
+                        { '<span class="badge-premium !text-emerald-500 !opacity-100">Today</span>' if is_today else '' }
                     </div>
-                    <div class="flex flex-col gap-2">
-                        {posts_html or '<div class="py-4 text-center opacity-10"><div class="text-[10px] font-black tracking-widest uppercase">Empty</div></div>'}
+                    <div class="flex flex-col gap-3">
+                        {posts_html or '<div class="py-8 flex flex-col items-center justify-center opacity-10"><div class="text-[8px] font-black tracking-[0.4em] uppercase">Empty</div></div>'}
                     </div>
                 </div>
                 """
@@ -1083,46 +1111,50 @@ async def app_calendar_page(
         caption = p.caption[:60] if p.caption else "Untitled Post"
         time_str = p.scheduled_time.strftime("%b %d, %H:%M")
         scheduled_posts_html.append(f"""
-            <div class="flex items-center justify-between p-4 bg-cream rounded-xl border border-brand/5 text-[10px] font-bold text-brand">
-                <div class="flex items-center gap-3">
-                    <div class="w-1.5 h-1.5 rounded-full bg-brand"></div>
-                    {caption}...
+            <div class="flex items-center justify-between p-5 bg-brand/[0.02] rounded-2xl border border-brand/5 text-[11px] font-bold text-brand hover:bg-white transition-all group">
+                <div class="flex items-center gap-4">
+                    <div class="w-2 h-2 rounded-full bg-brand group-hover:scale-125 transition-transform"></div>
+                    <span class="opacity-80 group-hover:opacity-100 transition-opacity">"{caption}..."</span>
                 </div>
-                <div class="text-text-muted tracking-widest">{time_str}</div>
+                <div class="badge-premium !text-[8px]">{time_str}</div>
             </div>
         """)
         
     scheduled_list_html = "".join(scheduled_posts_html)
     if not scheduled_list_html:
         scheduled_list_html = """
-            <div class="py-12 flex flex-col items-center space-y-3">
-                <div class="text-[11px] font-bold uppercase tracking-[0.3em] text-brand">No posts scheduled yet</div>
-                <p class="text-xs text-text-muted">Create your first post to begin</p>
+            <div class="py-16 flex flex-col items-center space-y-4 text-center">
+                <div class="w-16 h-16 bg-brand/5 rounded-2xl flex items-center justify-center text-brand/20 mb-2">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+                </div>
+                <div class="text-[10px] font-black uppercase tracking-[0.4em] text-brand/20">Empty Manifestation Log</div>
+                <p class="text-xs text-text-muted opacity-50 font-medium">Schedule your first piece of guidance to see it here.</p>
             </div>
         """
 
     content = f"""
-    <div class="space-y-8">
+    <div class="space-y-12">
         <div class="flex justify-between items-end">
             <div>
-                <h1 class="text-3xl font-bold text-brand tracking-tight">Planning</h1>
-                <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Content Scheduler</p>
+                <h1 class="heading-premium text-5xl">Planning</h1>
+                <p class="text-premium-muted mt-2">Content Foundation Scheduler</p>
             </div>
             <div class="flex gap-4">
-                <button onclick="openNewPostModal()" class="px-8 py-4 bg-brand text-white rounded-xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center gap-3">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-                    Schedule Post
+                <button onclick="openNewPostModal()" class="px-10 py-5 bg-brand text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl shadow-brand/20 hover:bg-brand-hover hover:scale-[1.02] transition-all flex items-center gap-3">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
+                    Schedule Manifest
                 </button>
             </div>
         </div>
         
-        <div class="grid grid-cols-7 gap-3">
+        <div class="grid grid-cols-7 gap-4">
             {calendar_html}
         </div>
         
-        <div class="card p-10 bg-white border border-brand/5 text-center flex flex-col items-center justify-center space-y-6">
-            <h3 class="text-[10px] font-bold uppercase tracking-[0.3em] text-accent">Planned Content</h3>
-            <div class="space-y-4 w-full max-w-lg">
+        <div class="card p-12 bg-white border border-brand/5 text-center flex flex-col items-center justify-center space-y-10 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-64 h-64 bg-brand/[0.01] rounded-full -ml-32 -mt-32"></div>
+            <div class="badge-premium relative">Upcoming Manifestations</div>
+            <div class="space-y-4 w-full max-w-2xl relative">
                 {scheduled_list_html}
             </div>
         </div>
@@ -1148,22 +1180,17 @@ async def app_calendar_page(
         </div>
     """ if is_connected else '<div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2 opacity-60 italic"><span>No account linked</span></div>'
 
-    return APP_LAYOUT_HTML.replace("{content}", content)\
-                          .replace("{title}", "Calendar")\
-                          .replace("{user_name}", user.name or user.email)\
-                          .replace("{org_name}", org.name if org else "Personal Workspace")\
-                          .replace("{admin_link}", admin_link)\
-                          .replace("{active_dashboard}", "")\
-                          .replace("{active_calendar}", "active")\
-                          .replace("{active_automations}", "")\
-                          .replace("{active_library}", "")\
-                          .replace("{active_media}", "")\
-                          .replace("{studio_modal}", STUDIO_COMPONENTS_HTML)\
-                          .replace("{studio_js}", STUDIO_SCRIPTS_JS)\
-                          .replace("{account_options}", account_options)\
-                          .replace("{connected_account_info}", connected_account_info)\
-                          .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
-                          .replace("{extra_js}", f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>')
+    return render_app_page(
+        title="Planning",
+        content=content,
+        user=user,
+        org=org,
+        active_tab="calendar",
+        extras={
+            "connected_account_info": connected_account_info,
+            "extra_js": f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>'
+        }
+    )
 
 @router.get("/app/automations", response_class=HTMLResponse)
 async def app_automations_page(
@@ -1183,19 +1210,14 @@ async def app_automations_page(
         account_options = '<option value="">No accounts connected</option>'
     
     autos_html = ""
-    # Default status values to prevent scoping crashes (NameError)
-    status_color = "text-text-muted"
-    status_bg = "bg-brand/5"
-    status_label = "Active"
-    
     for a in autos:
         status_color = "text-emerald-600" if a.enabled else "text-rose-600"
         status_bg = "bg-emerald-50" if a.enabled else "bg-rose-50"
         status_label = "Active" if a.enabled else "Paused"
         
-        mode_icon = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>'
+        mode_icon = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>'
         if a.content_seed_mode == 'auto_library':
-            mode_icon = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>'
+            mode_icon = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>'
         
         # Consistent, safe JSON escaping for HTML attribute
         edit_data_json = html.escape(json.dumps({
@@ -1217,67 +1239,67 @@ async def app_automations_page(
         }), quote=True)
 
         autos_html += f"""
-        <div class="card p-8 bg-white border-brand/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-8 group relative overflow-hidden transition-all hover:translate-y-[-2px]">
-          <div class="absolute top-0 right-0 w-24 h-24 bg-brand/[0.01] rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-700"></div>
+        <div class="card p-8 md:p-10 bg-white border-brand/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-10 group relative overflow-hidden transition-all">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-brand/[0.01] rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700"></div>
           
-          <div class="flex items-start md:items-center gap-6 flex-1 min-w-0 relative">
-            <div class="w-14 h-14 rounded-2xl bg-brand/5 flex items-center justify-center text-brand shrink-0 border border-brand/10 shadow-inner group-hover:bg-brand/10 transition-colors">
+          <div class="flex items-start md:items-center gap-8 flex-1 min-w-0 relative">
+            <div class="w-16 h-16 rounded-[1.5rem] bg-brand/5 flex items-center justify-center text-brand shrink-0 border border-brand/10 shadow-inner group-hover:bg-brand/10 transition-colors">
               {mode_icon}
             </div>
-            <div class="min-w-0 space-y-2">
-              <div class="flex items-center gap-3">
-                <h3 class="text-xl font-bold text-brand tracking-tight truncate">{a.name}</h3>
-                <button onclick="toggleAuto(event, {a.id}, {str(not a.enabled).lower()})" class="px-3 py-1 {status_bg} {status_color} rounded-lg text-[8px] font-black uppercase tracking-widest border border-brand/5">{status_label}</button>
+            <div class="min-w-0 space-y-3">
+              <div class="flex items-center gap-4">
+                <h3 class="text-2xl font-black text-brand tracking-tight italic">{a.name}</h3>
+                <button onclick="toggleAuto(event, {a.id}, {str(not a.enabled).lower()})" class="px-3 py-1.5 {status_bg} {status_color} rounded-xl text-[9px] font-black uppercase tracking-[0.2em] border border-brand/5 hover:scale-105 transition-all">{status_label}</button>
               </div>
-              <p class="text-xs text-text-muted font-medium line-clamp-1 italic max-w-xl opacity-70 group-hover:opacity-100 transition-opacity">"{a.topic_prompt}"</p>
+              <p class="text-[13px] text-text-muted font-medium line-clamp-1 italic max-w-xl opacity-80 group-hover:opacity-100 transition-opacity">"{a.topic_prompt}"</p>
               
-              <div class="flex flex-wrap gap-5 pt-1">
+              <div class="flex flex-wrap gap-8 pt-2">
                 <div class="flex items-center gap-2">
-                    <span class="text-[8px] font-bold text-accent uppercase tracking-widest">Strategy:</span>
-                    <span class="text-[9px] font-black text-brand uppercase tracking-wider">{ 'Verified Context' if a.content_seed_mode == 'auto_library' else 'Guided Script' }</span>
+                    <span class="badge-premium !text-[8px]">Strategy</span>
+                    <span class="text-[11px] font-black text-brand uppercase tracking-wider">{ 'Verified Context' if a.content_seed_mode == 'auto_library' else 'Guided Script' }</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="text-[8px] font-bold text-accent uppercase tracking-widest">Schedule:</span>
-                    <span class="text-[9px] font-black text-brand uppercase tracking-wider">Daily @ {a.post_time_local or '09:00'}</span>
+                    <span class="badge-premium !text-[8px]">Pulse</span>
+                    <span class="text-[11px] font-black text-brand uppercase tracking-wider">Daily @ {a.post_time_local or '09:00'}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="flex items-center gap-3 w-full md:w-auto relative border-t md:border-t-0 border-brand/5 pt-6 md:pt-0">
-            <button onclick="showEditModal({edit_data_json})" class="flex-1 md:flex-none px-6 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-text-muted hover:text-brand hover:border-brand/30 hover:bg-brand/[0.02] transition-all shadow-sm">Configure</button>
-            <button onclick="runNow(event, {a.id})" class="flex-1 md:flex-none px-6 py-4 bg-brand rounded-2xl text-white font-bold text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.02] transition-all">Prepare Now</button>
+          <div class="flex items-center gap-4 w-full md:w-auto relative border-t md:border-t-0 border-brand/[0.04] pt-8 md:pt-0">
+            <button onclick="showEditModal({edit_data_json})" class="flex-1 md:flex-none px-8 py-5 bg-white border border-brand/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] text-brand/60 hover:text-brand hover:border-brand/30 hover:bg-brand/[0.02] transition-all">Configure</button>
+            <button onclick="runNow(event, {a.id})" class="flex-1 md:flex-none px-8 py-5 bg-brand rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-brand/20 hover:scale-[1.02] transition-all">Incarnate Now</button>
           </div>
         </div>
         """
 
     empty_state_html = """
-        <div class="card p-24 bg-white border-brand/5 border-dashed border-2 bg-brand/[0.01] text-center flex flex-col items-center justify-center space-y-8">
+        <div class="card p-24 bg-white border-brand/10 border-dashed border-2 bg-brand/[0.01] text-center flex flex-col items-center justify-center space-y-10">
             <div class="w-24 h-24 rounded-[2.5rem] bg-brand/5 flex items-center justify-center text-brand border border-brand/10 shadow-inner">
-              <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
+              <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
             </div>
-            <div class="space-y-3">
-              <h3 class="text-2xl font-bold text-brand tracking-tight italic">Start your first Growth Plan</h3>
-              <p class="text-text-muted text-sm max-w-sm font-medium">Set up how and when your reminders come to life.</p>
+            <div class="space-y-4">
+              <h3 class="heading-premium text-4xl">Start your first <span class="text-accent">Growth Plan</span></h3>
+              <p class="text-premium-muted max-w-sm mx-auto">Establish the rhythm of your automated guidance cycles.</p>
             </div>
-            <button onclick="showNewAutoModal()" class="px-10 py-4 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Start Plan</button>
+            <button onclick="showNewAutoModal()" class="px-12 py-5 bg-brand text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-brand/40 hover:bg-brand-hover hover:scale-[1.02] transition-all">Begin Manifestation Plan</button>
         </div>
     """
     
     content = """
-    <div class="space-y-10">
+    <div class="space-y-12">
       <div class="flex justify-between items-end">
         <div>
-        <h1 class="text-3xl font-bold text-brand tracking-tight italic">Growth</h1>
-        <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.4em]">Reminder Growth Plans</p>
+        <h1 class="heading-premium text-5xl">Growth</h1>
+        <p class="text-premium-muted mt-2">Guidance Refinement Plans</p>
       </div>
-      <button onclick="showNewAutoModal()" class="hidden md:flex px-8 py-4 bg-brand rounded-2xl font-bold text-[10px] uppercase tracking-[0.2em] text-white shadow-2xl shadow-brand/30 hover:translate-y-[-2px] transition-all items-center gap-3">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-          Start New Plan
+      <button onclick="showNewAutoModal()" class="hidden md:flex px-10 py-5 bg-brand rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] text-white shadow-2xl shadow-brand/30 hover:translate-y-[-2px] transition-all items-center gap-3">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
+          Initialize Plan
       </button>
       </div>
 
-      <div class="space-y-6">
+      <div class="space-y-8">
         {autos_html}
       </div>
     </div>
@@ -1302,22 +1324,17 @@ async def app_automations_page(
         </div>
     """ if is_connected else '<div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2 opacity-60 italic"><span>No account linked</span></div>'
 
-    return APP_LAYOUT_HTML.replace("{content}", content.replace("{autos_html}", autos_html or empty_state_html))\
-                          .replace("{title}", "Growth Plans")\
-                          .replace("{user_name}", user.name or user.email)\
-                          .replace("{org_name}", org.name if org else "Personal Workspace")\
-                          .replace("{admin_link}", admin_link)\
-                          .replace("{active_dashboard}", "")\
-                          .replace("{active_calendar}", "")\
-                          .replace("{active_automations}", "active")\
-                          .replace("{active_library}", "")\
-                          .replace("{active_media}", "")\
-                          .replace("{studio_modal}", STUDIO_COMPONENTS_HTML)\
-                          .replace("{studio_js}", STUDIO_SCRIPTS_JS)\
-                          .replace("{account_options}", account_options)\
-                          .replace("{connected_account_info}", connected_account_info)\
-                          .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
-                          .replace("{extra_js}", f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>')
+    return render_app_page(
+        title="Growth Plans",
+        content=content.replace("{autos_html}", autos_html or empty_state_html),
+        user=user,
+        org=org,
+        active_tab="automations",
+        extras={
+            "connected_account_info": connected_account_info,
+            "extra_js": f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>'
+        }
+    )
 
 @router.get("/app/media", response_class=HTMLResponse)
 async def app_media_page(
@@ -1329,27 +1346,29 @@ async def app_media_page(
     admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""
     
     content = """
-    <div class="space-y-8">
+    <div class="space-y-12">
       <div class="flex justify-between items-end">
         <div>
-          <h1 class="text-3xl font-bold text-brand tracking-tight">Visuals</h1>
-          <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em]">Visual Presence Studio</p>
+          <h1 class="heading-premium text-5xl">Visuals</h1>
+          <p class="text-premium-muted mt-2">Visual Presence Manifestation Studio</p>
         </div>
         <div class="flex gap-4">
-            <button onclick="document.getElementById('mediaUploadInput').click()" class="px-8 py-4 bg-brand text-white rounded-xl font-bold text-[11px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center gap-3">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-                Add Visuals
+            <button onclick="document.getElementById('mediaUploadInput').click()" class="px-10 py-5 bg-brand text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl shadow-brand/20 hover:bg-brand-hover hover:scale-[1.02] transition-all flex items-center gap-3">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
+                Ingest Visuals
             </button>
         </div>
       </div>
-        <div id="mediaEmptyState" class="glass p-20 rounded-[3rem] border border-brand/5 bg-white text-center flex flex-col items-center justify-center space-y-6">
-            <div class="w-20 h-20 rounded-[2rem] bg-brand/5 flex items-center justify-center border border-brand/10">
-              <svg class="w-10 h-10 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
+        <div id="mediaEmptyState" class="card p-24 rounded-[3rem] border-brand/10 border-dashed border-2 bg-brand/[0.01] text-center flex flex-col items-center justify-center space-y-10 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-brand/[0.01] rounded-full -mr-32 -mt-32"></div>
+            <div class="w-24 h-24 rounded-[2.5rem] bg-brand/5 flex items-center justify-center border border-brand/10 shadow-inner">
+              <svg class="w-12 h-12 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
             </div>
-            <div>
-              <h3 class="text-[11px] font-bold uppercase tracking-[0.3em] text-brand">Visual Library</h3>
-              <p class="text-xs text-text-muted mt-2">Your visuals will appear here after you share reminders</p>
+            <div class="space-y-4 relative">
+              <h3 class="heading-premium text-4xl">Your Visual <span class="text-accent">Foundation</span></h3>
+              <p class="text-premium-muted max-w-sm mx-auto">Visual assets manifested through your guidance cycles will be archived here.</p>
             </div>
+            <div class="badge-premium relative">No manifested assets found</div>
         </div>
     </div>
     """
@@ -1373,22 +1392,17 @@ async def app_media_page(
         </div>
     """ if is_connected else '<div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2 opacity-60 italic"><span>No account linked</span></div>'
 
-    return APP_LAYOUT_HTML.replace("{content}", content)\
-                          .replace("{title}", "Visual Library")\
-                          .replace("{user_name}", user.name or user.email)\
-                          .replace("{org_name}", org.name if org else "Personal Workspace")\
-                          .replace("{admin_link}", admin_link)\
-                          .replace("{active_dashboard}", "")\
-                          .replace("{active_calendar}", "")\
-                          .replace("{active_automations}", "")\
-                          .replace("{active_library}", "")\
-                          .replace("{active_media}", "active")\
-                          .replace("{studio_modal}", STUDIO_COMPONENTS_HTML)\
-                          .replace("{studio_js}", STUDIO_SCRIPTS_JS)\
-                          .replace("{account_options}", account_options)\
-                          .replace("{connected_account_info}", connected_account_info)\
-                          .replace("{connect_instagram_modal}", CONNECT_INSTAGRAM_MODAL_HTML)\
-                          .replace("{extra_js}", f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>')
+    return render_app_page(
+        title="Visual Library",
+        content=content,
+        user=user,
+        org=org,
+        active_tab="media",
+        extras={
+            "connected_account_info": connected_account_info,
+            "extra_js": f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>'
+        }
+    )
 
 @router.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_page(user: User = Depends(require_user)):
