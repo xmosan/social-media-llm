@@ -140,7 +140,7 @@ LIBRARY_HTML = """\
 </style>
 
 <script>
-const LibHub = {
+window.LibHub = {
   currentTab: 'quran',
   setTab(id) {
     this.currentTab = id;
@@ -154,7 +154,7 @@ const LibHub = {
   }
 };
 
-const QuranBrowser = {
+window.QuranBrowser = {
   _loaded: false,
   _surahs: [],
   _currentSurah: null,
@@ -342,7 +342,7 @@ const QuranBrowser = {
   }
 };
 
-const WisdomLib = {
+window.WisdomLib = {
   _loaded: false,
   _timer: null,
 
@@ -385,7 +385,7 @@ const WisdomLib = {
   }
 };
 
-const OrgLib = {
+window.OrgLib = {
   _loaded: false,
   async init() {
     this._loaded = true;
