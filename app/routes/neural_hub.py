@@ -255,13 +255,9 @@ window.QuranBrowser = {
     const hasTrans = translationRaw && translationRaw !== '[Translation not available]';
     const translation = hasTrans ? translationRaw.replace(/</g, '&lt;') : '';
     const verseNum = v.ayah_number || v.verse_number || '';
-    const id = v.id || '';
+    const id = String(v.id || '');
 
-    // Safe strings for onclick attributes (double-escape backslash)
-    const safeTransJs = (translation || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\"/g, '&quot;');
-    const safeArabicJs = (v.arabic_text || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\"/g, '&quot;');
-    const safeRefJs = ref.replace(/'/g, "\\'");
-
+    // Use data-attributes to avoid all JS string escaping issues in onclick
     return [
       '<div class="verse-row">',
         '<div class="verse-num-badge">' + verseNum + '</div>',
@@ -271,15 +267,39 @@ window.QuranBrowser = {
             ? '<div class="verse-translation">&ldquo;' + translation + '&rdquo;</div>'
             : '<div class="verse-translation missing">Translation loading \u2014 check back shortly</div>',
           '<div class="verse-meta">',
-            '<span class="verse-ref">Qur\u02bcान ' + ref + '</span>',
+            '<span class="verse-ref">Qur\u02bcaan ' + ref + '</span>',
             '<div class="verse-actions">',
-              '<button class="btn-copy" onclick="QuranBrowser.copyVerse(\'' + safeRefJs + '\', \'' + safeTransJs + '\')">Copy</button>',
-              '<button class="btn-manifest" onclick="QuranBrowser.manifest(\'' + id + '\', \'' + safeTransJs + '\', \'' + safeRefJs + '\', \'' + safeArabicJs + '\')">Use in Quote Card</button>',
+              '<button class="btn-copy" data-ref="' + ref.replace(/"/g,'&quot;') + '" data-text="' + (translation || '').replace(/"/g,'&quot;') + '" onclick="QuranBrowser.handleCopy(this)">Copy</button>',
+              '<button class="btn-manifest" data-id="' + id + '" data-ref="' + ref.replace(/"/g,'&quot;') + '" data-text="' + (translation || '').replace(/"/g,'&quot;') + '" data-arabic="' + (v.arabic_text || '').replace(/"/g,'&quot;') + '" onclick="QuranBrowser.handleManifest(this)">Use in Quote Card</button>',
             '</div>',
           '</div>',
         '</div>',
       '</div>'
     ].join('');
+  },
+
+  handleCopy(btn) {
+    const ref = btn.getAttribute('data-ref');
+    const text = btn.getAttribute('data-text');
+    const full = '\u201c' + text + '\u201d \u2014 Qur\u02bcaan ' + ref;
+    navigator.clipboard.writeText(full).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = orig, 1500);
+    }).catch(() => {});
+  },
+
+  handleManifest(btn) {
+    const bridge = {
+      type: 'quran_verse',
+      id: btn.getAttribute('data-id'),
+      text: btn.getAttribute('data-text'),
+      reference: btn.getAttribute('data-ref'),
+      arabic_text: btn.getAttribute('data-arabic'),
+      timestamp: Date.now()
+    };
+    sessionStorage.setItem('sabeel_pending_quote_item', JSON.stringify(bridge));
+    window.location.href = '/app?studio=true';
   },
 
   onSearch() {
@@ -322,23 +342,6 @@ window.QuranBrowser = {
     document.getElementById('searchResultsPanel').classList.add('hidden');
     document.getElementById('versesPanel').classList.remove('hidden');
     document.getElementById('surahHeader').style.display = '';
-  },
-
-  copyVerse(ref, text) {
-    const full = '"' + text + '" \u2014 Qur\u02bcaan ' + ref;
-    navigator.clipboard.writeText(full).then(() => {
-      // Flash feedback
-      const btn = event.target;
-      const orig = btn.textContent;
-      btn.textContent = 'Copied!';
-      setTimeout(() => btn.textContent = orig, 1500);
-    }).catch(() => {});
-  },
-
-  manifest(id, text, reference, arabic) {
-    const bridge = { type: 'quran_verse', id, text, reference, arabic_text: arabic, timestamp: Date.now() };
-    sessionStorage.setItem('sabeel_pending_quote_item', JSON.stringify(bridge));
-    window.location.href = '/app?studio=true';
   }
 };
 
