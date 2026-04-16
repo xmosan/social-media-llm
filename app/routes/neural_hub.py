@@ -374,9 +374,8 @@ window.WisdomLib = {
       grid.innerHTML = items.map(item => {
         const txt = (item.content || item.text || item.translation_text || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
         const ref = (item.reference || item.title || 'Archive').replace(/"/g, '&quot;');
-        const safeT = txt.replace(/'/g, "\\'");
-        const safeR = ref.replace(/'/g, "\\'");
-        return '<div class="wisdom-card"><div class="text-sm leading-relaxed text-text-main italic mb-4">&ldquo;' + txt + '&rdquo;</div><div class="flex items-center justify-between pt-3 border-t border-brand/5"><span class="text-[9px] font-black uppercase tracking-widest text-brand/40">' + ref + '</span><button onclick="WisdomLib.manifest(\'' + item.id + '\', \'' + safeT + '\', \'' + safeR + '\')" class="btn-manifest text-[8px]">Use in Studio</button></div></div>';
+        const id = String(item.id || '');
+        return '<div class="wisdom-card"><div class="text-sm leading-relaxed text-text-main italic mb-4">&ldquo;' + txt + '&rdquo;</div><div class="flex items-center justify-between pt-3 border-t border-brand/5"><span class="text-[9px] font-black uppercase tracking-widest text-brand/40">' + ref + '</span><button data-id="' + id + '" data-text="' + txt + '" data-ref="' + ref + '" onclick="WisdomLib.handleManifest(this)" class="btn-manifest text-[8px]">Use in Studio</button></div></div>';
       }).join('');
     } catch(e) { grid.innerHTML = '<div class="col-span-full py-12 text-center text-brand/25 text-sm italic">Failed to load</div>'; }
   },
@@ -385,6 +384,9 @@ window.WisdomLib = {
     const bridge = { type: 'quote', id, text, reference, timestamp: Date.now() };
     sessionStorage.setItem('sabeel_pending_quote_item', JSON.stringify(bridge));
     window.location.href = '/app?studio=true';
+  },
+  handleManifest(btn) {
+    this.manifest(btn.getAttribute('data-id'), btn.getAttribute('data-text'), btn.getAttribute('data-ref'));
   }
 };
 
@@ -404,9 +406,8 @@ window.OrgLib = {
       grid.innerHTML = items.map(item => {
         const txt = (item.content || item.text || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
         const ref = (item.title || 'Document').replace(/"/g, '&quot;');
-        const safeT = txt.replace(/'/g, "\\'");
-        const safeR = ref.replace(/'/g, "\\'");
-        return '<div class="wisdom-card"><div class="text-sm leading-relaxed text-text-main italic mb-4">&ldquo;' + txt + '&rdquo;</div><div class="flex items-center justify-between pt-3 border-t border-brand/5"><span class="text-[9px] font-black uppercase tracking-widest text-brand/40">' + ref + '</span><button onclick="OrgLib.manifest(\'' + item.id + '\', \'' + safeT + '\', \'' + safeR + '\')" class="btn-manifest text-[8px]">Use in Studio</button></div></div>';
+        const id = String(item.id || '');
+        return '<div class="wisdom-card"><div class="text-sm leading-relaxed text-text-main italic mb-4">&ldquo;' + txt + '&rdquo;</div><div class="flex items-center justify-between pt-3 border-t border-brand/5"><span class="text-[9px] font-black uppercase tracking-widest text-brand/40">' + ref + '</span><button data-id="' + id + '" data-text="' + txt + '" data-ref="' + ref + '" onclick="OrgLib.handleManifest(this)" class="btn-manifest text-[8px]">Use in Studio</button></div></div>';
       }).join('');
     } catch(e) { grid.innerHTML = '<div class="col-span-full py-12 text-center text-brand/25 text-sm italic">Failed to load</div>'; }
   },
@@ -414,6 +415,9 @@ window.OrgLib = {
     const bridge = { type: 'quote', id, text, reference, timestamp: Date.now() };
     sessionStorage.setItem('sabeel_pending_quote_item', JSON.stringify(bridge));
     window.location.href = '/app?studio=true';
+  },
+  handleManifest(btn) {
+    this.manifest(btn.getAttribute('data-id'), btn.getAttribute('data-text'), btn.getAttribute('data-ref'));
   }
 };
 
