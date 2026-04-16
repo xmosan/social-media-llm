@@ -435,21 +435,12 @@ async def neural_library_page(request: Request, user: User = Depends(require_use
     org = db.query(Org).filter(Org.id == user.active_org_id).first()
     org_name = org.name if org else "Foundation"
 
-    return APP_LAYOUT_HTML.format(
+    from .app_pages import render_app_page
+    return render_app_page(
         title="Knowledge Library",
         content=LIBRARY_HTML,
-        user_name=user.name or user.email,
-        org_name=org_name,
-        active_dashboard="",
-        active_calendar="",
-        active_automations="",
-        active_library="active",
-        active_media="",
-        admin_link="",
-        connected_account_info="",
-        studio_modal=STUDIO_COMPONENTS_HTML,
-        connect_instagram_modal="",
-        extra_js="",
-        studio_js=STUDIO_SCRIPTS_JS,
-        org_id=str(user.active_org_id or 0)
+        user=user,
+        org=org,
+        active_tab="library",
+        db=db
     )

@@ -674,8 +674,9 @@ ONBOARDING_HTML = """<!doctype html>
 </html>
 """
 
-def render_app_page(title, content, user, org, active_tab, extras=None):
+def render_app_page(title, content, user, org, active_tab, db: Session = None, extras=None):
     from .ui_assets import APP_LAYOUT_HTML, STUDIO_COMPONENTS_HTML, STUDIO_SCRIPTS_JS, CONNECT_INSTAGRAM_MODAL_HTML
+    from app.models import IGAccount
     
     # Active state map
     active_map = {
@@ -687,7 +688,78 @@ def render_app_page(title, content, user, org, active_tab, extras=None):
     }
     if active_tab in active_map:
         active_map[active_tab] = "active"
+
+    # --- Fetch Accounts for Switcher ---
+    switcher_html = ""
+    active_acc = None
+    if db and org:
+        accs = db.query(IGAccount).filter(IGAccount.org_id == org.id).order_by(IGAccount.active.desc()).all()
+        active_acc = next((a for a in accs if a.active), accs[0] if accs else None)
         
+        if accs:
+            acc_list_items = ""
+            for a in accs:
+                is_active = a.id == (active_acc.id if active_acc else None)
+                active_indicator = '<div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>' if is_active else ""
+                
+                acc_list_items += f"""
+                <div onclick="setActiveAccount({a.id})" class="flex items-center justify-between p-3 rounded-xl hover:bg-brand/5 cursor-pointer transition-all group">
+                    <div class="flex items-center gap-3">
+                        <img src="{a.profile_picture_url or f'https://ui-avatars.com/api/?name={a.username}&background=0F3D2E&color=fff'}" class="w-8 h-8 rounded-full border border-brand/10 shadow-sm">
+                        <div class="flex flex-col">
+                            <span class="text-[11px] font-black text-brand group-hover:translate-x-0.5 transition-transform">@{a.username}</span>
+                            <span class="text-[9px] font-bold text-brand/40 uppercase tracking-widest">{a.name[:15] + "..." if len(a.name) > 15 else a.name}</span>
+                        </div>
+                    </div>
+                    {active_indicator}
+                </div>
+                """
+            
+            switcher_html = f"""
+            <div class="relative inline-block text-left" id="accountSwitcherRoot">
+                <button onclick="toggleAccountSwitcher(event)" class="flex items-center gap-3 p-2 pr-4 bg-white/60 hover:bg-white border border-brand/10 rounded-2xl transition-all shadow-sm group">
+                    <div class="relative">
+                        <img src="{active_acc.profile_picture_url or f'https://ui-avatars.com/api/?name={active_acc.username}&background=0F3D2E&color=fff'}" class="w-9 h-9 rounded-full border-2 border-brand/5 shadow-inner">
+                        <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
+                    </div>
+                    <div class="hidden md:flex flex-col items-start pr-2">
+                        <span class="text-[10px] font-black text-brand tracking-tight">@{active_acc.username}</span>
+                        <span class="text-[8px] font-bold text-brand/30 uppercase tracking-widest">Active Platform</span>
+                    </div>
+                    <svg class="w-3.5 h-3.5 text-brand/30 group-hover:text-brand/60 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
+                </button>
+                
+                <div id="accountSwitcherDropdown" class="hidden absolute left-0 mt-3 w-64 bg-white/95 backdrop-blur-xl border border-brand/10 rounded-[1.5rem] shadow-2xl p-3 z-[100] animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div class="px-3 py-2 mb-2 border-b border-brand/5">
+                        <span class="text-[9px] font-black text-brand/30 uppercase tracking-[0.3em]">Switch Platform</span>
+                    </div>
+                    <div class="space-y-1 max-h-64 overflow-y-auto custom-scrollbar">
+                        {acc_list_items}
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-brand/5">
+                        <button onclick="window.location.href='/auth/instagram/login'" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-brand/5 text-[10px] font-black text-brand/60 hover:text-brand transition-all uppercase tracking-widest">
+                            <div class="w-8 h-8 rounded-full bg-brand/5 flex items-center justify-center">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
+                            </div>
+                            Connect Another
+                        </button>
+                    </div>
+                </div>
+            </div>
+            """
+        else:
+            switcher_html = """
+            <button onclick="window.location.href='/auth/instagram/login'" class="flex items-center gap-3 p-2 pr-6 bg-brand/[0.03] hover:bg-brand/5 border border-brand/10 rounded-2xl transition-all shadow-sm group">
+                <div class="w-9 h-9 rounded-full bg-brand/5 flex items-center justify-center text-brand/30">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
+                </div>
+                <div class="flex flex-col items-start pr-2">
+                    <span class="text-[10px] font-black text-brand tracking-tight">Connect Account</span>
+                    <span class="text-[8px] font-bold text-brand/30 uppercase tracking-widest">Setup Platform</span>
+                </div>
+            </button>
+            """
+
     return APP_LAYOUT_HTML.format(
         title=title,
         content=content,
@@ -703,8 +775,9 @@ def render_app_page(title, content, user, org, active_tab, extras=None):
         studio_js=STUDIO_SCRIPTS_JS,
         connected_account_info=(extras.get("connected_account_info", "") if extras else ""),
         connect_instagram_modal=CONNECT_INSTAGRAM_MODAL_HTML,
+        navbar_account_switcher=switcher_html,
         extra_js=(extras.get("extra_js", "") if extras else ""),
-        org_id=str(user.active_org_id or 0)
+        org_id=str(org.id if org else 0)
     )
 
 @router.get("/app", response_class=HTMLResponse)
@@ -992,6 +1065,7 @@ async def app_dashboard_page(
         user=user,
         org=org,
         active_tab="dashboard",
+        db=db,
         extras={
             "connected_account_info": connected_account_info,
             "extra_js": f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>'
@@ -1186,6 +1260,7 @@ async def app_calendar_page(
         user=user,
         org=org,
         active_tab="calendar",
+        db=db,
         extras={
             "connected_account_info": connected_account_info,
             "extra_js": f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>'
@@ -1330,6 +1405,7 @@ async def app_automations_page(
         user=user,
         org=org,
         active_tab="automations",
+        db=db,
         extras={
             "connected_account_info": connected_account_info,
             "extra_js": f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>'
@@ -1398,6 +1474,7 @@ async def app_media_page(
         user=user,
         org=org,
         active_tab="media",
+        db=db,
         extras={
             "connected_account_info": connected_account_info,
             "extra_js": f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>'

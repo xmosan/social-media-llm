@@ -3,6 +3,41 @@
 
 STUDIO_SCRIPTS_JS = """
 <script>
+    // --- ACCOUNT SWITCHER LOGIC ---
+    window.toggleAccountSwitcher = function(event) {
+        if (event) event.stopPropagation();
+        const dropdown = document.getElementById('accountSwitcherDropdown');
+        if (dropdown) dropdown.classList.toggle('hidden');
+    };
+
+    window.setActiveAccount = async function(accountId) {
+        try {
+            const res = await fetch(`/ig-accounts/set-active/${accountId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                alert('Failed to switch platform context');
+            }
+        } catch (e) {
+            console.error('Switch error:', e);
+            alert('Connection lost. Please try again.');
+        }
+    };
+
+    // Close dropdowns on outside click
+    document.addEventListener('click', (e) => {
+        const switcherDropdown = document.getElementById('accountSwitcherDropdown');
+        const switcherRoot = document.getElementById('accountSwitcherRoot');
+        if (switcherDropdown && !switcherDropdown.classList.contains('hidden')) {
+            if (switcherRoot && !switcherRoot.contains(e.target)) {
+                switcherDropdown.classList.add('hidden');
+            }
+        }
+    });
+
     // --- REMINDER STUDIO CORE LOGIC (v4.0 - Decoupled) ---
     let currentQuoteCardUrl = null;
     let isQuoteCardOutOfDate = false;
@@ -640,7 +675,10 @@ APP_LAYOUT_HTML = """<!doctype html>
         </div>
       </div>
       <div class="flex items-center gap-4">
-        <div id="navbarAccountSwitcher" class="relative"></div>
+        <!-- Account Switcher Integration -->
+        <div id="navbarAccountSwitcher" class="relative mb-8">
+            {navbar_account_switcher}
+        </div>
         <button onclick="logout()" class="p-2 text-text-muted hover:text-brand transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button>
       </div>
     </div>
