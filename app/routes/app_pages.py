@@ -692,6 +692,7 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
     # --- Fetch Accounts for Switcher ---
     switcher_html = ""
     active_acc = None
+    fallback_avatar = "https://ui-avatars.com/api/?background=0F3D2E&color=fff&name="
     if db and org:
         accs = db.query(IGAccount).filter(IGAccount.org_id == org.id).order_by(IGAccount.active.desc()).all()
         active_acc = next((a for a in accs if a.active), accs[0] if accs else None)
@@ -702,10 +703,11 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
                 is_active = a.id == (active_acc.id if active_acc else None)
                 active_indicator = '<div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>' if is_active else ""
                 
+                acc_avatar = a.profile_picture_url or f"{fallback_avatar}{a.username}"
                 acc_list_items += f"""
                 <div onclick="setActiveAccount({a.id})" class="flex items-center justify-between p-3 rounded-xl hover:bg-brand/5 cursor-pointer transition-all group">
                     <div class="flex items-center gap-3">
-                        <img src="{a.profile_picture_url or f'https://ui-avatars.com/api/?name={a.username}&background=0F3D2E&color=fff'}" class="w-8 h-8 rounded-full border border-brand/10 shadow-sm">
+                        <img src="{acc_avatar}" onerror="this.src='{fallback_avatar}{a.username}'" class="w-8 h-8 rounded-full border border-brand/10 shadow-sm">
                         <div class="flex flex-col">
                             <span class="text-[11px] font-black text-brand group-hover:translate-x-0.5 transition-transform">@{a.username}</span>
                             <span class="text-[9px] font-bold text-brand/40 uppercase tracking-widest">{a.name[:15] + "..." if len(a.name) > 15 else a.name}</span>
@@ -715,11 +717,12 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
                 </div>
                 """
             
+            active_avatar = active_acc.profile_picture_url or f"{fallback_avatar}{active_acc.username}"
             switcher_html = f"""
             <div class="relative inline-block text-left" id="accountSwitcherRoot">
                 <button onclick="toggleAccountSwitcher(event)" class="flex items-center gap-3 p-2 pr-4 bg-white/60 hover:bg-white border border-brand/10 rounded-2xl transition-all shadow-sm group">
                     <div class="relative">
-                        <img src="{active_acc.profile_picture_url or f'https://ui-avatars.com/api/?name={active_acc.username}&background=0F3D2E&color=fff'}" class="w-9 h-9 rounded-full border-2 border-brand/5 shadow-inner">
+                        <img src="{active_avatar}" onerror="this.src='{fallback_avatar}{active_acc.username}'" class="w-9 h-9 rounded-full border-2 border-brand/5 shadow-inner">
                         <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
                     </div>
                     <div class="hidden md:flex flex-col items-start pr-2">
