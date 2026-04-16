@@ -1483,7 +1483,7 @@ async def app_media_page(
         </div>
         """
     
-    content = """
+    content = f"""
     <div class="space-y-12">
       <div class="flex justify-between items-end">
         <div>
@@ -1501,7 +1501,7 @@ async def app_media_page(
             {media_html}
         </div>
         
-        {"""
+        {'''
         <div id="mediaEmptyState" class="card p-24 rounded-[3rem] border-brand/10 border-dashed border-2 bg-brand/[0.01] text-center flex flex-col items-center justify-center space-y-10 relative overflow-hidden">
             <div class="absolute top-0 right-0 w-64 h-64 bg-brand/[0.01] rounded-full -mr-32 -mt-32"></div>
             <div class="w-24 h-24 rounded-[2.5rem] bg-brand/5 flex items-center justify-center border border-brand/10 shadow-inner">
@@ -1513,7 +1513,7 @@ async def app_media_page(
             </div>
             <div class="badge-premium relative">No manifested assets found</div>
         </div>
-        """ if not media_html else ""}
+        ''' if not media_html else ""}
     </div>
     """
     
