@@ -674,6 +674,27 @@ ONBOARDING_HTML = """<!doctype html>
 </html>
 """
 
+def get_active_context(db: Session, user: User, org_id: int):
+    """
+    Centralized helper to fetch the active IGAccount for an organization.
+    Handles auto-activation if no account is marked active.
+    """
+    from app.models import IGAccount
+    accs = db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
+    if not accs:
+        return None, [], False
+        
+    active_acc = next((a for a in accs if a.active), None)
+    
+    # Auto-healing: ensure at least one is active if any exist
+    if not active_acc and accs:
+        active_acc = accs[0]
+        active_acc.active = True
+        db.commit()
+        db.refresh(active_acc)
+        
+    return active_acc, accs, True
+
 def render_app_page(title, content, user, org, active_tab, db: Session = None, extras=None):
     from .ui_assets import APP_LAYOUT_HTML, STUDIO_COMPONENTS_HTML, STUDIO_SCRIPTS_JS, CONNECT_INSTAGRAM_MODAL_HTML
     from app.models import IGAccount
@@ -812,13 +833,18 @@ async def app_dashboard_page(
 
     org = db.query(Org).filter(Org.id == org_id).first()
     
-    # Stats Calculation
+    # --- Unified Account Context ---
+    active_acc, all_accs, is_connected = get_active_context(db, user, org_id)
+    active_acc_id = active_acc.id if active_acc else 0
+    
+    # Stats Calculation (Filtered by Active Account)
     weekly_post_count = db.query(func.count(Post.id)).filter(
         Post.org_id == org_id,
+        Post.ig_account_id == active_acc_id,
         Post.created_at >= datetime.now(timezone.utc) - timedelta(days=7)
     ).scalar() or 0
     
-    account_count = db.query(func.count(IGAccount.id)).filter(IGAccount.org_id == org_id).scalar() or 0
+    account_count = len(all_accs)
     
     # Accounts for modal
     accounts = db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
@@ -826,10 +852,11 @@ async def app_dashboard_page(
     if not accounts:
         account_options = '<option value="">No accounts connected</option>'
     
-    # Next Post
+    # Next Post (Filtered by Active Account)
     now_utc = datetime.now(timezone.utc)
     next_post = db.query(Post).filter(
         Post.org_id == org_id,
+        Post.ig_account_id == active_acc_id,
         Post.status == "scheduled",
         Post.scheduled_time > now_utc
     ).order_by(Post.scheduled_time.asc()).first()
@@ -871,11 +898,12 @@ async def app_dashboard_page(
         
         calendar_headers += f'<div class="py-3 text-[9px] font-black text-center uppercase tracking-[0.3em] {"text-brand" if is_today else "text-text-muted/40"}">{day_label}</div>'
         
-        # Count posts for this day
+        # Count posts for this day (Filtered by Active Account)
         day_start = datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
         day_end = day_start + timedelta(days=1)
         post_count = db.query(func.count(Post.id)).filter(
             Post.org_id == org_id,
+            Post.ig_account_id == active_acc_id,
             Post.scheduled_time >= day_start,
             Post.scheduled_time < day_end
         ).scalar() or 0
@@ -903,8 +931,11 @@ async def app_dashboard_page(
         </div>
         """
 
-    # Intelligence Feed (Recent Content)
-    posts = db.query(Post).filter(Post.org_id == org_id).order_by(Post.created_at.desc()).limit(6).all()
+    # Intelligence Feed (Recent Content - Filtered by Active Account)
+    posts = db.query(Post).filter(
+        Post.org_id == org_id,
+        Post.ig_account_id == active_acc_id
+    ).order_by(Post.created_at.desc()).limit(6).all()
     recent_posts_html = ""
     for p in posts:
         # Determine Type
@@ -1001,19 +1032,19 @@ async def app_dashboard_page(
     if is_connected and not user.has_connected_instagram:
         user.has_connected_instagram = True
     
-    # Connected account info for header
-    if is_connected:
+    # Connected account info for header (Shows Active Account)
+    if is_connected and active_acc:
         connected_account_info = f"""
             <div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2">
-                <span class="text-brand font-black text-[10px] tracking-tighter uppercase">@{primary_acc.name}</span>
+                <span class="text-brand font-black text-[10px] tracking-tighter uppercase">@{active_acc.username}</span>
                 <button onclick="disconnectMetaAccount()" class="hover:text-rose-500 transition-colors opacity-60 hover:opacity-100">
                     <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
             <script>
                 async function disconnectMetaAccount() {{
-                    if (!confirm("Are you sure you want to disconnect this Instagram account?")) return;
-                    const res = await fetch('/auth/instagram/disconnect', {{ method: 'POST' }});
+                    if (!confirm("Are you sure you want to disconnect this Instagram account (@{active_acc.username})?")) return;
+                    const res = await fetch('/ig-accounts/{active_acc.id}', {{ method: 'DELETE' }});
                     const data = await res.json();
                     if (data.ok) window.location.reload();
                     else alert(data.error || "Failed to disconnect");
@@ -1090,6 +1121,11 @@ async def app_calendar_page(
 ):
     # REMOVED FORCED ONBOARDING REDIRECT
     org = db.query(Org).filter(Org.id == user.active_org_id).first()
+    
+    # --- Unified Account Context ---
+    active_acc, all_accs, is_connected = get_active_context(db, user, org.id)
+    active_acc_id = active_acc.id if active_acc else 0
+
     admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""
     
     today = datetime.now(timezone.utc)
@@ -1111,8 +1147,10 @@ async def app_calendar_page(
     query_start = month_start - timedelta(days=1)
     query_end = month_end + timedelta(days=1)
         
+    # Filter by Active Account
     posts = db.query(Post).filter(
         Post.org_id == org.id,
+        Post.ig_account_id == active_acc_id,
         Post.scheduled_time >= query_start,
         Post.scheduled_time < query_end
     ).all()
@@ -1238,19 +1276,13 @@ async def app_calendar_page(
     </div>
     """
     
-    # --- COMMON LAYOUT DATA ---
-    org_id = user.active_org_id if user.active_org_id else org.id
-    accs = db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
-    primary_acc = accs[0] if accs else None
-    is_connected = primary_acc is not None
-    
-    account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in accs])
-    if not accs:
+    account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in all_accs])
+    if not all_accs:
         account_options = '<option value="">No accounts connected</option>'
         
     connected_account_info = f"""
         <div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2">
-            <span class="text-brand font-black text-[10px] tracking-tighter uppercase">@{primary_acc.username if primary_acc else "Account"}</span>
+            <span class="text-brand font-black text-[10px] tracking-tighter uppercase">@{active_acc.username if active_acc else "Account"}</span>
             <button onclick="disconnectMetaAccount()" class="hover:text-rose-500 transition-colors opacity-60 hover:opacity-100">
                 <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
@@ -1277,14 +1309,22 @@ async def app_automations_page(
 ):
     # REMOVED FORCED ONBOARDING REDIRECT
     org = db.query(Org).filter(Org.id == user.active_org_id).first()
+    
+    # --- Unified Account Context ---
+    active_acc, all_accs, is_connected = get_active_context(db, user, org.id)
+    active_acc_id = active_acc.id if active_acc else 0
+
     admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""
     
-    autos = db.query(TopicAutomation).filter(TopicAutomation.org_id == user.active_org_id).all()
+    # Filter by Active Account
+    autos = db.query(TopicAutomation).filter(
+        TopicAutomation.org_id == user.active_org_id,
+        TopicAutomation.ig_account_id == active_acc_id
+    ).all()
     
     # Fetch accounts for "New Automation" selection
-    accounts = db.query(IGAccount).filter(IGAccount.org_id == user.active_org_id).all()
-    account_options = "".join([f'<option value="{a.id}">{a.name} (@{a.ig_user_id})</option>' for a in accounts])
-    if not accounts:
+    account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name})</option>' for a in all_accs])
+    if not all_accs:
         account_options = '<option value="">No accounts connected</option>'
     
     autos_html = ""
@@ -1383,19 +1423,13 @@ async def app_automations_page(
     </div>
     """
 
-    # --- COMMON LAYOUT DATA ---
-    org_id = user.active_org_id if user.active_org_id else org.id
-    accs = db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
-    primary_acc = accs[0] if accs else None
-    is_connected = primary_acc is not None
-    
-    account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in accs])
-    if not accs:
+    account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in all_accs])
+    if not all_accs:
         account_options = '<option value="">No accounts connected</option>'
         
     connected_account_info = f"""
         <div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2">
-            <span class="text-brand font-black text-[10px] tracking-tighter uppercase">@{primary_acc.username if primary_acc else "Account"}</span>
+            <span class="text-brand font-black text-[10px] tracking-tighter uppercase">@{active_acc.username if active_acc else "Account"}</span>
             <button onclick="disconnectMetaAccount()" class="hover:text-rose-500 transition-colors opacity-60 hover:opacity-100">
                 <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
@@ -1422,7 +1456,32 @@ async def app_media_page(
 ):
     # REMOVED FORCED ONBOARDING REDIRECT
     org = db.query(Org).filter(Org.id == user.active_org_id).first()
+    
+    # --- Unified Account Context ---
+    active_acc, all_accs, is_connected = get_active_context(db, user, org.id)
+    active_acc_id = active_acc.id if active_acc else 0
+
     admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""
+    
+    # Filter Media by Active Account
+    from app.models import MediaAsset
+    media = db.query(MediaAsset).filter(
+        MediaAsset.org_id == org.id,
+        MediaAsset.ig_account_id == active_acc_id
+    ).all()
+    
+    media_html = ""
+    for m in media:
+        media_html += f"""
+        <div class="card overflow-hidden group/media relative">
+            <img src="{m.url}" class="w-full h-48 object-cover">
+            <div class="absolute inset-0 bg-brand/40 opacity-0 group-hover/media:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                <button onclick="window.open('{m.url}', '_blank')" class="p-3 bg-white text-brand rounded-full hover:scale-110 transition-transform shadow-xl">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke-width="2"/></svg>
+                </button>
+            </div>
+        </div>
+        """
     
     content = """
     <div class="space-y-12">
@@ -1438,6 +1497,11 @@ async def app_media_page(
             </button>
         </div>
       </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {media_html}
+        </div>
+        
+        {"""
         <div id="mediaEmptyState" class="card p-24 rounded-[3rem] border-brand/10 border-dashed border-2 bg-brand/[0.01] text-center flex flex-col items-center justify-center space-y-10 relative overflow-hidden">
             <div class="absolute top-0 right-0 w-64 h-64 bg-brand/[0.01] rounded-full -mr-32 -mt-32"></div>
             <div class="w-24 h-24 rounded-[2.5rem] bg-brand/5 flex items-center justify-center border border-brand/10 shadow-inner">
@@ -1449,22 +1513,17 @@ async def app_media_page(
             </div>
             <div class="badge-premium relative">No manifested assets found</div>
         </div>
+        """ if not media_html else ""}
     </div>
     """
     
-    # --- COMMON LAYOUT DATA ---
-    org_id = user.active_org_id if user.active_org_id else org.id
-    accs = db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
-    primary_acc = accs[0] if accs else None
-    is_connected = primary_acc is not None
-    
-    account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in accs])
-    if not accs:
+    account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in all_accs])
+    if not all_accs:
         account_options = '<option value="">No accounts connected</option>'
-
+        
     connected_account_info = f"""
         <div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2">
-            <span class="text-brand font-black text-[10px] tracking-tighter uppercase">@{primary_acc.username if primary_acc else "Account"}</span>
+            <span class="text-brand font-black text-[10px] tracking-tighter uppercase">@{active_acc.username if active_acc else "Account"}</span>
             <button onclick="disconnectMetaAccount()" class="hover:text-rose-500 transition-colors opacity-60 hover:opacity-100">
                 <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
