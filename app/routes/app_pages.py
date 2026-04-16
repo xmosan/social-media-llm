@@ -713,69 +713,75 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
     # --- Fetch Accounts for Switcher ---
     switcher_html = ""
     active_acc = None
-    fallback_avatar = "https://ui-avatars.com/api/?background=0F3D2E&color=fff&name="
-    if db and org:
-        accs = db.query(IGAccount).filter(IGAccount.org_id == org.id).order_by(IGAccount.active.desc()).all()
+    fallback_avatar_base = "https://ui-avatars.com/api/?background=0F3D2E&color=fff&bold=true&name="
+    if db and user:
+        # Get all orgs the user belongs to to ensure we find their connected accounts
+        user_orgs = db.query(OrgMember.org_id).filter(OrgMember.user_id == user.id).all()
+        user_org_ids = [o[0] for o in user_orgs]
+        
+        # Query accounts across all those orgs
+        accs = db.query(IGAccount).filter(IGAccount.org_id.in_(user_org_ids)).order_by(IGAccount.active.desc()).all()
+        
         active_acc = next((a for a in accs if a.active), accs[0] if accs else None)
         
         if accs:
             acc_list_items = ""
             for a in accs:
-                is_active = a.id == (active_acc.id if active_acc else None)
+                is_active = active_acc and a.id == active_acc.id
                 active_indicator = '<div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>' if is_active else ""
                 
-                acc_avatar = a.profile_picture_url or f"{fallback_avatar}{a.username}"
+                safe_name = a.username or "Studio"
+                acc_avatar = a.profile_picture_url if (a.profile_picture_url and "http" in a.profile_picture_url) else f"{fallback_avatar_base}{safe_name}"
+                
                 acc_list_items += f"""
-                <div onclick="setActiveAccount({a.id})" class="flex items-center justify-between p-3 rounded-xl hover:bg-brand/5 cursor-pointer transition-all group">
+                <div onclick="setActiveAccount('{a.id}')" class="flex items-center justify-between p-3 rounded-xl hover:bg-brand/5 cursor-pointer transition-all group">
                     <div class="flex items-center gap-3">
-                        <img src="{acc_avatar}" onerror="this.src='{fallback_avatar}{a.username}'" class="w-8 h-8 rounded-full border border-brand/10 shadow-sm">
+                        <img src="{acc_avatar}" onerror="this.src='{fallback_avatar_base}{safe_name}'" class="w-8 h-8 rounded-full border border-brand/10 shadow-sm object-cover">
                         <div class="flex flex-col">
                             <span class="text-[11px] font-black text-brand group-hover:translate-x-0.5 transition-transform">@{a.username}</span>
-                            <span class="text-[9px] font-bold text-brand/40 uppercase tracking-widest">{a.name[:15] + "..." if len(a.name) > 15 else a.name}</span>
+                            <span class="text-[9px] font-bold text-brand/30 uppercase tracking-widest leading-none">{(a.name[:15] + '...') if a.name and len(a.name) > 15 else (a.name or 'Sabeel Platform')}</span>
                         </div>
                     </div>
                     {active_indicator}
                 </div>
                 """
             
-            active_avatar = active_acc.profile_picture_url or f"{fallback_avatar}{active_acc.username}"
+            active_avatar = active_acc.profile_picture_url if (active_acc and active_acc.profile_picture_url and "http" in active_acc.profile_picture_url) else f"{fallback_avatar_base}{active_acc.username if active_acc else 'Studio'}"
             switcher_html = f"""
-            <div class="relative inline-block text-left" id="accountSwitcherRoot">
-                <button onclick="toggleAccountSwitcher(event)" class="flex items-center gap-3 p-2 pr-4 bg-white/60 hover:bg-white border border-brand/10 rounded-2xl transition-all shadow-sm group">
+            <div class="relative inline-block text-left" id="accountSwitcherRoot" style="z-index: 99999;">
+                <button onclick="toggleAccountSwitcher(event)" type="button" id="switcherToggleButton" class="relative flex items-center gap-3 p-2 pr-4 bg-white border border-brand/10 rounded-2xl transition-all shadow-sm group hover:border-brand/30">
                     <div class="relative">
-                        <img src="{active_avatar}" onerror="this.src='{fallback_avatar}{active_acc.username}'" class="w-9 h-9 rounded-full border-2 border-brand/5 shadow-inner">
+                        <img src="{active_avatar}" onerror="this.src='{fallback_avatar_base}{active_acc.username if active_acc else 'Studio'}'" class="w-9 h-9 rounded-full border-2 border-brand/5 shadow-inner object-cover bg-brand/5">
                         <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
                     </div>
                     <div class="hidden md:flex flex-col items-start pr-2">
-                        <span class="text-[10px] font-black text-brand tracking-tight">@{active_acc.username}</span>
+                        <span class="text-[10px] font-black text-brand tracking-tight">@{active_acc.username if active_acc else 'Studio'}</span>
                         <span class="text-[8px] font-bold text-brand/30 uppercase tracking-widest">Active Platform</span>
                     </div>
                     <svg class="w-3.5 h-3.5 text-brand/30 group-hover:text-brand/60 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
                 </button>
-                
-                <div id="accountSwitcherDropdown" class="hidden absolute left-0 mt-3 w-64 bg-white/95 backdrop-blur-xl border border-brand/10 rounded-[1.5rem] shadow-2xl p-3 z-[100] animate-in fade-in slide-in-from-top-2 duration-300">
-                    <div class="px-3 py-2 mb-2 border-b border-brand/5">
-                        <span class="text-[9px] font-black text-brand/30 uppercase tracking-[0.3em]">Switch Platform</span>
-                    </div>
-                    <div class="space-y-1 max-h-64 overflow-y-auto custom-scrollbar">
+
+                <div id="accountSwitcherDropdown" class="hidden absolute right-0 mt-3 w-72 bg-white border border-brand/5 rounded-3xl shadow-2xl z-[9000] p-3 animate-in fade-in zoom-in-95 duration-200">
+                    <div class="px-3 py-2 text-[9px] font-black text-text-muted uppercase tracking-[0.2em] mb-2">Connected Platforms</div>
+                    <div class="space-y-1.5">
                         {acc_list_items}
                     </div>
-                    <div class="mt-3 pt-3 border-t border-brand/5">
-                        <button onclick="window.location.href='/auth/instagram/login'" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-brand/5 text-[10px] font-black text-brand/60 hover:text-brand transition-all uppercase tracking-widest">
-                            <div class="w-8 h-8 rounded-full bg-brand/5 flex items-center justify-center">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
+                    <div class="mt-4 pt-4 border-t border-brand/5">
+                        <button onclick="window.location.href='/auth/instagram/login'" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-brand/5 transition-all group">
+                            <div class="w-8 h-8 rounded-full bg-brand/5 flex items-center justify-center text-brand/40 group-hover:bg-brand/10 group-hover:text-brand transition-all">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
                             </div>
-                            Connect Another
+                            <span class="text-[11px] font-black text-brand italic">Connect Another Platform</span>
                         </button>
                     </div>
                 </div>
             </div>
             """
         else:
-            switcher_html = """
-            <button onclick="window.location.href='/auth/instagram/login'" class="flex items-center gap-3 p-2 pr-6 bg-brand/[0.03] hover:bg-brand/5 border border-brand/10 rounded-2xl transition-all shadow-sm group">
-                <div class="w-9 h-9 rounded-full bg-brand/5 flex items-center justify-center text-brand/30">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
+            switcher_html = f"""
+            <button onclick="window.location.href='/auth/instagram/login'" type="button" class="relative flex items-center gap-3 p-2 pr-4 bg-brand/[0.03] hover:bg-brand/[0.06] border border-brand/10 rounded-2xl transition-all group">
+                <div class="w-9 h-9 rounded-full bg-brand/5 flex items-center justify-center text-brand/30 group-hover:text-brand transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
                 </div>
                 <div class="flex flex-col items-start pr-2">
                     <span class="text-[10px] font-black text-brand tracking-tight">Connect Account</span>

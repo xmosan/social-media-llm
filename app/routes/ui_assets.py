@@ -4,13 +4,22 @@
 STUDIO_SCRIPTS_JS = """
 <script>
     // --- ACCOUNT SWITCHER LOGIC ---
-    window.toggleAccountSwitcher = function(event) {
-        if (event) event.stopPropagation();
+    window.toggleAccountSwitcher = function(ev) {
         const dropdown = document.getElementById('accountSwitcherDropdown');
-        if (dropdown) dropdown.classList.toggle('hidden');
+        if (dropdown) {
+            dropdown.classList.toggle('hidden');
+            // Force high z-index on open
+            if (!dropdown.classList.contains('hidden')) {
+                dropdown.style.display = 'block';
+                dropdown.style.zIndex = '99999';
+            } else {
+                dropdown.style.display = 'none';
+            }
+        }
     };
 
     window.setActiveAccount = async function(accountId) {
+        if (!accountId) return;
         try {
             const res = await fetch(`/ig-accounts/set-active/${accountId}`, {
                 method: 'POST',
@@ -19,21 +28,23 @@ STUDIO_SCRIPTS_JS = """
             if (res.ok) {
                 window.location.reload();
             } else {
-                alert('Failed to switch platform context');
+                alert('Connection to Platform failed. Re-syncing...');
+                window.location.reload();
             }
         } catch (e) {
-            console.error('Switch error:', e);
-            alert('Connection lost. Please try again.');
+            console.error('Account Switch Critical Failure:', e);
         }
     };
 
-    // Close dropdowns on outside click
-    document.addEventListener('click', (e) => {
-        const switcherDropdown = document.getElementById('accountSwitcherDropdown');
-        const switcherRoot = document.getElementById('accountSwitcherRoot');
-        if (switcherDropdown && !switcherDropdown.classList.contains('hidden')) {
-            if (switcherRoot && !switcherRoot.contains(e.target)) {
-                switcherDropdown.classList.add('hidden');
+    // Handle clicks outside the switcher
+    document.addEventListener('mousedown', (e) => {
+        const dropdown = document.getElementById('accountSwitcherDropdown');
+        const trigger = id => document.getElementById(id);
+        const root = trigger('accountSwitcherRoot');
+        if (dropdown && !dropdown.classList.contains('hidden')) {
+            if (root && !root.contains(e.target)) {
+                dropdown.classList.add('hidden');
+                dropdown.style.display = 'none';
             }
         }
     });
@@ -391,60 +402,6 @@ STUDIO_SCRIPTS_JS = """
             btn.innerText = original;
             btn.disabled = false;
         }
-    }
-
-    async function renderAccountSwitcher() {
-        const container = document.getElementById('navbarAccountSwitcher');
-        if (!container) return;
-        try {
-            const res = await fetch('/ig-accounts/me');
-            const accounts = await res.json();
-            if (accounts.length === 0) {
-                container.innerHTML = `<button onclick="openConnectInstagramModal()" class="flex items-center gap-2 px-3 py-1.5 bg-brand text-white rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-brand-hover transition-all">Link Meta</button>`;
-                return;
-            }
-            const active = accounts.find(a => a.active) || accounts[0];
-            container.innerHTML = `
-                <div class="relative inline-block text-left" id="accountSwitcherRoot">
-                    <button onclick="toggleSwitcherDropdown()" class="flex items-center gap-3 px-3 py-2 bg-white border border-brand/10 rounded-xl hover:bg-brand/[0.02] transition-all group">
-                        <img src="${active.profile_picture_url || 'https://ui-avatars.com/api/?name=' + active.username}" class="w-6 h-6 rounded-full ring-2 ring-brand/10 group-hover:ring-brand/20 transition-all">
-                        <div class="text-left hidden lg:block">
-                            <div class="text-[9px] font-black text-brand uppercase tracking-wider">@${active.username}</div>
-                            <div class="text-[7px] font-bold text-text-muted uppercase tracking-widest">Active Studio</div>
-                        </div>
-                        <svg class="w-3 h-3 text-text-muted/40 group-hover:text-brand transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
-                    </button>
-                    <div id="switcherDropdown" class="hidden absolute right-0 mt-2 w-64 bg-white border border-brand/5 rounded-2xl shadow-2xl z-[100] p-2 animate-in fade-in zoom-in-95 duration-200">
-                        <div class="px-3 py-2 text-[8px] font-black text-text-muted uppercase tracking-[0.2em] mb-1">Your Workspaces</div>
-                        <div class="space-y-1">
-                            \${accounts.map(acc => \`
-                                <button type="button" onclick="setActiveAccount('\${acc.id}')" class="w-full flex items-center justify-between p-2 rounded-xl transition-all \${acc.id === active.id ? 'bg-brand/5 border border-brand/5' : 'hover:bg-brand/[0.02]'}">
-                                    <div class="flex items-center gap-3">
-                                        <img src="\${acc.profile_picture_url || 'https://ui-avatars.com/api/?name=' + acc.username}" class="w-8 h-8 rounded-lg">
-                                        <div class="text-left">
-                                            <div class="text-[10px] font-bold text-brand">@\${acc.username}</div>
-                                            <div class="text-[8px] text-text-muted font-medium">\${acc.fb_page_id ? 'Instagram Business' : 'Personal'}</div>
-                                        </div>
-                                    </div>
-                                    \${acc.id === active.id ? '<div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>' : ''}
-                                </button>
-                            \`).join('')}
-                        </div>
-                    </div>
-                </div>\`;
-        } catch (e) { console.error("Account switcher failed", e); }
-    }
-
-    function toggleSwitcherDropdown() {
-        const drop = document.getElementById('switcherDropdown');
-        if (drop) drop.classList.toggle('hidden');
-    }
-
-    async function setActiveAccount(id) {
-        try {
-            const res = await fetch('/ig-accounts/set-active/' + id, { method: 'POST' });
-            if (res.ok) window.location.reload();
-        } catch (e) { console.error("Set active account failed", e); }
     }
 
     window.addEventListener('load', () => {
