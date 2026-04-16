@@ -1,7 +1,7 @@
-# Sabeel Knowledge Library: Neural Hub (v2.0)
-# Isolated Router for high-fidelity knowledge discovery and Studio manifestation.
+# Sabeel Knowledge Library: Neural Hub (v3.0 — Quran Browser Edition)
+# Isolated Router with dedicated Quran browsing experience.
 
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse
 from app.security.auth import require_user
 from app.models import User
@@ -9,247 +9,412 @@ from .ui_assets import APP_LAYOUT_HTML, STUDIO_SCRIPTS_JS, STUDIO_COMPONENTS_HTM
 
 router = APIRouter(tags=["Neural Hub"])
 
-LIBRARY_HTML = """
-<div id="neuralHub" class="min-h-screen animate-in fade-in duration-700">
-    <!-- Header: Glass Hub -->
-    <div class="glass p-12 mb-12 relative overflow-hidden group">
-        <div class="absolute top-0 right-0 w-96 h-96 bg-brand/[0.02] rounded-full -mr-48 -mt-48 transition-transform duration-1000 group-hover:scale-110"></div>
-        <div class="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-end gap-8">
-            <div class="space-y-4">
-                <div class="flex items-center gap-3">
-                    <span class="px-3 py-1 bg-brand text-white text-[8px] font-black uppercase tracking-[0.3em] rounded-full">Foundation v2</span>
-                    <span id="syncStatus" class="flex items-center gap-2 text-[8px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-3 py-1 rounded-full">
-                        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                        Neural Nodes Active
-                    </span>
-                </div>
-                <h1 class="text-6xl font-black text-brand tracking-tighter italic leading-none">Knowledge<br><span class="text-accent underline decoration-brand/5 decoration-8 underline-offset-[12px]">Library</span></h1>
-                <p class="text-sm text-text-muted font-medium max-w-xl leading-relaxed italic opacity-80">"Surface authenticated wisdom from the Sabeel archives and manifest it directly into your Studio workspace."</p>
-            </div>
-            
-            <div class="flex items-center gap-6">
-                <div class="text-right">
-                    <div id="collectionCount" class="text-4xl font-black text-brand italic leading-none">114</div>
-                    <div class="text-[9px] font-bold text-text-muted uppercase tracking-[0.3em] mt-2">Active Collections</div>
-                </div>
-                <div class="w-px h-12 bg-brand/10"></div>
-                <div class="text-right">
-                    <div id="usagePercent" class="text-4xl font-black text-accent italic leading-none">24%</div>
-                    <div class="text-[9px] font-bold text-text-muted uppercase tracking-[0.3em] mt-2">Storage Usage</div>
-                </div>
-            </div>
-        </div>
+LIBRARY_HTML = """\
+<div id="neuralHub">
+
+<!-- ===== TAB NAVIGATION ===== -->
+<div class="flex items-center gap-1 mb-10 border-b border-brand/8 pb-0">
+  <button onclick="LibHub.setTab('quran')" id="tab-quran" class="lib-tab active px-6 py-4 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all">Qur'an</button>
+  <button onclick="LibHub.setTab('wisdom')" id="tab-wisdom" class="lib-tab px-6 py-4 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all">Wisdom</button>
+  <button onclick="LibHub.setTab('org')" id="tab-org" class="lib-tab px-6 py-4 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all">Organization</button>
+</div>
+
+<!-- ===== QURAN TAB ===== -->
+<div id="panel-quran" class="lib-panel">
+  <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-3 mb-2">
+        <span class="text-[9px] font-black uppercase tracking-[0.4em] text-brand/40">Foundation</span>
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block"></span>
+        <span class="text-[9px] font-black uppercase tracking-widest text-emerald-600">6,236 Verses Indexed</span>
+      </div>
+      <h1 class="text-5xl font-black text-brand tracking-tighter italic">The Holy Qur'an</h1>
+      <p class="text-sm text-text-muted mt-2 italic">Sahih International Translation</p>
+    </div>
+    <div class="relative w-full md:w-96">
+      <input type="text" id="quranSearch" oninput="QuranBrowser.onSearch()" placeholder="Search verse, surah, or reference (e.g. 2:255)..." class="w-full bg-white border border-brand/10 rounded-2xl pl-10 pr-10 py-3 text-sm font-medium text-brand outline-none focus:border-brand/30 transition-all placeholder:text-brand/25 shadow-sm">
+      <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand/25" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2" stroke-linecap="round"/></svg>
+      <button onclick="QuranBrowser.clearSearch()" id="searchClear" class="absolute right-3 top-1/2 -translate-y-1/2 hidden text-brand/30 hover:text-brand transition-colors text-xl leading-none">&times;</button>
+    </div>
+  </div>
+
+  <div id="quranLayout" class="flex gap-6" style="height: calc(100vh - 290px);">
+
+    <!-- LEFT: Surah Index -->
+    <div class="w-64 flex-shrink-0 bg-white rounded-2xl border border-brand/8 shadow-sm overflow-hidden flex flex-col">
+      <div class="px-4 py-3 border-b border-brand/8 flex items-center justify-between gap-2">
+        <span class="text-[10px] font-black uppercase tracking-widest text-brand/50 whitespace-nowrap">114 Surahs</span>
+        <input type="text" id="surahFilter" oninput="QuranBrowser.filterSurahs()" placeholder="Filter..." class="w-24 text-xs bg-brand/5 border-0 rounded-lg px-2 py-1 text-brand outline-none placeholder:text-brand/30">
+      </div>
+      <div id="surahIndex" class="overflow-y-auto flex-1 custom-scrollbar">
+        <div class="p-4 text-center text-brand/30 text-xs animate-pulse">Loading...</div>
+      </div>
     </div>
 
-    <!-- Interface Controls -->
-    <div class="flex flex-col md:flex-row gap-8 mb-12">
-        <!-- Sidebar Navigation -->
-        <div class="w-full md:w-64 space-y-8">
-            <div class="space-y-3">
-                <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Scope Intelligence</label>
-                <div class="flex flex-col gap-2">
-                    <button onclick="NeuralLibrary.setScope('global')" id="scopeGlobal" class="scope-btn active w-full flex items-center justify-between p-4 rounded-2xl border transition-all hover:bg-brand/[0.02]">
-                        <span class="text-[11px] font-bold uppercase tracking-widest">Foundation</span>
-                        <div class="dot w-2 h-2 rounded-full bg-brand"></div>
-                    </button>
-                    <button onclick="NeuralLibrary.setScope('org')" id="scopeOrg" class="scope-btn w-full flex items-center justify-between p-4 rounded-2xl border transition-all text-text-muted group hover:bg-brand/[0.02]">
-                        <span class="text-[11px] font-bold uppercase tracking-widest">Organizational</span>
-                        <div class="dot w-2 h-2 rounded-full bg-brand/10"></div>
-                    </button>
-                </div>
-            </div>
+    <!-- RIGHT: Verse Reading Panel -->
+    <div class="flex-1 bg-white rounded-2xl border border-brand/8 shadow-sm overflow-hidden flex flex-col">
 
-            <div class="space-y-4">
-                <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Knowledge Sources</label>
-                <div id="sourcesList" class="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar pr-2 pb-4">
-                    <!-- Dynamic Sources -->
-                </div>
-            </div>
+      <div id="surahHeader" class="px-8 py-5 border-b border-brand/8 flex items-start justify-between flex-shrink-0">
+        <div>
+          <div id="surahHeaderTitle" class="text-xl font-black text-brand tracking-tight">Select a Surah</div>
+          <div id="surahHeaderMeta" class="text-xs text-text-muted mt-0.5">Choose from the index on the left to begin reading</div>
         </div>
+        <div id="surahHeaderAr" class="text-2xl font-arabic text-brand/60 text-right ml-4"></div>
+      </div>
 
-        <!-- Main Workspace -->
-        <div class="flex-1 space-y-10">
-            <!-- Global Search -->
-            <div class="relative group z-30">
-                <input type="text" id="libSearch" oninput="NeuralLibrary.search()" placeholder="Search through scriptures, archives, and wisdom nodes..." class="w-full bg-white border-2 border-brand/5 rounded-[2.5rem] px-16 py-8 text-lg font-medium text-brand outline-none focus:border-brand/20 transition-all shadow-xl shadow-brand/[0.02] placeholder:text-brand/20">
-                <div class="absolute left-6 top-1/2 -translate-y-1/2 text-brand/20 group-focus-within:text-brand transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-                </div>
-            </div>
+      <div id="searchResultsPanel" class="hidden flex-1 overflow-y-auto custom-scrollbar">
+        <div id="searchResults"></div>
+      </div>
 
-            <!-- Content Grid -->
-            <div id="libraryGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <!-- Dynamic Entry Cards -->
-                <div class="col-span-full py-20 text-center animate-pulse text-[10px] font-black text-brand uppercase tracking-[0.4em]">Initializing Core Foundational Link...</div>
-            </div>
+      <div id="versesPanel" class="flex-1 overflow-y-auto custom-scrollbar">
+        <div id="versesContainer">
+          <div id="versesPlaceholder" class="flex flex-col items-center justify-center py-24 text-center text-brand/20">
+            <div class="text-6xl mb-4">&#x1F4D6;</div>
+            <div class="text-sm font-bold uppercase tracking-widest">Select a Surah to Begin Reading</div>
+          </div>
         </div>
+      </div>
     </div>
+  </div>
+</div>
+
+<!-- ===== WISDOM TAB ===== -->
+<div id="panel-wisdom" class="lib-panel hidden">
+  <div class="mb-8">
+    <h1 class="text-5xl font-black text-brand tracking-tighter italic mb-2">Wisdom Archive</h1>
+    <p class="text-sm text-text-muted italic">Curated quotes, hadith, and reflections</p>
+  </div>
+  <div class="relative mb-8">
+    <input type="text" id="wisdomSearch" oninput="WisdomLib.search()" placeholder="Search wisdom, quotes, hadith..." class="w-full bg-white border border-brand/10 rounded-2xl pl-10 pr-4 py-4 text-sm font-medium text-brand outline-none focus:border-brand/30 transition-all placeholder:text-brand/25 shadow-sm">
+    <svg class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-brand/25" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2" stroke-linecap="round"/></svg>
+  </div>
+  <div id="wisdomGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="col-span-full py-12 text-center text-brand/30 text-xs uppercase tracking-widest animate-pulse">Loading wisdom archive...</div>
+  </div>
+</div>
+
+<!-- ===== ORG TAB ===== -->
+<div id="panel-org" class="lib-panel hidden">
+  <div class="mb-8">
+    <h1 class="text-5xl font-black text-brand tracking-tighter italic mb-2">Organization Knowledge</h1>
+    <p class="text-sm text-text-muted italic">Your uploaded content, documents, and resource library</p>
+  </div>
+  <div id="orgGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="col-span-full py-12 text-center text-brand/30 text-xs uppercase tracking-widest animate-pulse">Loading organization library...</div>
+  </div>
+</div>
+
 </div>
 
 <style>
-    .scope-btn.active { border-color: var(--brand); background: rgba(15, 61, 46, 0.05); color: var(--brand); }
-    .scope-btn { border-color: transparent; }
-    .source-item { transition: all 150ms ease; }
-    .source-item:hover { transform: translateX(4px); }
-    .entry-card { transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1); }
-    .entry-card:hover { transform: translateY(-8px); }
+  .lib-tab { color: rgba(15,61,46,0.35); border-color: transparent; }
+  .lib-tab.active { color: var(--brand); border-color: var(--brand); }
+  .lib-tab:hover:not(.active) { color: rgba(15,61,46,0.6); }
+  .surah-item { cursor: pointer; transition: all 120ms ease; padding: 10px 16px; display: flex; align-items: center; gap: 10px; }
+  .surah-item:hover { background: rgba(15,61,46,0.04); }
+  .surah-item.active { background: rgba(15,61,46,0.07); border-right: 3px solid var(--brand); }
+  .surah-num { width: 26px; font-size: 9px; font-weight: 900; color: rgba(15,61,46,0.3); text-align: right; flex-shrink: 0; }
+  .surah-name-en { font-size: 12px; font-weight: 700; color: var(--brand); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .surah-name-ar { font-size: 12px; color: rgba(15,61,46,0.55); flex-shrink: 0; font-family: 'Amiri', serif; }
+  .verse-row { padding: 22px 32px; display: flex; gap: 20px; transition: background 150ms ease; border-bottom: 1px solid rgba(15,61,46,0.05); }
+  .verse-row:hover { background: rgba(15,61,46,0.018); }
+  .verse-num-badge { width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid rgba(15,61,46,0.15); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 900; color: rgba(15,61,46,0.4); flex-shrink: 0; margin-top: 6px; }
+  .verse-content { flex: 1; min-width: 0; }
+  .verse-arabic { font-family: 'Amiri', 'Scheherazade New', 'Noto Naskh Arabic', serif; font-size: 22px; line-height: 2; text-align: right; color: #1a3a2e; direction: rtl; margin-bottom: 10px; }
+  .verse-translation { font-size: 14px; line-height: 1.75; color: #4a5568; font-style: italic; margin-bottom: 10px; }
+  .verse-translation.missing { color: rgba(15,61,46,0.2); font-style: normal; font-size: 11px; }
+  .verse-meta { display: flex; align-items: center; justify-content: space-between; }
+  .verse-ref { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: rgba(15,61,46,0.35); }
+  .verse-actions { display: flex; gap: 8px; opacity: 0; transition: opacity 150ms ease; }
+  .verse-row:hover .verse-actions { opacity: 1; }
+  .btn-manifest { background: var(--brand); color: white; border: none; padding: 6px 14px; border-radius: 20px; font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; transition: all 150ms ease; white-space: nowrap; }
+  .btn-manifest:hover { background: var(--brand-hover); transform: scale(1.03); }
+  .btn-copy { background: transparent; border: 1px solid rgba(15,61,46,0.15); color: rgba(15,61,46,0.5); padding: 6px 12px; border-radius: 20px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; transition: all 150ms ease; white-space: nowrap; }
+  .btn-copy:hover { border-color: var(--brand); color: var(--brand); }
+  .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(15,61,46,0.15); border-radius: 4px; }
+  .wisdom-card { background: white; border: 1px solid rgba(15,61,46,0.08); border-radius: 16px; padding: 24px; transition: all 200ms ease; }
+  .wisdom-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(15,61,46,0.08); }
+  @import url('https://fonts.googleapis.com/css2?family=Amiri:ital@0;1&display=swap');
 </style>
 
 <script>
-    const NeuralLibrary = {
-        state: {
-            scope: 'global', // global | org
-            sourceId: null,
-            loading: false
-        },
+const LibHub = {
+  currentTab: 'quran',
+  setTab(id) {
+    this.currentTab = id;
+    document.querySelectorAll('.lib-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    document.querySelectorAll('.lib-panel').forEach(p => p.classList.add('hidden'));
+    document.getElementById('panel-' + id).classList.remove('hidden');
+    if (id === 'quran' && !QuranBrowser._loaded) QuranBrowser.init();
+    if (id === 'wisdom' && !WisdomLib._loaded) WisdomLib.init();
+    if (id === 'org' && !OrgLib._loaded) OrgLib.init();
+  }
+};
 
-        init() {
-            console.log("Neural Hub: Initializing discovery engine...");
-            this.loadSources();
-            this.loadEntries();
-        },
+const QuranBrowser = {
+  _loaded: false,
+  _surahs: [],
+  _currentSurah: null,
+  _searchTimer: null,
 
-        setScope(s) {
-            this.state.scope = s;
-            document.querySelectorAll('.scope-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('scope' + s.charAt(0).toUpperCase() + s.slice(1)).classList.add('active');
-            this.state.sourceId = null;
-            this.loadSources();
-            this.loadEntries();
-        },
+  async init() {
+    this._loaded = true;
+    await this.loadSurahIndex();
+    this.loadSurah(1);
+  },
 
-        async loadSources() {
-            const list = document.getElementById('sourcesList');
-            if (!list) return;
-            try {
-                const url = this.state.scope === 'global' ? '/api/quran/surahs' : '/api/library/sources';
-                const res = await fetch(url);
-                const rawData = await res.json();
-                const data = Array.isArray(rawData) ? rawData : (rawData.surahs || []);
-                
-                list.innerHTML = data.map(s => `
-                    <button onclick="NeuralLibrary.setSource('${s.number || s.id}')" class="source-item w-full text-left p-4 rounded-xl border border-brand/5 hover:bg-brand/5 transition-all group ${this.state.sourceId == (s.number || s.id) ? 'bg-brand/5 border-brand/20' : ''}">
-                        <div class="text-[11px] font-black text-brand uppercase tracking-widest opacity-60 group-hover:opacity-100">${s.name_en || s.title || s.name}</div>
-                        ${(s.name_ar || s.english_name) ? `<div class="text-[9px] text-text-muted font-bold tracking-tight opacity-40 group-hover:opacity-100 transition-opacity">${s.name_ar || s.english_name}</div>` : ''}
-                    </button>
-                `).join('');
-                
-                document.getElementById('collectionCount').innerText = data.length;
-            } catch (e) {
-                console.error("Neural Hub Source Error:", e);
-            }
-        },
+  async loadSurahIndex() {
+    try {
+      const res = await fetch('/api/quran/surahs');
+      const data = await res.json();
+      this._surahs = Array.isArray(data) ? data : [];
+      this.renderSurahIndex(this._surahs);
+    } catch(e) {
+      document.getElementById('surahIndex').innerHTML = '<div class="p-4 text-rose-400 text-xs">Failed to load surah list.</div>';
+    }
+  },
 
-        setSource(id) {
-            this.state.sourceId = id;
-            this.loadSources();
-            this.loadEntries();
-        },
+  renderSurahIndex(surahs) {
+    const el = document.getElementById('surahIndex');
+    if (!surahs.length) {
+      el.innerHTML = '<div class="p-4 text-brand/25 text-xs text-center italic">No surahs found</div>';
+      return;
+    }
+    el.innerHTML = surahs.map(s => `
+      <div class="surah-item ACTIVE_CLASS" id="surah-item-SURAHNUM" onclick="QuranBrowser.loadSurah(SURAHNUM)"
+           style="ACTIVE_CLASS"
+      >
+        <span class="surah-num">SURAHNUM</span>
+        <span class="surah-name-en">NAMEEN</span>
+        <span class="surah-name-ar">NAMEAR</span>
+      </div>
+    `.replace(/SURAHNUM/g, s.number)
+     .replace('NAMEEN', (s.name_en || '').replace(/</g,'&lt;'))
+     .replace('NAMEAR', (s.name_ar || '').replace(/</g,'&lt;'))
+     .replace(/ACTIVE_CLASS/g, this._currentSurah == s.number ? 'active' : '')
+    ).join('');
+  },
 
-        async loadEntries() {
-            const grid = document.getElementById('libraryGrid');
-            if (!grid) return;
-            grid.innerHTML = '<div class="col-span-full py-20 text-center animate-pulse text-[10px] font-black text-brand uppercase tracking-[0.4em]">Synthesizing Neural Nodes...</div>';
-            
-            try {
-                const url = this.state.scope === 'global' 
-                    ? `/api/quran/surahs/${this.state.sourceId || 1}`
-                    : `/api/library/entries?scope=org${this.state.sourceId ? '&source_id='+this.state.sourceId : ''}`;
-                
-                const res = await fetch(url);
-                const data = await res.json();
-                
-                const items = this.state.scope === 'global' ? (data.verses || []) : (Array.isArray(data) ? data : []);
-                const sourceTitle = this.state.scope === 'global' ? data.name_en : data.title;
-                
-                if (!items || items.length === 0) {
-                    grid.innerHTML = '<div class="col-span-full py-20 text-center text-[10px] font-black text-brand uppercase tracking-[0.4em] opacity-40 italic">Empty Wisdom Archive</div>';
-                    return;
-                }
+  filterSurahs() {
+    const q = (document.getElementById('surahFilter').value || '').toLowerCase();
+    const filtered = this._surahs.filter(s =>
+      s.name_en.toLowerCase().includes(q) ||
+      (s.name_ar || '').includes(q) ||
+      String(s.number).startsWith(q)
+    );
+    this.renderSurahIndex(filtered);
+  },
 
-                grid.innerHTML = items.map((v, idx) => `
-                    <div class="entry-card card p-8 group relative overflow-hidden bg-white hover:bg-brand/[0.01]">
-                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-30 transition-opacity">
-                            <span class="text-4xl font-black text-brand italic">#${v.verse_number || idx + 1}</span>
-                        </div>
-                        <div class="space-y-6 relative z-10">
-                            ${v.text_arabic ? `<div class="text-2xl text-right font-arabic leading-loose text-brand/80 pb-2">${v.text_arabic}</div>` : ''}
-                            <div class="text-[13px] text-text-main font-medium leading-relaxed italic opacity-80 group-hover:opacity-100 transition-opacity">
-                                "${v.text || v.translation_text || v.content}"
-                            </div>
-                            <div class="pt-6 border-t border-brand/5 flex justify-between items-center">
-                                <div>
-                                    <div class="text-[10px] font-black text-brand uppercase tracking-widest">${v.reference || sourceTitle || 'ARCHIVE'}</div>
-                                    <div class="text-[8px] font-bold text-accent uppercase tracking-[0.2em] mt-1">${this.state.scope === 'global' ? 'Foundation Intelligence' : 'Organizational Node'}</div>
-                                </div>
-                                <button onclick="NeuralLibrary.manifest('${this.state.scope === 'global' ? 'quran' : 'entry'}', '${v.id}', \`${((v.text || v.translation_text || v.content) || '').replace(/'/g, "\\'").replace(/"/g, '&quot;')}\`, '${v.reference || sourceTitle}')" class="px-6 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl shadow-brand/10 hover:scale-[1.05] active:scale-95 transition-all">Manifest</button>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-                
-            } catch (e) {
-                console.error("Neural Hub Entry Error:", e);
-                grid.innerHTML = '<div class="col-span-full py-20 text-center text-rose-500 font-bold uppercase tracking-widest">Neural Link Severed • Retry in T-minus 5s</div>';
-            }
-        },
+  async loadSurah(num) {
+    this._currentSurah = num;
+    document.querySelectorAll('.surah-item').forEach(el => el.classList.remove('active'));
+    const item = document.getElementById('surah-item-' + num);
+    if (item) {
+      item.classList.add('active');
+      item.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+    this.hideSearch();
 
-        async search() {
-            const grid = document.getElementById('libraryGrid');
-            const query = document.getElementById('libSearch').value;
-            if (query.length < 3) {
-                if (query.length === 0) this.loadEntries();
-                return;
-            }
+    const container = document.getElementById('versesContainer');
+    const placeholder = document.getElementById('versesPlaceholder');
+    if (placeholder) placeholder.remove();
+    container.innerHTML = '<div class="px-8 py-20 text-center text-brand/20 text-xs animate-pulse uppercase tracking-widest">Loading verses\u2026</div>';
+    document.getElementById('surahHeaderTitle').textContent = 'Loading\u2026';
+    document.getElementById('surahHeaderMeta').textContent = '';
+    document.getElementById('surahHeaderAr').textContent = '';
 
-            grid.innerHTML = '<div class="col-span-full py-20 text-center animate-pulse text-[10px] font-black text-brand uppercase tracking-[0.4em]">Filtering Foundational Matrices...</div>';
-            
-            try {
-                const url = this.state.scope === 'global'
-                    ? `/api/quran/search?q=${encodeURIComponent(query)}`
-                    : `/api/library/entries?query=${encodeURIComponent(query)}&scope=org`;
-                
-                const res = await fetch(url);
-                const data = await res.json();
-                const items = Array.isArray(data) ? data : [];
-                
-                if (items.length === 0) {
-                    grid.innerHTML = '<div class="col-span-full py-20 text-center text-[10px] font-black text-brand uppercase tracking-[0.4em] opacity-40 italic">Zero Matches Found</div>';
-                    return;
-                }
+    try {
+      const res = await fetch('/api/quran/surahs/' + num);
+      const data = await res.json();
+      const verses = data.verses || [];
+      const meta = this._surahs.find(s => s.number == num) || {};
 
-                grid.innerHTML = items.map((v, idx) => `
-                    <div class="entry-card card p-8 group relative bg-white overflow-hidden border border-brand/5">
-                        <div class="space-y-6">
-                            ${v.text_arabic ? `<div class="text-xl text-right font-arabic leading-loose text-brand/60">${v.text_arabic}</div>` : ''}
-                            <div class="text-[13px] text-text-main font-medium leading-relaxed italic opacity-80 group-hover:opacity-100 transition-opacity">
-                                "${v.text || v.translation_text || v.content}"
-                            </div>
-                            <div class="pt-6 border-t border-brand/5 flex justify-between items-center">
-                                <div class="text-[10px] font-black text-brand uppercase tracking-widest">${v.title || v.reference || 'ARCHIVE'}</div>
-                                <button onclick="NeuralLibrary.manifest('entry', '${v.id}', \`${((v.text || v.translation_text || v.content) || '').replace(/'/g, "\\'").replace(/"/g, '&quot;')}\`, '${v.title || v.reference}')" class="px-6 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl shadow-brand/10 hover:scale-[1.05] transition-all">Manifest</button>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-            } catch (e) { console.error(e); }
-        },
+      document.getElementById('surahHeaderTitle').textContent = num + '. ' + (data.name_en || meta.name_en || 'Surah ' + num);
+      document.getElementById('surahHeaderMeta').textContent = (data.revelation_place || meta.revelation_type || '') + ' \u00b7 ' + (data.total_verses || verses.length) + ' verses \u00b7 Sahih International';
+      document.getElementById('surahHeaderAr').textContent = data.name_ar || meta.name_ar || '';
 
-        manifest(type, id, text, reference) {
-            console.log("Neural Hub: Manifesting Node " + id);
-            const bridge = {
-                type: type === 'quran' ? 'quran_verse' : 'quote',
-                id: id,
-                text: text,
-                reference: reference,
-                timestamp: Date.now()
-            };
-            sessionStorage.setItem('sabeel_pending_quote_item', JSON.stringify(bridge));
-            window.location.href = '/app?studio=true';
-        }
-    };
+      if (!verses.length) {
+        container.innerHTML = '<div class="px-8 py-16 text-center text-brand/30 text-sm italic">No verses found. Translations may still be loading \u2014 please refresh in a moment.</div>';
+        return;
+      }
 
-    window.addEventListener('load', () => NeuralLibrary.init());
+      const surahName = data.name_en || 'Surah ' + num;
+      container.innerHTML = verses.map(v => this.renderVerse(v, surahName)).join('');
+    } catch(e) {
+      container.innerHTML = '<div class="px-8 py-16 text-center text-rose-400 text-sm">Failed to load verses. Please try again.</div>';
+    }
+  },
+
+  renderVerse(v, surahName) {
+    const ref = v.reference || v.verse_key || '';
+    const arabic = (v.arabic_text || '').replace(/</g, '&lt;');
+    const translationRaw = v.translation_text || '';
+    const hasTrans = translationRaw && translationRaw !== '[Translation not available]';
+    const translation = hasTrans ? translationRaw.replace(/</g, '&lt;') : '';
+    const verseNum = v.ayah_number || v.verse_number || '';
+    const id = v.id || '';
+
+    // Safe strings for onclick attributes (double-escape backslash)
+    const safeTransJs = (translation || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\"/g, '&quot;');
+    const safeArabicJs = (v.arabic_text || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\"/g, '&quot;');
+    const safeRefJs = ref.replace(/'/g, "\\'");
+
+    return [
+      '<div class="verse-row">',
+        '<div class="verse-num-badge">' + verseNum + '</div>',
+        '<div class="verse-content">',
+          arabic ? '<div class="verse-arabic">' + arabic + '</div>' : '',
+          hasTrans
+            ? '<div class="verse-translation">&ldquo;' + translation + '&rdquo;</div>'
+            : '<div class="verse-translation missing">Translation loading \u2014 check back shortly</div>',
+          '<div class="verse-meta">',
+            '<span class="verse-ref">Qur\u02bcान ' + ref + '</span>',
+            '<div class="verse-actions">',
+              '<button class="btn-copy" onclick="QuranBrowser.copyVerse(\'' + safeRefJs + '\', \'' + safeTransJs + '\')">Copy</button>',
+              '<button class="btn-manifest" onclick="QuranBrowser.manifest(\'' + id + '\', \'' + safeTransJs + '\', \'' + safeRefJs + '\', \'' + safeArabicJs + '\')">Use in Quote Card</button>',
+            '</div>',
+          '</div>',
+        '</div>',
+      '</div>'
+    ].join('');
+  },
+
+  onSearch() {
+    const q = (document.getElementById('quranSearch').value || '').trim();
+    document.getElementById('searchClear').classList.toggle('hidden', !q);
+    clearTimeout(this._searchTimer);
+    if (!q) { this.hideSearch(); return; }
+    if (q.length < 2) return;
+    this._searchTimer = setTimeout(() => this.runSearch(q), 350);
+  },
+
+  async runSearch(q) {
+    document.getElementById('searchResultsPanel').classList.remove('hidden');
+    document.getElementById('versesPanel').classList.add('hidden');
+    document.getElementById('surahHeader').style.display = 'none';
+    const el = document.getElementById('searchResults');
+    el.innerHTML = '<div class="px-8 py-12 text-center text-brand/20 text-xs animate-pulse uppercase tracking-widest">Searching\u2026</div>';
+    try {
+      const res = await fetch('/api/quran/search?q=' + encodeURIComponent(q) + '&limit=20');
+      const items = await res.json();
+      const arr = Array.isArray(items) ? items : [];
+      if (!arr.length) {
+        el.innerHTML = '<div class="px-8 py-12 text-center text-brand/25 text-sm italic">No verses found for &ldquo;' + q + '&rdquo;</div>';
+        return;
+      }
+      el.innerHTML = '<div class="px-8 py-3 text-[10px] font-black uppercase tracking-widest text-brand/40">' + arr.length + ' result' + (arr.length !== 1 ? 's' : '') + ' for &ldquo;' + q + '&rdquo;</div>' +
+        arr.map(v => this.renderVerse(v, v.surah_name_en || '')).join('');
+    } catch(e) {
+      el.innerHTML = '<div class="px-8 py-12 text-center text-rose-400 text-sm">Search failed. Please try again.</div>';
+    }
+  },
+
+  clearSearch() {
+    document.getElementById('quranSearch').value = '';
+    document.getElementById('searchClear').classList.add('hidden');
+    this.hideSearch();
+  },
+
+  hideSearch() {
+    document.getElementById('searchResultsPanel').classList.add('hidden');
+    document.getElementById('versesPanel').classList.remove('hidden');
+    document.getElementById('surahHeader').style.display = '';
+  },
+
+  copyVerse(ref, text) {
+    const full = '"' + text + '" \u2014 Qur\u02bcaan ' + ref;
+    navigator.clipboard.writeText(full).then(() => {
+      // Flash feedback
+      const btn = event.target;
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = orig, 1500);
+    }).catch(() => {});
+  },
+
+  manifest(id, text, reference, arabic) {
+    const bridge = { type: 'quran_verse', id, text, reference, arabic_text: arabic, timestamp: Date.now() };
+    sessionStorage.setItem('sabeel_pending_quote_item', JSON.stringify(bridge));
+    window.location.href = '/app?studio=true';
+  }
+};
+
+const WisdomLib = {
+  _loaded: false,
+  _timer: null,
+
+  async init() {
+    this._loaded = true;
+    await this.load('');
+  },
+
+  search() {
+    clearTimeout(this._timer);
+    this._timer = setTimeout(() => this.load(document.getElementById('wisdomSearch').value), 300);
+  },
+
+  async load(q) {
+    const grid = document.getElementById('wisdomGrid');
+    grid.innerHTML = '<div class="col-span-full py-12 text-center text-brand/25 text-xs animate-pulse uppercase tracking-widest">Loading\u2026</div>';
+    try {
+      const url = q ? '/api/library/entries?query=' + encodeURIComponent(q) + '&scope=global' : '/api/library/entries?scope=global';
+      const res = await fetch(url);
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : (data.items || []);
+      if (!items.length) {
+        grid.innerHTML = '<div class="col-span-full py-12 text-center text-brand/25 text-sm italic">No results found</div>';
+        return;
+      }
+      grid.innerHTML = items.map(item => {
+        const txt = (item.content || item.text || item.translation_text || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        const ref = (item.reference || item.title || 'Archive').replace(/"/g, '&quot;');
+        const safeT = txt.replace(/'/g, "\\'");
+        const safeR = ref.replace(/'/g, "\\'");
+        return '<div class="wisdom-card"><div class="text-sm leading-relaxed text-text-main italic mb-4">&ldquo;' + txt + '&rdquo;</div><div class="flex items-center justify-between pt-3 border-t border-brand/5"><span class="text-[9px] font-black uppercase tracking-widest text-brand/40">' + ref + '</span><button onclick="WisdomLib.manifest(\'' + item.id + '\', \'' + safeT + '\', \'' + safeR + '\')" class="btn-manifest text-[8px]">Use in Studio</button></div></div>';
+      }).join('');
+    } catch(e) { grid.innerHTML = '<div class="col-span-full py-12 text-center text-brand/25 text-sm italic">Failed to load</div>'; }
+  },
+
+  manifest(id, text, reference) {
+    const bridge = { type: 'quote', id, text, reference, timestamp: Date.now() };
+    sessionStorage.setItem('sabeel_pending_quote_item', JSON.stringify(bridge));
+    window.location.href = '/app?studio=true';
+  }
+};
+
+const OrgLib = {
+  _loaded: false,
+  async init() {
+    this._loaded = true;
+    const grid = document.getElementById('orgGrid');
+    try {
+      const res = await fetch('/api/library/entries?scope=org');
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : (data.items || []);
+      if (!items.length) {
+        grid.innerHTML = '<div class="col-span-full py-16 text-center"><p class="text-brand/25 text-sm italic">No organizational content yet.</p><p class="text-brand/20 text-xs mt-2">Upload documents or add content from the admin panel.</p></div>';
+        return;
+      }
+      grid.innerHTML = items.map(item => {
+        const txt = (item.content || item.text || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        const ref = (item.title || 'Document').replace(/"/g, '&quot;');
+        const safeT = txt.replace(/'/g, "\\'");
+        const safeR = ref.replace(/'/g, "\\'");
+        return '<div class="wisdom-card"><div class="text-sm leading-relaxed text-text-main italic mb-4">&ldquo;' + txt + '&rdquo;</div><div class="flex items-center justify-between pt-3 border-t border-brand/5"><span class="text-[9px] font-black uppercase tracking-widest text-brand/40">' + ref + '</span><button onclick="OrgLib.manifest(\'' + item.id + '\', \'' + safeT + '\', \'' + safeR + '\')" class="btn-manifest text-[8px]">Use in Studio</button></div></div>';
+      }).join('');
+    } catch(e) { grid.innerHTML = '<div class="col-span-full py-12 text-center text-brand/25 text-sm italic">Failed to load</div>'; }
+  },
+  manifest(id, text, reference) {
+    const bridge = { type: 'quote', id, text, reference, timestamp: Date.now() };
+    sessionStorage.setItem('sabeel_pending_quote_item', JSON.stringify(bridge));
+    window.location.href = '/app?studio=true';
+  }
+};
+
+window.addEventListener('load', () => { LibHub.setTab('quran'); });
 </script>
 """
 
@@ -260,17 +425,12 @@ from app.models import Org
 @router.get("/library", response_class=HTMLResponse)
 @router.get("/app/library", response_class=HTMLResponse)
 async def neural_library_page(request: Request, user: User = Depends(require_user), db: Session = Depends(get_db)):
-    # Render with the isolated layout and core components
-    final_content = LIBRARY_HTML
-    
-    # Fetch Org name safely
     org = db.query(Org).filter(Org.id == user.active_org_id).first()
     org_name = org.name if org else "Foundation"
-    
-    # Bundle components and scripts into the layout
+
     return APP_LAYOUT_HTML.format(
         title="Knowledge Library",
-        content=final_content,
+        content=LIBRARY_HTML,
         user_name=user.name or user.email,
         org_name=org_name,
         active_dashboard="",
@@ -278,7 +438,7 @@ async def neural_library_page(request: Request, user: User = Depends(require_use
         active_automations="",
         active_library="active",
         active_media="",
-        admin_link="", # Admin check can be added
+        admin_link="",
         connected_account_info="",
         studio_modal=STUDIO_COMPONENTS_HTML,
         connect_instagram_modal="",

@@ -98,7 +98,7 @@ def get_translations_catalog() -> list:
     data = qf_get("/resources/translations")
     return data.get("translations", [])
 
-def get_surah_verses(chapter_number: int, translation_ids: str = "131") -> list:
+def get_surah_verses(chapter_number: int, translation_ids: str = "20") -> list:
     """
     Fetches all verses for a specific chapter (Surah), handling pagination.
     Default translation: Sahih International (ID 131).
@@ -129,7 +129,7 @@ def get_surah_verses(chapter_number: int, translation_ids: str = "131") -> list:
         
     return all_verses
 
-def get_verse_by_key(verse_key: str, translation_ids: str = "131") -> dict:
+def get_verse_by_key(verse_key: str, translation_ids: str = "20") -> dict:
     """
     Fetches a specific verse by key (e.g. '70:5').
     """
