@@ -1,0 +1,152 @@
+import logging
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
+import json
+
+from app.db import get_db
+from sqlalchemy.orm import Session
+from app.models import Post
+from app.security.rbac import get_current_org_id
+
+from app.services.quote_message_service import build_quote_card_message
+from app.services.visual_service import VisualRequest, generate_visual
+# NOTE: Using exactly what main.py used for caption logic to avoid regressions
+from app.services.llm import generate_islamic_caption 
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/studio", tags=["studio"])
+
+@router.post("/generate-card-message")
+def studio_generate_card_message(data: dict):
+    """
+    Phase 3: Generate strictly the structured card message payload.
+    Separated from caption generation.
+    """
+    source_type = data.get("source_type", "manual")
+    source_payload = data.get("source_payload", {})
+    tone = data.get("tone", "calm")
+    intent = data.get("intent", "wisdom")
+
+    try:
+        card_msg = build_quote_card_message(source_type, source_payload, tone, intent)
+        return {"card_message": card_msg}
+    except Exception as e:
+        logger.error(f"[STUDIO] Card Message generation failed: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/generate-caption")
+def studio_generate_caption(data: dict):
+    """
+    Phase 3: Generate the social media caption explicitly.
+    Does NOT affect or generate visual card text.
+    """
+    intention = data.get("intention") or data.get("intent")
+    topic = data.get("topic")
+    tone = data.get("tone", "calm")
+    
+    # Optional explicitly passed source metadata to inject (for Quran trace)
+    source_payload = data.get("source_payload")
+    if source_payload and data.get("source_type") == "quran":
+         reference = source_payload.get("reference") or source_payload.get("verse_key")
+         if reference and topic:
+              topic = f"{reference} - {topic}"
+         elif reference:
+              topic = reference
+
+    try:
+        caption = generate_islamic_caption(intention, topic, tone)
+        return {"caption": caption}
+    except Exception as e:
+        logger.error(f"[STUDIO] Caption generation failed: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+@router.post("/generate-visual")
+def studio_generate_visual(data: dict):
+    """
+    Phase 3: Route explicitly into Visual Service Facade for all Studio image generation.
+    """
+    req = VisualRequest(
+        theme=data.get("theme", data.get("style", "sacred_black")),
+        atmosphere=data.get("atmosphere", "contemplative"),
+        ornament_level=data.get("ornament_level", "corner"),
+        custom_prompt=data.get("visual_prompt"),
+        card_message=data.get("card_message"),
+        style=data.get("style", "quran"),
+        mode=data.get("mode", "preset"),
+        engine=data.get("engine", "dalle"),
+        glossy=data.get("glossy", False),
+        readability_priority=data.get("readability_priority", True),
+        experimental_mode=data.get("experimental_mode", False),
+        text_style_prompt=data.get("text_style_prompt", ""),
+    )
+    
+    res = generate_visual(req)
+    if not res.ok:
+        return JSONResponse(status_code=500, content={"error": res.error})
+        
+    return {
+        "image_url": res.url,
+        "mode_used": req.mode or "preset",
+        "style_used": req.style,
+        "prompt_applied": bool(req.custom_prompt)
+    }
+
+
+@router.post("/create-post")
+def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
+    """
+    Phase 3: Safely create a one-off post by assembling the separated payloads.
+    Guarantees structural traceability for source data mapping.
+    """
+    ig_account_id = data.get("ig_account_id")
+    if not ig_account_id:
+        raise HTTPException(status_code=400, detail="ig_account_id required")
+        
+    source_type = data.get("source_type", "manual")
+    source_reference = data.get("source_reference")
+    source_metadata = data.get("source_metadata")
+    source_text = data.get("source_text") or data.get("topic") or ""
+    
+    # Safe isolation
+    card_msg = data.get("card_message")
+    caption_msg = data.get("caption_message") or data.get("caption", "")
+    
+    # Convert structures mapped from UI
+    if isinstance(card_msg, str):
+        try: card_msg = json.loads(card_msg)
+        except: card_msg = None
+        
+    post = Post(
+        org_id=org_id,
+        ig_account_id=ig_account_id,
+        status=data.get("status", "drafted"),
+        source_type=source_type,
+        source_reference=source_reference,
+        source_metadata=source_metadata,
+        source_text=source_text,
+        topic=data.get("topic"),
+        media_url=data.get("media_url"),
+        card_message=card_msg,
+        caption_message=caption_msg if isinstance(caption_msg, dict) else {"caption": caption_msg},
+        post_format=data.get("post_format"),
+        visual_style=data.get("visual_style"),
+        # Fill default intelligence fields cleanly:
+        intent_type=data.get("intent_type"),
+        message_hint=data.get("message_hint")
+    )
+    
+    db.add(post)
+    db.commit()
+    db.refresh(post)
+    
+    return post
+
+@router.get("/post/{id}")
+def studio_get_post(id: int, db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
+    post = db.query(Post).filter(Post.id == id, Post.org_id == org_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return post

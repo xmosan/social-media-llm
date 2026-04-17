@@ -56,17 +56,17 @@ def run_admin_library_migration():
 
     log_startup("MIGRATION: Finished all schema checks.")
 
+def run_startup_tasks():
+    from app.db import SessionLocal
     # Phase 2: Seed Style DNA presets
     try:
         from app.services.automation_service import seed_style_dna
         db = SessionLocal()
         seed_style_dna(db)
         db.close()
-        log_startup("MIGRATION: Style DNA seeding complete.")
+        log_startup("STARTUP_TASKS: Style DNA seeding complete.")
     except Exception as e:
-        log_startup(f"MIGRATION: Style DNA seeding failed: {e}")
-        
-    log_startup("MIGRATION: Finished aggressive library schema checks.")
+        log_startup(f"STARTUP_TASKS: Style DNA seeding failed: {e}")
 
 # -------------------------------------------------
 
@@ -313,86 +313,27 @@ async def api_generate_caption(req: CaptionGenerateRequest, db: Session = Depend
 
 @app.post("/generate-caption")
 async def generate_caption(data: dict):
-    print("🔥 Incoming request:", data)
-
-    caption = generate_islamic_caption(
-        data.get("intention"),
-        data.get("topic"),
-        data.get("tone", "calm")
-    )
-
-    print("🔥 Generated caption:", caption)
-
-    return {"caption": caption}
+    # Phase 3 Legacy Compat Wrapper
+    from app.routes.studio import studio_generate_caption
+    return studio_generate_caption(data)
 
 @app.post("/generate-quote-card", summary="Generate a Cinematic Quote Card")
 async def api_generate_quote_card(data: dict):
-    caption      = data.get("caption", "").strip()
-    card_message  = data.get("card_message")
-    style        = data.get("style", "quran")
-    visual_prompt = (data.get("visual_prompt") or "").strip()
-    text_style_prompt = (data.get("text_style_prompt") or "").strip()
-    engine       = data.get("engine", "dalle")
-    glossy       = data.get("glossy", False)
-    mode         = data.get("mode", "preset")
-    readability_priority = data.get("readability_priority", True)
-    experimental_mode = data.get("experimental_mode", False)
+    # Phase 3 Legacy Compat Wrapper
+    from app.routes.studio import studio_generate_visual
+    from fastapi.responses import JSONResponse
     
-    # Auto-detect mode if not explicitly sent
-    if style == "custom":
-        mode = "custom"
-    elif visual_prompt and mode == "preset":
-        mode = "custom"  # visual_prompt always means custom
-
-    print(f"\n{'*'*60}")
-    print(f"🚀 [API] /generate-quote-card")
-    print(f"   mode:         {mode}")
-    print(f"   style:        {style}")
-    print(f"   engine:       {engine}")
-    print(f"   glossy:       {glossy}")
-    print(f"   visual_prompt:{repr(visual_prompt)[:80]}")
-    if card_message:
-        print(f"   card_msg:     {list(card_message.keys())}")
-    else:
-        print(f"   caption[:60]: {repr(caption[:60])}")
-    print(f"{'*'*60}")
-
-    if not caption and not card_message:
-        return JSONResponse(status_code=400, content={"error": "Caption or card_message is required"})
-
-    if mode == "custom" and not visual_prompt:
-        return JSONResponse(status_code=400, content={
-            "error": "A visual description is required in Prophetic Vision mode.",
-            "hint": "Describe the atmosphere using keywords like: marble, navy, emerald, gold borders, starry..."
-        })
+    # Pre-map legacy string values for VisualRequest layout
+    caption = data.get("caption", "").strip()
+    if caption and not data.get("card_message"):
+        data["card_message"] = {"headline": caption}
 
     try:
-        image_url = generate_quote_card(
-            caption=caption,
-            style=style,
-            visual_prompt=visual_prompt or None,
-            mode=mode,
-            text_style_prompt=text_style_prompt,
-            readability_priority=readability_priority,
-            experimental_mode=experimental_mode,
-            engine=engine,
-            glossy=glossy,
-            card_message=card_message
-        )
-        return {
-            "image_url":      image_url,
-            "mode_used":      mode,
-            "style_used":     style,
-            "prompt_applied": bool(visual_prompt),
-        }
+        return studio_generate_visual(data)
     except Exception as e:
         import traceback
-        tb = traceback.format_exc()
-        print(f"\n❌ [API] generate-quote-card EXCEPTION:\n{tb}")
-        return JSONResponse(status_code=500, content={
-            "error": str(e)[:200],
-            "hint":  "Check server logs for full traceback."
-        })
+        print(f"\n❌ [API] generate-quote-card EXCEPTION:\n{traceback.format_exc()}")
+        return JSONResponse(status_code=500, content={"error": str(e)[:200]})
 
 @app.get("/ready")
 def readiness_check():
@@ -411,7 +352,8 @@ os.makedirs(settings.uploads_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=settings.uploads_dir), name="uploads")
 
 # Include Routers
-from .routes import neural_hub
+from .routes import neural_hub, studio
+app.include_router(studio.router)
 app.include_router(neural_hub.router)
 app.include_router(public.router)
 app.include_router(posts.router)
@@ -542,8 +484,9 @@ def on_startup():
     log_startup("STARTUP: Running migrations...")
     try:
         run_admin_library_migration()
+        run_startup_tasks()
     except Exception as e:
-        log_startup(f"STARTUP: Admin library migration failed: {e}")
+        log_startup(f"STARTUP: Migrations/Startup Tasks failed: {e}")
 
     # 4. Bootstrap
     try:
