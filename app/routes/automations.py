@@ -55,7 +55,44 @@ def create_automation(
     reload_automation_jobs(lambda: db)
     return new_auto
 
-@router.get("/{id}", response_model=TopicAutomationOut)
+@router.get("/meta/style-presets")
+def get_style_presets(
+    org_id: int = Depends(get_current_org_id)
+):
+    """
+    Returns the available system Style DNA presets.
+    Phase 1: Returns in-memory presets.
+    Phase 2: Will merge in org-specific custom presets from the style_dna table.
+    """
+    return {"presets": list_system_presets()}
+
+@router.get("/debug/llm-test")
+def debug_llm_test(
+    topic: str,
+    style: str = "islamic_reminder",
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
+):
+    """Smoke test for LLM generation."""
+    try:
+        res = generate_topic_caption(topic=topic, style=style)
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/run-scheduler-now")
+def run_scheduler_now(
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
+):
+    from app.services.scheduler import publish_due_posts
+    try:
+        count = publish_due_posts(lambda: db)
+        return {"ok": True, "published": count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{id}", response_model=List[TopicAutomationOut] if False else TopicAutomationOut) # Shadow prevention
 def get_automation(
     id: int,
     db: Session = Depends(get_db),
@@ -146,40 +183,3 @@ def automation_history(
         raise HTTPException(status_code=404, detail="Automation not found")
 
     return get_automation_history(db, automation_id=id, org_id=org_id, limit=limit)
-
-@router.get("/meta/style-presets")
-def get_style_presets(
-    org_id: int = Depends(get_current_org_id)
-):
-    """
-    Returns the available system Style DNA presets.
-    Phase 1: Returns in-memory presets.
-    Phase 2: Will merge in org-specific custom presets from the style_dna table.
-    """
-    return {"presets": list_system_presets()}
-
-@router.get("/debug/llm-test")
-def debug_llm_test(
-    topic: str,
-    style: str = "islamic_reminder",
-    db: Session = Depends(get_db),
-    org_id: int = Depends(get_current_org_id)
-):
-    """Smoke test for LLM generation."""
-    try:
-        res = generate_topic_caption(topic=topic, style=style)
-        return res
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/run-scheduler-now")
-def run_scheduler_now(
-    db: Session = Depends(get_db),
-    org_id: int = Depends(get_current_org_id)
-):
-    from app.services.scheduler import publish_due_posts
-    try:
-        count = publish_due_posts(lambda: db)
-        return {"ok": True, "published": count}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))

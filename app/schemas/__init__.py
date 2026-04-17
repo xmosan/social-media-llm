@@ -248,7 +248,6 @@ class TopicAutomationUpdate(BaseModel):
     
     content_profile_id: int | None = None
     creativity_level: int | None = None
-    topic_prompt: str | None = None
     library_topic_slug: str | None = None
     content_seed_mode: str | None = None
     content_seed_text: str | None = None
@@ -357,7 +356,6 @@ class ContentItemUpdate(BaseModel):
     meta: dict | None = None
     tags: list[str] | None = None
     topic: str | None = None
-    topics: list[str] | None = None
     topics: list[str] | None = None
 
 class MediaAssetOut(BaseModel):
