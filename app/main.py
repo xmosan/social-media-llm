@@ -56,6 +56,16 @@ def run_admin_library_migration():
 
     log_startup("MIGRATION: Finished all schema checks.")
 
+    # Phase 2: Seed Style DNA presets
+    try:
+        from app.services.automation_service import seed_style_dna
+        db = SessionLocal()
+        seed_style_dna(db)
+        db.close()
+        log_startup("MIGRATION: Style DNA seeding complete.")
+    except Exception as e:
+        log_startup(f"MIGRATION: Style DNA seeding failed: {e}")
+        
     log_startup("MIGRATION: Finished aggressive library schema checks.")
 
 # -------------------------------------------------

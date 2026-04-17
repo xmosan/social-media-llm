@@ -200,6 +200,25 @@ class ContentProfile(Base):
     org = relationship("Org")
     automations = relationship("TopicAutomation", back_populates="content_profile")
 
+class StyleDNA(Base):
+    __tablename__ = "style_dna"
+    id = Column(Integer, primary_key=True, index=True)
+    org_id = Column(Integer, ForeignKey("orgs.id"), nullable=True, index=True)
+    name = Column(String, nullable=False)
+    family = Column(String, nullable=False)
+    atmosphere = Column(String, nullable=False)
+    palette_key = Column(String, nullable=True)
+    ornament_level = Column(String, nullable=False)
+    tone_style = Column(String, nullable=False)
+    variation_pool = Column(JSON, nullable=False)
+    locked_traits = Column(JSON, nullable=False)
+    is_system_preset = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    org = relationship("Org")
+    automations = relationship("TopicAutomation", back_populates="style_dna")
+
 class TopicAutomation(Base):
     __tablename__ = "topic_automations"
     id = Column(Integer, primary_key=True, index=True)
@@ -271,6 +290,10 @@ class TopicAutomation(Base):
     tone_style = Column(String, nullable=False, default="deep") # soft, deep, direct, emotional
     verification_mode = Column(String, nullable=False, default="standard") # strict, standard, off
 
+    # NEW: Phase 2 Automation Evolution
+    style_dna_id = Column(Integer, ForeignKey("style_dna.id"), nullable=True)
+    automation_version = Column(Integer, nullable=False, default=1)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -280,6 +303,7 @@ class TopicAutomation(Base):
     content_usages = relationship("ContentUsage", back_populates="automation")
     media_asset = relationship("MediaAsset")
     content_profile = relationship("ContentProfile", back_populates="automations")
+    style_dna = relationship("StyleDNA", back_populates="automations")
 
 class ContentSource(Base):
     __tablename__ = "content_sources"

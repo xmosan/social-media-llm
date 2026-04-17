@@ -422,11 +422,108 @@ STUDIO_SCRIPTS_JS = """
             } catch (e) { console.error("Studio Bridge Failure:", e); }
         }
     });
+
+    // --- PHASE 2: AUTOMATION V2 UI LOGIC ---
+    let v2DnaPresets = [];
+
+    async function loadStyleDnaPresets() {
+        if (v2DnaPresets.length > 0) return;
+        try {
+            const res = await fetch('/automations/meta/style-presets');
+            const data = await res.json();
+            v2DnaPresets = data.presets || [];
+            
+            const select = document.getElementById('autoV2StyleDNA');
+            if (select) {
+                select.innerHTML = v2DnaPresets.map(p => `<option value="${p.id || ''}">${p.label} (${p.atmosphere} / ${p.tone_style})</option>`).join('');
+            }
+        } catch (e) {
+            console.error('Failed to load style DNA presets: ', e);
+        }
+    }
+
+    window.showNewAutoModal = async function() {
+        const modal = document.getElementById('newAutoModalV2');
+        if (modal) {
+            modal.classList.remove('hidden');
+            await loadStyleDnaPresets();
+            document.getElementById('autoV2Form').dataset.editId = "";
+            document.getElementById('autoV2Form').reset();
+        }
+    };
+    
+    window.closeNewAutoModal = function() {
+        const modal = document.getElementById('newAutoModalV2');
+        if (modal) modal.classList.add('hidden');
+    };
+
+    window.submitNewAutoV2 = async function(event) {
+        event.preventDefault();
+        const btn = document.getElementById('btnSubmitAutoV2');
+        const original = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = 'Initializing Plan...';
+
+        const form = event.target;
+        const payload = {
+            name: form.name.value,
+            ig_account_id: parseInt(document.getElementById('studioAccount') ? document.getElementById('studioAccount').value : form.ig_account_id_hidden.value),
+            topic_prompt: form.topic_prompt.value,
+            style_dna_id: form.style_dna_id.value ? parseInt(form.style_dna_id.value) : null,
+            automation_version: 2,
+            posting_mode: 'schedule',
+            post_time_local: form.post_time_local.value,
+            enabled: true
+        };
+
+        try {
+            const endpoint = form.dataset.editId ? `/automations/${form.dataset.editId}` : `/automations`;
+            const method = form.dataset.editId ? 'PATCH' : 'POST';
+            const res = await fetch(endpoint, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                const err = await res.json();
+                alert('Plan Initialization Failed: ' + (err.detail || 'Unknown error'));
+            }
+        } catch(e) {
+            alert('Request Failed: ' + e);
+        } finally {
+            btn.innerText = original;
+            btn.disabled = false;
+        }
+    };
+
+    window.showEditModal = async function(data) {
+        await loadStyleDnaPresets();
+        const modal = document.getElementById('newAutoModalV2');
+        if (!modal) return;
+        
+        const form = document.getElementById('autoV2Form');
+        form.dataset.editId = data.id;
+        
+        form.name.value = data.name || '';
+        if(form.ig_account_id_hidden) form.ig_account_id_hidden.value = data.ig_account_id || '';
+        form.topic_prompt.value = data.topic || '';
+        form.post_time_local.value = data.time || '';
+        
+        if (data.style_dna_id) {
+            form.style_dna_id.value = data.style_dna_id;
+        }
+
+        modal.classList.remove('hidden');
+    };
+
 </script>
 """
 
 STUDIO_COMPONENTS_HTML = """
 <!-- CONTENT STUDIO MODAL -->
+
 <div id="newPostModal" class="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[100] flex items-end md:items-center justify-center p-0 md:p-10 hidden">
     <div class="w-full h-[100vh] md:h-full md:max-w-7xl rounded-none md:rounded-[3rem] overflow-hidden flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in duration-500 border-0 border-t md:border border-brand/5 shadow-2xl bg-white">
       
@@ -562,6 +659,49 @@ STUDIO_COMPONENTS_HTML = """
           </div>
         </div>
       </form>
+    </div>
+</div>
+
+<!-- AUTOMATION V2 MODAL -->
+<div id="newAutoModalV2" class="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[100] flex items-center justify-center p-4 md:p-10 hidden">
+    <div class="w-full max-w-2xl bg-white rounded-3xl overflow-hidden flex flex-col animate-in zoom-in duration-300 shadow-2xl relative">
+        <button type="button" onclick="closeNewAutoModal()" class="absolute top-6 right-6 z-10 w-10 h-10 rounded-full bg-brand/5 border border-brand/10 flex items-center justify-center text-brand hover:bg-brand hover:text-white transition-all">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+        <div class="p-8 md:p-10 border-b border-brand/5">
+            <h3 class="text-2xl font-black text-brand tracking-tight">Growth Plan <span class="text-accent italic">V2</span></h3>
+            <p class="text-sm font-medium text-text-muted mt-2">Create an autonomous content stream with precise Style DNA.</p>
+        </div>
+        <div class="p-8 md:p-10 flex-1 overflow-y-auto">
+            <form id="autoV2Form" onsubmit="submitNewAutoV2(event)" class="space-y-6">
+                <!-- Fallback hidden account field if 'studioAccount' is not active -->
+                <input type="hidden" name="ig_account_id_hidden" value="1">
+                
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Plan Name</label>
+                    <input type="text" name="name" required placeholder="e.g. Daily Friday Sunnah" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
+                </div>
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Core Topic / Guidance</label>
+                    <textarea name="topic_prompt" required placeholder="e.g. Discuss the virtues of Sabr and reflecting on blessings" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-medium text-brand min-h-[100px] outline-none focus:border-brand/30"></textarea>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Style DNA</label>
+                        <select id="autoV2StyleDNA" name="style_dna_id" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Publish Time (Local)</label>
+                        <input type="time" name="post_time_local" required class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
+                    </div>
+                </div>
+                <div class="pt-6">
+                    <button type="submit" id="btnSubmitAutoV2" class="w-full py-5 bg-brand text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all">Initialize Growth Plan</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 """

@@ -178,9 +178,41 @@ class TopicAutomationOut(BaseModel):
     source_mode: str = "balanced"
     tone_style: str = "deep"
     verification_mode: str = "standard"
+    
+    style_dna_id: int | None = None
+    automation_version: int = 1
 
     class Config:
         from_attributes = True
+
+class StyleDNAOut(BaseModel):
+    id: int
+    org_id: int | None = None
+    name: str
+    family: str
+    atmosphere: str
+    palette_key: str | None = None
+    ornament_level: str
+    tone_style: str
+    variation_pool: list[str] = Field(default_factory=list)
+    locked_traits: dict = Field(default_factory=dict)
+    is_system_preset: bool = False
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class StyleDNACreate(BaseModel):
+    name: str
+    family: str
+    atmosphere: str
+    palette_key: str | None = None
+    ornament_level: str
+    tone_style: str
+    variation_pool: list[str] = Field(default_factory=list)
+    locked_traits: dict = Field(default_factory=dict)
+    is_system_preset: bool = False
 
 class TopicAutomationCreate(BaseModel):
     ig_account_id: int
@@ -223,6 +255,9 @@ class TopicAutomationCreate(BaseModel):
     source_mode: str = "balanced"
     tone_style: str = "deep"
     verification_mode: str = "standard"
+    
+    style_dna_id: int | None = None
+    automation_version: int = 1
 
     @validator("media_tag_query", pre=True)
     def parse_media_tag_query(cls, v):
@@ -271,6 +306,9 @@ class TopicAutomationUpdate(BaseModel):
     source_mode: str | None = None
     tone_style: str | None = None
     verification_mode: str | None = None
+    
+    style_dna_id: int | None = None
+    automation_version: int | None = None
 
     @validator("media_tag_query", pre=True)
     def parse_media_tag_query(cls, v):

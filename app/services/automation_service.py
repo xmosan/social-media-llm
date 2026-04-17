@@ -200,9 +200,18 @@ def get_automation_style_dna(automation: TopicAutomation) -> StyleDNASpec:
 
     Returns a StyleDNASpec (always — uses 'islamic_reminder' as fallback).
     """
-    # Phase 2 hook:
-    # if hasattr(automation, 'style_dna_id') and automation.style_dna_id:
-    #     return _load_style_dna_from_db(db, automation.style_dna_id)
+    if getattr(automation, "automation_version", 1) >= 2 and getattr(automation, "style_dna_id", None):
+        from app.models import StyleDNA
+        db_obj = automation.style_dna # relationship should be loaded
+        if db_obj:
+            return StyleDNASpec(
+                family=db_obj.family,
+                atmosphere=db_obj.atmosphere,
+                ornament_level=db_obj.ornament_level,
+                tone_style=db_obj.tone_style,
+                variation_pool=db_obj.variation_pool or [],
+                locked_traits=db_obj.locked_traits or {}
+            )
 
     preset_key = getattr(automation, "style_preset", "islamic_reminder") or "islamic_reminder"
     return SYSTEM_STYLE_DNA_PRESETS.get(
@@ -211,13 +220,31 @@ def get_automation_style_dna(automation: TopicAutomation) -> StyleDNASpec:
     )
 
 
-def list_system_presets() -> list[dict]:
+def list_system_presets(db: Session = None) -> list[dict]:
     """
     Returns all system Style DNA presets.
-    Used by the Automations UI to populate the style picker.
+    Phase 2: Reads from DB.
     """
+    if db:
+        from app.models import StyleDNA
+        presets = db.query(StyleDNA).filter(StyleDNA.is_system_preset == True).all()
+        if presets:
+            return [
+                {
+                    "id": p.id,
+                    "key": p.name.lower().replace(" ", "_"),
+                    "label": p.name,
+                    "family": p.family,
+                    "atmosphere": p.atmosphere,
+                    "ornament_level": p.ornament_level,
+                    "tone_style": p.tone_style,
+                } for p in presets
+            ]
+
+    # Fallback to in-memory if DB not supplied/seeded
     return [
         {
+            "id": None,
             "key": key,
             "label": key.replace("_", " ").title(),
             "family": spec.family,
@@ -227,6 +254,43 @@ def list_system_presets() -> list[dict]:
         }
         for key, spec in SYSTEM_STYLE_DNA_PRESETS.items()
     ]
+
+
+def seed_style_dna(db: Session) -> None:
+    """
+    Phase 2: Safely seed the 6 core system presets into the DB.
+    """
+    from app.models import StyleDNA
+    
+    # Pre-defined mapping of key -> name since the dict keys are technically identifiers
+    preset_names = {
+        "islamic_reminder": "Dark Sacred",
+        "parchment_hadith": "Warm Parchment",
+        "nature_reflection": "Emerald Calm",
+        "celestial": "Celestial Night",
+        "luxury_quote": "Luxury Marble",
+        "desert_hikma": "Sacred Desert"
+    }
+    
+    for key, spec in SYSTEM_STYLE_DNA_PRESETS.items():
+        name = preset_names.get(key, key)
+        # Check if exists
+        exists = db.query(StyleDNA).filter(StyleDNA.name == name, StyleDNA.is_system_preset == True).first()
+        if not exists:
+            new_dna = StyleDNA(
+                org_id=None,
+                name=name,
+                family=spec.family,
+                atmosphere=spec.atmosphere,
+                palette_key=None,
+                ornament_level=spec.ornament_level,
+                tone_style=spec.tone_style,
+                variation_pool=spec.variation_pool,
+                locked_traits=spec.locked_traits,
+                is_system_preset=True
+            )
+            db.add(new_dna)
+    db.commit()
 
 
 def get_automation_history(db: Session, automation_id: int,

@@ -57,14 +57,15 @@ def create_automation(
 
 @router.get("/meta/style-presets")
 def get_style_presets(
-    org_id: int = Depends(get_current_org_id)
+    org_id: int = Depends(get_current_org_id),
+    db: Session = Depends(get_db)
 ):
     """
     Returns the available system Style DNA presets.
     Phase 1: Returns in-memory presets.
     Phase 2: Will merge in org-specific custom presets from the style_dna table.
     """
-    return {"presets": list_system_presets()}
+    return {"presets": list_system_presets(db)}
 
 @router.get("/debug/llm-test")
 def debug_llm_test(
