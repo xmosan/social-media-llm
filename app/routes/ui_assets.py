@@ -507,6 +507,48 @@ STUDIO_SCRIPTS_JS = """
         }
     }
 
+    window.updateAutoV2VisualPreview = function(dnaId) {
+        const swatches = {
+            'dark_sacred': { name: 'Dark Sacred', color: 'bg-[#0F172A]', secondary: 'border-amber-400/50', atmosphere: 'Sacred & Deep' },
+            'emerald_calm': { name: 'Emerald Calm', color: 'bg-emerald-900', secondary: 'border-emerald-400/30', atmosphere: 'Peaceful & Soft' },
+            'celestial_night': { name: 'Celestial Night', color: 'bg-indigo-950', secondary: 'border-blue-400/40', atmosphere: 'Deep & Celestial' },
+            'warm_parchment': { name: 'Warm Parchment', color: 'bg-orange-50', secondary: 'border-brand/10', atmosphere: 'Classic & Scholarly' }
+        };
+        const active = swatches[dnaId] || swatches['dark_sacred'];
+        const swatchEl = document.getElementById('visualStyleSwatch');
+        const nameEl = document.getElementById('visualStyleName');
+        const previewBlock = document.getElementById('autoV2VisualPreview');
+        
+        if (swatchEl && nameEl) {
+            swatchEl.className = `w-16 h-16 rounded-xl shadow-inner border-2 ${active.color} ${active.secondary}`;
+            nameEl.innerText = active.name;
+            previewBlock.classList.remove('hidden');
+        }
+    };
+
+    window.updateAutoV2Summary = function() {
+        const cadence = document.getElementById('autoV2CadenceInput')?.value || 'daily';
+        const mode = document.getElementById('autoV2ApprovalModeInput')?.value || 'auto_approve';
+        const timeInput = document.querySelector('input[name="post_time_local"]')?.value || '09:00';
+        
+        const cadenceText = document.getElementById('summaryCadenceText');
+        const modeText = document.getElementById('summaryModeText');
+        const timeText = document.getElementById('summaryTimeText');
+        
+        if (cadenceText) cadenceText.innerText = cadence === 'daily' ? 'Daily Stream' : 'Weekly Momentum';
+        if (modeText) modeText.innerText = mode === 'auto_approve' ? 'Auto-Pilot (Direct Launch)' : 'Drafting Mode (Requires Approval)';
+        
+        if (timeText) {
+            try {
+                const [h, m] = timeInput.split(':');
+                const hh = parseInt(h);
+                const period = hh >= 12 ? 'PM' : 'AM';
+                const displayH = hh % 12 || 12;
+                timeText.innerText = `${displayH}:${m} ${period}`;
+            } catch(e) { timeText.innerText = timeInput; }
+        }
+    };
+
     window.selectV2StyleDna = function(id, el) {
         const input = document.getElementById('autoV2StyleDNAInput');
         if(input) input.value = id;
@@ -514,6 +556,7 @@ STUDIO_SCRIPTS_JS = """
             c.classList.remove('ring-2', 'ring-brand', 'bg-brand/5', 'shadow-xl');
         });
         if(el) el.classList.add('ring-2', 'ring-brand', 'bg-brand/5', 'shadow-xl');
+        window.updateAutoV2VisualPreview(id);
     };
 
     window.selectApprovalMode = function(mode, el) {
@@ -523,6 +566,7 @@ STUDIO_SCRIPTS_JS = """
             c.classList.remove('ring-2', 'ring-brand', 'shadow-xl');
         });
         if(el) el.classList.add('ring-2', 'ring-brand', 'shadow-xl');
+        window.updateAutoV2Summary();
     };
 
     window.selectCadenceMode = function(mode, el) {
@@ -532,6 +576,7 @@ STUDIO_SCRIPTS_JS = """
             c.classList.remove('ring-2', 'ring-brand', 'shadow-xl');
         });
         if(el) el.classList.add('ring-2', 'ring-brand', 'shadow-xl');
+        window.updateAutoV2Summary();
     };
 
     window.showNewAutoModal = async function() {
@@ -541,6 +586,7 @@ STUDIO_SCRIPTS_JS = """
             await loadStyleDnaPresets();
             document.getElementById('autoV2Form').dataset.editId = "";
             document.getElementById('autoV2Form').reset();
+            window.updateAutoV2Summary();
         }
     };
 
@@ -550,7 +596,7 @@ STUDIO_SCRIPTS_JS = """
         const topic = form.topic_prompt.value;
         if (!topic) { alert("Please provide a CORE TOPIC before testing the engine."); return; }
         
-        btn.innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>';
+        btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>';
         btn.disabled = true;
         
         const container = document.getElementById('autoV2PreviewContainer');
@@ -571,25 +617,46 @@ STUDIO_SCRIPTS_JS = """
             ]);
             
             container.classList.remove('hidden');
-            let txt = `[Pattern Vector Variance Testing]\n`;
-            responses.forEach((data, i) => {
-                txt += `\n====== PREVIEW ${i === 0 ? 'ALPHA' : 'BETA'} ======\n`;
-                if (data.caption) {
-                     txt += `\n${data.caption}\n\n`;
-                     if (data.hashtags && data.hashtags.length) {
-                         txt += `Tags: ${data.hashtags.join(' ')}\n`;
-                     }
-                } else if (data.detail) {
-                     txt += `Error: ${data.detail}\n`;
-                } else {
-                     txt += JSON.stringify(data, null, 2) + `\n`;
-                }
-            });
-            content.innerText = txt;
+            content.innerHTML = responses.map((data, i) => {
+                const type = data.grounding?.item_type || 'reflection';
+                const badgeColor = type === 'quran' ? 'bg-emerald-500' : (type === 'hadith' ? 'bg-indigo-500' : 'bg-brand/40');
+                const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
+                
+                return `
+                    <div class="bg-white border border-brand/5 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="w-1.5 h-1.5 rounded-full ${badgeColor}"></span>
+                                <span class="text-[9px] font-black text-brand uppercase tracking-widest">${typeLabel} Based</span>
+                            </div>
+                            <span class="text-[8px] font-bold text-text-muted uppercase tracking-tighter italic">Sample ${i+1}</span>
+                        </div>
+                        
+                        <div class="space-y-2">
+                             <div class="text-[10px] font-black text-brand italic leading-tight">${data.grounding?.source || 'Perspective Reflection'}</div>
+                             <p class="text-[11px] text-brand/80 font-medium leading-relaxed italic border-l-2 border-brand/5 pl-3">
+                                ${data.caption.split('\n')[0]}
+                             </p>
+                             <div class="text-[10px] text-text-muted leading-relaxed line-clamp-3 opacity-60">
+                                ${data.caption.split('\n').slice(1).join(' ')}
+                             </div>
+                        </div>
+
+                        ${data.hashtags ? `
+                        <div class="pt-2 flex flex-wrap gap-1">
+                            ${data.hashtags.slice(0, 3).map(h => `<span class="text-[8px] font-bold text-accent uppercase tracking-tighter">#${h}</span>`).join('')}
+                        </div>` : ''}
+                    </div>
+                `;
+            }).join('');
+            
+            // Smoothly scroll to preview
+            container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
         } catch(e) {
             alert('Preview Engine disconnected: ' + e.message);
         } finally {
-            btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>';
+            btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg><span class="text-[10px]">Preview Samples</span>';
             btn.disabled = false;
         }
     };
@@ -896,7 +963,7 @@ STUDIO_COMPONENTS_HTML = """
                     </div>
                     <div class="space-y-2 col-span-full">
                         <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Daily Sequence Start Time</label>
-                        <input type="time" name="post_time_local" required class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30 max-w-xs">
+                        <input type="time" name="post_time_local" oninput="updateAutoV2Summary()" required class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30 max-w-xs">
                     </div>
                     <div class="grid grid-cols-2 gap-4 col-span-full">
                         <div class="space-y-2">
@@ -927,21 +994,57 @@ STUDIO_COMPONENTS_HTML = """
                         </div>
                     </div>
                 </div>
-                <div class="pt-6 flex gap-4">
-                    <button type="submit" id="btnSubmitAutoV2" class="flex-1 py-5 bg-brand text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all">Initialize Growth Plan</button>
-                    <button type="button" onclick="testAutoV2Preview()" id="btnPreviewAutoV2" class="px-8 py-5 bg-brand/5 text-brand rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-brand/10 transition-all flex items-center justify-center">
-                       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                    </button>
-                </div>
-                <div id="autoV2PreviewContainer" class="hidden mt-6 p-6 rounded-2xl border-2 border-dashed border-brand/20 bg-brand/[0.02]">
-                    <div class="text-[10px] font-black text-brand uppercase tracking-widest mb-4 flex items-center gap-2">
-                         <span class="w-2 h-2 rounded-full bg-accent animate-pulse"></span> Output Preview
+                <div class="pt-6 flex flex-col gap-4">
+                    <div id="autoV2BehaviorSummary" class="p-4 bg-brand/[0.03] border border-brand/5 rounded-2xl flex items-center justify-between">
+                         <div class="flex items-center gap-3">
+                             <div class="w-8 h-8 rounded-full bg-brand/5 flex items-center justify-center text-brand">
+                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                             </div>
+                             <div>
+                                 <div id="summaryCadenceText" class="text-[10px] font-black text-brand uppercase tracking-widest leading-none">Daily Stream</div>
+                                 <div id="summaryModeText" class="text-[9px] text-text-muted font-bold mt-1">Auto-Pilot Mode Active</div>
+                             </div>
+                         </div>
+                         <div class="text-right">
+                             <div id="summaryTimeText" class="text-[11px] font-black text-brand italic">09:00 AM</div>
+                             <div class="text-[8px] font-bold text-text-muted uppercase tracking-tighter">Local Execution</div>
+                         </div>
                     </div>
-                    <div id="autoV2PreviewContent" class="text-[11px] text-text-muted font-medium italic leading-relaxed whitespace-pre-wrap"></div>
+
+                    <div class="flex gap-4">
+                        <button type="submit" id="btnSubmitAutoV2" class="flex-1 py-5 bg-brand text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all">Activate Growth Plan</button>
+                        <button type="button" onclick="testAutoV2Preview()" id="btnPreviewAutoV2" class="px-8 py-5 bg-brand/5 text-brand rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-brand/10 transition-all flex items-center justify-center gap-2">
+                           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                           <span class="text-[10px]">Preview Samples</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="autoV2PreviewContainer" class="hidden mt-6 space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div class="h-px flex-1 bg-brand/5"></div>
+                        <div class="text-[9px] font-black text-text-muted uppercase tracking-[0.3em] px-2 flex items-center gap-2">
+                             <span class="w-1.5 h-1.5 rounded-full bg-accent animate-pulse"></span> Intelligence Preview
+                        </div>
+                        <div class="h-px flex-1 bg-brand/5"></div>
+                    </div>
+                    
+                    <div id="autoV2VisualPreview" class="hidden rounded-2xl overflow-hidden border border-brand/5 bg-cream/50 p-4">
+                         <div class="flex items-center gap-4">
+                              <div id="visualStyleSwatch" class="w-16 h-16 rounded-xl shadow-inner border border-white/20"></div>
+                              <div class="flex-1">
+                                   <div id="visualStyleName" class="text-[11px] font-black text-brand uppercase tracking-widest">Dark Sacred</div>
+                                   <div id="visualStyleDesc" class="text-[9px] text-text-muted font-medium italic mt-1">Aesthetic direction based on selected Style DNA.</div>
+                              </div>
+                         </div>
+                    </div>
+
+                    <div id="autoV2PreviewContent" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 </div>
             </form>
         </div>
     </div>
+</div>
 </div>
 """
 
