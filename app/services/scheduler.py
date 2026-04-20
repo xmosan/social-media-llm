@@ -47,15 +47,20 @@ def sync_automation_jobs(sched: BackgroundScheduler, db_factory: Callable[[], Se
             time_str = auto.post_time_local or acc.daily_post_time or "09:00"
             tz_str = auto.timezone or acc.timezone or "UTC"
             try:
-                hour, minute = map(int, time_str.split(":"))
-                sched.add_job(
-                    run_automation_job,
-                    trigger=CronTrigger(hour=hour, minute=minute, timezone=tz_str),
-                    args=[db_factory, auto.id],
-                    id=f"auto_{auto.id}",
-                    replace_existing=True,
-                    max_instances=1
-                )
+                base_hour, minute = map(int, time_str.split(":"))
+                posts_per_day = getattr(auto, 'posts_per_day', 1)
+                spacing = getattr(auto, 'post_spacing_hours', 4)
+                
+                for i in range(posts_per_day):
+                    post_hour = (base_hour + (i * spacing)) % 24
+                    sched.add_job(
+                        run_automation_job,
+                        trigger=CronTrigger(hour=post_hour, minute=minute, timezone=tz_str),
+                        args=[db_factory, auto.id],
+                        id=f"auto_{auto.id}_{i}",
+                        replace_existing=True,
+                        max_instances=1
+                    )
             except Exception as e:
                 print(f"FAILED TO SCHEDULE AUTO {auto.id}: {e}")
     finally:

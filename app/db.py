@@ -163,6 +163,9 @@ def sync_database_schema(log_func=None):
             ("source_id", "INTEGER"),
             ("source_mode", "VARCHAR DEFAULT 'none'"),
             ("content_seed_mode", "VARCHAR DEFAULT 'none'"),
+            ("cadence", "VARCHAR DEFAULT 'daily'"),
+            ("posts_per_day", "INTEGER DEFAULT 1"),
+            ("post_spacing_hours", "INTEGER DEFAULT 4"),
             ("content_seed_text", "TEXT"),
             ("items_per_post", "INTEGER DEFAULT 1"),
             ("selection_mode", "VARCHAR DEFAULT 'random'"),
@@ -174,7 +177,9 @@ def sync_database_schema(log_func=None):
             ("custom_days", json_type),
             ("source_mode", "VARCHAR DEFAULT 'balanced'"),
             ("tone_style", "VARCHAR DEFAULT 'deep'"),
-            ("verification_mode", "VARCHAR DEFAULT 'standard'")
+            ("verification_mode", "VARCHAR DEFAULT 'standard'"),
+            ("style_dna_id", "INTEGER"),
+            ("automation_version", "INTEGER DEFAULT 1")
         ],
         "posts_extended": [
             ("is_auto_generated", "BOOLEAN DEFAULT FALSE"),

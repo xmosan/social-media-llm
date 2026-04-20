@@ -1114,9 +1114,18 @@ async function loadAutomations() {
         const j = await request(`/automations/?ig_account_id=${ACTIVE_ACCOUNT_ID}`);
         if (!j.length) {
             list.innerHTML = `
-            <div class="py-24 text-center border-2 border-dashed border-white/5 rounded-[3rem] bg-white/5">
-                <p class="text-[10px] text-muted font-black uppercase tracking-[0.2em] mb-6">No Automations Established</p>
-                <button onclick="showCreateAuto()" class="bg-brand text-white px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest italic shadow-xl shadow-brand/20 hover:scale-105 active:scale-95 transition-all">Initialize First Pattern</button>
+            <div class="py-24 px-10 text-center border-2 border-dashed border-white/10 rounded-[3rem] bg-white/5 relative overflow-hidden group">
+                <div class="absolute inset-0 bg-brand/5 blur-3xl opacity-50 group-hover:opacity-100 transition-opacity"></div>
+                <div class="relative z-10 flex flex-col items-center max-w-lg mx-auto space-y-6">
+                    <h3 class="text-2xl font-black text-white uppercase tracking-widest italic">Initialize Growth Engine</h3>
+                    <p class="text-xs text-text-muted font-bold leading-relaxed">Let's build your first autonomous content pipeline.</p>
+                    <div class="flex gap-4 w-full text-[10px] font-black uppercase tracking-widest text-brand mt-6 opacity-60">
+                         <div class="flex-1 bg-brand/10 rounded-xl p-4 border border-brand/20">1. Context</div>
+                         <div class="flex-1 bg-brand/10 rounded-xl p-4 border border-brand/20">2. Identity</div>
+                         <div class="flex-1 bg-brand/10 rounded-xl p-4 border border-brand/20">3. Pulse</div>
+                    </div>
+                    <button onclick="showNewAutoModal()" class="mt-8 bg-brand text-white px-12 py-5 rounded-3xl text-[11px] font-black uppercase tracking-[0.2em] shadow-2xl shadow-brand/20 hover:scale-105 active:scale-95 transition-transform">Configure Pipeline &rarr;</button>
+                </div>
             </div>`;
             return;
         }
@@ -1126,26 +1135,28 @@ async function loadAutomations() {
 
 function renderAuto(a) {
     const err = a.last_error ? `<p class="mt-4 text-[9px] bg-rose-500/10 text-rose-400 border border-rose-500/20 p-4 rounded-2xl font-black uppercase tracking-widest italic animate-pulse">Trace Error: ${esc(a.last_error)}</p>` : '';
+    const approvalTag = a.approval_mode === 'needs_manual_approve' ? '<span class="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest bg-accent/20 text-accent border border-accent/20">Drafting</span>' : '<span class="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Auto-Pilot</span>';
+    const acc = typeof window.igAccounts !== 'undefined' ? window.igAccounts.find(x => x.id === a.ig_account_id) : null;
+    const accBadge = acc ? `<span class="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest bg-brand/10 text-brand border border-brand/20 flex items-center gap-1"><svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.2 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.2 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>@${acc.username}</span>` : '';
+
     return `
     <div class="glass border border-white/5 rounded-[2.5rem] p-8 flex flex-col items-stretch group hover:bg-white/10 hover:border-white/20 transition-all duration-500">
         <div class="flex items-start justify-between mb-8">
             <div class="flex-1">
                 <div class="flex items-center gap-4 mb-3">
                     <h4 class="text-xl font-black text-white italic tracking-tight">${esc(a.name)}</h4>
+                    ${accBadge}
                     <span class="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${a.enabled ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-white/5 text-muted border border-white/10'}">${a.enabled ? 'Active' : 'Standby'}</span>
-                    ${a.enrich_with_hadith ? '<span class="px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest bg-brand/10 text-brand border border-brand/20">Enriched</span>' : ''}
+                    ${approvalTag}
                 </div>
                 <p class="text-[10px] text-muted font-bold tracking-wide line-clamp-1 italic">Pattern Vector: "${esc(a.topic_prompt)}"</p>
                 ${err}
             </div>
             <div class="flex items-center gap-3 opacity-60 group-hover:opacity-100 transition-opacity">
-                <button onclick="triggerAuto(${a.id})" class="w-12 h-12 rounded-2xl glass text-muted hover:text-emerald-400 hover:border-emerald-500/20 flex items-center justify-center transition-all" title="Execute Once">
+                <button onclick="triggerAuto(${a.id})" class="w-12 h-12 rounded-2xl glass text-muted hover:text-emerald-400 hover:border-emerald-500/20 flex items-center justify-center transition-all" title="Execute Trigger">
                     <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </button>
-                <button onclick="testLLM(${a.id}, '${esc(a.topic_prompt)}', '${a.style_preset}')" class="w-12 h-12 rounded-2xl bg-brand/5 text-text-muted hover:text-brand hover:border-brand/20 flex items-center justify-center transition-all" title="Plan Preview">
-<svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.341A8.001 8.001 0 0012 4a8.001 8.001 0 00-7.428 11.341c.142.311.23.642.23.978V19a2 2 0 002 2h9a2 2 0 002-2v-2.681c0-.336.088-.667.23-.978z" /></svg>
-                </button>
-                <button onclick="editAuto(${JSON.stringify(a).replaceAll('"', '&quot;')})" class="w-12 h-12 rounded-2xl glass text-muted hover:text-white flex items-center justify-center transition-all" title="Modify Configuration">
+                <button onclick='${a.automation_version === 2 ? "showEditModal" : "editAuto"}(${JSON.stringify(a).replace(/'/g, "&#39;")})' class="w-12 h-12 rounded-2xl glass text-muted hover:text-white flex items-center justify-center transition-all" title="Modify Configuration">
                     <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                 </button>
                 <button onclick="deleteAuto(${a.id})" class="w-12 h-12 rounded-2xl glass text-muted hover:text-rose-500 hover:border-rose-500/20 flex items-center justify-center transition-all" title="Teardown">
@@ -1154,9 +1165,9 @@ function renderAuto(a) {
             </div>
         </div>
         <div class="flex flex-wrap gap-6 text-[10px] font-black uppercase tracking-widest text-muted border-t border-white/5 pt-6">
-            <span class="flex items-center gap-2 italic"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>${a.post_time_local || '09:00'}</span>
-            <span class="flex items-center gap-2 italic"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>${a.style_preset}</span>
-            <span class="flex items-center gap-2 text-brand italic">Last Epoch: ${a.last_run_at ? new Date(a.last_run_at).toLocaleDateString() : 'None'}</span>
+            <span class="flex items-center gap-2 italic"><svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>${(a.cadence || 'daily').toUpperCase()} @ ${a.post_time_local || '09:00'}</span>
+            <span class="flex items-center gap-2 ${a.last_error ? 'text-rose-400' : (a.last_run_at ? 'text-emerald-400' : 'text-muted')} italic">Last Epoch: ${a.last_run_at ? new Date(a.last_run_at).toLocaleString() : 'Pending'}</span>
+            <span class="flex items-center gap-2 italic text-brand">Output Volume: ${a.posts_generated || 0} Assets</span>
         </div>
     </div>`;
 }
@@ -1797,24 +1808,24 @@ function showEmptyState(type) {
     let html = "";
     if (type === "no_accounts") {
         html = `
-        <div class="col-span-full py-24 text-center">
-            <div class="w-20 h-20 glass text-brand rounded-[2rem] flex items-center justify-center mx-auto mb-8 animate-pulse shadow-xl shadow-brand/10">
-                <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        <div class="col-span-full py-24 text-center border-2 border-dashed border-brand/10 bg-brand/[0.02] rounded-[3rem]">
+            <div class="w-20 h-20 bg-brand/10 text-brand rounded-[2rem] flex items-center justify-center mx-auto mb-8 animate-pulse shadow-xl shadow-brand/5">
+                <svg class="h-10 w-10 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             </div>
-            <h3 class="text-2xl font-bold text-brand tracking-tight mb-3">No Active Accounts</h3>
-            <p class="text-[11px] text-muted font-bold max-w-xs mx-auto mb-10 tracking-wide italic">Your core identity is active, but you haven't initialized an Instagram endpoint yet.</p>
-            <button onclick="toggleSettings()" class="bg-brand text-white px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest italic shadow-xl shadow-brand/20 hover:scale-105 active:scale-95 transition-all">Initialize First Slot</button>
+            <h3 class="text-2xl font-black text-brand italic tracking-tight mb-3">No Active Channels</h3>
+            <p class="text-[11px] text-text-muted font-bold max-w-xs mx-auto mb-10 tracking-wide italic">Your core identity is active, but you haven't initialized an Instagram endpoint yet.</p>
+            <button onclick="toggleSettings()" class="bg-brand text-cream px-10 py-5 rounded-2xl text-[10px] font-black uppercase tracking-widest italic shadow-xl shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all">Initialize Sabeel Node</button>
         </div>`;
     } else if (type === "no_posts") {
         html = `
-        <div class="col-span-full py-24 text-center">
-            <div class="w-20 h-20 glass text-brand rounded-[2rem] flex items-center justify-center mx-auto mb-8 animate-bounce shadow-xl shadow-brand/10">
-                <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+        <div class="col-span-full py-24 text-center border-2 border-dashed border-brand/10 bg-brand/[0.02] rounded-[3rem]">
+            <div class="w-20 h-20 bg-brand/5 border border-brand/10 text-brand rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-xl shadow-brand/5">
+                <svg class="h-10 w-10 opacity-75" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
             </div>
-            <h3 class="text-2xl font-black text-white italic tracking-tight mb-3">The Stream is Void</h3>
-            <p class="text-[11px] text-muted font-bold max-w-xs mx-auto mb-10 tracking-wide italic">Ready to broadcast? Use the <b>Content Intake</b> matrix on the left to upload your FIRST LOCAL POSTER.</p>
-            <div class="flex items-center justify-center gap-3 text-brand font-black text-[10px] uppercase tracking-widest italic animate-pulse">
-                <svg class="h-5 w-5 rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+            <h3 class="text-2xl font-black text-brand italic tracking-tight mb-3">The Stream is Void</h3>
+            <p class="text-[11px] text-text-muted font-bold max-w-[280px] mx-auto mb-10 tracking-wide italic">Ready to broadcast? Use the Sabeel Studio to orchestrate your first manifestation.</p>
+            <div class="flex flex-col items-center justify-center gap-3 mt-4">
+                 <button onclick="openNewPostModal()" class="bg-accent text-cream px-10 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest italic shadow-xl shadow-brand/10 hover:bg-brand transition-all">Open Studio Environment</button>
             </div>
         </div>`;
     }

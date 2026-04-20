@@ -61,13 +61,50 @@ STUDIO_SCRIPTS_JS = """
     let studioCardMessage = null; // { eyebrow, headline, supporting_text }
     let studioCaptionMessage = null; // { hook, body, cta, hashtags }
 
+    window.resetStudioSession = function() {
+        // Reset Logic state
+        currentQuoteCardUrl = null;
+        isQuoteCardOutOfDate = false;
+        studioCreationMode = 'preset';
+        studioEngine = 'dalle';
+        studioGlossy = false;
+        selectedAyahId = null;
+        studioCardMessage = null;
+        studioCaptionMessage = null;
+        window.selectedAyahMetadata = null;
+
+        // Reset Physical Elements
+        const setVal = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
+        const hide = (id) => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); };
+
+        setVal('studioTopic', '');
+        setVal('editEyebrow', '');
+        setVal('editHeadline', '');
+        setVal('editSupporting', '');
+        setVal('studioCaption', '');
+        setVal('finalMediaUrl', '');
+        setVal('studioVisualPrompt', '');
+        
+        hide('quranSearchResults');
+        hide('selectedAyahBadge');
+        hide('cardMessageWorkspace');
+        hide('captionResultArea');
+        hide('cardActions');
+        hide('outOfSyncBanner');
+
+        const preview = document.getElementById('quoteCardPreview');
+        if (preview) { preview.src = ''; preview.classList.add('hidden'); }
+    };
+
     function openNewPostModal() {
+        window.resetStudioSession();
         document.getElementById('newPostModal').classList.remove('hidden');
         switchStudioSection(1);
     }
 
     function closeNewPostModal() {
         document.getElementById('newPostModal').classList.add('hidden');
+        window.resetStudioSession();
     }
 
     function switchStudioSection(stepIndex) {
@@ -140,8 +177,10 @@ STUDIO_SCRIPTS_JS = """
         } catch (e) { console.error(e); }
     }
 
+    window.selectedAyahMetadata = null;
     function selectAyah(id, title, text) {
         selectedAyahId = id;
+        window.selectedAyahMetadata = { reference: title, translation_text: text, id: id };
         document.getElementById('selectedAyahBadge').classList.remove('hidden');
         document.getElementById('selectedAyahTitle').innerText = title;
         document.getElementById('quranSearchResults').classList.add('hidden');
@@ -166,16 +205,17 @@ STUDIO_SCRIPTS_JS = """
         if(text) text.innerText = 'Architecting Message...';
 
         try {
-            const res = await fetch('/api/quote-card/build-message', {
+            const payload = {
+                source_type: selectedAyahId ? 'quran' : 'manual',
+                source_payload: selectedAyahId ? window.selectedAyahMetadata : { text: topic, reference: topic },
+                tone: tone,
+                intent: intention
+            };
+
+            const res = await fetch('/api/studio/generate-card-message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    source_type: selectedAyahId ? 'quran' : 'manual',
-                    item_id: selectedAyahId,
-                    reference: !selectedAyahId ? topic : null,
-                    tone: tone,
-                    intent: intention
-                })
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
             if (data.card_message) {
@@ -228,7 +268,7 @@ STUDIO_SCRIPTS_JS = """
                 mode: studioCreationMode
             };
 
-            const res = await fetch('/generate-quote-card', {
+            const res = await fetch('/api/studio/generate-visual', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -263,16 +303,18 @@ STUDIO_SCRIPTS_JS = """
         if(text) text.innerText = 'Crafting Social Presence...';
 
         try {
-            const res = await fetch('/api/caption/generate', {
+            const payload = {
+                source_type: selectedAyahId ? 'quran' : 'manual',
+                source_payload: selectedAyahId ? window.selectedAyahMetadata : { text: studioCardMessage.headline },
+                topic: document.getElementById('studioTopic').value,
+                tone: document.getElementById('studioTone').value,
+                intent: document.getElementById('studioIntent').value
+            };
+
+            const res = await fetch('/api/studio/generate-caption', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    source_type: selectedAyahId ? 'quran' : 'manual',
-                    item_id: selectedAyahId,
-                    tone: document.getElementById('studioTone').value,
-                    intent: document.getElementById('studioIntent').value,
-                    custom_payload: !selectedAyahId ? { text: studioCardMessage.headline } : null
-                })
+                body: JSON.stringify(payload)
             });
             const data = await res.json();
             if (data.caption_message) {
@@ -381,15 +423,29 @@ STUDIO_SCRIPTS_JS = """
         btn.disabled = true;
         btn.innerHTML = 'MANIFESTING... <span class="animate-pulse">✨</span>';
 
-        const formData = new FormData(event.target);
-        formData.append('visual_mode', 'quote_card');
-        if (selectedAyahId) formData.append('library_item_id', selectedAyahId);
-        formData.append('source_text', document.getElementById('studioTopic').value);
-        formData.append('card_message', JSON.stringify(studioCardMessage));
-        formData.append('caption_message', JSON.stringify(studioCaptionMessage));
+        const accountId = document.getElementById('studioAccount').value;
+        const topicVal = document.getElementById('studioTopic').value;
+
+        const reqPayload = {
+            ig_account_id: parseInt(accountId, 10),
+            visual_mode: 'quote_card',
+            source_type: selectedAyahId ? 'quran' : 'manual',
+            source_reference: selectedAyahId && window.selectedAyahMetadata ? window.selectedAyahMetadata.reference : topicVal,
+            source_metadata: selectedAyahId ? window.selectedAyahMetadata : null,
+            topic: topicVal,
+            card_message: studioCardMessage,
+            caption_message: studioCaptionMessage,
+            media_url: document.getElementById('finalMediaUrl')?.value || currentQuoteCardUrl,
+            intent_type: document.getElementById('studioIntent').value,
+            visual_style: studioCreationMode === 'custom' ? 'custom' : document.getElementById('studioStyle').value
+        };
 
         try {
-            const res = await fetch('/posts/intake', { method: 'POST', body: formData });
+            const res = await fetch('/api/studio/create-post', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(reqPayload)
+            });
             if (res.ok) {
                 window.location.reload();
             } else {
@@ -433,14 +489,50 @@ STUDIO_SCRIPTS_JS = """
             const data = await res.json();
             v2DnaPresets = data.presets || [];
             
-            const select = document.getElementById('autoV2StyleDNA');
-            if (select) {
-                select.innerHTML = v2DnaPresets.map(p => `<option value="${p.id || ''}">${p.label} (${p.atmosphere} / ${p.tone_style})</option>`).join('');
+            const container = document.getElementById('autoV2StyleDNAContainer');
+            if (container) {
+                container.innerHTML = v2DnaPresets.map(p => `
+                    <div onclick="selectV2StyleDna('${p.id || ''}', this)" class="auto-style-card cursor-pointer bg-cream/30 border border-brand/5 rounded-2xl p-4 hover:border-brand/30 hover:shadow-lg transition-all flex flex-col">
+                        <div class="text-[10px] uppercase font-black tracking-widest text-brand mb-2">${p.label}</div>
+                        <div class="text-[9px] text-text-muted font-bold leading-tight">Visual: <span class="italic text-brand/70">${p.atmosphere}</span></div>
+                        <div class="text-[9px] text-text-muted font-bold leading-tight mt-1">Tone: <span class="italic text-brand/70">${p.tone_style}</span></div>
+                    </div>
+                `).join('');
+                if (v2DnaPresets.length > 0 && !document.getElementById('autoV2StyleDNAInput').value) {
+                    setTimeout(() => selectV2StyleDna(v2DnaPresets[0].id || '', container.children[0]), 50);
+                }
             }
         } catch (e) {
             console.error('Failed to load style DNA presets: ', e);
         }
     }
+
+    window.selectV2StyleDna = function(id, el) {
+        const input = document.getElementById('autoV2StyleDNAInput');
+        if(input) input.value = id;
+        document.querySelectorAll('.auto-style-card').forEach(c => {
+            c.classList.remove('ring-2', 'ring-brand', 'bg-brand/5', 'shadow-xl');
+        });
+        if(el) el.classList.add('ring-2', 'ring-brand', 'bg-brand/5', 'shadow-xl');
+    };
+
+    window.selectApprovalMode = function(mode, el) {
+        const input = document.getElementById('autoV2ApprovalModeInput');
+        if(input) input.value = mode;
+        document.querySelectorAll('.approval-card').forEach(c => {
+            c.classList.remove('ring-2', 'ring-brand', 'shadow-xl');
+        });
+        if(el) el.classList.add('ring-2', 'ring-brand', 'shadow-xl');
+    };
+
+    window.selectCadenceMode = function(mode, el) {
+        const input = document.getElementById('autoV2CadenceInput');
+        if(input) input.value = mode;
+        document.querySelectorAll('.cadence-card').forEach(c => {
+            c.classList.remove('ring-2', 'ring-brand', 'shadow-xl');
+        });
+        if(el) el.classList.add('ring-2', 'ring-brand', 'shadow-xl');
+    };
 
     window.showNewAutoModal = async function() {
         const modal = document.getElementById('newAutoModalV2');
@@ -449,6 +541,56 @@ STUDIO_SCRIPTS_JS = """
             await loadStyleDnaPresets();
             document.getElementById('autoV2Form').dataset.editId = "";
             document.getElementById('autoV2Form').reset();
+        }
+    };
+
+    window.testAutoV2Preview = async function() {
+        const btn = document.getElementById('btnPreviewAutoV2');
+        const form = document.getElementById('autoV2Form');
+        const topic = form.topic_prompt.value;
+        if (!topic) { alert("Please provide a CORE TOPIC before testing the engine."); return; }
+        
+        btn.innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>';
+        btn.disabled = true;
+        
+        const container = document.getElementById('autoV2PreviewContainer');
+        const content = document.getElementById('autoV2PreviewContent');
+        
+        try {
+            let styleStr = 'islamic_reminder';
+            const selectedDnaId = document.getElementById('autoV2StyleDNAInput').value;
+            if(selectedDnaId) {
+                 const match = v2DnaPresets.find(p => p.id == selectedDnaId);
+                 if(match) styleStr = match.id || match.label;
+            }
+
+            const reqUrl = `/automations/debug/llm-test?topic=${encodeURIComponent(topic)}&style=${encodeURIComponent(styleStr)}`;
+            const responses = await Promise.all([
+                fetch(reqUrl).then(r => r.json()),
+                fetch(reqUrl).then(r => r.json())
+            ]);
+            
+            container.classList.remove('hidden');
+            let txt = `[Pattern Vector Variance Testing]\n`;
+            responses.forEach((data, i) => {
+                txt += `\n====== PREVIEW ${i === 0 ? 'ALPHA' : 'BETA'} ======\n`;
+                if (data.caption) {
+                     txt += `\n${data.caption}\n\n`;
+                     if (data.hashtags && data.hashtags.length) {
+                         txt += `Tags: ${data.hashtags.join(' ')}\n`;
+                     }
+                } else if (data.detail) {
+                     txt += `Error: ${data.detail}\n`;
+                } else {
+                     txt += JSON.stringify(data, null, 2) + `\n`;
+                }
+            });
+            content.innerText = txt;
+        } catch(e) {
+            alert('Preview Engine disconnected: ' + e.message);
+        } finally {
+            btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>';
+            btn.disabled = false;
         }
     };
     
@@ -467,14 +609,21 @@ STUDIO_SCRIPTS_JS = """
         const form = event.target;
         const payload = {
             name: form.name.value,
-            ig_account_id: parseInt(document.getElementById('studioAccount') ? document.getElementById('studioAccount').value : form.ig_account_id_hidden.value),
             topic_prompt: form.topic_prompt.value,
             style_dna_id: form.style_dna_id.value ? parseInt(form.style_dna_id.value) : null,
             automation_version: 2,
-            posting_mode: 'schedule',
+            approval_mode: document.getElementById('autoV2ApprovalModeInput') ? document.getElementById('autoV2ApprovalModeInput').value : 'auto_approve',
+            cadence: document.getElementById('autoV2CadenceInput') ? document.getElementById('autoV2CadenceInput').value : 'daily',
             post_time_local: form.post_time_local.value,
-            enabled: true
+            posts_per_day: form.posts_per_day ? parseInt(form.posts_per_day.value) : 1,
+            post_spacing_hours: form.post_spacing_hours ? parseInt(form.post_spacing_hours.value) : 4
         };
+
+        if (!form.dataset.editId) {
+            payload.ig_account_id = parseInt(document.getElementById('studioAccount') ? document.getElementById('studioAccount').value : form.ig_account_id_hidden.value);
+            payload.posting_mode = 'schedule';
+            payload.enabled = true;
+        }
 
         try {
             const endpoint = form.dataset.editId ? `/automations/${form.dataset.editId}` : `/automations`;
@@ -508,11 +657,49 @@ STUDIO_SCRIPTS_JS = """
         
         form.name.value = data.name || '';
         if(form.ig_account_id_hidden) form.ig_account_id_hidden.value = data.ig_account_id || '';
-        form.topic_prompt.value = data.topic || '';
-        form.post_time_local.value = data.time || '';
+        form.topic_prompt.value = data.topic_prompt || '';
+        form.post_time_local.value = data.post_time_local || '';
+        if(form.posts_per_day) form.posts_per_day.value = data.posts_per_day || 1;
+        if(form.post_spacing_hours) form.post_spacing_hours.value = data.post_spacing_hours || 4;
         
         if (data.style_dna_id) {
-            form.style_dna_id.value = data.style_dna_id;
+            const input = document.getElementById('autoV2StyleDNAInput');
+            if(input) input.value = data.style_dna_id;
+            // Best effort visual selection
+            setTimeout(() => {
+                const container = document.getElementById('autoV2StyleDNAContainer');
+                if(container) {
+                    const cards = container.querySelectorAll('.auto-style-card');
+                    const index = v2DnaPresets.findIndex(p => p.id == data.style_dna_id);
+                    if(index >= 0 && cards[index]) selectV2StyleDna(data.style_dna_id, cards[index]);
+                }
+            }, 100);
+        }
+
+        if (data.approval_mode) {
+            const modeInput = document.getElementById('autoV2ApprovalModeInput');
+            if (modeInput) modeInput.value = data.approval_mode;
+            setTimeout(() => {
+                const cards = document.querySelectorAll('.approval-card');
+                if (data.approval_mode === 'needs_manual_approve') {
+                    selectApprovalMode('needs_manual_approve', cards[0]);
+                } else {
+                    selectApprovalMode('auto_approve', cards[1]);
+                }
+            }, 100);
+        }
+
+        if (data.cadence) {
+            const cadInput = document.getElementById('autoV2CadenceInput');
+            if (cadInput) cadInput.value = data.cadence;
+            setTimeout(() => {
+                const cards = document.querySelectorAll('.cadence-card');
+                if (data.cadence === 'weekly') {
+                    selectCadenceMode('weekly', cards[1]);
+                } else {
+                    selectCadenceMode('daily', cards[0]);
+                }
+            }, 100);
         }
 
         modal.classList.remove('hidden');
@@ -686,19 +873,71 @@ STUDIO_COMPONENTS_HTML = """
                     <textarea name="topic_prompt" required placeholder="e.g. Discuss the virtues of Sabr and reflecting on blessings" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-medium text-brand min-h-[100px] outline-none focus:border-brand/30"></textarea>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-2">
-                        <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Style DNA</label>
-                        <select id="autoV2StyleDNA" name="style_dna_id" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
-                            <!-- Populated by JS -->
-                        </select>
+                    <div class="space-y-4 col-span-full">
+                        <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Atmospheric Style DNA</label>
+                        <input type="hidden" name="style_dna_id" id="autoV2StyleDNAInput" required>
+                        <div id="autoV2StyleDNAContainer" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="p-8 text-center text-brand/30 animate-pulse text-[10px] font-bold uppercase tracking-widest col-span-full">Syncing Growth Vectors...</div>
+                        </div>
                     </div>
-                    <div class="space-y-2">
-                        <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Publish Time (Local)</label>
-                        <input type="time" name="post_time_local" required class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
+                    <div class="space-y-4 col-span-full pt-4 border-t border-brand/5">
+                        <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Stream Frequency (Cadence)</label>
+                        <input type="hidden" name="cadence" id="autoV2CadenceInput" value="daily">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div onclick="selectCadenceMode('daily', this)" class="cadence-card ring-2 ring-brand shadow-xl cursor-pointer bg-cream border border-brand/5 rounded-2xl p-6 hover:border-brand/30 transition-all flex flex-col relative overflow-hidden">
+                                <div class="text-[11px] uppercase font-black tracking-widest text-brand mb-2">Daily Stream</div>
+                                <div class="text-[10px] text-text-muted font-bold leading-relaxed pr-6">Continuously generates native content every single day.</div>
+                            </div>
+                            <div onclick="selectCadenceMode('weekly', this)" class="cadence-card cursor-pointer bg-cream border border-brand/5 rounded-2xl p-6 hover:border-brand/30 transition-all flex flex-col relative overflow-hidden">
+                                <div class="text-[11px] uppercase font-black tracking-widest text-brand mb-2">Weekly Stream</div>
+                                <div class="text-[10px] text-text-muted font-bold leading-relaxed pr-6">A slower, deliberate schedule processing one instance per week.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-2 col-span-full">
+                        <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Daily Sequence Start Time</label>
+                        <input type="time" name="post_time_local" required class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30 max-w-xs">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 col-span-full">
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Max Daily Volume</label>
+                            <input type="number" name="posts_per_day" min="1" max="5" value="1" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
+                            <p class="text-[9px] text-text-muted mt-1 px-1 font-medium">Assets generated per day.</p>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Hour Spacing</label>
+                            <input type="number" name="post_spacing_hours" min="1" max="12" value="4" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
+                            <p class="text-[9px] text-text-muted mt-1 px-1 font-medium">Time buffer between jobs.</p>
+                        </div>
+                    </div>
+                    <div class="space-y-4 pt-4 border-t border-brand/5 col-span-full">
+                        <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Approval Protocol</label>
+                        <input type="hidden" name="approval_mode" id="autoV2ApprovalModeInput" value="auto_approve">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div onclick="selectApprovalMode('needs_manual_approve', this)" class="approval-card cursor-pointer bg-cream border border-brand/5 rounded-2xl p-6 hover:border-brand/30 transition-all flex flex-col relative overflow-hidden">
+                                <div class="absolute top-0 right-0 p-4 text-brand opacity-5"><svg class="w-16 h-16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path></svg></div>
+                                <div class="text-[11px] uppercase font-black tracking-widest text-brand mb-2">Drafting Engine</div>
+                                <div class="text-[10px] text-text-muted font-bold leading-relaxed pr-8">Generates posts and pushes them to your Drafts queue. Requires manual approval.</div>
+                            </div>
+                            <div onclick="selectApprovalMode('auto_approve', this)" class="approval-card ring-2 ring-brand shadow-xl cursor-pointer bg-cream border border-brand/5 rounded-2xl p-6 hover:border-brand/30 transition-all flex flex-col relative overflow-hidden">
+                                <div class="absolute top-0 right-0 p-4 text-brand opacity-5"><svg class="w-16 h-16" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg></div>
+                                <div class="text-[11px] uppercase font-black tracking-widest text-brand mb-2">Auto-Pilot</div>
+                                <div class="text-[10px] text-text-muted font-bold leading-relaxed pr-8">Bypasses human verification and schedules natively into the calendar continuously.</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="pt-6">
-                    <button type="submit" id="btnSubmitAutoV2" class="w-full py-5 bg-brand text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all">Initialize Growth Plan</button>
+                <div class="pt-6 flex gap-4">
+                    <button type="submit" id="btnSubmitAutoV2" class="flex-1 py-5 bg-brand text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all">Initialize Growth Plan</button>
+                    <button type="button" onclick="testAutoV2Preview()" id="btnPreviewAutoV2" class="px-8 py-5 bg-brand/5 text-brand rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-brand/10 transition-all flex items-center justify-center">
+                       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                    </button>
+                </div>
+                <div id="autoV2PreviewContainer" class="hidden mt-6 p-6 rounded-2xl border-2 border-dashed border-brand/20 bg-brand/[0.02]">
+                    <div class="text-[10px] font-black text-brand uppercase tracking-widest mb-4 flex items-center gap-2">
+                         <span class="w-2 h-2 rounded-full bg-accent animate-pulse"></span> Output Preview
+                    </div>
+                    <div id="autoV2PreviewContent" class="text-[11px] text-text-muted font-medium italic leading-relaxed whitespace-pre-wrap"></div>
                 </div>
             </form>
         </div>

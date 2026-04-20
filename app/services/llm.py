@@ -3,11 +3,14 @@
 
 from typing import Any
 import json
-# from openai import OpenAI
+from openai import OpenAI
 from app.config import settings
 
 def get_client():
-    return None # Mocked for UI verification
+    """Returns a live OpenAI client, or None if key is not configured."""
+    if not settings.openai_api_key:
+        return None
+    return OpenAI(api_key=settings.openai_api_key)
 
 def generate_draft(
     source_text: str,
@@ -119,6 +122,15 @@ def generate_topic_caption(
 ) -> dict[str, Any]:
     """Generates a caption based on a topic and various style parameters using OpenAI."""
     client = get_client()
+    if not client:
+        # Return a structured failure dict rather than crashing — runner's guardrails handle it
+        return {
+            "caption": "",
+            "hashtags": [],
+            "alt_text": "",
+            "validation_failed": True,
+            "fail_reason": "llm_client_unavailable"
+        }
     
     style_content = {
         "islamic_reminder": "an Islamic reminder style with wisdom and spiritual depth",
@@ -263,7 +275,23 @@ def generate_topic_caption(
 
 def generate_topic_variations(topic: str, count: int = 5) -> list[str]:
     """Generates X sub-angles or variations for a given topic to provide variety."""
-    client = get_client()
+    from app.services.caption_engine import get_openai_client as get_real_client
+    client = get_real_client()
+    
+    # Structural determinisic fallback generator
+    def get_fallback():
+        return [
+            f"The Wisdom of {topic}",
+            f"Reflections on {topic}",
+            f"Understanding {topic}",
+            f"The Spiritual Depth of {topic}",
+            topic
+        ][:count]
+
+    if not client:
+        print("[LLM][WARN] topic variation generator unavailable, using fallback")
+        return get_fallback()
+
     prompt = f"Given the topic '{topic}', generate {count} diverse sub-angles or specific perspectives for a social media post. Return as a JSON list of strings."
     
     try:
@@ -275,12 +303,13 @@ def generate_topic_variations(topic: str, count: int = 5) -> list[str]:
         data = json.loads(response.choices[0].message.content)
         # Search for any list in the object
         for v in data.values():
-            if isinstance(v, list):
+            if isinstance(v, list) and len(v) > 0:
                 return v[:count]
-        return [topic]
+        return get_fallback()
     except Exception as e:
-        print(f"[LLM] Error generating topic variations: {e}")
-        return [topic]
+        print(f"[LLM][ERROR] Topic variation client unavailable: {str(e)}")
+        print("[LLM][FALLBACK] Using deterministic topic variation fallback")
+        return get_fallback()
 
 def generate_caption_from_content_item(
     content_item: Any, # Use Any because of circular import risk with models

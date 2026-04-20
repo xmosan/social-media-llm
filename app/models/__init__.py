@@ -258,6 +258,10 @@ class TopicAutomation(Base):
     
     post_time_local = Column(String, nullable=True) # "HH:MM"
     timezone = Column(String, nullable=True) 
+    cadence = Column(String, default="daily") # "daily" | "weekly"
+    
+    posts_per_day = Column(Integer, default=1)
+    post_spacing_hours = Column(Integer, default=4)
     
     enabled = Column(Boolean, default=False)
     last_run_at = Column(DateTime(timezone=True), nullable=True)

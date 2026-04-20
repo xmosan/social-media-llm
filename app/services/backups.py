@@ -7,9 +7,15 @@ import gzip
 import shutil
 import glob
 from datetime import datetime
-import boto3
 import logging
 from ..config import settings
+
+try:
+    import boto3
+    _BOTO3_AVAILABLE = True
+except ImportError:
+    boto3 = None
+    _BOTO3_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +26,9 @@ def _ensure_backup_dir():
     os.makedirs(BACKUPS_DIR, exist_ok=True)
 
 def _get_s3_client():
+    if not _BOTO3_AVAILABLE or not boto3:
+        logger.debug("[BACKUP] boto3 not installed — S3 backup unavailable.")
+        return None
     if not settings.s3_access_key or not settings.s3_secret_key or not settings.s3_bucket_name:
         return None
     endpoint = settings.s3_region if settings.s3_region and "http" in settings.s3_region else None

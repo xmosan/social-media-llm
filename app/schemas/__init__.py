@@ -181,6 +181,11 @@ class TopicAutomationOut(BaseModel):
     
     style_dna_id: int | None = None
     automation_version: int = 1
+    approval_mode: str = "auto_approve"
+    cadence: str = "daily"
+    posts_per_day: int = 1
+    post_spacing_hours: int = 4
+    posts_generated: int = 0  # Computed at list time — not a DB column
 
     class Config:
         from_attributes = True
@@ -242,6 +247,9 @@ class TopicAutomationCreate(BaseModel):
     include_arabic: bool = False
     post_time_local: str | None = None
     timezone: str | None = None
+    cadence: str = "daily"
+    posts_per_day: int = 1
+    post_spacing_hours: int = 4
     enabled: bool = False
 
     media_asset_id: int | None = None
@@ -293,6 +301,9 @@ class TopicAutomationUpdate(BaseModel):
     include_arabic: bool | None = None
     post_time_local: str | None = None
     timezone: str | None = None
+    cadence: str | None = None
+    posts_per_day: int | None = None
+    post_spacing_hours: int | None = None
     enabled: bool | None = None
 
     media_asset_id: int | None = None

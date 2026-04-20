@@ -222,7 +222,12 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             topic_base = f"{selected_pillar}: {topic_base}" if topic_base else selected_pillar
             log_event("automation_pillar_selected", automation_id=automation.id, pillar=selected_pillar, index=post_count % len(pillars))
 
+        # PHASE 2: Load Style DNA System
+        from app.services.automation_service import get_automation_style_dna
+        style_dna_spec = get_automation_style_dna(automation)
+
         log_event("automation_run_start", automation_id=automation.id, topic=topic_base, style=automation.style_preset)
+        print(f"[STYLE_DNA] preset loaded: {style_dna_spec.family} (Atmosphere: {style_dna_spec.atmosphere})")
         
         # 1. Topic Variations
         try:
@@ -299,9 +304,14 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 content_profile_prompt = "\\n".join(prompt_parts)
 
         # 2. Build Context payload & Generate
+        import random
+        chosen_variation = random.choice(style_dna_spec.variation_pool) if style_dna_spec.variation_pool else "standard"
+        print(f"[STYLE_DNA] variation chosen: {chosen_variation}")
+        print(f"[STYLE_DNA] visual payload built")
+
         context_payload = {
             "topic": topic,
-            "style": automation.style_preset,
+            "style": style_dna_spec.family,
             "tone": automation.tone or "medium",
             "language": automation.language or "english",
             "banned_phrases": automation.banned_phrases if isinstance(automation.banned_phrases, list) else None,
@@ -319,7 +329,7 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             "content_profile_prompt": content_profile_prompt,
             "creativity_level": getattr(automation, "creativity_level", 3),
             "source_mode": getattr(automation, "source_mode", "balanced"),
-            "tone_style": getattr(automation, "tone_style", "deep"),
+            "tone_style": style_dna_spec.tone_style,
             "verification_mode": getattr(automation, "verification_mode", "standard"),
             "instructions": [
                 "Do NOT output the topic label literally.",
@@ -337,7 +347,7 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         try:
             result = generate_topic_caption(
                 topic=topic,
-                style=automation.style_preset,
+                style=style_dna_spec.family,
                 tone=automation.tone or "medium",
                 language=automation.language or "english",
                 banned_phrases=automation.banned_phrases if isinstance(automation.banned_phrases, list) else None,

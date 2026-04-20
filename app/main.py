@@ -21,6 +21,7 @@ from .api.routes import waitlist, contact, admin_panel
 from .services.scheduler import start_scheduler
 from .config import settings
 from .logging_setup import setup_logging, request_id_var, log_event
+from .security.rbac import get_current_org_id
 
 import logging
 logger = logging.getLogger(__name__)
@@ -83,8 +84,10 @@ if not db_url or "postgres" not in db_url.lower():
     missing_vars.append("DATABASE_URL (NATIVE POSTGRESQL REQUIRED)")
 
 if missing_vars:
-    logger.critical(f"CRITICAL SYSTEM FAILURE: Project has moved fully to PostgreSQL. Missing requirements: {', '.join(missing_vars)}")
-    # We allow the app to attempt start, but db.py will likely have already raised an error or will soon.
+    logger.critical(
+        f"CRITICAL: Missing required environment variables: {', '.join(missing_vars)}. "
+        f"Automation and LLM features will be degraded or unavailable."
+    )
 
 app = FastAPI(
     title="Sabeel - Multi-tenant SaaS",
@@ -187,13 +190,13 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 @app.get("/api/debug-automations")
-def api_debug_automations(db: Session = Depends(get_db)):
+def api_debug_automations(db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
     from app.models import TopicAutomation
-    autos = db.query(TopicAutomation).all()
+    autos = db.query(TopicAutomation).filter(TopicAutomation.org_id == org_id).all()
     return [{"id": a.id, "name": a.name, "topic": a.topic_prompt, "last_error": a.last_error} for a in autos]
 
 @app.get("/api/debug-env")
-def api_debug_env():
+def api_debug_env(org_id: int = Depends(get_current_org_id)):
     return {
         "openai_api_key_set": bool(settings.openai_api_key),
         "openai_api_key_len": len(settings.openai_api_key) if settings.openai_api_key else 0,
@@ -202,11 +205,23 @@ def api_debug_env():
 
 @app.get("/health")
 def health_check():
+    from sqlalchemy import text
+    db_status = "connected"
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as e:
+        db_status = f"error: {str(e)[:80]}"
+    
+    scheduler_status = "running" if getattr(app.state, 'scheduler', None) else "not_started"
+    llm_status = "configured" if settings.openai_api_key else "unconfigured"
+    
     return {
-        "status": "ok",
-        "database": "connected",
-        "scheduler": "running",
-        "version": "debug-v1"
+        "status": "ok" if db_status == "connected" else "degraded",
+        "database": db_status,
+        "scheduler": scheduler_status,
+        "llm": llm_status,
+        "version": "v7.0.0"
     }
 
 from app.services.caption_engine import generate_islamic_caption
@@ -509,9 +524,8 @@ def on_startup():
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     log_startup(f"GLOBAL ERROR: {exc}")
-    import traceback
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal Server Error", "diagnostic": str(exc)}
+        content={"detail": "Internal Server Error"}
     )
     

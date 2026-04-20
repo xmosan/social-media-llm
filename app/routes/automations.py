@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
 from app.db import get_db
-from app.models import TopicAutomation, IGAccount
+from app.models import TopicAutomation, IGAccount, Post
 from app.schemas import TopicAutomationOut, TopicAutomationCreate, TopicAutomationUpdate, PostOut
 from app.security.rbac import get_current_org_id
 from app.services.scheduler import reload_automation_jobs
@@ -32,7 +32,15 @@ def list_automations(
     query = db.query(TopicAutomation).filter(TopicAutomation.org_id == org_id)
     if ig_account_id:
         query = query.filter(TopicAutomation.ig_account_id == ig_account_id)
-    return query.all()
+    
+    autos = query.all()
+    results = []
+    for a in autos:
+        count = db.query(Post).filter(Post.automation_id == a.id).count()
+        out = TopicAutomationOut.model_validate(a)
+        out.posts_generated = count
+        results.append(out)
+    return results
 
 @router.post("", response_model=TopicAutomationOut)
 def create_automation(

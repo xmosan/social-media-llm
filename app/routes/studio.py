@@ -11,7 +11,7 @@ from app.security.rbac import get_current_org_id
 from app.services.quote_message_service import build_quote_card_message
 from app.services.visual_service import VisualRequest, generate_visual
 # NOTE: Using exactly what main.py used for caption logic to avoid regressions
-from app.services.llm import generate_islamic_caption 
+from app.services.caption_engine import generate_islamic_caption
 
 logger = logging.getLogger(__name__)
 
