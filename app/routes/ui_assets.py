@@ -851,7 +851,7 @@ STUDIO_COMPONENTS_HTML = """
 
 <!-- AUTOMATION V2 MODAL -->
 <div id="newAutoModalV2" class="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[100] flex items-center justify-center p-4 md:p-10 hidden">
-    <div class="w-full max-w-2xl bg-white rounded-3xl overflow-hidden flex flex-col animate-in zoom-in duration-300 shadow-2xl relative">
+    <div class="w-full max-w-2xl max-h-full bg-white rounded-3xl overflow-hidden flex flex-col animate-in zoom-in duration-300 shadow-2xl relative">
         <button type="button" onclick="closeNewAutoModal()" class="absolute top-6 right-6 z-10 w-10 h-10 rounded-full bg-brand/5 border border-brand/10 flex items-center justify-center text-brand hover:bg-brand hover:text-white transition-all">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
