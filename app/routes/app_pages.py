@@ -1352,6 +1352,8 @@ async def app_automations_page(
             "seed_mode": a.content_seed_mode,
             "seed_text": a.content_seed_text,
             "time": a.post_time_local,
+            "posts_per_day": a.posts_per_day,
+            "post_spacing_hours": a.post_spacing_hours,
             "content_provider_scope": a.content_provider_scope,
             "pillars": a.pillars,
             "frequency": a.frequency,
@@ -1361,6 +1363,12 @@ async def app_automations_page(
             "verification_mode": a.verification_mode,
             "ig_account_id": a.ig_account_id
         }), quote=True)
+
+        # Analytics Injection
+        last_run_str = a.last_run_at.strftime("%b %d, %H:%M") if a.last_run_at else "Never"
+        status_pulse = "bg-emerald-500" if (a.last_run_at and not a.last_error) else ("bg-rose-500 animate-pulse" if a.last_error else "bg-brand/20")
+        perf_label = "Healthy" if (a.last_run_at and not a.last_error) else ("Critical Error" if a.last_error else "Awaiting Launch")
+        perf_color = "text-emerald-600" if (a.last_run_at and not a.last_error) else ("text-rose-600 font-black italic" if a.last_error else "text-brand/40")
 
         autos_html += f"""
         <div class="card p-8 md:p-10 bg-white border-brand/5 flex flex-col md:flex-row justify-between items-start md:items-center gap-10 group relative overflow-hidden transition-all">
@@ -1374,6 +1382,11 @@ async def app_automations_page(
               <div class="flex items-center gap-4">
                 <h3 class="text-2xl font-black text-brand tracking-tight italic">{a.name}</h3>
                 <button onclick="toggleAuto(event, {a.id}, {str(not a.enabled).lower()})" class="px-3 py-1.5 {status_bg} {status_color} rounded-xl text-[9px] font-black uppercase tracking-[0.2em] border border-brand/5 hover:scale-105 transition-all">{status_label}</button>
+                
+                <div class="flex items-center gap-2 px-3 py-1 bg-brand/[0.02] border border-brand/5 rounded-full">
+                    <span class="w-1.5 h-1.5 rounded-full {status_pulse}"></span>
+                    <span class="text-[9px] font-bold uppercase tracking-widest {perf_color}">{perf_label}</span>
+                </div>
               </div>
               <p class="text-[13px] text-text-muted font-medium line-clamp-1 italic max-w-xl opacity-80 group-hover:opacity-100 transition-opacity">"{a.topic_prompt}"</p>
               
@@ -1384,9 +1397,14 @@ async def app_automations_page(
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="badge-premium !text-[8px]">Pulse</span>
-                    <span class="text-[11px] font-black text-brand uppercase tracking-wider">Daily @ {a.post_time_local or '09:00'}</span>
+                    <span class="text-[11px] font-black text-brand uppercase tracking-wider">{a.posts_per_day}x Daily @ {a.post_time_local or '09:00'}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="badge-premium !text-[8px]">Last Sync</span>
+                    <span class="text-[11px] font-black text-brand uppercase tracking-wider opacity-60">{last_run_str}</span>
                 </div>
               </div>
+              {f'<p class="text-[9px] text-rose-500 font-bold italic mt-2 border-l-2 border-rose-100 pl-3">Error Log: {a.last_error[:100]}...</p>' if a.last_error else ''}
             </div>
           </div>
 

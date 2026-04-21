@@ -42,6 +42,7 @@ STUDIO_SCRIPTS_JS = """
         const trigger = id => document.getElementById(id);
         const root = trigger('accountSwitcherRoot');
         if (dropdown && !dropdown.classList.contains('hidden')) {
+            // Null check root to prevent script crash if switcher isn't rendered
             if (root && !root.contains(e.target)) {
                 dropdown.classList.add('hidden');
                 dropdown.style.display = 'none';
@@ -98,12 +99,20 @@ STUDIO_SCRIPTS_JS = """
 
     function openNewPostModal() {
         window.resetStudioSession();
-        document.getElementById('newPostModal').classList.remove('hidden');
+        const modal = document.getElementById('newPostModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
+        }
         switchStudioSection(1);
     }
 
     function closeNewPostModal() {
-        document.getElementById('newPostModal').classList.add('hidden');
+        const modal = document.getElementById('newPostModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
         window.resetStudioSession();
     }
 
@@ -635,10 +644,10 @@ STUDIO_SCRIPTS_JS = """
                         <div class="space-y-2">
                              <div class="text-[10px] font-black text-brand italic leading-tight">${data.grounding?.source || 'Perspective Reflection'}</div>
                              <p class="text-[11px] text-brand/80 font-medium leading-relaxed italic border-l-2 border-brand/5 pl-3">
-                                ${data.caption.split('\n')[0]}
+                                ${data.caption.split('\\n')[0]}
                              </p>
                              <div class="text-[10px] text-text-muted leading-relaxed line-clamp-3 opacity-60">
-                                ${data.caption.split('\n').slice(1).join(' ')}
+                                ${data.caption.split('\\n').slice(1).join(' ')}
                              </div>
                         </div>
 
@@ -663,7 +672,10 @@ STUDIO_SCRIPTS_JS = """
     
     window.closeNewAutoModal = function() {
         const modal = document.getElementById('newAutoModalV2');
-        if (modal) modal.classList.add('hidden');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
     };
 
     window.submitNewAutoV2 = async function(event) {
@@ -923,8 +935,8 @@ STUDIO_COMPONENTS_HTML = """
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
         <div class="p-8 md:p-10 border-b border-brand/5">
-            <h3 class="text-2xl font-black text-brand tracking-tight">Growth Plan <span class="text-accent italic">V2</span></h3>
-            <p class="text-sm font-medium text-text-muted mt-2">Create an autonomous content stream with precise Style DNA.</p>
+            <h3 class="text-2xl font-black text-brand tracking-tight">Establish <span class="text-accent italic">Growth Cycle</span></h3>
+            <p class="text-sm font-medium text-text-muted mt-2 leading-relaxed">Establish a continuous rhythm of authentic guidance, grounded in sacred knowledge and atmospheric design.</p>
         </div>
         <div class="p-8 md:p-10 flex-1 overflow-y-auto">
             <form id="autoV2Form" onsubmit="submitNewAutoV2(event)" class="space-y-6">
@@ -967,14 +979,14 @@ STUDIO_COMPONENTS_HTML = """
                     </div>
                     <div class="grid grid-cols-2 gap-4 col-span-full">
                         <div class="space-y-2">
-                            <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Max Daily Volume</label>
+                            <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Daily Manifest Volume</label>
                             <input type="number" name="posts_per_day" min="1" max="5" value="1" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
-                            <p class="text-[9px] text-text-muted mt-1 px-1 font-medium">Assets generated per day.</p>
+                            <p class="text-[8px] text-text-muted mt-1 px-1 font-medium">Guidance items generated per day.</p>
                         </div>
                         <div class="space-y-2">
-                            <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Hour Spacing</label>
+                            <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Guidance Buffer (Hours)</label>
                             <input type="number" name="post_spacing_hours" min="1" max="12" value="4" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
-                            <p class="text-[9px] text-text-muted mt-1 px-1 font-medium">Time buffer between jobs.</p>
+                            <p class="text-[8px] text-text-muted mt-1 px-1 font-medium">Minimum spacing between posts.</p>
                         </div>
                     </div>
                     <div class="space-y-4 pt-4 border-t border-brand/5 col-span-full">
@@ -1012,10 +1024,10 @@ STUDIO_COMPONENTS_HTML = """
                     </div>
 
                     <div class="flex gap-4">
-                        <button type="submit" id="btnSubmitAutoV2" class="flex-1 py-5 bg-brand text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all">Activate Growth Plan</button>
+                        <button type="submit" id="btnSubmitAutoV2" class="flex-1 py-5 bg-brand text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all">Launch Guidance Stream</button>
                         <button type="button" onclick="testAutoV2Preview()" id="btnPreviewAutoV2" class="px-8 py-5 bg-brand/5 text-brand rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-brand/10 transition-all flex items-center justify-center gap-2">
                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                           <span class="text-[10px]">Preview Samples</span>
+                           <span class="text-[10px]">Simulate Outcomes</span>
                         </button>
                     </div>
                 </div>
@@ -1044,7 +1056,6 @@ STUDIO_COMPONENTS_HTML = """
             </form>
         </div>
     </div>
-</div>
 </div>
 """
 
@@ -1131,8 +1142,6 @@ APP_LAYOUT_HTML = """<!doctype html>
   </nav>
   <script>
     async function logout() {{ await fetch('/auth/logout', {{ method: 'POST' }}); window.location.href = '/'; }}
-    function openNewPostModal() {{ document.getElementById('newPostModal').classList.remove('hidden'); }}
-    function closeNewPostModal() {{ document.getElementById('newPostModal').classList.add('hidden'); }}
   </script>
   {studio_modal}
   {connect_instagram_modal}
