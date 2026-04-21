@@ -26,8 +26,8 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
     try:
         # 1. Basic Protocol Check
         if not media_url.startswith("https://"):
-            log_event("ig_media_preflight_fail", reason="not_https", url=media_url)
-            return {"ok": False, "error": {"message": "Generated image is not publicly reachable yet."}}
+            log_event("ig_media_preflight_warn", reason="not_https_proceeding", url=media_url)
+            # We continue even if not https, though Meta will likely reject it later
             
         # 2. Local Loopback Trust (Railway/Hairpin NAT bypass)
         # If the file is in our local /uploads folder, we trust it exists even if the network ping fails.
@@ -63,21 +63,17 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
                         log_event("ig_media_preflight_network_success", status=preflight.status_code)
                     else:
                         log_event("ig_media_preflight_fail", reason="invalid_mime", mime=content_type)
-                        return {"ok": False, "error": {"message": "Generated image is not publicly reachable yet."}}
+                        # We continue anyway; Meta will validate the binary
                 else:
                     log_event("ig_media_preflight_fail", reason="network_404", status=preflight.status_code)
-                    return {"ok": False, "error": {"message": "Generated image is not publicly reachable yet."}}
+                    # We continue anyway; let Meta be the final arbiter
             except Exception as net_err:
                 log_event("ig_media_preflight_network_error", error=str(net_err))
-                return {"ok": False, "error": {"message": "Generated image is not publicly reachable yet."}}
 
     except Exception as e:
         log_event("ig_media_preflight_exception", error=str(e))
-        # Hard fallback only if we didn't already trust the local disk
-        if not should_bypass:
-            return {"ok": False, "error": {"message": "Generated image is not publicly reachable yet."}}
 
-    # Preflight passed (Network or Loopback Trust)
+    # Preflight passed OR we are proceeding with caution (Meta will be the final arbiter)
     # Step 1: create media container
     log_event("ig_media_create_start", ig_user_id=ig_user_id)
     r1 = requests.post(
