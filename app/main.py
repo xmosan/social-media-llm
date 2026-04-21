@@ -382,6 +382,18 @@ def readiness_check():
 # Serve uploads with dynamic absolute pathing
 uploads_absolute_path = settings.uploads_dir
 os.makedirs(uploads_absolute_path, exist_ok=True)
+
+# EXPLICIT IMAGE SERVING OVERRIDE (Bypass StaticFiles if needed)
+@app.get("/uploads/{filename}")
+async def serve_upload_forced(filename: str):
+    from fastapi.responses import FileResponse
+    full_path = os.path.join(settings.uploads_dir, filename)
+    if not os.path.exists(full_path):
+        raise HTTPException(status_code=404, detail="File not found")
+    # Force correct MIME type regardless of extension sniffing
+    content_type = "image/jpeg" if filename.endswith((".jpg", ".jpeg")) else ("image/png" if filename.endswith(".png") else "application/octet-stream")
+    return FileResponse(full_path, media_type=content_type)
+
 app.mount("/uploads", StaticFiles(directory=uploads_absolute_path), name="uploads")
 print(f"📁 [System] Uploads mounted at: {uploads_absolute_path}")
 
@@ -396,8 +408,9 @@ app.include_router(orgs.router)
 app.include_router(ig_accounts.router)
 app.include_router(ig_accounts.accounts_router)
 app.include_router(automations.router)
-app.include_router(library.router)
 app.include_router(media.router)
+from .routes import admin_diag
+app.include_router(admin_diag.router)
 app.include_router(auth.router)
 app.include_router(auth_google.router)
 app.include_router(auth_ig.router)

@@ -22,63 +22,73 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
     # PREFLIGHT CHECK: Ensure media URL is reachable and resolves to an image
     log_event("ig_media_preflight_check_start", url=media_url)
     should_bypass = False
+    preflight_error = None
     
     try:
         # 1. Basic Protocol Check
         if not media_url.startswith("https://"):
-            log_event("ig_media_preflight_warn", reason="not_https_proceeding", url=media_url)
-            # We continue even if not https, though Meta will likely reject it later
+            log_event("ig_media_preflight_fail", reason="not_https", url=media_url)
+            return {"ok": False, "error": {"message": "Generated image is not publicly reachable yet (HTTPS required)."}}
             
         # 2. Local Loopback Trust (Railway/Hairpin NAT bypass)
-        # If the file is in our local /uploads folder, we trust it exists even if the network ping fails.
         if "/uploads/" in media_url:
             import os
             local_filename = media_url.split("/uploads/")[-1]
-            
-            # Resolve absolute path to project root
-            # settings.uploads_dir is now a property that returns an absolute path
             abs_uploads_dir = settings.uploads_dir
             local_path = os.path.join(abs_uploads_dir, local_filename)
             
-            print(f"🔍 [IG_PUBLISH] Diagnostic: Checking local path: {local_path}")
             if os.path.exists(local_path):
-                print(f"✅ [IG_PUBLISH] Diagnostic: File exists on disk.")
-                log_event("ig_media_preflight_loopback_trust", path=local_path)
-                should_bypass = True
+                # Deep Verify Magic Bytes Locally
+                try:
+                    with open(local_path, "rb") as f:
+                        header = f.read(8).hex()
+                        if header.startswith("ffd8") or header.startswith("89504e47"):
+                            log_event("ig_media_preflight_loopback_trust_verified", path=local_path)
+                            should_bypass = True
+                        else:
+                            log_event("ig_media_preflight_fail", reason="invalid_local_magic_bytes", header=header)
+                            preflight_error = "Generated image file is corrupted or invalid."
+                except Exception as e:
+                    log_event("ig_media_preflight_local_read_error", error=str(e))
             else:
-                print(f"❌ [IG_PUBLISH] Diagnostic: File NOT found on disk at {local_path}")
                 log_event("ig_media_preflight_local_not_found", path=local_path)
 
         # 3. Network Ping (If not already trusted via local check)
-        if not should_bypass:
+        if not should_bypass and not preflight_error:
             preflight_opts = {
                 "timeout": 8,
                 "headers": {"User-Agent": "facebookexternalhit/1.1"} # Simulate Meta crawler
             }
             try:
-                preflight = requests.head(media_url, **preflight_opts)
-                if preflight.status_code >= 400:
-                    preflight = requests.get(media_url, stream=True, **preflight_opts)
-                
+                preflight = requests.get(media_url, stream=True, **preflight_opts)
                 if preflight.status_code < 400:
                     content_type = preflight.headers.get("Content-Type", "")
-                    if content_type.startswith("image/"):
+                    # Deep Verify Magic Bytes via Network
+                    header = preflight.raw.read(8).hex()
+                    
+                    if header.startswith("ffd8") or header.startswith("89504e47"):
                         log_event("ig_media_preflight_network_success", status=preflight.status_code)
                     else:
-                        log_event("ig_media_preflight_fail", reason="invalid_mime", mime=content_type)
-                        # We continue anyway; Meta will validate the binary
+                        log_event("ig_media_preflight_fail", reason="invalid_network_magic_bytes", header=header, content_type=content_type)
+                        preflight_error = "Generated image is not a valid public media file (found non-image content)."
                 else:
-                    log_event("ig_media_preflight_fail", reason="network_404", status=preflight.status_code)
-                    # We continue anyway; let Meta be the final arbiter
+                    log_event("ig_media_preflight_fail", reason="network_error", status=preflight.status_code)
+                    preflight_error = f"Generated image is unreachable (Server returned {preflight.status_code})."
             except Exception as net_err:
                 log_event("ig_media_preflight_network_error", error=str(net_err))
+                preflight_error = "Generated image is unreachable due to a network timeout."
 
     except Exception as e:
         log_event("ig_media_preflight_exception", error=str(e))
+        preflight_error = f"Media validation failed: {str(e)}"
 
-    # Preflight passed OR we are proceeding with caution (Meta will be the final arbiter)
+    # BLOCKED: Only proceed if preflight cleared or bypassed
+    if preflight_error and not should_bypass:
+        return {"ok": False, "error": {"message": preflight_error}}
+
     # Step 1: create media container
     log_event("ig_media_create_start", ig_user_id=ig_user_id)
+er_id)
     r1 = requests.post(
         f"{GRAPH_URL}/{ig_user_id}/media",
         data={
