@@ -1,21 +1,19 @@
 const fs = require('fs');
-const content = fs.readFileSync('/Users/hamoodi/new code 2-6/Social Media LLM/app/routes/app_pages.py', 'utf8');
-const scriptRegex = /<script>([\s\S]*?)<\/script>/g;
-let match;
-let i = 0;
-while ((match = scriptRegex.exec(content)) !== null) {
-    i++;
+const content = fs.readFileSync('app/routes/ui_assets.py', 'utf8');
+
+// Extract STUDIO_SCRIPTS_JS
+const match = content.match(/STUDIO_SCRIPTS_JS = """\n<script>\n([\s\S]*?)\n<\/script>\n"""/);
+if (match) {
     const js = match[1];
     try {
         new Function(js);
-        console.log(`Script block ${i}: VALID`);
+        console.log("JS is valid");
     } catch (e) {
-        console.error(`Script block ${i}: INVALID`);
-        console.error(e.message);
-        // Find line number in block
+        console.error("JS Syntax Error:", e.message);
+        // Find line number
         const lines = js.split('\n');
-        // This is a rough estimation
-        console.log("Estimated content near error:");
-        console.log(js.substring(0, 500)); 
+        // This won't give exact line but helps
     }
+} else {
+    console.log("Could not find STUDIO_SCRIPTS_JS");
 }

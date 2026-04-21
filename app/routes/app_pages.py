@@ -1253,7 +1253,7 @@ async def app_calendar_page(
                 <div class="w-16 h-16 bg-brand/5 rounded-2xl flex items-center justify-center text-brand/20 mb-2">
                     <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
                 </div>
-                <div class="text-[10px] font-black uppercase tracking-[0.4em] text-brand/20">Empty Manifestation Log</div>
+                <div class="text-[10px] font-black uppercase tracking-[0.4em] text-brand/20">No Recent Activity</div>
                 <p class="text-xs text-text-muted opacity-50 font-medium">Schedule your first piece of guidance to see it here.</p>
             </div>
         """
@@ -1268,7 +1268,7 @@ async def app_calendar_page(
             <div class="flex gap-4">
                 <button onclick="openNewPostModal()" class="px-10 py-5 bg-brand text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl shadow-brand/20 hover:bg-brand-hover hover:scale-[1.02] transition-all flex items-center gap-3">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
-                    Schedule Manifest
+                    Schedule Share
                 </button>
             </div>
         </div>
@@ -1279,7 +1279,7 @@ async def app_calendar_page(
         
         <div class="card p-12 bg-white border border-brand/5 text-center flex flex-col items-center justify-center space-y-10 relative overflow-hidden">
             <div class="absolute top-0 left-0 w-64 h-64 bg-brand/[0.01] rounded-full -ml-32 -mt-32"></div>
-            <div class="badge-premium relative">Upcoming Manifestations</div>
+            <div class="badge-premium relative">Upcoming Reminders</div>
             <div class="space-y-4 w-full max-w-2xl relative">
                 {scheduled_list_html}
             </div>
@@ -1398,10 +1398,10 @@ async def app_automations_page(
               <div class="flex flex-wrap gap-8 pt-2">
                 <div class="flex items-center gap-2">
                     <span class="badge-premium !text-[8px]">Strategy</span>
-                    <span class="text-[11px] font-black text-brand uppercase tracking-wider">{ 'Verified Context' if a.content_seed_mode == 'auto_library' else 'Guided Script' }</span>
+                    <span class="text-[11px] font-black text-brand uppercase tracking-wider">{ 'Sacred Grounding' if a.content_seed_mode == 'auto_library' else 'Guided Reflection' }</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="badge-premium !text-[8px]">Pulse</span>
+                    <span class="badge-premium !text-[8px]">Schedule</span>
                     <span class="text-[11px] font-black text-brand uppercase tracking-wider">{a.posts_per_day}x Daily @ {a.post_time_local or '09:00'}</span>
                 </div>
                 <div class="flex items-center gap-2">
@@ -1415,7 +1415,7 @@ async def app_automations_page(
 
           <div class="flex items-center gap-4 w-full md:w-auto relative border-t md:border-t-0 border-brand/[0.04] pt-8 md:pt-0">
             <button onclick="showEditModal({edit_data_json})" class="flex-1 md:flex-none px-8 py-5 bg-white border border-brand/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] text-brand/60 hover:text-brand hover:border-brand/30 hover:bg-brand/[0.02] transition-all">Configure</button>
-            <button onclick="runNow(event, {a.id})" class="flex-1 md:flex-none px-8 py-5 bg-brand rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-brand/20 hover:scale-[1.02] transition-all">Incarnate Now</button>
+            <button onclick="runNow(event, {a.id})" class="flex-1 md:flex-none px-8 py-5 bg-brand rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-brand/20 hover:scale-[1.02] transition-all">Share Now</button>
           </div>
         </div>
         """
@@ -1426,10 +1426,10 @@ async def app_automations_page(
               <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>
             </div>
             <div class="space-y-4">
-              <h3 class="heading-premium text-4xl">Start your first <span class="text-accent">Growth Plan</span></h3>
+              <h3 class="heading-premium text-4xl">Start your first <span class="text-accent">Reminder Stream</span></h3>
               <p class="text-premium-muted max-w-sm mx-auto">Establish the rhythm of your automated guidance cycles.</p>
             </div>
-            <button onclick="showNewAutoModal()" class="px-12 py-5 bg-brand text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-brand/40 hover:bg-brand-hover hover:scale-[1.02] transition-all">Begin Manifestation Plan</button>
+            <button onclick="showNewAutoModal()" class="px-12 py-5 bg-brand text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] shadow-2xl shadow-brand/40 hover:bg-brand-hover hover:scale-[1.02] transition-all">Start Guidance Stream</button>
         </div>
     """
     
@@ -1466,7 +1466,7 @@ async def app_automations_page(
     """ if is_connected else '<div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2 opacity-60 italic"><span>No account linked</span></div>'
 
     return render_app_page(
-        title="Growth Plans",
+        title="Reminder Streams",
         content=content.replace("{autos_html}", autos_html or empty_state_html),
         user=user,
         org=org,
@@ -1517,7 +1517,7 @@ async def app_media_page(
       <div class="flex justify-between items-end">
         <div>
           <h1 class="heading-premium text-5xl">Visuals</h1>
-          <p class="text-premium-muted mt-2">Visual Presence Manifestation Studio</p>
+          <p class="text-premium-muted mt-2">Visual Presence & Aesthetic Studio</p>
         </div>
         <div class="flex gap-4">
             <button onclick="document.getElementById('mediaUploadInput').click()" class="px-10 py-5 bg-brand text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl shadow-brand/20 hover:bg-brand-hover hover:scale-[1.02] transition-all flex items-center gap-3">
