@@ -191,18 +191,28 @@ def run_automation(db: Session, automation_id: int, force_publish: bool = False)
         )
 
 
-def get_automation_style_dna(automation: TopicAutomation) -> StyleDNASpec:
+def get_automation_style_dna(db: Session, automation: TopicAutomation) -> StyleDNASpec:
     """
     Resolves the StyleDNA for a given automation.
 
     Phase 1: Maps the legacy `style_preset` string to a system preset.
-    Phase 2: Will load from the `style_dna` table using `automation.style_dna_id`.
+    Phase 2: Will load from the `style_dna` table using `automation.style_dna_id` or `automation.style_dna_pool`.
 
     Returns a StyleDNASpec (always — uses 'islamic_reminder' as fallback).
     """
-    if getattr(automation, "automation_version", 1) >= 2 and getattr(automation, "style_dna_id", None):
-        from app.models import StyleDNA
-        db_obj = automation.style_dna # relationship should be loaded
+    from app.models import StyleDNA, Post
+    
+    selected_dna_id = getattr(automation, "style_dna_id", None)
+    pool = getattr(automation, "style_dna_pool", []) or []
+    
+    # Pool Rotation Logic
+    if pool:
+        post_count = db.query(Post).filter(Post.automation_id == automation.id).count()
+        selected_dna_id = pool[post_count % len(pool)]
+        logger.info(f"[STYLE_DNA] Pool rotation: selected index {post_count % len(pool)} (ID: {selected_dna_id}) from pool {pool}")
+
+    if getattr(automation, "automation_version", 1) >= 2 and selected_dna_id:
+        db_obj = db.get(StyleDNA, selected_dna_id)
         if db_obj:
             return StyleDNASpec(
                 family=db_obj.family,

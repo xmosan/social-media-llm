@@ -181,6 +181,7 @@ class TopicAutomationOut(BaseModel):
     verification_mode: str = "standard"
     
     style_dna_id: int | None = None
+    style_dna_pool: list[int] | None = None
     automation_version: int = 1
     approval_mode: str = "auto_approve"
     cadence: str = "daily"
@@ -267,6 +268,7 @@ class TopicAutomationCreate(BaseModel):
     verification_mode: str = "standard"
     
     style_dna_id: int | None = None
+    style_dna_pool: list[int] | None = None
     automation_version: int = 1
 
     @validator("media_tag_query", pre=True)
@@ -322,6 +324,7 @@ class TopicAutomationUpdate(BaseModel):
     verification_mode: str | None = None
     
     style_dna_id: int | None = None
+    style_dna_pool: list[int] | None = None
     automation_version: int | None = None
 
     @validator("media_tag_query", pre=True)

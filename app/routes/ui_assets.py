@@ -490,6 +490,7 @@ STUDIO_SCRIPTS_JS = """
 
     // --- PHASE 2: AUTOMATION V2 UI LOGIC ---
     let v2DnaPresets = [];
+    window.currentAutoStylePool = [];
 
     async function loadStyleDnaPresets() {
         if (v2DnaPresets.length > 0 && document.getElementById('autoV2StyleDNAContainer')?.children.length > 1) return;
@@ -566,12 +567,14 @@ STUDIO_SCRIPTS_JS = """
         const timeInput = document.querySelector('input[name="post_time_local"]')?.value || '09:00';
         const postsPerDay = document.querySelector('input[name="posts_per_day"]')?.value || 1;
         const spacing = document.querySelector('input[name="post_spacing_hours"]')?.value || 4;
-        const dnaId = document.getElementById('autoV2StyleDNAInput')?.value;
         
         let dnaLabel = 'Atmospheric';
-        if (window.v2DnaPresets && dnaId) {
-            const match = v2DnaPresets.find(p => p.id == dnaId);
-            if (match) dnaLabel = match.label;
+        if (window.currentAutoStylePool && window.currentAutoStylePool.length > 0) {
+            const labels = window.currentAutoStylePool.map(id => {
+                const match = v2DnaPresets.find(p => p.id == id);
+                return match ? match.label : 'Style';
+            });
+            dnaLabel = labels.join(' + ');
         }
 
         const summaryEl = document.getElementById('autoV2BehaviorSummary');
@@ -625,13 +628,47 @@ STUDIO_SCRIPTS_JS = """
     };
 
     window.selectV2StyleDna = function(id, el) {
+        const dnaId = parseInt(id, 10);
+        const pool = window.currentAutoStylePool || [];
+        const index = pool.indexOf(dnaId);
+
+        if (index > -1) {
+            // Remove if already present
+            pool.splice(index, 1);
+        } else {
+            // Add if limit not reached
+            if (pool.length < 3) {
+                pool.push(dnaId);
+            } else {
+                alert("Reminder: You can select up to 3 visual directions to maintain consistency.");
+                return;
+            }
+        }
+        window.currentAutoStylePool = pool;
+
+        // Backward compatibility: style_dna_id is the first one in the pool
         const input = document.getElementById('autoV2StyleDNAInput');
-        if(input) input.value = id;
-        document.querySelectorAll('.auto-style-card').forEach(c => {
-            c.classList.remove('ring-2', 'ring-brand', 'bg-brand/5', 'shadow-xl');
-        });
-        if(el) el.classList.add('ring-2', 'ring-brand', 'bg-brand/5', 'shadow-xl');
-        window.updateAutoV2VisualPreview(id);
+        if(input) input.value = pool.length > 0 ? pool[0] : "";
+
+        // Update UI
+        const container = document.getElementById('autoV2StyleDNAContainer');
+        if (container) {
+            container.querySelectorAll('.auto-style-card').forEach(c => {
+                const cardIdAttr = c.getAttribute('onclick');
+                const isSelected = pool.some(pid => cardIdAttr.includes(`'${pid}'`) || cardIdAttr.includes(`${pid}`));
+                
+                if (isSelected) {
+                    c.classList.add('ring-2', 'ring-brand', 'bg-brand/5', 'shadow-xl');
+                } else {
+                    c.classList.remove('ring-2', 'ring-brand', 'bg-brand/5', 'shadow-xl');
+                }
+            });
+        }
+        
+        if (pool.length > 0) {
+            window.updateAutoV2VisualPreview(pool[pool.length - 1]);
+        }
+        window.updateAutoV2Summary();
     };
 
     window.selectApprovalMode = function(mode, el) {
@@ -666,6 +703,7 @@ STUDIO_SCRIPTS_JS = """
                 if (form) {
                     form.dataset.editId = "";
                     form.reset();
+                    window.currentAutoStylePool = [];
                 }
                 window.updateAutoV2Summary();
             } catch (e) {
@@ -695,19 +733,27 @@ STUDIO_SCRIPTS_JS = """
         const content = document.getElementById('autoV2PreviewContent');
         
         try {
-            let styleStr = 'islamic_reminder';
-            const selectedDnaId = document.getElementById('autoV2StyleDNAInput').value;
-            if(selectedDnaId) {
-                 const match = v2DnaPresets.find(p => p.id == selectedDnaId);
-                 if(match) styleStr = match.id || match.label;
+            let styleStr1 = 'islamic_reminder';
+            let styleStr2 = 'islamic_reminder';
+            
+            const pool = window.currentAutoStylePool || [];
+            if (pool.length > 0) {
+                const s1 = pool[0];
+                const s2 = pool[1] || pool[0];
+                
+                const match1 = v2DnaPresets.find(p => p.id == s1);
+                const match2 = v2DnaPresets.find(p => p.id == s2);
+                
+                if (match1) styleStr1 = match1.id || match1.label;
+                if (match2) styleStr2 = match2.id || match2.label;
             }
 
             // Call with separate topics from the pool for variety
             const t1 = topics[0];
             const t2 = topics[1] || topics[0];
 
-            const reqUrl1 = `/automations/debug/llm-test?topic=${encodeURIComponent(t1)}&style=${encodeURIComponent(styleStr)}`;
-            const reqUrl2 = `/automations/debug/llm-test?topic=${encodeURIComponent(t2)}&style=${encodeURIComponent(styleStr)}`;
+            const reqUrl1 = `/automations/debug/llm-test?topic=${encodeURIComponent(t1)}&style=${encodeURIComponent(styleStr1)}`;
+            const reqUrl2 = `/automations/debug/llm-test?topic=${encodeURIComponent(t2)}&style=${encodeURIComponent(styleStr2)}`;
 
             const responses = await Promise.all([
                 fetch(reqUrl1).then(r => r.json()),
@@ -819,6 +865,7 @@ STUDIO_SCRIPTS_JS = """
             topic_prompt: form.topic_prompt.value,
             topic_pool: window.currentAutoTopicPool || [],
             style_dna_id: form.style_dna_id.value ? parseInt(form.style_dna_id.value) : null,
+            style_dna_pool: window.currentAutoStylePool || [],
             automation_version: 2,
             approval_mode: document.getElementById('autoV2ApprovalModeInput') ? document.getElementById('autoV2ApprovalModeInput').value : 'auto_approve',
             cadence: document.getElementById('autoV2CadenceInput') ? document.getElementById('autoV2CadenceInput').value : 'daily',
@@ -879,18 +926,27 @@ STUDIO_SCRIPTS_JS = """
         if(form.posts_per_day) form.posts_per_day.value = data.posts_per_day || 1;
         if(form.post_spacing_hours) form.post_spacing_hours.value = data.post_spacing_hours || 4;
         
-        if (data.style_dna_id) {
+        if (data.style_dna_id || (data.style_dna_pool && data.style_dna_pool.length > 0)) {
             const input = document.getElementById('autoV2StyleDNAInput');
-            if(input) input.value = data.style_dna_id;
+            const pool = data.style_dna_pool || (data.style_dna_id ? [data.style_dna_id] : []);
+            window.currentAutoStylePool = pool;
+            
+            if(input) input.value = pool.length > 0 ? pool[0] : "";
             
             setTimeout(() => {
                 const container = document.getElementById('autoV2StyleDNAContainer');
                 if(container) {
                     const cards = container.querySelectorAll('.auto-style-card');
-                    // Find card index based on DNA ID
                     const cardsArr = Array.from(cards);
-                    const targetCard = cardsArr.find(c => c.getAttribute('onclick')?.includes(`'${data.style_dna_id}'`) || c.getAttribute('onclick')?.includes(`${data.style_dna_id}`));
-                    if(targetCard) selectV2StyleDna(data.style_dna_id, targetCard);
+                    
+                    pool.forEach(pid => {
+                        const targetCard = cardsArr.find(c => c.getAttribute('onclick')?.includes(`'${pid}'`) || c.getAttribute('onclick')?.includes(`${pid}`));
+                        if(targetCard) {
+                            targetCard.classList.add('ring-2', 'ring-brand', 'bg-brand/5', 'shadow-xl');
+                        }
+                    });
+                    
+                    if (pool.length > 0) window.updateAutoV2VisualPreview(pool[pool.length-1]);
                 }
             }, 150);
         }
@@ -1231,7 +1287,8 @@ STUDIO_COMPONENTS_HTML = """
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-4 col-span-full">
-                        <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Atmospheric Style DNA</label>
+                        <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Visual Directions (Style DNA)</label>
+                        <p class="text-[8px] text-text-muted px-1 font-medium mb-2">Select up to 3 visual directions. The engine will rotate through your pool for each post.</p>
                         <input type="hidden" name="style_dna_id" id="autoV2StyleDNAInput" required>
                         <div id="autoV2StyleDNAContainer" class="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <div class="p-8 text-center text-brand/30 animate-pulse text-[10px] font-bold uppercase tracking-widest col-span-full">Refining Guidance Reminders...</div>

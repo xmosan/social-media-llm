@@ -298,6 +298,7 @@ class TopicAutomation(Base):
 
     # NEW: Phase 2 Automation Evolution
     style_dna_id = Column(Integer, ForeignKey("style_dna.id"), nullable=True)
+    style_dna_pool = Column(JSON, nullable=True) # List of Style DNA IDs for rotation
     automation_version = Column(Integer, nullable=False, default=1)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

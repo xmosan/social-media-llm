@@ -14,6 +14,7 @@ from app.services.library_retrieval import retrieve_relevant_chunks
 from app.services.prebuilt_loader import load_prebuilt_packs
 from app.services.image_card import create_quote_card
 from app.services.image_renderer import render_quote_card, render_minimal_quote_card
+from app.services.relevance_engine import validate_source_relevance
 from app.config import settings
 import pytz
 import os
@@ -128,8 +129,23 @@ def clean_translation_for_card(text: str) -> str:
     if not text: return ""
     # Remove brackets but keep the content inside them
     cleaned = re.sub(r'\[(.*?)\]', r'\1', text)
+    # Remove digit artifacts like "Iblees;1" or footnotes like " (1) "
+    cleaned = re.sub(r';\d+', '', cleaned)
+    cleaned = re.sub(r'\(\s*\d+\s*\)', '', cleaned)
+    
     # Remove any stray double spaces
     return " ".join(cleaned.split())
+
+def format_hashtags(tags: list[str]) -> list[str]:
+    """Converts space-separated or raw tags into proper CamelCase #hashtags."""
+    if not tags: return []
+    formatted = []
+    for t in tags:
+        # CamelCase: capitalize every word, remove spaces
+        camel = "".join([w.capitalize() for w in t.replace("#", "").split()])
+        if camel:
+            formatted.append(f"#{camel}")
+    return formatted[:10] # limit to 10 for clean look
 
 def resolve_media_url(
     db: Session, 
@@ -260,7 +276,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
 
         # PHASE 2: Load Style DNA System
         from app.services.automation_service import get_automation_style_dna
-        style_dna_spec = get_automation_style_dna(automation)
+        style_dna_spec = get_automation_style_dna(db, automation)
 
         log_event("automation_run_start", automation_id=automation.id, topic=topic_base, style=automation.style_preset)
         print(f"[STYLE_DNA] preset loaded: {style_dna_spec.family} (Atmosphere: {style_dna_spec.atmosphere})")
@@ -288,7 +304,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             active_providers.append(SystemLibraryProvider())
             
         pooled_items = []
-        target_limit = getattr(automation, "items_per_post", 1) or 1
+        target_limit = 5 # Fetch more for filtering pool
         
         # Dual-pass logic: Try the variation first, then the base topic
         attempts = [topic, topic_base] if topic != topic_base else [topic]
@@ -312,24 +328,37 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 except Exception as e:
                     print(f"[PROVIDER] Error in {provider.provider_name}: {e}")
                 
+        # 1.45 Relevance Filtering Gate (v2 Integrity)
+        primary_item = None
+        relevance_results = {}
+        fallback_mode = False
+        
+        # We audit up to the first 3 candidates
+        for candidate in pooled_items[:3]:
+            audit = validate_source_relevance(topic_base, candidate.text, candidate.reference)
+            relevance_results[candidate.original_id] = audit
+            
+            if audit["accepted"]:
+                primary_item = candidate
+                log_event("quran_relevance_passed", automation_id=automation.id, reference=candidate.reference, reason=audit["reason"])
+                break
+            else:
+                log_event("quran_relevance_rejected", automation_id=automation.id, reference=candidate.reference, reason=audit["reason"])
+
+        if not primary_item:
+            # FALLBACK: No highly relevant verse found -> Switch to Reflection Mode
+            fallback_mode = True
+            log_event("automation_relevance_fallback", automation_id=automation.id, topic=topic_base)
+            print(f"⚠️ [RELEVANCE] No high-confidence match found for '{topic_base}'. Falling back to Reflection Mode.")
+            # Use the first item anyway but mark as reflection so card doesn't show weak ref
+            primary_item = pooled_items[0] if pooled_items else None
+
         # [SAFETY] Guardrail: Abort if exactly 0 items found
-        if not pooled_items:
+        if not primary_item:
             log_event("automation_no_content_found", automation_id=automation.id, topic=topic, scope=provider_scope)
             automation.last_error = "No verified content found across chosen providers."
-            new_post = Post(
-                org_id=automation.org_id,
-                ig_account_id=automation.ig_account_id,
-                is_auto_generated=True,
-                automation_id=automation.id,
-                status="failed",
-                source_type="automation",
-                source_text=f"AUTO: {automation.name} | topic={topic}",
-                caption="",
-                flags={"automation_error": "No verified content found across chosen providers.", "reason": "no_content_found"}
-            )
-            db.add(new_post)
             db.commit()
-            return new_post
+            return None
 
         # 1.5 Content Profile Injection
         content_profile_prompt = None
@@ -353,12 +382,13 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         print(f"[STYLE_DNA] visual payload built")
 
         # 1.6 Source Selection & Grounding (v2 Consistency Fix)
-        primary_item = pooled_items[0] if pooled_items else None
-        
         # Determine the definitive reference for the entire post
-        final_reference = (primary_item.reference if primary_item else "").strip()
+        if fallback_mode:
+            final_reference = f"{topic_base.split(':')[0].strip().capitalize()} Reflection"
+        else:
+            final_reference = (primary_item.reference if primary_item else "").strip()
+            
         if not final_reference: final_reference = "Sacred Guidance"
-        
         # Clean text for visual cards but keep original for caption if needed
         uncleaned_text = primary_item.text if primary_item else topic
         quote_text_cleaned = clean_translation_for_card(uncleaned_text)
@@ -427,6 +457,9 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             
         if automation.hashtag_set:
             hashtags = automation.hashtag_set
+            
+        # CamelCase Formatting for clean footer
+        hashtags = format_hashtags(hashtags)
             
         log_event("automation_caption_generated", automation_id=automation.id, caption_len=len(caption), hashtags_count=len(hashtags))
         
@@ -566,12 +599,15 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             source_metadata={
                 "recovery_recipe": {
                     "quote_text": quote_text,
-                    "reference": reference,
+                    "reference": final_reference,
                     "bg_url": bg_url if 'bg_url' in locals() else None,
-                    "visual_mode": automation.image_mode,
+                    "visual_mode": automation.image_mode if not fallback_mode else "quote_card",
                     "style": automation.style_preset
-                }
-            }
+                },
+                "is_fallback_reflection": fallback_mode,
+                "relevance_audit": relevance_results.get(primary_item.original_id) if primary_item else None
+            },
+            flags={"relevance_check": "fallback" if fallback_mode else "passed"}
         )
         
         # 5. Guardrail & Validation

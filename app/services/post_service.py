@@ -218,6 +218,11 @@ def publish_post(db: Session, post_id: int, org_id: int) -> PostResult:
         db.commit()
         return PostResult(error="Missing caption or media URL")
 
+    # NEW: Relevance Safety Gate
+    if post.flags.get("relevance_check") == "failed":
+        log_event("post_publish_blocked_relevance", post_id=post.id, org_id=org_id)
+        return PostResult(error="Source relevance check failed. Regenerate this post before publishing.")
+
     from app.services.publisher import publish_to_instagram
 
     acc = db.get(IGAccount, post.ig_account_id)

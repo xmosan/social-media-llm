@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 import random
+from app.services.content_sources import expand_topic_keywords
 
 from app.models import ContentItem
 
@@ -60,15 +61,17 @@ class SystemLibraryProvider(BaseContentProvider):
             item_text = (item.text or "").lower()
             item_meta = item.meta or {}
             
-            # Flexible keyword matching
+            # Flexible keyword matching (v2 Expansion)
+            keywords = expand_topic_keywords(norm_topic)
             match_found = False
-            if norm_topic in item_topics or norm_topic in item_text:
+            
+            # Check topics (explicit tags)
+            if any(kw in item_topics for kw in keywords):
                 match_found = True
-            else:
-                # Fallback: Split by common delimiters and check for any intersection
-                keywords = [kw.strip() for kw in norm_topic.replace(",", " ").split() if len(kw.strip()) > 2]
-                if any(kw in item_topics for kw in keywords) or any(kw in item_text for kw in keywords):
-                    match_found = True
+            
+            # Check text (content)
+            elif any(kw in item_text for kw in keywords):
+                match_found = True
                     
             if match_found:
                 match_pool.append(item)
@@ -120,15 +123,17 @@ class UserLibraryProvider(BaseContentProvider):
             item_topics = [t.lower() for t in (item.topics or [])]
             item_text = (item.text or "").lower()
             
-            # Flexible keyword matching
+            # Flexible keyword matching (v2 Expansion)
+            keywords = expand_topic_keywords(norm_topic)
             match_found = False
-            if norm_topic in item_topics or norm_topic in item_text:
+            
+            # Check topics (explicit tags)
+            if any(kw in item_topics for kw in keywords):
                 match_found = True
-            else:
-                # Fallback: Split by common delimiters and check for any intersection
-                keywords = [kw.strip() for kw in norm_topic.replace(",", " ").split() if len(kw.strip()) > 2]
-                if any(kw in item_topics for kw in keywords) or any(kw in item_text for kw in keywords):
-                    match_found = True
+            
+            # Check text (content)
+            elif any(kw in item_text for kw in keywords):
+                match_found = True
                     
             if match_found:
                 match_pool.append(item)

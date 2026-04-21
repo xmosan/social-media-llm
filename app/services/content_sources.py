@@ -10,6 +10,40 @@ from app.models import ContentSource, ContentItem
 
 logger = logging.getLogger(__name__)
 
+# --- Topic Alias Map (v2 Intelligence) ---
+ALIAS_MAP = {
+    "sabr": ["patience", "steadfastness", "persevere", "endurance", "patiently"],
+    "salah": ["prayer", "pray", "prostrate", "sujud"],
+    "shukr": ["gratitude", "grateful", "thankful", "thanks"],
+    "tawakkul": ["trust in allah", "dependence", "reliance", "trusting allah"],
+    "mercy": ["compassion", "rahmah", "merciful", "kindness"],
+    "forgiveness": ["pardon", "forgive", "repentance", "maghfirah"],
+    "akhlaq": ["character", "manner", "morals", "behavior"],
+    "rizq": ["provision", "sustenance", "blessing"],
+}
+
+def expand_topic_keywords(topic: str) -> list[str]:
+    """Expands a topic into a list of relevant search keywords using the ALIAS_MAP."""
+    if not topic:
+        return []
+    
+    words = [topic.lower().strip()]
+    
+    # Check for direct matches in the alias map
+    for key, aliases in ALIAS_MAP.items():
+        if key in words[0] or any(alias in words[0] for alias in aliases):
+            words.extend(aliases)
+            # Add the key itself if it wasn't there
+            if key not in words:
+                words.append(key)
+    
+    # Split the original multi-word topic into individual tokens too
+    tokens = [w.strip() for w in words[0].replace(",", " ").split() if len(w.strip()) > 2]
+    words.extend(tokens)
+    
+    # Unique, cleaned list
+    return list(set([w.lower() for w in words if w]))
+
 def select_items_for_automation(
     db: Session,
     *,
