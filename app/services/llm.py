@@ -213,8 +213,8 @@ def generate_topic_caption(
     CRITICAL RULES:
     1. DO NOT include generic filler like "Enhance your daily reminder", "Welcome to our page", or "Here is your caption".
     2. Write a unique, meaningful caption specifically about the topic/concept provided.
-    3. If GROUNDING CONTENT (snippet) is provided, you MUST start the caption by quoting the provided verse/text verbatim (or the key sentence if long), followed immediately by the reference.
-    4. CITE SOURCES STRICTLY: If citing the Qur'an, use the format 'Qur'an Surah:Verse' (e.g., Qur'an 2:183). NEVER make up a reference. Use the provided reference EXACTLY.
+    3. If GROUNDING CONTENT (snippet) is provided, you MUST use that specific text as the foundation. Start the caption by quoting the provided verse/text verbatim (or the key sentence if long), followed immediately by the reference.
+    4. CITE SOURCES STRICTLY: The reference in your caption MUST match the grounding snippet's reference EXACTLY. Do NOT pick a different verse even if it seems related.
     5. NO meta-talk. No "Certainly", no "Here is your caption".
     6. DO NOT return the topic or the automation name as the caption itself.
     

@@ -13,7 +13,7 @@ from app.services.image_card import create_quote_card
 from app.services.library_retrieval import retrieve_relevant_chunks
 from app.services.prebuilt_loader import load_prebuilt_packs
 from app.services.image_card import create_quote_card
-from app.services.image_renderer import render_quote_card
+from app.services.image_renderer import render_quote_card, render_minimal_quote_card
 from app.config import settings
 import pytz
 import os
@@ -117,6 +117,19 @@ def pick_media_url(db: Session, org_id: int, ig_account_id: int, automation: Any
                 asset = random.choice(matching)
                 return asset.url
     return None
+
+def clean_translation_for_card(text: str) -> str:
+    """
+    Cleans up translator artifacts like [brackets] for a more premium visual card look.
+    Removes the brackets but keeps the inner text if it feels like part of the flow.
+    Example: "[O Muhammad]" -> "O Muhammad"
+    """
+    import re
+    if not text: return ""
+    # Remove brackets but keep the content inside them
+    cleaned = re.sub(r'\[(.*?)\]', r'\1', text)
+    # Remove any stray double spaces
+    return " ".join(cleaned.split())
 
 def resolve_media_url(
     db: Session, 
@@ -339,11 +352,30 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         print(f"[STYLE_DNA] variation chosen: {chosen_variation}")
         print(f"[STYLE_DNA] visual payload built")
 
+        # 1.6 Source Selection & Grounding (v2 Consistency Fix)
+        primary_item = pooled_items[0] if pooled_items else None
+        
+        # Determine the definitive reference for the entire post
+        final_reference = (primary_item.reference if primary_item else "").strip()
+        if not final_reference: final_reference = "Sacred Guidance"
+        
+        # Clean text for visual cards but keep original for caption if needed
+        uncleaned_text = primary_item.text if primary_item else topic
+        quote_text_cleaned = clean_translation_for_card(uncleaned_text)
+
+        print(f"[POST_SOURCE] selected source: {final_reference}")
+
         context_payload = {
             "topic": topic,
             "style": style_dna_spec.family,
             "tone": automation.tone or "medium",
             "language": automation.language or "english",
+            "mode": "grounded_library",  # FORCE GROUNDING
+            "snippet": {
+                "item_type": "quran" if "quran" in (primary_item.provider if primary_item else "").lower() else "reference",
+                "text": uncleaned_text,
+                "reference": final_reference
+            },
             "banned_phrases": automation.banned_phrases if isinstance(automation.banned_phrases, list) else None,
             "source_items": [
                 {
@@ -358,17 +390,16 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             ],
             "content_profile_prompt": content_profile_prompt,
             "creativity_level": getattr(automation, "creativity_level", 3),
-            "source_mode": getattr(automation, "source_mode", "balanced"),
+            "source_mode": "strict", # Enforce single source
             "tone_style": style_dna_spec.tone_style,
             "verification_mode": getattr(automation, "verification_mode", "standard"),
             "instructions": [
                 "Do NOT output the topic label literally.",
                 "Do NOT output 'AUTO: <name>' literally as the caption.",
-                "You MUST build the post primarily around the structured `source_items` provided below.",
-                "DO NOT hallucinate or generate quotes/hadith/verses that are not explicitly provided in the `source_items`.",
-                "Always cite the exact reference provided.",
-                f"SOURCE MODE: {getattr(automation, 'source_mode', 'balanced')}. (Strict means only use provided items, Balanced means you can add connective tissue/context).",
-                f"TONE STYLE: {getattr(automation, 'tone_style', 'deep')}. (Apply this specific voice to the writing)."
+                f"You MUST use the provided GROUNDED SNIPPET (ref: {final_reference}) as your primary source.",
+                f"The citation in your caption MUST EXACTLY match: {final_reference}.",
+                "DO NOT hallucinate other verses.",
+                f"TONE STYLE: {getattr(automation, 'tone_style', 'deep')}."
             ],
         }
 
@@ -400,54 +431,76 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         log_event("automation_caption_generated", automation_id=automation.id, caption_len=len(caption), hashtags_count=len(hashtags))
         
         # 3. Resolve Media & Recovery Recipe Ingredients
-        primary_item = pooled_items[0] if pooled_items else None
         concepts = primary_item.topic_tags[0] if primary_item and primary_item.topic_tags else None
         
-        # Define recovery ingredients early to avoid UnboundLocalError
-        quote_text = primary_item.text if primary_item else topic
-        reference = (primary_item.reference if primary_item else "").strip()
-        if not reference: reference = "Divine Guidance"
+        # Use early-defined ingredients
+        quote_text = quote_text_cleaned
+        reference = final_reference
         
         media_url = None
         
-        # SPECIAL: Quote Card Mode
+        # SPECIAL: Quote Card Mode (v9.0 Premium Upgrade)
         if automation.image_mode == "quote_card":
             
-            # Prefer library image
+            # 1. Resolve Background
             bg_url = resolve_media_url(
                 db=db, org_id=automation.org_id, ig_account_id=automation.ig_account_id,
                 image_mode="use_library_image", media_asset_id=automation.media_asset_id,
                 media_tag_query=automation.media_tag_query
             )
-            # Fallback to AI nature
             if not bg_url:
                 bg_url = resolve_media_url(
                     db=db, org_id=automation.org_id, ig_account_id=automation.ig_account_id,
                     image_mode="ai_nature_photo", topic=topic, automation_id=automation.id
                 )
             
-            if bg_url:
-                try:
-                    import requests
-                    import time
-                    bg_res = requests.get(bg_url, timeout=30)
-                    if bg_res.status_code == 200:
-                        tmp_bg_path = os.path.join(settings.uploads_dir, f"tmp_bg_{int(time.time())}.jpg")
-                        with open(tmp_bg_path, "wb") as f:
-                            f.write(bg_res.content)
-                        
-                        media_url = render_quote_card(tmp_bg_path, quote_text, reference, settings.uploads_dir)
-                        if os.path.exists(tmp_bg_path): os.remove(tmp_bg_path)
-                            
-                        if "." in caption:
-                            caption = caption.split(".")[0] + "."
-                        else:
-                            caption = f"{reference}"
-                    else:
-                        raise Exception(f"Failed to download background: {bg_res.status_code}")
-                except Exception as e:
-                    print(f"[AUTO] Quote card rendering failed: {e}")
-                    log_event("automation_media_error", automation_id=automation.id, error=str(e))
+            # 2. Render Premium Quote Card
+            try:
+                # Build v9.0 segments
+                card_segments = [
+                    {"text": reference.upper(), "size": 36},   # Zone 0: Reference
+                    {"text": quote_text, "size": 72}            # Zone 1: Main Quote
+                ]
+                
+                # Zone 2: Optional Arabic
+                if getattr(automation, 'include_arabic', False) and primary_item.arabic_text:
+                    card_segments.append({"text": primary_item.arabic_text, "size": 38, "is_arabic": True})
+                
+                print(f"📡 [v9.0] Rendering premium card for {reference}")
+                
+                # Download bg if exists, otherwise render_minimal_quote_card will use preset/AI
+                tmp_bg_path = None
+                if bg_url:
+                     import requests, time
+                     bg_res = requests.get(bg_url, timeout=30)
+                     if bg_res.status_code == 200:
+                         tmp_bg_path = os.path.join(settings.uploads_dir, f"tmp_bg_{int(time.time())}.jpg")
+                         with open(tmp_bg_path, "wb") as f: f.write(bg_res.content)
+                
+                # CALL PREMIUM RENDERER
+                media_url = render_minimal_quote_card(
+                    segments=card_segments,
+                    output_dir=settings.uploads_dir,
+                    style=automation.style_preset or "quran",
+                    visual_prompt=style_dna_spec.visual_prompt,
+                    mode="custom" if style_dna_spec.visual_prompt else "preset",
+                    text_style_prompt=style_dna_spec.glow_aura # reuse aura context for text style bias
+                )
+                
+                if tmp_bg_path and os.path.exists(tmp_bg_path): os.remove(tmp_bg_path)
+                
+                # Check for source mismatch in caption (v2 Guardrail)
+                reference_clean = reference.replace("Qur'an", "").replace("Quran", "").strip()
+                if reference_clean.lower() not in caption.lower() and ":" in reference:
+                    print(f"❌ [POST_SOURCE_MISMATCH] BLOCKING: reference {reference} not found in caption.")
+                    automation.last_error = f"Source mismatch detected: Card={reference}, Caption source missing."
+                    db.commit()
+                    return None
+                    # We don't block here yet, but we log it.
+
+            except Exception as e:
+                print(f"[AUTO] Premium Quote card rendering failed: {e}")
+                log_event("automation_media_error", automation_id=automation.id, error=str(e))
         else:
             try:
                 media_url = resolve_media_url(
@@ -468,35 +521,19 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         if not media_url:
             print(f"[AUTO] Forced fallback to quote_card for automation {automation.id}")
             
-            # 1. Try for background image (Library -> AI Nature)
-            bg_url = resolve_media_url(
-                db=db, org_id=automation.org_id, ig_account_id=automation.ig_account_id,
-                image_mode="use_library_image", media_asset_id=automation.media_asset_id,
-                media_tag_query=automation.media_tag_query
-            )
-            if not bg_url:
-                bg_url = resolve_media_url(
-                    db=db, org_id=automation.org_id, ig_account_id=automation.ig_account_id,
-                    image_mode="ai_nature_photo", topic=topic, automation_id=automation.id
-                )
-            
-            # UNSTOPPABLE: Even if bg_url is missing, render_quote_card now generates a procedural background
+            # Call Premium Renderer as fallback
             try:
-                import requests
-                import time
-                tmp_bg_path = None
-                if bg_url:
-                    try:
-                        bg_res = requests.get(bg_url, timeout=20)
-                        if bg_res.status_code == 200:
-                            tmp_bg_path = os.path.join(settings.uploads_dir, f"tmp_bg_fb_{int(time.time())}.jpg")
-                            with open(tmp_bg_path, "wb") as f:
-                                f.write(bg_res.content)
-                    except:
-                        tmp_bg_path = None # Fallback to procedural
-                
-                media_url = render_quote_card(tmp_bg_path, quote_text, reference, settings.uploads_dir)
-                if tmp_bg_path and os.path.exists(tmp_bg_path): os.remove(tmp_bg_path)
+                card_segments = [
+                    {"text": reference.upper(), "size": 36},
+                    {"text": quote_text, "size": 72}
+                ]
+                media_url = render_minimal_quote_card(
+                    segments=card_segments,
+                    output_dir=settings.uploads_dir,
+                    style=automation.style_preset or "quran",
+                    visual_prompt=style_dna_spec.visual_prompt,
+                    mode="custom" if style_dna_spec.visual_prompt else "preset"
+                )
             except Exception as e:
                 print(f"[AUTO] Forced fallback rendering failed: {e}")
 
@@ -681,7 +718,7 @@ def recover_stale_media(post: Post, db: Session) -> bool:
     Uses the 'Recovery Recipe' stored in source_metadata.
     """
     from app.config import settings
-    from .image_renderer import render_quote_card
+    from .image_renderer import render_quote_card, render_minimal_quote_card
     import os
     import time
     import requests
@@ -726,8 +763,23 @@ def recover_stale_media(post: Post, db: Session) -> bool:
                 print(f"⚠️ [MEDIA_RECOVERY] Background download failed: {bg_e}")
                 tmp_bg_path = None # render_quote_card will provide a procedural fallback
 
-        # Re-render
-        new_media_url = render_quote_card(tmp_bg_path, quote_text, reference, settings.uploads_dir)
+        # Re-render using Premium Pipeline (v9.0)
+        card_segments = [
+            {"text": reference.upper(), "size": 36},
+            {"text": quote_text, "size": 72}
+        ]
+        
+        # Zone 2: Arabic
+        if recipe.get("visual_mode") == "quote_card" and post.source_metadata.get("arabic_text"):
+             card_segments.append({"text": post.source_metadata["arabic_text"], "size": 38, "is_arabic": True})
+        
+        new_media_url = render_minimal_quote_card(
+            segments=card_segments,
+            output_dir=settings.uploads_dir,
+            style=recipe.get("style", "quran"),
+            visual_prompt=recipe.get("visual_prompt"),
+            mode="custom" if recipe.get("visual_prompt") else "preset"
+        )
         
         # Cleanup
         if tmp_bg_path and os.path.exists(tmp_bg_path):
