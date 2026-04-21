@@ -50,6 +50,8 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
                         print(f"🎯 [HUNT] Found {local_filename} at {local_path}. Self-healing...")
                     else:
                         print(f"❌ [HUNT] No candidates found for {local_filename}")
+                        # RETURN STALE: Break the retry loop for ephemeral wipeouts
+                        return {"ok": False, "error": "media_asset_stale"}
                 except Exception as hunt_err:
                     print(f"⚠️ [HUNT] Scanner error: {hunt_err}")
 

@@ -592,7 +592,11 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 new_post.status = "failed"
                 # Store the error so the UI can see it
                 publish_err = pub_res.get("error")
-                if isinstance(publish_err, dict):
+                
+                # SPECIAL HANDLING: Break retry loops for stale/wiped media
+                if publish_err == "media_asset_stale":
+                    publish_err = "Media asset wiped from ephemeral storage after restart (stale)."
+                elif isinstance(publish_err, dict):
                     publish_err = publish_err.get("message") or str(publish_err)
                 
                 new_post.flags = {**new_post.flags, "publish_error": publish_err}

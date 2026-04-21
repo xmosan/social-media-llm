@@ -1834,6 +1834,7 @@ def render_minimal_quote_card(
     os.makedirs(output_dir, exist_ok=True)
     
     # Force JPEG format to ensure Magic Bytes match the extension for Meta's crawler
+    print(f"!!! [RENDERER] WRITING TO: {final_path}")
     final_img.save(final_path, format="JPEG", quality=95)
     
     from app.config import build_public_media_url
@@ -1896,6 +1897,7 @@ def render_quote_card(background_local_path: Optional[str], quote: str,
     fp2 = os.path.join(output_dir, fn)
     
     # Ensure explicit JPEG format
+    print(f"!!! [RENDERER] WRITING TO: {fp2}")
     bg.save(fp2, format="JPEG", quality=95)
     
     from app.config import build_public_media_url
