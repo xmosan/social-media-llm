@@ -39,31 +39,30 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
             should_bypass = False
             if not os.path.exists(local_path):
                 # WAIT-AND-HUNT: Micro-latency protection for ephemeral disk sync
-                import time
                 found_asset = False
+                print(f"⚠️ [MEDIA_PREFLIGHT] Missing asset on first look: {local_path}")
                 
                 for attempt in range(3):
-                    print(f"🔍 [HUNT] Attempt {attempt+1}: {local_filename} not at {local_path}. Waiting 500ms...")
+                    print(f"🔍 [MEDIA_PREFLIGHT] Hunt Attempt {attempt+1}: {local_filename} not found. Waiting 500ms...")
                     time.sleep(0.5)
                     
                     if os.path.exists(local_path):
-                        print(f"🎯 [HUNT] Asset synchronized at {local_path}!")
+                        print(f"🎯 [MEDIA_PREFLIGHT] Asset synchronized successfully at {local_path}!")
                         found_asset = True
                         break
                     
-                    print(f"   - Scanning all subdirectories of /app for fingerprint: {local_filename}")
+                    print(f"   - Deep scan for fingerprint: {local_filename} in /app")
                     import glob
                     candidates = glob.glob(f"/app/**/{local_filename}", recursive=True)
                     if candidates:
                         local_path = candidates[0]
-                        print(f"🎯 [HUNT] FOUND MISPLACED FILE at {local_path}. Correcting path...")
+                        print(f"🎯 [MEDIA_PREFLIGHT] FOUND MISPLACED FILE at {local_path}. Correcting path...")
                         found_asset = True
                         break
                 
                 if not found_asset:
-                    print(f"❌ [HUNT] FATAL: {local_filename} not found after 3 sync attempts. Asset is truly missing.")
-                    # RETURN STALE: Break the retry loop for ephemeral wipeouts
-                    return {"ok": False, "error": "media_asset_stale"}
+                    print(f"❌ [MEDIA_PREFLIGHT] STALE DETECTED: File {local_filename} is missing from ephemeral storage.")
+                    return {"ok": False, "error": "MEDIA_STALE_OR_MISSING"}
 
             if os.path.exists(local_path):
                 # Deep Verify Magic Bytes Locally

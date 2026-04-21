@@ -573,6 +573,55 @@ def publish_post(
     db.refresh(post)
     log_event("post_publish_success", post_id=post.id, remote_id=res.get("id"))
     return post
+@router.get("/{post_id}/preflight-check")
+def check_media_integrity(
+    post_id: int,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
+):
+    """Checks if the media asset physically exists on the current disk."""
+    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    if not post.media_url:
+        return {"stale": True, "reason": "missing_url"}
+
+    # Use the existing publisher preflight logic but in a 'dry-run' mode
+    from app.services.publisher import publish_to_instagram
+    from app.config import settings
+    import os
+
+    if "/uploads/" in post.media_url:
+        local_filename = post.media_url.split("/uploads/")[-1]
+        local_path = os.path.join(settings.uploads_dir, local_filename)
+        if not os.path.exists(local_path):
+             return {"stale": True, "reason": "file_not_on_disk"}
+    
+    return {"stale": False, "url": post.media_url}
+
+@router.post("/{post_id}/recover")
+def recover_post_media(
+    post_id: int,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
+):
+    """Triggers visual regeneration if the asset is stale."""
+    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    from app.services.automation_runner import recover_stale_media
+    success = recover_stale_media(post, db)
+    
+    if not success:
+        raise HTTPException(
+            status_code=422, 
+            detail="This post was created before persistent media recovery was added. Please regenerate the visual, then share again."
+        )
+    
+    return {"ok": True, "new_media_url": post.media_url}
+
 @router.delete("/{post_id}")
 def delete_post(
     post_id: int,

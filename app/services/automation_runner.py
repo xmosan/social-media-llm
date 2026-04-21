@@ -523,7 +523,17 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             caption=caption,
             hashtags=hashtags,
             alt_text=alt_text,
-            scheduled_time=compute_next_run_time(db.get(IGAccount, automation.ig_account_id), automation) if status == "scheduled" else None
+            scheduled_time=compute_next_run_time(db.get(IGAccount, automation.ig_account_id), automation) if status == "scheduled" else None,
+            # RECOVERY RECIPE: Store ingredients for just-in-time regeneration
+            source_metadata={
+                "recovery_recipe": {
+                    "quote_text": quote_text,
+                    "reference": reference,
+                    "bg_url": bg_url if 'bg_url' in locals() else None,
+                    "visual_mode": automation.image_mode,
+                    "style": automation.visual_style
+                }
+            }
         )
         
         # 5. Guardrail & Validation
@@ -592,30 +602,52 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             log_event("automation_publish_attempt", automation_id=automation.id, post_id=new_post.id, forced=force_publish)
             acc = db.get(IGAccount, automation.ig_account_id)
             
-            # Use the already imported function instead of the broken local import
+            if force_publish:
+                print(f"🚀 [SHARE_NOW] Triggered for automation_id={automation.id}")
+
+            print(f"📡 [IG_PUBLISH] Starting for post_id={new_post.id}")
+            print(f"🔍 [MEDIA_PREFLIGHT] Checking integrity of {new_post.media_url}")
+
             pub_res = publish_to_instagram(
                 caption=f"{new_post.caption}\n\n" + " ".join(new_post.hashtags or []),
                 media_url=new_post.media_url,
                 ig_user_id=acc.ig_user_id,
                 access_token=acc.access_token
             )
+            
+            # --- AUTO-RECOVERY RETRY LOOP ---
+            if not pub_res.get("ok") and pub_res.get("error") in ["media_asset_stale", "MEDIA_STALE_OR_MISSING"]:
+                print(f"🔄 [MEDIA_RECOVERY] Stale media detected. Attempting automatic regeneration...")
+                recovery_success = recover_stale_media(new_post, db)
+                
+                if recovery_success:
+                    print(f"✅ [MEDIA_RECOVERY] Regeneration successful. Retrying publish...")
+                    print(f"🔍 [MEDIA_PREFLIGHT] Retry check for {new_post.media_url}")
+                    pub_res = publish_to_instagram(
+                        caption=f"{new_post.caption}\n\n" + " ".join(new_post.hashtags or []),
+                        media_url=new_post.media_url,
+                        ig_user_id=acc.ig_user_id,
+                        access_token=acc.access_token
+                    )
+                else:
+                    print(f"❌ [MEDIA_RECOVERY] Regeneration failed. Blocking publish.")
+
             if pub_res.get("ok"):
+                print(f"✨ [IG_PUBLISH] Success! Post shared to Instagram.")
                 new_post.status = "published"
                 new_post.published_time = datetime.now(dt_timezone.utc)
             else:
                 new_post.status = "failed"
-                # Store the error so the UI can see it
                 publish_err = pub_res.get("error")
                 
-                # SPECIAL HANDLING: Break retry loops for stale/wiped media
-                if publish_err == "media_asset_stale":
-                    publish_err = "Media asset wiped from ephemeral storage after restart (stale)."
+                if publish_err in ["media_asset_stale", "MEDIA_STALE_OR_MISSING"]:
+                    publish_err = "Media asset wiped from ephemeral storage (stale). Please regenerate manually."
                 elif isinstance(publish_err, dict):
                     publish_err = publish_err.get("message") or str(publish_err)
                 
                 new_post.flags = {**new_post.flags, "publish_error": publish_err}
-                automation.last_error = f"Manual Publish failed: {publish_err}"
-                print(f"[AUTO] Manual publish failed: {publish_err}")
+                automation.last_error = f"Publish failed: {publish_err}"
+                print(f"❌ [IG_PUBLISH] Failed: {publish_err}")
 
         automation.last_run_at = datetime.now(dt_timezone.utc)
         automation.last_post_id = new_post.id
@@ -641,3 +673,75 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         return None
     finally:
         lock.release()
+
+def recover_stale_media(post: Post, db: Session) -> bool:
+    """
+    Just-in-time regeneration for quote cards lost to ephemeral storage wipes.
+    Uses the 'Recovery Recipe' stored in source_metadata.
+    """
+    from app.config import settings
+    from .image_renderer import render_quote_card
+    import os
+    import time
+    import requests
+
+    # 1. Extract Recipe
+    recipe = (post.source_metadata or {}).get("recovery_recipe")
+    
+    if not recipe:
+        # Fallback to legacy fields for older posts
+        if post.card_message:
+            recipe = {
+                "quote_text": post.card_message.get("headline", post.topic),
+                "reference": post.card_message.get("supporting_text", post.source_reference),
+                "visual_mode": "quote_card",
+                "bg_url": None
+            }
+        else:
+            missing_reason = "missing_recipe_in_metadata"
+            if not post.card_message and not post.topic: missing_reason = "no_card_message_or_topic"
+            
+            print(f"❌ [MEDIA_RECOVERY_FAIL] Missing metadata for post_id={post.id}. Reason: {missing_reason}")
+            log_event("media_recovery_fail", post_id=post.id, reason=missing_reason)
+            return False
+
+    print(f"🔄 [MEDIA_RECOVERY] stale image detected for post_id={post.id}")
+    print(f"🔄 [MEDIA_RECOVERY] regenerating visual using recipe...")
+
+    try:
+        quote_text = recipe.get("quote_text") or "Divine Guidance"
+        reference = recipe.get("reference") or ""
+        bg_url = recipe.get("bg_url")
+        
+        tmp_bg_path = None
+        if bg_url:
+            try:
+                bg_res = requests.get(bg_url, timeout=20)
+                if bg_res.status_code == 200:
+                    tmp_bg_path = os.path.join(settings.uploads_dir, f"tmp_bg_recov_{int(time.time())}.jpg")
+                    with open(tmp_bg_path, "wb") as f:
+                        f.write(bg_res.content)
+            except Exception as bg_e:
+                print(f"⚠️ [MEDIA_RECOVERY] Background download failed: {bg_e}")
+                tmp_bg_path = None # render_quote_card will provide a procedural fallback
+
+        # Re-render
+        new_media_url = render_quote_card(tmp_bg_path, quote_text, reference, settings.uploads_dir)
+        
+        # Cleanup
+        if tmp_bg_path and os.path.exists(tmp_bg_path):
+            os.remove(tmp_bg_path)
+
+        # Update Post
+        post.media_url = new_media_url
+        db.commit()
+        db.refresh(post)
+        
+        log_event("media_recovery_success", post_id=post.id, new_url=new_media_url)
+        print(f"✅ [MEDIA_RECOVERY] new media url: {new_media_url}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ [MEDIA_RECOVERY_FAIL] regeneration failed: {e}")
+        log_event("media_recovery_error", post_id=post.id, error=str(e))
+        return False

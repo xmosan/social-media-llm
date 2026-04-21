@@ -1979,8 +1979,42 @@ async function generatePost(id) {
 }
 async function approvePost(id) {
     const el = document.getElementById(`msg-${id}`);
-    if(el) { el.textContent = "✔️ ADDING TO QUEUE..."; el.className = "mt-4 text-[9px] text-center font-black text-emerald-500 animate-pulse"; }
-    try { await request(`/posts/${id}/approve`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({approve_anyway: true}) }); await refreshAll(); } catch(e) { if(el) { el.textContent = "FAIL"; el.className = "mt-4 text-[9px] text-center font-black text-red-600"; } showToast(e.message, "error"); }
+    if(el) { el.textContent = "🔍 PREFLIGHT CHECK..."; el.className = "mt-4 text-[9px] text-center font-black text-brand animate-pulse"; }
+    
+    try {
+        console.log(`🚀 [ADMIN_SHARE] Starting flow for post_id=${id}`);
+
+        // 1. Check if media exists
+        const checkRes = await fetch(`/posts/${id}/preflight-check`);
+        const integrity = await checkRes.json();
+        
+        if (integrity.stale) {
+            console.log(`🔄 [MEDIA_RECOVERY] Stale media detected. Regenerating...`);
+            if(el) { el.textContent = "🔄 RESTORING MEDIA..."; el.className = "mt-4 text-[9px] text-center font-black text-accent animate-pulse"; }
+            const recRes = await fetch(`/posts/${id}/recover`, { method: 'POST' });
+            if (!recRes.ok) {
+                const err = await recRes.json();
+                throw new Error(err.detail || "Media recovery failed. Please regenerate manually.");
+            }
+            console.log(`✅ [MEDIA_RECOVERY] Success.`);
+        }
+
+        if(el) { el.textContent = "✔️ APPROVING..."; el.className = "mt-4 text-[9px] text-center font-black text-emerald-500 animate-pulse"; }
+        await request(`/posts/${id}/approve`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({approve_anyway: true}) });
+        
+        if(el) { el.textContent = "📡 PUBLISHING..."; }
+        console.log(`📡 [IG_PUBLISH] Sending to Instagram...`);
+        const pubRes = await request(`/posts/${id}/publish`, { method: "POST" });
+        
+        console.log(`✨ [IG_PUBLISH] Success.`);
+        if(el) { el.textContent = "✅ SHARED"; el.className = "mt-4 text-[9px] text-center font-black text-emerald-600"; }
+        
+        setTimeout(() => { refreshAll(); }, 1500);
+    } catch(e) {
+        console.error(`❌ [ADMIN_SHARE] Failure:`, e);
+        if(el) { el.textContent = "FAIL: " + e.message; el.className = "mt-4 text-[9px] text-center font-black text-red-600"; }
+        showToast(e.message, "error");
+    }
 }
 
 async function loadMe() {

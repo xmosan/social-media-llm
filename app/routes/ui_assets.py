@@ -982,6 +982,75 @@ STUDIO_SCRIPTS_JS = """
             alert('Connection failure.');
         }
     };
+    window.approvePost = async function(id) {
+        const btn = event?.target || {};
+        const originalText = btn.innerText || 'Share Now';
+        
+        try {
+            if(btn.innerText) {
+                btn.disabled = true;
+                btn.innerText = 'CHECKING...';
+                btn.classList.add('animate-pulse');
+            }
+
+            console.log(`🚀 [SHARE_NOW] Starting flow for post_id=${id}`);
+
+            // 1. Preflight
+            const checkRes = await fetch(`/posts/${id}/preflight-check`);
+            const integrity = await checkRes.json();
+            
+            if (integrity.stale) {
+                console.log(`🔄 [MEDIA_RECOVERY] Stale media detected for ${id}. Triggering restoration...`);
+                if(btn.innerText) btn.innerText = 'RESTORING...';
+                const recRes = await fetch(`/posts/${id}/recover`, { method: 'POST' });
+                if (!recRes.ok) {
+                    const err = await recRes.json();
+                    throw new Error(err.detail || "Recovery failed.");
+                }
+                console.log(`✅ [MEDIA_RECOVERY] Post ${id} restored successfully.`);
+            }
+
+            // 2. Approve/Schedule
+            if(btn.innerText) btn.innerText = 'SHARING...';
+            console.log(`📡 [IG_PUBLISH] Approving & Publishing post_id=${id}`);
+            
+            const approveRes = await fetch(`/posts/${id}/approve`, { 
+                method: 'POST', 
+                headers: {'Content-Type':'application/json'}, 
+                body: JSON.stringify({approve_anyway: true}) 
+            });
+            
+            if (!approveRes.ok) {
+                const data = await approveRes.json();
+                throw new Error(data.detail || "Approval failed.");
+            }
+
+            // 3. Immediate Publish (Since it was 'Share Now')
+            const pubRes = await fetch(`/posts/${id}/publish`, { method: 'POST' });
+            if (pubRes.ok) {
+                console.log(`✨ [IG_PUBLISH] Success for post_id=${id}`);
+                window.location.reload();
+            } else {
+                const data = await pubRes.json();
+                throw new Error(data.detail || "Publishing failed.");
+            }
+        } catch (e) {
+            console.error(`❌ [SHARE_NOW] Failure:`, e);
+            alert('Share Failed: ' + e.message);
+        } finally {
+            if(btn.innerText) {
+                btn.disabled = false;
+                btn.innerText = originalText;
+                btn.classList.remove('animate-pulse');
+            }
+        }
+    };
+
+    window.openEditPostModal = function(id, caption, time) {
+        // Simple stub for now to prevent crashes, or we could redirect to a dedicated editor
+        console.log("Edit Post:", id, caption, time);
+        alert("Refine feature is being optimized. Please use the Studio to create new reminders.");
+    };
 
 </script>
 """
