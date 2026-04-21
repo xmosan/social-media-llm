@@ -142,7 +142,7 @@ class ComingSoonMiddleware(BaseHTTPMiddleware):
         
         # 1. ALLOWED PATHS (Always accessible)
         allowed_prefixes = [
-            "/login", "/register", "/auth", "/static", "/api/contact", "/health", "/api-test", "/demo", 
+            "/login", "/register", "/auth", "/static", "/uploads", "/favicon.ico", "/api/contact", "/health", "/api-test", "/demo", 
             "/contact", "/privacy", "/terms", "/docs", "/redoc", "/openapi.json", "/generate-caption", "/generate-quote-card", "/api/waitlist",
             "/api/quran", "/api/quote-card/build-message", "/api/caption/generate", "/library", "/api/library", "/app/library"
         ]
