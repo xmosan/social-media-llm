@@ -225,10 +225,9 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
     
     try:
         automation = db.query(TopicAutomation).filter(TopicAutomation.id == automation_id).first()
-    if not automation or not automation.enabled:
-        return None
-    
-    try:
+        if not automation or not automation.enabled:
+            return None
+        
         # 1. Topic Pool Rotation Logic
         pool = automation.topic_pool or []
         topic_base = automation.topic_prompt
