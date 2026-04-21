@@ -12,17 +12,22 @@ class Settings(BaseSettings):
 
     database_url: str = Field(default="sqlite:///./saas.db", env="DATABASE_URL")
     timezone: str = Field(default="America/Detroit", env="TIMEZONE")
-    
-    _uploads_dir: str = Field(default="uploads", env="UPLOADS_DIR")
+    uploads_dir: str = Field(default="uploads", env="UPLOADS_DIR")
 
-    @property
-    def uploads_dir(self) -> str:
+    @classmethod
+    def resolve_abs_path(cls, v: str) -> str:
         import os
-        if os.path.isabs(self._uploads_dir):
-            return self._uploads_dir
+        if os.path.isabs(v):
+            return v
         # Resolve relative to project root (where app/ is)
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        return os.path.join(base, self._uploads_dir)
+        return os.path.join(base, v)
+
+    # In Pydantic v2 Settings, we can use a validator or a computed field.
+    # To keep it simple and compatible, we'll override the init or use a Pydantic Hook.
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.uploads_dir = self.resolve_abs_path(self.uploads_dir)
 
     # Centralized Public Base URL (Production Custom Domain)
     public_base_url: str = Field(
