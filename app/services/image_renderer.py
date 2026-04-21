@@ -851,7 +851,7 @@ def generate_background_gemini(
 
     last_err = None
     for model_name in models_to_try:
-        print(f"\n💎 [Gemini] Manifesting background (model={model_name})...")
+        print(f"\n💎 [Gemini] Crafting background (model={model_name})...")
         try:
             response = client.models.generate_images(
                 model=model_name,

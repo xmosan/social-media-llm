@@ -60,8 +60,17 @@ class SystemLibraryProvider(BaseContentProvider):
             item_text = (item.text or "").lower()
             item_meta = item.meta or {}
             
-            # Simple keyword matching
+            # Flexible keyword matching
+            match_found = False
             if norm_topic in item_topics or norm_topic in item_text:
+                match_found = True
+            else:
+                # Fallback: Split by common delimiters and check for any intersection
+                keywords = [kw.strip() for kw in norm_topic.replace(",", " ").split() if len(kw.strip()) > 2]
+                if any(kw in item_topics for kw in keywords) or any(kw in item_text for kw in keywords):
+                    match_found = True
+                    
+            if match_found:
                 match_pool.append(item)
                 
         if not match_pool:
@@ -111,7 +120,17 @@ class UserLibraryProvider(BaseContentProvider):
             item_topics = [t.lower() for t in (item.topics or [])]
             item_text = (item.text or "").lower()
             
+            # Flexible keyword matching
+            match_found = False
             if norm_topic in item_topics or norm_topic in item_text:
+                match_found = True
+            else:
+                # Fallback: Split by common delimiters and check for any intersection
+                keywords = [kw.strip() for kw in norm_topic.replace(",", " ").split() if len(kw.strip()) > 2]
+                if any(kw in item_topics for kw in keywords) or any(kw in item_text for kw in keywords):
+                    match_found = True
+                    
+            if match_found:
                 match_pool.append(item)
                 
         if not match_pool:

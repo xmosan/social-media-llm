@@ -1272,7 +1272,7 @@ async function testLLM(id, topic, style) {
             ALT TEXT:
             ${res.alt_text}
         `;
-        showToast("Preview Manifest Generated", "success");
+        showToast("Preview Strategy Generated", "success");
         console.log(preview);
     } catch(e) { 
         showToast("LLM Test Failed: " + e.message, "error");

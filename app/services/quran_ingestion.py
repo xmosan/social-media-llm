@@ -98,7 +98,7 @@ def sync_surah_to_library(db: Session, chapter_id: int, translation_id: str = "1
         
         # STEP 7: Progress logging every 50 verses
         if verse_idx % 50 == 0:
-            logger.info(f"[SYNC] Surah {chapter_id}: Manifested verse {verse_idx}...")
+            logger.info(f"[SYNC] Surah {chapter_id}: Synchronizing verse {verse_idx}...")
         
     db.commit()
     if new_count > 0:
@@ -198,7 +198,7 @@ def sync_entire_quran(db_factory: callable):
 
     total_new = 0
     t0 = time.time()
-    save_sync_status("🚀 Manifesting Global Quran Repository...")
+    save_sync_status("🚀 Initializing Global Quran Repository...")
     logger.info("🚀 [SYNC] STARTING FULL QURAN FOUNDATION SYNC (114 SURAHS)...")
     
     for chapter_id in range(1, 115):

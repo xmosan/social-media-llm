@@ -127,8 +127,8 @@ LIBRARY_HTML = """\
   .verse-ref { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: rgba(15,61,46,0.35); }
   .verse-actions { display: flex; gap: 8px; opacity: 0; transition: opacity 150ms ease; }
   .verse-row:hover .verse-actions { opacity: 1; }
-  .btn-manifest { background: var(--brand); color: white; border: none; padding: 6px 14px; border-radius: 20px; font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; transition: all 150ms ease; white-space: nowrap; }
-  .btn-manifest:hover { background: var(--brand-hover); transform: scale(1.03); }
+  .btn-use { background: var(--brand); color: white; border: none; padding: 6px 14px; border-radius: 20px; font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; transition: all 150ms ease; white-space: nowrap; }
+  .btn-use:hover { background: var(--brand-hover); transform: scale(1.03); }
   .btn-copy { background: transparent; border: 1px solid rgba(15,61,46,0.15); color: rgba(15,61,46,0.5); padding: 6px 12px; border-radius: 20px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; transition: all 150ms ease; white-space: nowrap; }
   .btn-copy:hover { border-color: var(--brand); color: var(--brand); }
   .custom-scrollbar::-webkit-scrollbar { width: 4px; }
@@ -270,7 +270,7 @@ window.QuranBrowser = {
             '<span class="verse-ref">Qur\u02bcaan ' + ref + '</span>',
             '<div class="verse-actions">',
               '<button class="btn-copy" data-ref="' + ref.replace(/"/g,'&quot;') + '" data-text="' + (translation || '').replace(/"/g,'&quot;') + '" onclick="QuranBrowser.handleCopy(this)">Copy</button>',
-              '<button class="btn-manifest" data-id="' + id + '" data-ref="' + ref.replace(/"/g,'&quot;') + '" data-text="' + (translation || '').replace(/"/g,'&quot;') + '" data-arabic="' + (v.arabic_text || '').replace(/"/g,'&quot;') + '" onclick="QuranBrowser.handleManifest(this)">Use in Quote Card</button>',
+              '<button class="btn-use" data-id="' + id + '" data-ref="' + ref.replace(/"/g,'&quot;') + '" data-text="' + (translation || '').replace(/"/g,'&quot;') + '" data-arabic="' + (v.arabic_text || '').replace(/"/g,'&quot;') + '" onclick="QuranBrowser.handleToStudio(this)">Use in Studio</button>',
             '</div>',
           '</div>',
         '</div>',
@@ -289,7 +289,7 @@ window.QuranBrowser = {
     }).catch(() => {});
   },
 
-  handleManifest(btn) {
+  handleToStudio(btn) {
     const bridge = {
       type: 'quran_verse',
       id: btn.getAttribute('data-id'),
@@ -375,18 +375,18 @@ window.WisdomLib = {
         const txt = (item.content || item.text || item.translation_text || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
         const ref = (item.reference || item.title || 'Archive').replace(/"/g, '&quot;');
         const id = String(item.id || '');
-        return '<div class="wisdom-card"><div class="text-sm leading-relaxed text-text-main italic mb-4">&ldquo;' + txt + '&rdquo;</div><div class="flex items-center justify-between pt-3 border-t border-brand/5"><span class="text-[9px] font-black uppercase tracking-widest text-brand/40">' + ref + '</span><button data-id="' + id + '" data-text="' + txt + '" data-ref="' + ref + '" onclick="WisdomLib.handleManifest(this)" class="btn-manifest text-[8px]">Use in Studio</button></div></div>';
+        return '<div class="wisdom-card"><div class="text-sm leading-relaxed text-text-main italic mb-4">&ldquo;' + txt + '&rdquo;</div><div class="flex items-center justify-between pt-3 border-t border-brand/5"><span class="text-[9px] font-black uppercase tracking-widest text-brand/40">' + ref + '</span><button data-id="' + id + '" data-text="' + txt + '" data-ref="' + ref + '" onclick="WisdomLib.handleToStudio(this)" class="btn-use text-[8px]">Use in Studio</button></div></div>';
       }).join('');
     } catch(e) { grid.innerHTML = '<div class="col-span-full py-12 text-center text-brand/25 text-sm italic">Failed to load</div>'; }
   },
 
-  manifest(id, text, reference) {
+  toStudio(id, text, reference) {
     const bridge = { type: 'quote', id, text, reference, timestamp: Date.now() };
     sessionStorage.setItem('sabeel_pending_quote_item', JSON.stringify(bridge));
     window.location.href = '/app?studio=true';
   },
-  handleManifest(btn) {
-    this.manifest(btn.getAttribute('data-id'), btn.getAttribute('data-text'), btn.getAttribute('data-ref'));
+  handleToStudio(btn) {
+    this.toStudio(btn.getAttribute('data-id'), btn.getAttribute('data-text'), btn.getAttribute('data-ref'));
   }
 };
 
@@ -407,17 +407,17 @@ window.OrgLib = {
         const txt = (item.content || item.text || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
         const ref = (item.title || 'Document').replace(/"/g, '&quot;');
         const id = String(item.id || '');
-        return '<div class="wisdom-card"><div class="text-sm leading-relaxed text-text-main italic mb-4">&ldquo;' + txt + '&rdquo;</div><div class="flex items-center justify-between pt-3 border-t border-brand/5"><span class="text-[9px] font-black uppercase tracking-widest text-brand/40">' + ref + '</span><button data-id="' + id + '" data-text="' + txt + '" data-ref="' + ref + '" onclick="OrgLib.handleManifest(this)" class="btn-manifest text-[8px]">Use in Studio</button></div></div>';
+        return '<div class="wisdom-card"><div class="text-sm leading-relaxed text-text-main italic mb-4">&ldquo;' + txt + '&rdquo;</div><div class="flex items-center justify-between pt-3 border-t border-brand/5"><span class="text-[9px] font-black uppercase tracking-widest text-brand/40">' + ref + '</span><button data-id="' + id + '" data-text="' + txt + '" data-ref="' + ref + '" onclick="OrgLib.handleToStudio(this)" class="btn-use text-[8px]">Use in Studio</button></div></div>';
       }).join('');
     } catch(e) { grid.innerHTML = '<div class="col-span-full py-12 text-center text-brand/25 text-sm italic">Failed to load</div>'; }
   },
-  manifest(id, text, reference) {
+  toStudio(id, text, reference) {
     const bridge = { type: 'quote', id, text, reference, timestamp: Date.now() };
     sessionStorage.setItem('sabeel_pending_quote_item', JSON.stringify(bridge));
     window.location.href = '/app?studio=true';
   },
-  handleManifest(btn) {
-    this.manifest(btn.getAttribute('data-id'), btn.getAttribute('data-text'), btn.getAttribute('data-ref'));
+  handleToStudio(btn) {
+    this.toStudio(btn.getAttribute('data-id'), btn.getAttribute('data-text'), btn.getAttribute('data-ref'));
   }
 };
 

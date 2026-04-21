@@ -244,7 +244,7 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             print(f"[AUTO] Topic variation failed: {e}")
             topic = topic_base
 
-        # 2. NEW: Modular Content Provider Polling
+        # 2. Modular Content Provider Polling
         from app.services.content_providers import UserLibraryProvider, SystemLibraryProvider
         
         provider_scope = getattr(automation, "content_provider_scope", "all_sources")
@@ -259,20 +259,27 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         pooled_items = []
         target_limit = getattr(automation, "items_per_post", 1) or 1
         
-        for provider in active_providers:
-            needed = target_limit - len(pooled_items)
-            if needed <= 0: break
+        # Dual-pass logic: Try the variation first, then the base topic
+        attempts = [topic, topic_base] if topic != topic_base else [topic]
+        
+        for search_query in attempts:
+            if pooled_items: break # Found enough in first pass
             
-            try:
-                items = provider.get_content(db, automation.org_id, topic, limit=needed)
-                pooled_items.extend(items)
-                if items:
-                    log_event("provider_content_sourced", 
-                              automation_id=automation.id, 
-                              provider=provider.provider_name, 
-                              count=len(items))
-            except Exception as e:
-                print(f"[PROVIDER] Error in {provider.provider_name}: {e}")
+            for provider in active_providers:
+                needed = target_limit - len(pooled_items)
+                if needed <= 0: break
+                
+                try:
+                    items = provider.get_content(db, automation.org_id, search_query, limit=needed)
+                    pooled_items.extend(items)
+                    if items:
+                        log_event("provider_content_sourced", 
+                                  automation_id=automation.id, 
+                                  provider=provider.provider_name, 
+                                  count=len(items),
+                                  query=search_query)
+                except Exception as e:
+                    print(f"[PROVIDER] Error in {provider.provider_name}: {e}")
                 
         # [SAFETY] Guardrail: Abort if exactly 0 items found
         if not pooled_items:

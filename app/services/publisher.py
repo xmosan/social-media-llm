@@ -72,8 +72,20 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
             continue
 
         # Any other error → fail immediately
-        log_event("ig_media_publish_fail", ig_user_id=ig_user_id, creation_id=creation_id, meta_error_code=error.get("code"), fbtrace_id=error.get("fbtrace_id"))
-        return {"ok": False, "error": {"step": "media_publish", "meta_error": j2}}
+        error = j2.get("error", {})
+        err_msg = error.get("message", "Unknown Meta API error")
+        err_code = error.get("code")
+        
+        # Human-friendly mapping for common Meta errors
+        if err_code == 190:
+            err_msg = "Instagram account disconnected. Please re-authenticate in Settings."
+        elif err_code == 368:
+            err_msg = "Meta has temporarily restricted this account from posting (Spam/Safety check)."
+        elif err_code == 10:
+            err_msg = "Permission error: Ensure Sabeel Studio has 'Permission to Post' in Facebook settings."
+            
+        log_event("ig_media_publish_fail", ig_user_id=ig_user_id, creation_id=creation_id, meta_error_code=err_code, fbtrace_id=error.get("fbtrace_id"))
+        return {"ok": False, "error": {"step": "media_publish", "message": err_msg, "meta_error": j2}}
 
     log_event("ig_media_publish_timeout", ig_user_id=ig_user_id, creation_id=creation_id, attempts=10)
     return {
