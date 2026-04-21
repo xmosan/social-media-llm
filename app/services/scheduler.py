@@ -92,6 +92,20 @@ def publish_due_posts(db_factory: Callable[[], Session]) -> int:
             if not acc or not acc.active:
                 continue
 
+            # PROACTIVE SHIELD: Stale Scavenger check
+            # If the media is local (/uploads/) and physically missing, fail the post early
+            if post.media_url and "/uploads/" in post.media_url:
+                import os
+                from app.config import settings
+                filename = post.media_url.split("/uploads/")[-1]
+                local_path = os.path.join(settings.uploads_dir, filename)
+                if not os.path.exists(local_path):
+                    print(f"⚠️ [SCAVENGER] Purging stale post {post.id} (file {filename} missing from disk).")
+                    post.status = "failed"
+                    post.flags = {**(post.flags or {}), "publish_error": "Media wiped from ephemeral storage after restart (stale scavenger)."}
+                    db.commit()
+                    continue
+
             caption_full = post.caption or ""
             if post.hashtags:
                 caption_full += "\n\n" + " ".join(post.hashtags)

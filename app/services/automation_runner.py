@@ -22,6 +22,15 @@ from app.services.content_sources import select_items_for_automation, mark_items
 from app.logging_setup import log_event
 
 logger = logging.getLogger(__name__)
+import threading
+_automation_locks = {}
+_locks_mutex = threading.Lock()
+
+def get_lock_for_automation(automation_id: int):
+    with _locks_mutex:
+        if automation_id not in _automation_locks:
+            _automation_locks[automation_id] = threading.Lock()
+        return _automation_locks[automation_id]
 
 def compute_next_run_time(ig_account: IGAccount, automation: TopicAutomation) -> datetime:
     """
@@ -209,7 +218,13 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
     """
     Core engine to run one automation cycle using the decoupled Content Provider architecture.
     """
-    automation = db.query(TopicAutomation).filter(TopicAutomation.id == automation_id).first()
+    lock = get_lock_for_automation(automation_id)
+    if not lock.acquire(blocking=False):
+        print(f"🔒 [LOCK] Automation {automation_id} is already in progress. Skipping duplicate execution.")
+        return None
+    
+    try:
+        automation = db.query(TopicAutomation).filter(TopicAutomation.id == automation_id).first()
     if not automation or not automation.enabled:
         return None
     
@@ -616,6 +631,14 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         log_event("automation_run_exception", automation_id=automation_id, error=str(e), traceback=traceback.format_exc(limit=3))
         print(f"[AUTO] ERROR in runner for automation_id={automation_id}: {repr(e)}")
         logger.error(f"Automation {automation_id} failed: {e}")
-        automation.last_error = str(e)
-        db.commit()
+        # Re-fetch automation inside the exception to ensure we can set last_error
+        try:
+            auto = db.query(TopicAutomation).get(automation_id)
+            if auto:
+                auto.last_error = str(e)
+                db.commit()
+        except:
+            pass
         return None
+    finally:
+        lock.release()
