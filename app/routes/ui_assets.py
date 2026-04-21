@@ -492,8 +492,9 @@ STUDIO_SCRIPTS_JS = """
     let v2DnaPresets = [];
 
     async function loadStyleDnaPresets() {
-        if (v2DnaPresets.length > 0) return;
+        if (v2DnaPresets.length > 0 && document.getElementById('autoV2StyleDNAContainer')?.children.length > 1) return;
         try {
+            console.log("[Sabeel Studio] Loading Style DNA presets...");
             const res = await fetch('/automations/meta/style-presets');
             const data = await res.json();
             v2DnaPresets = data.presets || [];
@@ -508,11 +509,13 @@ STUDIO_SCRIPTS_JS = """
                     </div>
                 `).join('');
                 if (v2DnaPresets.length > 0 && !document.getElementById('autoV2StyleDNAInput').value) {
-                    setTimeout(() => selectV2StyleDna(v2DnaPresets[0].id || '', container.children[0]), 50);
+                    setTimeout(() => {
+                        if (container.children[0]) selectV2StyleDna(v2DnaPresets[0].id || '', container.children[0]);
+                    }, 50);
                 }
             }
         } catch (e) {
-            console.error('Failed to load style DNA presets: ', e);
+            console.error('[Sabeel Studio] Failed to load style DNA presets: ', e);
         }
     }
 
@@ -652,13 +655,24 @@ STUDIO_SCRIPTS_JS = """
     };
 
     window.showNewAutoModal = async function() {
+        console.log("[Sabeel Studio] Initializing Growth Plan Modal...");
         const modal = document.getElementById('newAutoModalV2');
         if (modal) {
+            modal.style.display = 'flex';
             modal.classList.remove('hidden');
-            await loadStyleDnaPresets();
-            document.getElementById('autoV2Form').dataset.editId = "";
-            document.getElementById('autoV2Form').reset();
-            window.updateAutoV2Summary();
+            try {
+                await loadStyleDnaPresets();
+                const form = document.getElementById('autoV2Form');
+                if (form) {
+                    form.dataset.editId = "";
+                    form.reset();
+                }
+                window.updateAutoV2Summary();
+            } catch (e) {
+                console.error("[Sabeel Studio] Modal Init Warning:", e);
+            }
+        } else {
+            console.error("[Sabeel Studio] Critical: newAutoModalV2 not found in DOM");
         }
     };
 
@@ -711,7 +725,7 @@ STUDIO_SCRIPTS_JS = """
                     
                     // Exact Quran Match (Ensures Surah/Verse presence)
                     if (type === 'quran' && ref) {
-                        return { badge: 'Verified Qur\'an Reference', source: ref, color: 'bg-emerald-500' };
+                        return { badge: "Verified Qur'an Reference", source: ref, color: 'bg-emerald-500' };
                     }
                     // Quran Inspired (No exact reference)
                     if (type === 'quran') {
@@ -759,15 +773,15 @@ STUDIO_SCRIPTS_JS = """
                              
                              <div class="pt-3 border-t border-brand/[0.01]">
                                  <p class="text-[11px] text-brand/80 font-medium leading-relaxed italic border-l-2 border-brand/5 pl-3">
-                                    ${data.caption.split('\\n')[0]}
+                                    ${(data.caption || '').split('\\n')[0] || 'Perspective Reflection'}
                                  </p>
                                  <div class="text-[10px] text-text-muted leading-relaxed mt-2 line-clamp-3 opacity-60">
-                                    ${data.caption.split('\\n').slice(1).join(' ')}
+                                    ${(data.caption || '').split('\\n').slice(1).join(' ') || 'Atmospheric insight based on selected guidance strategy.'}
                                  </div>
                              </div>
                         </div>
 
-                        ${data.hashtags ? `
+                        ${data.hashtags && data.hashtags.length > 0 ? `
                         <div class="pt-3 border-t border-brand/[0.03] opacity-40 hover:opacity-100 transition-opacity flex flex-wrap gap-1">
                             ${data.hashtags.slice(0, 4).map(h => `<span class="text-[7px] font-bold text-brand uppercase tracking-tighter">#${h}</span>`).join('')}
                         </div>` : ''}
