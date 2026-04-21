@@ -702,42 +702,69 @@ STUDIO_SCRIPTS_JS = """
             
             container.classList.remove('hidden');
             content.innerHTML = responses.map((data, i) => {
-                const type = data.grounding?.item_type || 'reflection';
-                const hasSource = !!data.grounding?.source;
-                const badgeColor = type === 'quran' ? 'bg-emerald-500' : (type === 'hadith' ? 'bg-indigo-500' : 'bg-brand/40');
+                const topicLabel = i === 0 ? t1 : t2;
                 
-                // Enhanced Grounding Honesty
-                let groundingText = `Reflection on ${i === 0 ? t1 : t2}`;
-                let subBadge = 'Perspective Reflection';
-                
-                if (type === 'quran' && hasSource) {
-                    groundingText = `Surah: ${data.grounding.source}`;
-                    subBadge = `Verified Qur'an Reference`;
-                } else if (type === 'quran' && !hasSource) {
-                    groundingText = `Inspired by Qur'anic Wisdom`;
-                    subBadge = `Quran-Inspired Reflection`;
-                } else if (type === 'hadith' && hasSource) {
-                    groundingText = `Source: ${data.grounding.source}`;
-                    subBadge = 'Verified Prophetic Guidance';
-                }
+                // --- HONEST GROUNDING HELPER ---
+                const getSourceInfo = (grounding) => {
+                    const type = grounding?.item_type;
+                    const ref = grounding?.source;
+                    
+                    // Exact Quran Match (Ensures Surah/Verse presence)
+                    if (type === 'quran' && ref) {
+                        return { badge: 'Verified Qur\'an Reference', source: ref, color: 'bg-emerald-500' };
+                    }
+                    // Quran Inspired (No exact reference)
+                    if (type === 'quran') {
+                        return { badge: 'Quran-Inspired Reflection', source: 'Quranic Wisdom (Not Grounded)', color: 'bg-emerald-500/40' };
+                    }
+                    // Hadith Match
+                    if (type === 'hadith' && ref) {
+                        return { badge: 'Verified Prophetic Guidance', source: ref, color: 'bg-indigo-500' };
+                    }
+                    // Default Fallback
+                    return { badge: 'Reflection Preview', source: 'Perspective Reflection', color: 'bg-brand/40' };
+                };
 
+                const info = getSourceInfo(data.grounding);
+                const groundedText = data.grounding?.text;
+                
                 return `
                     <div class="bg-white border border-brand/5 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col space-y-4">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
-                                <span class="w-1.5 h-1.5 rounded-full ${badgeColor}"></span>
-                                <span class="text-[9px] font-black text-brand uppercase tracking-widest">${subBadge}</span>
+                                <span class="w-1.5 h-1.5 rounded-full ${info.color}"></span>
+                                <span class="text-[9px] font-black text-brand uppercase tracking-widest">${info.badge}</span>
                             </div>
                             <span class="text-[8px] font-bold text-text-muted uppercase tracking-tighter italic">Sample ${i+1}</span>
                         </div>
                         
-                        <div class="space-y-2">
-                             <div class="text-[10px] font-black text-brand italic leading-tight">${groundingText}</div>
-                             <p class="text-[11px] text-brand/80 font-medium leading-relaxed italic border-l-2 border-brand/5 pl-3">
-                                ${data.caption.split('\\n')[0]}
-                             </p>
-                             <div class="text-[10px] text-text-muted leading-relaxed line-clamp-3 opacity-60">
-                                ${data.caption.split('\\n').slice(1).join(' ')}
+                        <div class="space-y-3">
+                             ${groundedText ? `
+                             <div class="bg-brand/[0.03] border-l-4 border-accent/20 p-3 rounded-r-xl space-y-1">
+                                 <div class="text-[7px] font-black text-accent uppercase tracking-widest leading-none mb-1">Foundational Verse:</div>
+                                 <p class="text-[10px] text-brand/90 font-bold leading-relaxed italic">"${groundedText}"</p>
+                                 <div class="text-[8px] font-bold text-brand uppercase tracking-tighter text-right mt-1">— ${info.source}</div>
+                             </div>
+                             ` : ''}
+
+                             <div class="flex flex-col gap-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Topic Context:</span>
+                                    <span class="text-[10px] font-black text-brand line-clamp-1 italic">${topicLabel}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Source Status:</span>
+                                    <span class="text-[10px] font-black text-brand/70 leading-tight">${info.source}</span>
+                                </div>
+                             </div>
+                             
+                             <div class="pt-3 border-t border-brand/[0.01]">
+                                 <p class="text-[11px] text-brand/80 font-medium leading-relaxed italic border-l-2 border-brand/5 pl-3">
+                                    ${data.caption.split('\\n')[0]}
+                                 </p>
+                                 <div class="text-[10px] text-text-muted leading-relaxed mt-2 line-clamp-3 opacity-60">
+                                    ${data.caption.split('\\n').slice(1).join(' ')}
+                                 </div>
                              </div>
                         </div>
 

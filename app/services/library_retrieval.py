@@ -62,14 +62,14 @@ def retrieve_relevant_chunks(db: Session, org_id: int, query: str, k: int = 5, t
                 if surah and verse:
                     item_ref = f"Quran {surah}:{verse}"
                 else:
-                    item_ref = "Quranic Foundation"
+                    item_ref = None
             elif entry.item_type == 'hadith':
                 coll = entry.meta.get('collection') or entry.meta.get('book') or "Hadith"
                 num = entry.meta.get('hadith_number') or entry.meta.get('number') or entry.meta.get('id')
                 if num:
                     item_ref = f"{coll} #{num}"
                 else:
-                    item_ref = f"{coll} Reflection"
+                    item_ref = None
 
             scored_results.append({
                 "score": score,
