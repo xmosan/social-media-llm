@@ -125,7 +125,7 @@ SYSTEM_STYLE_DNA_PRESETS: dict[str, StyleDNASpec] = {
 # CORE SERVICE FUNCTIONS
 # ─────────────────────────────────────────────────────────────────────────────
 
-def run_automation(db: Session, automation_id: int) -> AutomationRunResult:
+def run_automation(db: Session, automation_id: int, force_publish: bool = False) -> AutomationRunResult:
     """
     Execute one cycle of an automation.
 
@@ -145,14 +145,14 @@ def run_automation(db: Session, automation_id: int) -> AutomationRunResult:
             error="Automation not found",
         )
 
-    if not automation.enabled:
+    if not automation.enabled and not force_publish:
         return AutomationRunResult(
             automation_id=automation_id,
             status="skipped",
             error="Automation is disabled",
         )
 
-    log_event("automation_service_run_start", automation_id=automation_id)
+    log_event("automation_service_run_start", automation_id=automation_id, forced=force_publish)
 
     try:
         from app.services.automation_runner import run_automation_once
@@ -161,7 +161,7 @@ def run_automation(db: Session, automation_id: int) -> AutomationRunResult:
         # style_dna = resolve_style_dna(db, automation)
         # inject_style_dna_into_runner(automation, style_dna)
 
-        post = run_automation_once(db, automation_id)
+        post = run_automation_once(db, automation_id, force_publish=force_publish)
 
         if not post:
             return AutomationRunResult(

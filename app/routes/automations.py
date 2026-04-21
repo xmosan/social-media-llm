@@ -204,11 +204,14 @@ def trigger_automation(
     if not auto:
         raise HTTPException(status_code=404, detail="Automation not found")
 
-    result = run_automation(db, auto.id)
+    result = run_automation(db, auto.id, force_publish=True)
 
     if not result.post:
         detail = result.error or "Automation run failed. Check history."
         raise HTTPException(status_code=500, detail=detail)
+    
+    if result.post.status == "failed" and "publish_error" in (result.post.flags or {}):
+        raise HTTPException(status_code=500, detail=f"Instagram Publish Failed: {result.post.flags['publish_error']}")
 
     return result.post
 

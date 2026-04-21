@@ -204,7 +204,7 @@ def resolve_media_url(
                 
     return None
 
-def run_automation_once(db: Session, automation_id: int) -> Post | None:
+def run_automation_once(db: Session, automation_id: int, force_publish: bool = False) -> Post | None:
     """
     Core engine to run one automation cycle using the decoupled Content Provider architecture.
     """
@@ -570,12 +570,16 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                     db_item.use_count += 1
                     db_item.last_used_at = datetime.now(dt_timezone.utc)
 
-        # 7. Immediate Publishing if configured
-        if automation.posting_mode == "publish_now" and automation.approval_mode == "auto_approve":
-            log_event("automation_publish_attempt", automation_id=automation.id, post_id=new_post.id)
+        # 7. Immediate Publishing if configured OR forced
+        should_publish = force_publish or (automation.posting_mode == "publish_now" and automation.approval_mode == "auto_approve")
+        
+        if should_publish:
+            log_event("automation_publish_attempt", automation_id=automation.id, post_id=new_post.id, forced=force_publish)
             acc = db.get(IGAccount, automation.ig_account_id)
+            
+            # Use the already imported function instead of the broken local import
             pub_res = publish_to_instagram(
-                caption=f"{new_post.caption}\\n\\n" + " ".join(new_post.hashtags or []),
+                caption=f"{new_post.caption}\n\n" + " ".join(new_post.hashtags or []),
                 media_url=new_post.media_url,
                 ig_user_id=acc.ig_user_id,
                 access_token=acc.access_token
@@ -585,7 +589,14 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                 new_post.published_time = datetime.now(dt_timezone.utc)
             else:
                 new_post.status = "failed"
-                new_post.flags = {**new_post.flags, "publish_error": pub_res.get("error")}
+                # Store the error so the UI can see it
+                publish_err = pub_res.get("error")
+                if isinstance(publish_err, dict):
+                    publish_err = publish_err.get("message") or str(publish_err)
+                
+                new_post.flags = {**new_post.flags, "publish_error": publish_err}
+                automation.last_error = f"Manual Publish failed: {publish_err}"
+                print(f"[AUTO] Manual publish failed: {publish_err}")
 
         automation.last_run_at = datetime.now(dt_timezone.utc)
         automation.last_post_id = new_post.id
