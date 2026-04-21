@@ -36,14 +36,17 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
             local_filename = media_url.split("/uploads/")[-1]
             
             # Resolve absolute path to project root
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            abs_uploads_dir = os.path.join(base_dir, settings.uploads_dir)
+            # settings.uploads_dir is now a property that returns an absolute path
+            abs_uploads_dir = settings.uploads_dir
             local_path = os.path.join(abs_uploads_dir, local_filename)
             
+            print(f"🔍 [IG_PUBLISH] Diagnostic: Checking local path: {local_path}")
             if os.path.exists(local_path):
+                print(f"✅ [IG_PUBLISH] Diagnostic: File exists on disk.")
                 log_event("ig_media_preflight_loopback_trust", path=local_path)
                 should_bypass = True
             else:
+                print(f"❌ [IG_PUBLISH] Diagnostic: File NOT found on disk at {local_path}")
                 log_event("ig_media_preflight_local_not_found", path=local_path)
 
         # 3. Network Ping (If not already trusted via local check)

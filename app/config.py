@@ -12,7 +12,17 @@ class Settings(BaseSettings):
 
     database_url: str = Field(default="sqlite:///./saas.db", env="DATABASE_URL")
     timezone: str = Field(default="America/Detroit", env="TIMEZONE")
-    uploads_dir: str = Field(default="uploads", env="UPLOADS_DIR")
+    
+    _uploads_dir: str = Field(default="uploads", env="UPLOADS_DIR")
+
+    @property
+    def uploads_dir(self) -> str:
+        import os
+        if os.path.isabs(self._uploads_dir):
+            return self._uploads_dir
+        # Resolve relative to project root (where app/ is)
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        return os.path.join(base, self._uploads_dir)
 
     # Centralized Public Base URL (Production Custom Domain)
     public_base_url: str = Field(

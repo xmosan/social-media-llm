@@ -154,8 +154,12 @@ class ComingSoonMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         
         # 1. ALLOWED PATHS (Always accessible)
+        # FORCE PUBLIC ACCESS for /uploads to ensure Meta/Instagram fetcher NEVER hits a wall
+        if path.startswith("/uploads/"):
+            return await call_next(request)
+
         allowed_prefixes = [
-            "/login", "/register", "/auth", "/static", "/uploads", "/favicon.ico", "/api/contact", "/health", "/api-test", "/demo", 
+            "/login", "/register", "/auth", "/static", "/favicon.ico", "/api/contact", "/health", "/api-test", "/demo", 
             "/contact", "/privacy", "/terms", "/docs", "/redoc", "/openapi.json", "/generate-caption", "/generate-quote-card", "/api/waitlist",
             "/api/quran", "/api/quote-card/build-message", "/api/caption/generate", "/library", "/api/library", "/app/library"
         ]
@@ -375,9 +379,11 @@ def readiness_check():
         from fastapi.responses import JSONResponse
         return JSONResponse(status_code=503, content={"status": "not_ready", "detail": "Database migrations pending or DB unreachable."})
 
-# Serve uploads
-os.makedirs(settings.uploads_dir, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=settings.uploads_dir), name="uploads")
+# Serve uploads with dynamic absolute pathing
+uploads_absolute_path = settings.uploads_dir
+os.makedirs(uploads_absolute_path, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_absolute_path), name="uploads")
+print(f"📁 [System] Uploads mounted at: {uploads_absolute_path}")
 
 # Include Routers
 from .routes import neural_hub, studio
