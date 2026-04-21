@@ -60,11 +60,10 @@ def retrieve_relevant_chunks(db: Session, org_id: int, query: str, k: int = 5, t
             if item_type == 'quran':
                 # Try multiple keys for surah and verse
                 surah = entry.meta.get('surah_number') or entry.meta.get('surah') or entry.meta.get('sura') or entry.meta.get('sura_no')
-                verse = entry.meta.get('verse_start') or entry.meta.get('verse') or entry.meta.get('ayah') or entry.meta.get('ayah_no')
+                verse = entry.meta.get('verse_number') or entry.meta.get('verse_start') or entry.meta.get('verse') or entry.meta.get('ayah') or entry.meta.get('ayah_no') or entry.meta.get('ayah_number')
                 if surah and verse:
                     item_ref = f"Qur'an {surah}:{verse}"
-                elif surah:
-                    item_ref = f"Qur'an (Surah {surah})"
+                # Removed Surah-only fallback to enforce strict citation requirements
             elif item_type == 'hadith':
                 coll = entry.meta.get('collection') or entry.meta.get('book') or entry.meta.get('source_title') or "Hadith"
                 num = entry.meta.get('hadith_number') or entry.meta.get('number') or entry.meta.get('id') or entry.meta.get('ref_num')
