@@ -165,7 +165,8 @@ def _generate_background_only(request: VisualRequest) -> VisualResult:
         if resp.status_code == 200:
             with open(file_path, "wb") as f:
                 f.write(resp.content)
-            public_url = f"{settings.public_base_url.rstrip('/')}/uploads/{filename}"
+            from app.config import build_public_media_url
+            public_url = build_public_media_url(filename)
             return VisualResult(
                 url=public_url,
                 theme=spec.theme,

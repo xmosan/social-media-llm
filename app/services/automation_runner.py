@@ -186,7 +186,8 @@ def resolve_media_url(
                 if res.status_code == 200:
                     with open(file_path, "wb") as f:
                         f.write(res.content)
-                    final_url = f"{settings.public_base_url.rstrip('/')}/uploads/{filename}"
+                    from app.config import build_public_media_url
+                    final_url = build_public_media_url(filename)
                     
                     # Also register it in Media for future reuse/filter
                     new_asset = MediaAsset(

@@ -1833,8 +1833,8 @@ def render_minimal_quote_card(
     os.makedirs(output_dir, exist_ok=True)
     final_img.save(final_path, quality=95)
     
-    base_url = settings.public_base_url.rstrip('/') if settings.public_base_url else ""
-    return f"{base_url}/uploads/{filename}"
+    from app.config import build_public_media_url
+    return build_public_media_url(filename)
 def render_quote_card(background_local_path: Optional[str], quote: str,
                       reference: str, output_dir: str) -> str:
     """Legacy image-overlay render with procedural fallback."""

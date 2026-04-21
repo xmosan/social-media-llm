@@ -16,7 +16,43 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
     if "localhost" in media_url or "127.0.0.1" in media_url:
         return {
             "ok": False, 
-            "error": "Instagram cannot fetch images from 'localhost'. You must use a public HTTPS URL (e.g., via ngrok or production deployment) for the BASE_URL."
+            "error": {"message": "Instagram cannot fetch images from localhost. Please ensure your publicly accessible URL is being used (e.g., via ngrok or production hostname)."}
+        }
+
+    # PREFLIGHT CHECK: Ensure media URL is reachable and resolves to an image
+    log_event("ig_media_preflight_check_start", url=media_url)
+    try:
+        preflight_opts = {
+            "timeout": 10,
+            "headers": {"User-Agent": "facebookexternalhit/1.1"} # Simulate Meta crawler
+        }
+        
+        preflight = requests.head(media_url, **preflight_opts)
+        
+        # Some CDNs or servers don't respond well to HEAD requests; try GET if HEAD fails
+        if preflight.status_code >= 400:
+            preflight = requests.get(media_url, stream=True, **preflight_opts)
+            if preflight.status_code >= 400:
+                log_event("ig_media_preflight_fail", reason="http_error", status=preflight.status_code)
+                return {
+                    "ok": False,
+                    "error": {"message": f"Preflight validation failed: Server returned HTTP {preflight.status_code} for the media URL. It may not be publicly accessible."}
+                }
+
+        content_type = preflight.headers.get("Content-Type", "")
+        if not content_type.startswith("image/"):
+            log_event("ig_media_preflight_fail", reason="invalid_content_type", content_type=content_type)
+            return {
+                "ok": False,
+                "error": {"message": f"Preflight validation failed: URL returned Content-Type '{content_type}' instead of an image type (e.g., image/jpeg)."}
+            }
+            
+        log_event("ig_media_preflight_success", status_code=preflight.status_code, content_type=content_type)
+    except Exception as e:
+        log_event("ig_media_preflight_error", error=str(e))
+        return {
+            "ok": False,
+            "error": {"message": f"Preflight validation failed: Could not reach media URL. Network error: {e}"}
         }
 
     # Step 1: create media container
@@ -34,7 +70,13 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
     if "id" not in j1:
         error_obj = j1.get("error", {})
         log_event("ig_media_create_fail", ig_user_id=ig_user_id, meta_error_code=error_obj.get("code"), fbtrace_id=error_obj.get("fbtrace_id"))
-        return {"ok": False, "error": {"step": "media", "response": j1}}
+        
+        err_msg = error_obj.get("message", "Failed to upload image container.")
+        user_msg = error_obj.get("error_user_msg")
+        if user_msg:
+            err_msg = f"{err_msg} ({user_msg})"
+            
+        return {"ok": False, "error": {"step": "media_create", "message": err_msg, "response": j1}}
 
     creation_id = j1["id"]
     log_event("ig_media_create_success", ig_user_id=ig_user_id, creation_id=creation_id)

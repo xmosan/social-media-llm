@@ -73,3 +73,26 @@ class Settings(BaseSettings):
     support_autoreply_enabled: bool = Field(default=True, env="SUPPORT_AUTOREPLY_ENABLED")
 
 settings = Settings()
+
+def build_public_media_url(filename: str) -> str:
+    """
+    Constructs a fully qualified public HTTPS URL for Instagram publishing.
+    Ensures safe fallback formatting to prevent localhost rejections.
+    """
+    import os
+    base = (settings.public_base_url or "").rstrip("/")
+    
+    # If running locally without ngrok, fallback to production domain to avoid instant 400 errors from Meta
+    # Meta will still fail the download gracefully if the file isn't pushed to production, but the API payload will be valid
+    if not base or "localhost" in base or "127.0.0.1" in base:
+        railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN", "app.sabeelstudio.com")
+        base = f"https://{railway_domain}"
+        
+    # Strip any leading slashes from filename
+    filename = filename.lstrip("/")
+    
+    # If filename is already a full URL, return it
+    if filename.startswith("http"):
+        return filename
+        
+    return f"{base}/uploads/{filename}"
