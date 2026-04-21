@@ -88,7 +88,6 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
 
     # Step 1: create media container
     log_event("ig_media_create_start", ig_user_id=ig_user_id)
-er_id)
     r1 = requests.post(
         f"{GRAPH_URL}/{ig_user_id}/media",
         data={
