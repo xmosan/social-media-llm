@@ -12,6 +12,13 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 import uuid
+import mimetypes
+
+# Enforce strict MIME mappings for Meta transparency
+mimetypes.add_type('image/jpeg', '.jpg')
+mimetypes.add_type('image/jpeg', '.jpeg')
+mimetypes.add_type('image/png', '.png')
+mimetypes.add_type('video/mp4', '.mp4')
 
 from .db import engine, SessionLocal, get_db
 from .models import Base, Org, ApiKey, IGAccount, User, OrgMember, ContentSource, ContentItem, ContentUsage, WaitlistEntry, InboundMessage
@@ -139,6 +146,12 @@ class ComingSoonMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
             
         path = request.url.path
+
+        # 0. BOT SANCTUARY: Allow Meta/Social manifest bots to bypass the wall for media fetching
+        ua = request.headers.get("user-agent", "").lower()
+        social_bots = ["facebookexternalhit", "facebookcatalog", "instagram", "twitterbot", "linkedinbot"]
+        if any(bot in ua for bot in social_bots):
+            return await call_next(request)
         
         # 1. ALLOWED PATHS (Always accessible)
         allowed_prefixes = [
