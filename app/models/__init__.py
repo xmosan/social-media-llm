@@ -231,6 +231,7 @@ class TopicAutomation(Base):
     style_preset = Column(String, nullable=False, default="islamic_reminder")
     custom_style_instructions = Column(Text, nullable=True)
     library_topic_slug = Column(String, nullable=True) # Added: Link to library topic
+    content_seed = Column(Text, nullable=True) # Unified seed field
     content_seed_mode = Column(String, default="none") # none, manual, auto_library
     content_seed_text = Column(Text, nullable=True) # User provided seed text or specific content
     

@@ -54,9 +54,14 @@ def create_automation(
     if not acc:
         raise HTTPException(status_code=403, detail="IG Account not found in your organization")
     
+    # Filter out fields that don't exist in the model
+    model_data = data.dict()
+    valid_cols = [c.key for c in TopicAutomation.__table__.columns]
+    filtered_data = {k: v for k, v in model_data.items() if k in valid_cols}
+
     new_auto = TopicAutomation(
         org_id=org_id,
-        **data.dict()
+        **filtered_data
     )
     db.add(new_auto)
     db.commit()
@@ -154,8 +159,11 @@ def update_automation(
         raise HTTPException(status_code=404, detail="Automation not found")
     
     update_data = data.dict(exclude_unset=True)
+    valid_cols = [c.key for c in TopicAutomation.__table__.columns]
+    
     for k, v in update_data.items():
-        setattr(auto, k, v)
+        if k in valid_cols:
+            setattr(auto, k, v)
     
     db.commit()
     db.refresh(auto)
