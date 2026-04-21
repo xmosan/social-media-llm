@@ -869,7 +869,13 @@ STUDIO_SCRIPTS_JS = """
         form.name.value = data.name || '';
         if(form.ig_account_id) form.ig_account_id.value = data.ig_account_id || '';
         form.topic_prompt.value = data.topic_prompt || '';
-        form.post_time_local.value = data.post_time_local || '';
+        
+        // Safari normalization: HH:mm format is strict
+        if (data.post_time_local) {
+            form.post_time_local.value = data.post_time_local.split(':')[0].padStart(2, '0') + ':' + data.post_time_local.split(':')[1].padStart(2, '0');
+        } else {
+            form.post_time_local.value = '';
+        }
         if(form.posts_per_day) form.posts_per_day.value = data.posts_per_day || 1;
         if(form.post_spacing_hours) form.post_spacing_hours.value = data.post_spacing_hours || 4;
         
@@ -1181,7 +1187,7 @@ STUDIO_COMPONENTS_HTML = """
                              <svg class="w-3 h-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
                              Posting Time
                         </label>
-                        <input type="time" name="post_time_local" oninput="updateAutoV2Summary()" required class="w-full bg-brand/[0.03] border border-brand/10 rounded-2xl px-6 py-4 text-sm font-black text-brand outline-none focus:border-brand/40 focus:ring-4 focus:ring-brand/5 transition-all max-w-xs shadow-inner">
+                        <input type="time" name="post_time_local" oninput="updateAutoV2Summary()" step="60" required class="w-full bg-brand/[0.03] border border-brand/10 rounded-2xl px-6 py-4 text-sm font-black text-brand outline-none focus:border-brand/40 focus:ring-4 focus:ring-brand/5 transition-all max-w-xs shadow-inner">
                         <p class="text-[8px] text-text-muted mt-1 px-1 font-medium">The specific time your daily reflection cycle begins.</p>
                     </div>
                     <div class="grid grid-cols-2 gap-4 col-span-full">

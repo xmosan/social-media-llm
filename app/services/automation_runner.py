@@ -449,7 +449,8 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         if not media_url:
             print(f"[AUTO] Forced fallback to quote_card for automation {automation.id}")
             quote_text = primary_item.text if primary_item else topic
-            reference = primary_item.reference if primary_item else ""
+            reference = (primary_item.reference if primary_item else "").strip()
+            if not reference: reference = "Sacred Guidance"
             
             # 1. Try for background image (Library -> AI Nature)
             bg_url = resolve_media_url(
@@ -463,21 +464,25 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
                     image_mode="ai_nature_photo", topic=topic, automation_id=automation.id
                 )
             
-            if bg_url:
-                try:
-                    import requests
-                    import time
-                    bg_res = requests.get(bg_url, timeout=30)
-                    if bg_res.status_code == 200:
-                        tmp_bg_path = os.path.join(settings.uploads_dir, f"tmp_bg_fb_{int(time.time())}.jpg")
-                        with open(tmp_bg_path, "wb") as f:
-                            f.write(bg_res.content)
-                        media_url = render_quote_card(tmp_bg_path, quote_text, reference, settings.uploads_dir)
-                        if os.path.exists(tmp_bg_path): os.remove(tmp_bg_path)
-                    else:
-                        print(f"[AUTO] Fallback background download failed: {bg_res.status_code}")
-                except Exception as e:
-                    print(f"[AUTO] Fallback quote card rendering failed: {e}")
+            # UNSTOPPABLE: Even if bg_url is missing, render_quote_card now generates a procedural background
+            try:
+                import requests
+                import time
+                tmp_bg_path = None
+                if bg_url:
+                    try:
+                        bg_res = requests.get(bg_url, timeout=20)
+                        if bg_res.status_code == 200:
+                            tmp_bg_path = os.path.join(settings.uploads_dir, f"tmp_bg_fb_{int(time.time())}.jpg")
+                            with open(tmp_bg_path, "wb") as f:
+                                f.write(bg_res.content)
+                    except:
+                        tmp_bg_path = None # Fallback to procedural
+                
+                media_url = render_quote_card(tmp_bg_path, quote_text, reference, settings.uploads_dir)
+                if tmp_bg_path and os.path.exists(tmp_bg_path): os.remove(tmp_bg_path)
+            except Exception as e:
+                print(f"[AUTO] Forced fallback rendering failed: {e}")
 
         # 4. Create Post
         status = "scheduled"

@@ -1835,16 +1835,42 @@ def render_minimal_quote_card(
     
     base_url = settings.public_base_url.rstrip('/') if settings.public_base_url else ""
     return f"{base_url}/uploads/{filename}"
-def render_quote_card(background_local_path: str, quote: str,
+def render_quote_card(background_local_path: Optional[str], quote: str,
                       reference: str, output_dir: str) -> str:
-    """Legacy image-overlay render (kept for compatibility)."""
-    bg = Image.open(background_local_path).convert("RGB")
+    """Legacy image-overlay render with procedural fallback."""
     W, H = 1080, 1080
-    r = bg.width / bg.height
-    nw, nh = (int(H * r), H) if r > 1 else (W, int(W / r))
-    bg = bg.resize((nw, nh), Image.LANCZOS)
-    bg = bg.crop(((nw - W) // 2, (nh - H) // 2,
-                   (nw - W) // 2 + W, (nh - H) // 2 + H))
+    
+    # 1. Attempt to load specified background
+    bg = None
+    if background_local_path and os.path.exists(background_local_path):
+        try:
+            bg = Image.open(background_local_path).convert("RGB")
+            r = bg.width / bg.height
+            nw, nh = (int(H * r), H) if r > 1 else (W, int(W / r))
+            bg = bg.resize((nw, nh), Image.LANCZOS)
+            bg = bg.crop(((nw - W) // 2, (nh - H) // 2,
+                           (nw - W) // 2 + W, (nh - H) // 2 + H))
+        except Exception as e:
+            print(f"⚠️ Failed to load background {background_local_path}: {e}")
+            bg = None
+
+    # 2. Procedural Fallback if no bg loaded
+    if bg is None:
+        print("🎨 [Renderer] Generating procedural spiritual background...")
+        bg = Image.new("RGB", (W, H), (14, 10, 18)) # Obsidian base
+        draw_inner = ImageDraw.Draw(bg)
+        # Vertical gradient: Deep Charcoal to Obsidian
+        for y in range(H):
+            r = int(14 + (24 - 14) * (1 - y/H))
+            g = int(10 + (20 - 10) * (1 - y/H))
+            b = int(18 + (28 - 18) * (1 - y/H))
+            draw_inner.line([(0, y), (W, y)], fill=(r, g, b))
+        
+        # Add subtle noise or grain for premium feel
+        noise = Image.effect_noise((W, H), 12).convert("L")
+        noise_ov = Image.new("RGBA", (W, H), (255, 255, 255, 10))
+        bg.paste(noise_ov, (0, 0), noise)
+
     base_dir  = os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     fp = os.path.join(base_dir, "assets", "fonts", "Inter.ttf")
