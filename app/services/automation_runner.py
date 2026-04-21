@@ -399,15 +399,19 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             
         log_event("automation_caption_generated", automation_id=automation.id, caption_len=len(caption), hashtags_count=len(hashtags))
         
-        # 3. Media Selection / Generation
+        # 3. Resolve Media & Recovery Recipe Ingredients
         primary_item = pooled_items[0] if pooled_items else None
         concepts = primary_item.topic_tags[0] if primary_item and primary_item.topic_tags else None
+        
+        # Define recovery ingredients early to avoid UnboundLocalError
+        quote_text = primary_item.text if primary_item else topic
+        reference = (primary_item.reference if primary_item else "").strip()
+        if not reference: reference = "Divine Guidance"
+        
         media_url = None
         
         # SPECIAL: Quote Card Mode
         if automation.image_mode == "quote_card":
-            quote_text = primary_item.text if primary_item else topic
-            reference = primary_item.reference if primary_item else ""
             
             # Prefer library image
             bg_url = resolve_media_url(
@@ -463,9 +467,6 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         # FALLBACK: If all primary modes failed, force a high-quality Quote Card generation
         if not media_url:
             print(f"[AUTO] Forced fallback to quote_card for automation {automation.id}")
-            quote_text = primary_item.text if primary_item else topic
-            reference = (primary_item.reference if primary_item else "").strip()
-            if not reference: reference = "Sacred Guidance"
             
             # 1. Try for background image (Library -> AI Nature)
             bg_url = resolve_media_url(
