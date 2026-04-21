@@ -135,8 +135,7 @@ def resolve_media_url(
         if last_post:
             return last_post.media_url
         
-        # fallback: if no prior posts exist, default to quote card instead of returning None
-        image_mode = "quote_card"
+        return last_post.media_url if last_post else None
 
     # 2. Library logic
     if image_mode in ["use_library_image", "library_fixed", "library_tag"]:
@@ -446,12 +445,39 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
             except Exception as e:
                 print(f"[AUTO] Media resolution error: {e}")
 
-        # FALLBACK: If AI generation failed, try to reuse last upload
-        if not media_url and automation.image_mode != "quote_card" and "ai" in (automation.image_mode or ""):
-            media_url = resolve_media_url(
+        # FALLBACK: If all primary modes failed, force a high-quality Quote Card generation
+        if not media_url:
+            print(f"[AUTO] Forced fallback to quote_card for automation {automation.id}")
+            quote_text = primary_item.text if primary_item else topic
+            reference = primary_item.reference if primary_item else ""
+            
+            # 1. Try for background image (Library -> AI Nature)
+            bg_url = resolve_media_url(
                 db=db, org_id=automation.org_id, ig_account_id=automation.ig_account_id,
-                image_mode="reuse_last_upload", topic=topic
+                image_mode="use_library_image", media_asset_id=automation.media_asset_id,
+                media_tag_query=automation.media_tag_query
             )
+            if not bg_url:
+                bg_url = resolve_media_url(
+                    db=db, org_id=automation.org_id, ig_account_id=automation.ig_account_id,
+                    image_mode="ai_nature_photo", topic=topic, automation_id=automation.id
+                )
+            
+            if bg_url:
+                try:
+                    import requests
+                    import time
+                    bg_res = requests.get(bg_url, timeout=30)
+                    if bg_res.status_code == 200:
+                        tmp_bg_path = os.path.join(settings.uploads_dir, f"tmp_bg_fb_{int(time.time())}.jpg")
+                        with open(tmp_bg_path, "wb") as f:
+                            f.write(bg_res.content)
+                        media_url = render_quote_card(tmp_bg_path, quote_text, reference, settings.uploads_dir)
+                        if os.path.exists(tmp_bg_path): os.remove(tmp_bg_path)
+                    else:
+                        print(f"[AUTO] Fallback background download failed: {bg_res.status_code}")
+                except Exception as e:
+                    print(f"[AUTO] Fallback quote card rendering failed: {e}")
 
         # 4. Create Post
         status = "scheduled"

@@ -947,6 +947,36 @@ STUDIO_SCRIPTS_JS = """
         }
     };
 
+    window.deleteAutomation = async function(id) {
+        if (!confirm("Are you sure you want to delete this Reminder Stream strategy? This action cannot be undone.")) return;
+        
+        try {
+            const res = await fetch(`/automations/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                const err = await res.json();
+                alert('Deletion Failed: ' + (err.detail || 'Unknown error'));
+            }
+        } catch (e) {
+            alert('Connection failure during deletion.');
+        }
+    };
+
+    window.deletePost = async function(id) {
+        if (!confirm("Discard this piece of reminder?")) return;
+        try {
+            const res = await fetch(`/posts/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                alert('Failed to discard post.');
+            }
+        } catch (e) {
+            alert('Connection failure.');
+        }
+    };
+
 </script>
 """
 

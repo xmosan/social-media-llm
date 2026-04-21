@@ -1005,7 +1005,7 @@ async def app_dashboard_page(
           <div class="flex items-center gap-3 pt-4 border-t border-brand/[0.04]">
              <button onclick="openEditPostModal('{p.id}', {caption_json}, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}')" class="flex-1 py-3 bg-white border border-brand/10 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] text-brand/60 hover:text-brand hover:border-brand/30 transition-all">Refine</button>
              {approve_btn.replace('rounded-xl', 'rounded-xl border border-brand/5 py-3 flex-1').replace('text-[8px]', 'text-[9px]')}
-             <button onclick="document.getElementById('editPostId').value='{p.id}'; showDeleteConfirm(); openEditPostModal('{p.id}', {caption_json})" class="p-3 text-rose-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
+             <button onclick="deletePost('{p.id}')" class="p-3 text-rose-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
              </button>
           </div>
@@ -1239,10 +1239,15 @@ async def app_calendar_page(
         scheduled_posts_html.append(f"""
             <div class="flex items-center justify-between p-5 bg-brand/[0.02] rounded-2xl border border-brand/5 text-[11px] font-bold text-brand hover:bg-white transition-all group">
                 <div class="flex items-center gap-4">
-                    <div class="w-2 h-2 rounded-full bg-brand group-hover:scale-125 transition-transform"></div>
-                    <span class="opacity-80 group-hover:opacity-100 transition-opacity">"{caption}..."</span>
+                    <div class="w-2 h-2 rounded-full bg-brand group-hover:scale-125 transition-transform shrink-0"></div>
+                    <span class="opacity-80 group-hover:opacity-100 transition-opacity line-clamp-1">"{caption}..."</span>
                 </div>
-                <div class="badge-premium !text-[8px]">{time_str}</div>
+                <div class="flex items-center gap-6">
+                    <div class="badge-premium !text-[8px]">{time_str}</div>
+                    <button onclick="deletePost('{p.id}')" class="p-2 text-rose-300 hover:text-rose-600 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+                    </button>
+                </div>
             </div>
         """)
         
@@ -1426,6 +1431,9 @@ async def app_automations_page(
           <div class="flex items-center gap-4 w-full md:w-auto relative border-t md:border-t-0 border-brand/[0.04] pt-8 md:pt-0">
             <button onclick="showEditModal({edit_data_json})" class="flex-1 md:flex-none px-8 py-5 bg-white border border-brand/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] text-brand/60 hover:text-brand hover:border-brand/30 hover:bg-brand/[0.02] transition-all">Configure</button>
             <button onclick="runNow(event, {a.id})" class="flex-1 md:flex-none px-8 py-5 bg-brand rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-brand/20 hover:scale-[1.02] transition-all">Share Now</button>
+            <button onclick="deleteAutomation({a.id})" class="p-5 bg-rose-50/50 text-rose-500 border border-rose-100 rounded-2xl hover:bg-rose-500 hover:text-white transition-all shadow-sm" title="Delete Strategy">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+            </button>
           </div>
         </div>
         """
