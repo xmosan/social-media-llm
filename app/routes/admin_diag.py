@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import Optional
 import requests
 import os
-import magic # if available, otherwise manual checks
 from app.config import settings
 from app.logging_setup import log_event
 from app.models import User
