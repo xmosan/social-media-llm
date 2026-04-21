@@ -536,25 +536,64 @@ STUDIO_SCRIPTS_JS = """
     };
 
     window.updateAutoV2Summary = function() {
+        const topic = document.querySelector('textarea[name="topic_prompt"]')?.value || '';
         const cadence = document.getElementById('autoV2CadenceInput')?.value || 'daily';
-        const mode = document.getElementById('autoV2ApprovalModeInput')?.value || 'auto_approve';
+        const mode = document.getElementById('autoV2ApprovalModeInput')?.value || 'needs_manual_approve';
         const timeInput = document.querySelector('input[name="post_time_local"]')?.value || '09:00';
+        const postsPerDay = document.querySelector('input[name="posts_per_day"]')?.value || 1;
+        const spacing = document.querySelector('input[name="post_spacing_hours"]')?.value || 4;
+        const dnaId = document.getElementById('autoV2StyleDNAInput')?.value;
         
-        const cadenceText = document.getElementById('summaryCadenceText');
-        const modeText = document.getElementById('summaryModeText');
-        const timeText = document.getElementById('summaryTimeText');
-        
-        if (cadenceText) cadenceText.innerText = cadence === 'daily' ? 'Daily Stream' : 'Weekly Momentum';
-        if (modeText) modeText.innerText = mode === 'auto_approve' ? 'Auto-Pilot (Direct Launch)' : 'Drafting Mode (Requires Approval)';
-        
-        if (timeText) {
+        // Lookup DNA label
+        let dnaLabel = 'Atmospheric';
+        if (window.v2DnaPresets && dnaId) {
+            const match = v2DnaPresets.find(p => p.id == dnaId);
+            if (match) dnaLabel = match.label;
+        }
+
+        const summaryEl = document.getElementById('autoV2BehaviorSummary');
+        if (summaryEl) {
+            let timeStr = timeInput;
             try {
                 const [h, m] = timeInput.split(':');
                 const hh = parseInt(h);
                 const period = hh >= 12 ? 'PM' : 'AM';
                 const displayH = hh % 12 || 12;
-                timeText.innerText = `${displayH}:${m} ${period}`;
-            } catch(e) { timeText.innerText = timeInput; }
+                timeStr = `${displayH}:${m} ${period}`;
+            } catch(e) {}
+
+            summaryEl.innerHTML = `
+                <div class="space-y-4 w-full">
+                    <div class="flex items-center justify-between border-b border-brand/5 pb-2">
+                        <span class="text-[10px] font-black text-brand uppercase tracking-widest">Growth Plan Summary</span>
+                        <span class="text-[9px] font-bold text-accent uppercase tracking-tighter italic">Review before launch</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-x-8 gap-y-3">
+                        <div class="flex flex-col">
+                            <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Topic</span>
+                            <span class="text-[11px] font-black text-brand line-clamp-1 italic mt-1">"${topic || 'Not defined'}"</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Style DNA</span>
+                            <span class="text-[11px] font-black text-brand mt-1">${dnaLabel}</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Frequency</span>
+                            <span class="text-[11px] font-black text-brand mt-1">${cadence === 'daily' ? 'Daily Stream' : 'Weekly Sync'} @ ${timeStr}</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Volume & Spacing</span>
+                            <span class="text-[11px] font-black text-brand mt-1">${postsPerDay} post${postsPerDay > 1 ? 's' : ''}/${cadence === 'daily' ? 'day' : 'week'} (${spacing}h buffer)</span>
+                        </div>
+                        <div class="flex flex-col col-span-full pt-1">
+                            <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Approval Protocol</span>
+                            <span class="text-[11px] font-black ${mode === 'auto_approve' ? 'text-rose-600' : 'text-emerald-600'} mt-1">
+                                ${mode === 'auto_approve' ? 'Auto-Pilot: Publishes automatically' : 'Drafting Engine: Requires your review'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
     };
 
@@ -604,8 +643,9 @@ STUDIO_SCRIPTS_JS = """
         const form = document.getElementById('autoV2Form');
         const topic = form.topic_prompt.value;
         if (!topic) { alert("Please provide a CORE TOPIC before testing the engine."); return; }
-        
-        btn.innerHTML = '<svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>';
+
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="flex items-center gap-2"><svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Generating Samples...</span>';
         btn.disabled = true;
         
         const container = document.getElementById('autoV2PreviewContainer');
@@ -629,20 +669,31 @@ STUDIO_SCRIPTS_JS = """
             content.innerHTML = responses.map((data, i) => {
                 const type = data.grounding?.item_type || 'reflection';
                 const badgeColor = type === 'quran' ? 'bg-emerald-500' : (type === 'hadith' ? 'bg-indigo-500' : 'bg-brand/40');
-                const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
                 
+                // Grounding Logic: Avoid fabricating references
+                let groundingText = 'Perspective Reflection';
+                let subBadge = 'Reflection Preview — no exact source selected';
+                
+                if (type === 'quran' && data.grounding?.source) {
+                    groundingText = `Sacred Text: ${data.grounding.source}`;
+                    subBadge = `Verified Qur'an Reference`;
+                } else if (type === 'hadith' && data.grounding?.source) {
+                    groundingText = `Hadith: ${data.grounding.source}`;
+                    subBadge = 'Verified Prophetic Guidance';
+                }
+
                 return `
                     <div class="bg-white border border-brand/5 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col space-y-4">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <span class="w-1.5 h-1.5 rounded-full ${badgeColor}"></span>
-                                <span class="text-[9px] font-black text-brand uppercase tracking-widest">${typeLabel} Based</span>
+                                <span class="text-[9px] font-black text-brand uppercase tracking-widest">${subBadge}</span>
                             </div>
                             <span class="text-[8px] font-bold text-text-muted uppercase tracking-tighter italic">Sample ${i+1}</span>
                         </div>
                         
                         <div class="space-y-2">
-                             <div class="text-[10px] font-black text-brand italic leading-tight">${data.grounding?.source || 'Perspective Reflection'}</div>
+                             <div class="text-[10px] font-black text-brand italic leading-tight">${groundingText}</div>
                              <p class="text-[11px] text-brand/80 font-medium leading-relaxed italic border-l-2 border-brand/5 pl-3">
                                 ${data.caption.split('\\n')[0]}
                              </p>
@@ -652,8 +703,8 @@ STUDIO_SCRIPTS_JS = """
                         </div>
 
                         ${data.hashtags ? `
-                        <div class="pt-2 flex flex-wrap gap-1">
-                            ${data.hashtags.slice(0, 3).map(h => `<span class="text-[8px] font-bold text-accent uppercase tracking-tighter">#${h}</span>`).join('')}
+                        <div class="pt-3 border-t border-brand/[0.03] opacity-40 hover:opacity-100 transition-opacity flex flex-wrap gap-1">
+                            ${data.hashtags.slice(0, 4).map(h => `<span class="text-[7px] font-bold text-brand uppercase tracking-tighter">#${h}</span>`).join('')}
                         </div>` : ''}
                     </div>
                 `;
@@ -665,7 +716,7 @@ STUDIO_SCRIPTS_JS = """
         } catch(e) {
             alert('Preview Engine disconnected: ' + e.message);
         } finally {
-            btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg><span class="text-[10px]">Preview Samples</span>';
+            btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg><span class="text-[10px]">Simulate Outcomes</span>';
             btn.disabled = false;
         }
     };
@@ -683,7 +734,7 @@ STUDIO_SCRIPTS_JS = """
         const btn = document.getElementById('btnSubmitAutoV2');
         const original = btn.innerText;
         btn.disabled = true;
-        btn.innerText = 'Initializing Plan...';
+        btn.innerHTML = '<span class="flex items-center justify-center gap-2">Launching Plan... <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg></span>';
 
         const form = event.target;
         const payload = {
@@ -945,11 +996,11 @@ STUDIO_COMPONENTS_HTML = """
                 
                 <div class="space-y-2">
                     <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Plan Name</label>
-                    <input type="text" name="name" required placeholder="e.g. Daily Friday Sunnah" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
+                    <input type="text" name="name" required oninput="updateAutoV2Summary()" placeholder="e.g. Daily Friday Sunnah" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
                 </div>
                 <div class="space-y-2">
                     <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Core Topic / Guidance</label>
-                    <textarea name="topic_prompt" required placeholder="e.g. Discuss the virtues of Sabr and reflecting on blessings" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-medium text-brand min-h-[100px] outline-none focus:border-brand/30"></textarea>
+                    <textarea name="topic_prompt" required oninput="updateAutoV2Summary()" placeholder="e.g. Discuss the virtues of Sabr and reflecting on blessings" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-medium text-brand min-h-[100px] outline-none focus:border-brand/30"></textarea>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-4 col-span-full">
@@ -974,53 +1025,41 @@ STUDIO_COMPONENTS_HTML = """
                         </div>
                     </div>
                     <div class="space-y-2 col-span-full">
-                        <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Daily Sequence Start Time</label>
+                        <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Posting Time</label>
                         <input type="time" name="post_time_local" oninput="updateAutoV2Summary()" required class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30 max-w-xs">
                     </div>
                     <div class="grid grid-cols-2 gap-4 col-span-full">
                         <div class="space-y-2">
-                            <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Daily Manifest Volume</label>
-                            <input type="number" name="posts_per_day" min="1" max="5" value="1" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
-                            <p class="text-[8px] text-text-muted mt-1 px-1 font-medium">Guidance items generated per day.</p>
+                            <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Posts Per Day</label>
+                            <input type="number" name="posts_per_day" min="1" max="5" value="1" oninput="updateAutoV2Summary()" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
+                            <p class="text-[8px] text-text-muted mt-1 px-1 font-medium">Guidance items generated per cycle.</p>
                         </div>
                         <div class="space-y-2">
-                            <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Guidance Buffer (Hours)</label>
-                            <input type="number" name="post_spacing_hours" min="1" max="12" value="4" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
-                            <p class="text-[8px] text-text-muted mt-1 px-1 font-medium">Minimum spacing between posts.</p>
+                            <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Min. Spacing Between Posts</label>
+                            <input type="number" name="post_spacing_hours" min="1" max="12" value="4" oninput="updateAutoV2Summary()" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
+                            <p class="text-[8px] text-text-muted mt-1 px-1 font-medium">Hours buffer between automated jobs.</p>
                         </div>
                     </div>
                     <div class="space-y-4 pt-4 border-t border-brand/5 col-span-full">
                         <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Approval Protocol</label>
-                        <input type="hidden" name="approval_mode" id="autoV2ApprovalModeInput" value="auto_approve">
+                        <input type="hidden" name="approval_mode" id="autoV2ApprovalModeInput" value="needs_manual_approve">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div onclick="selectApprovalMode('needs_manual_approve', this)" class="approval-card cursor-pointer bg-cream border border-brand/5 rounded-2xl p-6 hover:border-brand/30 transition-all flex flex-col relative overflow-hidden">
+                            <div onclick="selectApprovalMode('needs_manual_approve', this)" class="approval-card ring-2 ring-brand shadow-xl cursor-pointer bg-cream border border-brand/5 rounded-2xl p-6 hover:border-brand/30 transition-all flex flex-col relative overflow-hidden">
                                 <div class="absolute top-0 right-0 p-4 text-brand opacity-5"><svg class="w-16 h-16" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path></svg></div>
                                 <div class="text-[11px] uppercase font-black tracking-widest text-brand mb-2">Drafting Engine</div>
-                                <div class="text-[10px] text-text-muted font-bold leading-relaxed pr-8">Generates posts and pushes them to your Drafts queue. Requires manual approval.</div>
+                                <div class="text-[10px] text-text-muted font-bold leading-relaxed pr-8">Creates posts as drafts. You approve them before publishing.</div>
                             </div>
-                            <div onclick="selectApprovalMode('auto_approve', this)" class="approval-card ring-2 ring-brand shadow-xl cursor-pointer bg-cream border border-brand/5 rounded-2xl p-6 hover:border-brand/30 transition-all flex flex-col relative overflow-hidden">
+                            <div onclick="selectApprovalMode('auto_approve', this)" class="approval-card cursor-pointer bg-cream border border-brand/5 rounded-2xl p-6 hover:border-brand/30 transition-all flex flex-col relative overflow-hidden">
                                 <div class="absolute top-0 right-0 p-4 text-brand opacity-5"><svg class="w-16 h-16" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"></path></svg></div>
                                 <div class="text-[11px] uppercase font-black tracking-widest text-brand mb-2">Auto-Pilot</div>
-                                <div class="text-[10px] text-text-muted font-bold leading-relaxed pr-8">Bypasses human verification and schedules natively into the calendar continuously.</div>
+                                <div class="text-[10px] text-text-muted font-bold leading-relaxed pr-8">Publishes automatically at the scheduled time.</div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="pt-6 flex flex-col gap-4">
-                    <div id="autoV2BehaviorSummary" class="p-4 bg-brand/[0.03] border border-brand/5 rounded-2xl flex items-center justify-between">
-                         <div class="flex items-center gap-3">
-                             <div class="w-8 h-8 rounded-full bg-brand/5 flex items-center justify-center text-brand">
-                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                             </div>
-                             <div>
-                                 <div id="summaryCadenceText" class="text-[10px] font-black text-brand uppercase tracking-widest leading-none">Daily Stream</div>
-                                 <div id="summaryModeText" class="text-[9px] text-text-muted font-bold mt-1">Auto-Pilot Mode Active</div>
-                             </div>
-                         </div>
-                         <div class="text-right">
-                             <div id="summaryTimeText" class="text-[11px] font-black text-brand italic">09:00 AM</div>
-                             <div class="text-[8px] font-bold text-text-muted uppercase tracking-tighter">Local Execution</div>
-                         </div>
+                    <div id="autoV2BehaviorSummary" class="p-6 bg-brand/[0.03] border border-brand/5 rounded-[2rem] flex flex-col gap-4">
+                         <div class="text-[10px] font-black text-brand/30 uppercase tracking-widest text-center animate-pulse">Awaiting Growth Configuration...</div>
                     </div>
 
                     <div class="flex gap-4">
