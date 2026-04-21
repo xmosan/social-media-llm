@@ -102,7 +102,8 @@ def debug_llm_test(
                 "snippet": {
                     "text": chunk.get("text"),
                     "reference": chunk.get("source"),
-                    "source": chunk.get("source")
+                    "source": chunk.get("source"),
+                    "item_type": chunk.get("item_type")
                 }
             }
 

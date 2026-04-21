@@ -56,25 +56,27 @@ def retrieve_relevant_chunks(db: Session, org_id: int, query: str, k: int = 5, t
         
         if score > 0:
             item_ref = src_name
-            if entry.item_type == 'quran':
-                surah = entry.meta.get('surah_number') or entry.meta.get('surah') or entry.meta.get('sura')
-                verse = entry.meta.get('verse_start') or entry.meta.get('verse') or entry.meta.get('ayah')
+            item_type = entry.item_type
+            if item_type == 'quran':
+                # Try multiple keys for surah and verse
+                surah = entry.meta.get('surah_number') or entry.meta.get('surah') or entry.meta.get('sura') or entry.meta.get('sura_no')
+                verse = entry.meta.get('verse_start') or entry.meta.get('verse') or entry.meta.get('ayah') or entry.meta.get('ayah_no')
                 if surah and verse:
-                    item_ref = f"Quran {surah}:{verse}"
-                else:
-                    item_ref = None
-            elif entry.item_type == 'hadith':
-                coll = entry.meta.get('collection') or entry.meta.get('book') or "Hadith"
-                num = entry.meta.get('hadith_number') or entry.meta.get('number') or entry.meta.get('id')
+                    item_ref = f"Qur'an {surah}:{verse}"
+                elif surah:
+                    item_ref = f"Qur'an (Surah {surah})"
+            elif item_type == 'hadith':
+                coll = entry.meta.get('collection') or entry.meta.get('book') or entry.meta.get('source_title') or "Hadith"
+                num = entry.meta.get('hadith_number') or entry.meta.get('number') or entry.meta.get('id') or entry.meta.get('ref_num')
                 if num:
                     item_ref = f"{coll} #{num}"
-                else:
-                    item_ref = None
+                elif coll:
+                    item_ref = coll
 
             scored_results.append({
                 "score": score,
                 "type": "structured",
-                "item_type": entry.item_type,
+                "item_type": item_type,
                 "source": item_ref,
                 "text": entry.text,
                 "arabic": entry.arabic_text,

@@ -172,10 +172,18 @@ def generate_topic_caption(
         
         elif mode == "grounded_library" and extra_context.get("snippet"):
             s = extra_context["snippet"]
-            grounding_prompt = f"\nGROUNDED LIBRARY SNIPPET (Source of Truth):\nText: {s['text']}\nReference: {s.get('reference') or 'N/A'}\nSource: {s.get('source') or 'N/A'}\n"
-            special_instructions.append("Summarize the snippet OR quote exactly ONE short sentence from it.")
-            special_instructions.append(f"You MUST include the reference exactly as provided: {s.get('reference') or ''}")
-            special_instructions.append("STRICT: Do NOT fabricate hadith. Do NOT fabricate references. Summarize instead of quoting if unsure.")
+            item_type = s.get("item_type", "reference")
+            grounding_prompt = f"\nGROUNDED LIBRARY SNIPPET (Source of Truth):\nType: {item_type}\nText: {s['text']}\nReference: {s.get('reference') or 'N/A'}\nSource: {s.get('source') or 'N/A'}\n"
+            
+            if item_type in ['quran', 'hadith']:
+                special_instructions.append("You MUST quote the provided text VERBATIM (word-for-word) at the start of the caption.")
+                special_instructions.append(f"You MUST include the reference exactly as provided: {s.get('reference') or ''}")
+                special_instructions.append("Do NOT summarize the sacred text. Quote it exactly.")
+            else:
+                special_instructions.append("Summarize the snippet OR quote exactly ONE short sentence from it.")
+                special_instructions.append(f"You MUST include the reference exactly as provided: {s.get('reference') or ''}")
+
+            special_instructions.append("STRICT: Do NOT fabricate hadith. Do NOT fabricate references.")
             special_instructions.append("STRICT: Do NOT add generic filler like 'Enhance your daily reminder' or 'AUTO:'.")
             if not s.get("text"):
                 special_instructions.append("IMPORTANT: No valid snippet was found. Generate a generic Islamic reflection without any specific quotes or references.")
