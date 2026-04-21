@@ -858,6 +858,7 @@ STUDIO_SCRIPTS_JS = """
     };
 
     window.showEditModal = async function(data) {
+        console.log("[Sabeel Studio] Configuring Existing Plan:", data.id);
         await loadStyleDnaPresets();
         const modal = document.getElementById('newAutoModalV2');
         if (!modal) return;
@@ -875,15 +876,17 @@ STUDIO_SCRIPTS_JS = """
         if (data.style_dna_id) {
             const input = document.getElementById('autoV2StyleDNAInput');
             if(input) input.value = data.style_dna_id;
-            // Best effort visual selection
+            
             setTimeout(() => {
                 const container = document.getElementById('autoV2StyleDNAContainer');
                 if(container) {
                     const cards = container.querySelectorAll('.auto-style-card');
-                    const index = v2DnaPresets.findIndex(p => p.id == data.style_dna_id);
-                    if(index >= 0 && cards[index]) selectV2StyleDna(data.style_dna_id, cards[index]);
+                    // Find card index based on DNA ID
+                    const cardsArr = Array.from(cards);
+                    const targetCard = cardsArr.find(c => c.getAttribute('onclick')?.includes(`'${data.style_dna_id}'`) || c.getAttribute('onclick')?.includes(`${data.style_dna_id}`));
+                    if(targetCard) selectV2StyleDna(data.style_dna_id, targetCard);
                 }
-            }, 100);
+            }, 150);
         }
 
         if (data.approval_mode) {
@@ -913,6 +916,10 @@ STUDIO_SCRIPTS_JS = """
         }
 
         modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        
+        // Final Summary Update
+        setTimeout(() => { window.updateAutoV2Summary(); }, 200);
     };
 
     window.runNow = async function(event, id) {
@@ -1139,9 +1146,13 @@ STUDIO_COMPONENTS_HTML = """
                             </div>
                         </div>
                     </div>
-                    <div class="space-y-2 col-span-full">
-                        <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Posting Time</label>
-                        <input type="time" name="post_time_local" oninput="updateAutoV2Summary()" required class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30 max-w-xs">
+                    <div class="space-y-4">
+                        <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1 flex items-center gap-2">
+                             <svg class="w-3 h-3 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+                             Posting Time
+                        </label>
+                        <input type="time" name="post_time_local" oninput="updateAutoV2Summary()" required class="w-full bg-brand/[0.03] border border-brand/10 rounded-2xl px-6 py-4 text-sm font-black text-brand outline-none focus:border-brand/40 focus:ring-4 focus:ring-brand/5 transition-all max-w-xs shadow-inner">
+                        <p class="text-[8px] text-text-muted mt-1 px-1 font-medium">The specific time your daily reflection cycle begins.</p>
                     </div>
                     <div class="grid grid-cols-2 gap-4 col-span-full">
                         <div class="space-y-2">

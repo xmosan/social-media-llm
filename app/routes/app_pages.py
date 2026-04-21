@@ -1348,24 +1348,26 @@ async def app_automations_page(
         if a.content_seed_mode == 'auto_library':
             mode_icon = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>'
         
-        # Consistent, safe JSON escaping for HTML attribute
+        # Consistent, safe JSON mapping for frontend configuration modal
         edit_data_json = html.escape(json.dumps({
             "id": a.id,
             "name": a.name,
-            "topic": a.topic_prompt,
+            "topic_prompt": a.topic_prompt,
             "library_topic_slug": a.library_topic_slug,
-            "seed_mode": a.content_seed_mode,
-            "seed_text": a.content_seed_text,
-            "time": a.post_time_local,
+            "content_seed_mode": a.content_seed_mode,
+            "content_seed_text": a.content_seed_text,
+            "post_time_local": a.post_time_local,
             "posts_per_day": a.posts_per_day,
             "post_spacing_hours": a.post_spacing_hours,
             "content_provider_scope": a.content_provider_scope,
             "pillars": a.pillars,
-            "frequency": a.frequency,
+            "cadence": a.cadence,
             "custom_days": a.custom_days,
             "source_mode": a.source_mode,
             "tone_style": a.tone_style,
             "verification_mode": a.verification_mode,
+            "style_dna_id": a.style_dna_id,
+            "approval_mode": a.approval_mode,
             "ig_account_id": a.ig_account_id
         }), quote=True)
 
@@ -1396,17 +1398,25 @@ async def app_automations_page(
               <p class="text-[13px] text-text-muted font-medium line-clamp-1 italic max-w-xl opacity-80 group-hover:opacity-100 transition-opacity">"{a.topic_prompt}"</p>
               
               <div class="flex flex-wrap gap-8 pt-2">
-                <div class="flex items-center gap-2">
-                    <span class="badge-premium !text-[8px]">Strategy</span>
-                    <span class="text-[11px] font-black text-brand uppercase tracking-wider">{ 'Sacred Grounding' if a.content_seed_mode == 'auto_library' else 'Guided Reflection' }</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="badge-premium !text-[8px]">Schedule</span>
-                    <span class="text-[11px] font-black text-brand uppercase tracking-wider">{a.posts_per_day}x Daily @ {a.post_time_local or '09:00'}</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="badge-premium !text-[8px]">Last Sync</span>
-                    <span class="text-[11px] font-black text-brand uppercase tracking-wider opacity-60">{last_run_str}</span>
+                <div class="flex items-center gap-6">
+                  <div class="flex flex-col">
+                      <span class="badge-premium !text-[7px] mb-1">Strategy</span>
+                      <div class="flex items-center gap-2">
+                          <div class="w-1.5 h-1.5 rounded-full bg-accent"></div>
+                          <span class="text-[11px] font-black text-brand uppercase tracking-widest">{ 'Sacred Grounding' if a.content_seed_mode == 'auto_library' else 'Guided Reflection' }</span>
+                      </div>
+                  </div>
+                  <div class="flex flex-col border-l border-brand/5 pl-6">
+                      <span class="badge-premium !text-[7px] mb-1">Schedule</span>
+                      <div class="flex items-center gap-2 text-brand">
+                          <svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+                          <span class="text-[11px] font-black uppercase tracking-widest">{a.posts_per_day}x {a.cadence.capitalize() if a.cadence else 'Daily'} @ {a.post_time_local or '09:00'}</span>
+                      </div>
+                  </div>
+                  <div class="flex flex-col border-l border-brand/5 pl-6">
+                      <span class="badge-premium !text-[7px] mb-1">Last Sync</span>
+                      <span class="text-[10px] font-black text-brand/40 uppercase tracking-widest">{last_run_str}</span>
+                  </div>
                 </div>
               </div>
               {f'<p class="text-[9px] text-rose-500 font-bold italic mt-2 border-l-2 border-rose-100 pl-3">Error Log: {a.last_error[:100]}...</p>' if a.last_error else ''}

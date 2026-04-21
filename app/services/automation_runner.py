@@ -132,7 +132,11 @@ def resolve_media_url(
             .order_by(Post.created_at.desc())
             .first()
         )
-        return last_post.media_url if last_post else None
+        if last_post:
+            return last_post.media_url
+        
+        # fallback: if no prior posts exist, default to quote card instead of returning None
+        image_mode = "quote_card"
 
     # 2. Library logic
     if image_mode in ["use_library_image", "library_fixed", "library_tag"]:
