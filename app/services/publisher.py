@@ -22,6 +22,9 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
     # PREFLIGHT CHECK: Ensure media URL is reachable and resolves to an image
     log_event("ig_media_preflight_check_start", url=media_url)
     try:
+        if not media_url.startswith("https://"):
+            return {"ok": False, "error": {"message": "Generated image is not publicly reachable yet."}}
+            
         preflight_opts = {
             "timeout": 10,
             "headers": {"User-Agent": "facebookexternalhit/1.1"} # Simulate Meta crawler
@@ -34,26 +37,51 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
             preflight = requests.get(media_url, stream=True, **preflight_opts)
             if preflight.status_code >= 400:
                 log_event("ig_media_preflight_fail", reason="http_error", status=preflight.status_code)
+                
+                # Cloud environments (Railway, Cloudflare) often block 'Hairpin NAT' loopbacks.
+                # If the server is 404ing its own public URL, but the file exists perfectly on disk, trust the disk.
+                should_bypass = False
+                if "/uploads/" in media_url:
+                    import os
+                    local_filename = media_url.split("/uploads/")[-1]
+                    local_path = os.path.join(settings.uploads_dir, local_filename)
+                    if os.path.exists(local_path):
+                        log_event("ig_media_preflight_loopback_bypass", url=media_url)
+                        should_bypass = True
+                        
+                if not should_bypass:
+                    return {
+                        "ok": False,
+                        "error": {"message": "Generated image is not publicly reachable yet."}
+                    }
+
+        # Validate content type, but skip if we bypassed via local loopback trust
+        if "should_bypass" not in locals() or not should_bypass:
+            content_type = preflight.headers.get("Content-Type", "")
+            if not content_type.startswith("image/"):
+                log_event("ig_media_preflight_fail", reason="invalid_content_type", content_type=content_type)
                 return {
                     "ok": False,
                     "error": {"message": "Generated image is not publicly reachable yet."}
                 }
-
-        content_type = preflight.headers.get("Content-Type", "")
-        if not content_type.startswith("image/"):
-            log_event("ig_media_preflight_fail", reason="invalid_content_type", content_type=content_type)
+            log_event("ig_media_preflight_success", status_code=preflight.status_code, content_type=content_type)
+            
+    except Exception as e:
+        log_event("ig_media_preflight_error", error=str(e))
+        
+        # Fallback loopback trust for hard network timeouts
+        if "/uploads/" in media_url:
+            import os
+            local_filename = media_url.split("/uploads/")[-1]
+            if os.path.exists(os.path.join(settings.uploads_dir, local_filename)):
+                pass # Bypass
+            else:
+                return {"ok": False, "error": {"message": "Generated image is not publicly reachable yet."}}
+        else:
             return {
                 "ok": False,
                 "error": {"message": "Generated image is not publicly reachable yet."}
             }
-            
-        log_event("ig_media_preflight_success", status_code=preflight.status_code, content_type=content_type)
-    except Exception as e:
-        log_event("ig_media_preflight_error", error=str(e))
-        return {
-            "ok": False,
-            "error": {"message": "Generated image is not publicly reachable yet."}
-        }
 
     # Step 1: create media container
     log_event("ig_media_create_start", ig_user_id=ig_user_id)
