@@ -19,6 +19,11 @@ class Settings(BaseSettings):
         import os
         if os.path.isabs(v):
             return v
+        
+        # PRODUCTION SHIELD: If running in Railway/App Docker root
+        if os.path.exists("/app"):
+            return os.path.join("/app", v)
+
         # Resolve relative to project root (where app/ is)
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         return os.path.join(base, v)
@@ -27,10 +32,13 @@ class Settings(BaseSettings):
     # To keep it simple and compatible, we'll override the init or use a Pydantic Hook.
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        import os
         self.uploads_dir = self.resolve_abs_path(self.uploads_dir)
-        print("\n" + "═"*64)
-        print(f"🚀 [INIT] MEDIA UPLOADS DIR: {self.uploads_dir}")
-        print("═"*64 + "\n")
+        print("\n" + "!"*64)
+        print(f"🚀 [INIT] ABSOLUTE MEDIA SHIELD ACTIVE")
+        print(f"!!! [RESOLVED UPLOADS DIR]: {self.uploads_dir}")
+        print(f"!!! [CURRENT WORKING DIR ]: {os.getcwd()}")
+        print("!"*64 + "\n")
 
     # Centralized Public Base URL (Production Custom Domain)
     public_base_url: str = Field(

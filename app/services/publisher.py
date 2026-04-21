@@ -34,9 +34,25 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
         if "/uploads/" in media_url:
             import os
             local_filename = media_url.split("/uploads/")[-1]
-            abs_uploads_dir = settings.uploads_dir
-            local_path = os.path.join(abs_uploads_dir, local_filename)
+            local_path = os.path.join(settings.uploads_dir, local_filename)
             
+            should_bypass = False
+            if not os.path.exists(local_path):
+                # AGGRESSIVE HUNT: If the renderer saved it elsewhere, find it.
+                try:
+                    print(f"🔍 [HUNT] {local_filename} not at {local_path}. Scanning project root...")
+                    import glob
+                    # Search project root and subdirs for this specific filename
+                    # Limit to common project areas to avoid scanning /proc or /sys
+                    candidates = glob.glob(f"/app/**/{local_filename}", recursive=True)
+                    if candidates:
+                        local_path = candidates[0]
+                        print(f"🎯 [HUNT] Found {local_filename} at {local_path}. Self-healing...")
+                    else:
+                        print(f"❌ [HUNT] No candidates found for {local_filename}")
+                except Exception as hunt_err:
+                    print(f"⚠️ [HUNT] Scanner error: {hunt_err}")
+
             if os.path.exists(local_path):
                 # Deep Verify Magic Bytes Locally
                 try:

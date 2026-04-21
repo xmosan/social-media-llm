@@ -401,7 +401,14 @@ async def serve_upload_forced(filename: str):
         raise HTTPException(status_code=404, detail=f"File not found on server at {full_path}")
     # Force correct MIME type regardless of extension sniffing
     content_type = "image/jpeg" if filename.endswith((".jpg", ".jpeg")) else ("image/png" if filename.endswith(".png") else "application/octet-stream")
-    return FileResponse(full_path, media_type=content_type)
+    
+    # PRODUCTION HARDENING: Force no-cache to ensure Meta always gets the fresh binary
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    }
+    return FileResponse(full_path, media_type=content_type, headers=headers)
 
 app.mount("/uploads", StaticFiles(directory=uploads_absolute_path), name="uploads")
 print(f"📁 [System] Uploads mounted at: {uploads_absolute_path}")
