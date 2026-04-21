@@ -777,6 +777,9 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
                 </div>
             </div>
             """
+            
+            # Global account options for modals
+            account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in accs])
         else:
             switcher_html = f"""
             <button onclick="window.location.href='/auth/instagram/login'" type="button" class="relative flex items-center gap-3 p-2 pr-4 bg-brand/[0.03] hover:bg-brand/[0.06] border border-brand/10 rounded-2xl transition-all group">
@@ -789,6 +792,7 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
                 </div>
             </button>
             """
+            account_options = '<option value="">No accounts connected</option>'
 
     return APP_LAYOUT_HTML.format(
         title=title,
@@ -806,6 +810,7 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
         connected_account_info=(extras.get("connected_account_info", "") if extras else ""),
         connect_instagram_modal=CONNECT_INSTAGRAM_MODAL_HTML,
         navbar_account_switcher=switcher_html,
+        account_options=account_options,
         extra_js=(extras.get("extra_js", "") if extras else ""),
         org_id=str(org.id if org else 0)
     )

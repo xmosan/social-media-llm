@@ -828,9 +828,11 @@ STUDIO_SCRIPTS_JS = """
         };
 
         if (!form.dataset.editId) {
-            payload.ig_account_id = parseInt(document.getElementById('studioAccount') ? document.getElementById('studioAccount').value : form.ig_account_id_hidden.value);
+            payload.ig_account_id = parseInt(form.ig_account_id.value);
             payload.posting_mode = 'schedule';
             payload.enabled = true;
+        } else {
+            payload.ig_account_id = parseInt(form.ig_account_id.value);
         }
 
         try {
@@ -864,7 +866,7 @@ STUDIO_SCRIPTS_JS = """
         form.dataset.editId = data.id;
         
         form.name.value = data.name || '';
-        if(form.ig_account_id_hidden) form.ig_account_id_hidden.value = data.ig_account_id || '';
+        if(form.ig_account_id) form.ig_account_id.value = data.ig_account_id || '';
         form.topic_prompt.value = data.topic_prompt || '';
         form.post_time_local.value = data.post_time_local || '';
         if(form.posts_per_day) form.posts_per_day.value = data.posts_per_day || 1;
@@ -977,6 +979,12 @@ STUDIO_COMPONENTS_HTML = """
                             </div>
                        </div>
                     </div>
+                    <div class="space-y-3">
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Target Account</label>
+                        <select id="studioAccount" name="ig_account_id" class="w-full bg-cream/20 border border-brand/5 rounded-2xl px-6 py-4 text-xs font-bold text-brand outline-none focus:border-brand/20 transition-all">
+                            {account_options}
+                        </select>
+                    </div>
                     <div id="quranSearchResults" class="hidden max-h-48 overflow-y-auto bg-white border border-brand/10 rounded-2xl shadow-xl custom-scrollbar z-[120]"></div>
                     <div id="selectedAyahBadge" class="hidden p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between shadow-sm">
                         <div class="flex items-center gap-3">
@@ -1069,9 +1077,12 @@ STUDIO_COMPONENTS_HTML = """
         </div>
         <div class="p-8 md:p-10 flex-1 overflow-y-auto">
             <form id="autoV2Form" onsubmit="submitNewAutoV2(event)" class="space-y-6">
-                <!-- Fallback hidden account field if 'studioAccount' is not active -->
-                <input type="hidden" name="ig_account_id_hidden" value="1">
-                
+                <div class="space-y-2">
+                    <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Target Account</label>
+                    <select name="ig_account_id" id="autoV2AccountSelector" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
+                        {account_options}
+                    </select>
+                </div>
                 <div class="space-y-2">
                     <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Plan Name</label>
                     <input type="text" name="name" required oninput="updateAutoV2Summary()" placeholder="e.g. Daily Friday Sunnah" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
