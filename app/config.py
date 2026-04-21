@@ -101,16 +101,14 @@ class Settings(BaseSettings):
 settings = Settings()
 
 def build_public_media_url(filename: str) -> str:
-    """
-    Constructs a fully qualified public HTTPS URL for Instagram publishing.
-    Ensures safe fallback formatting to prevent localhost rejections.
-    """
+    """Standardized way to generate production-ready URLs for Instagram/Meta."""
     import os
-    base = (settings.public_base_url or "").rstrip("/")
+    base = settings.public_base_url.rstrip("/")
     
     # If running locally without ngrok, fallback to production domain to avoid instant 400 errors from Meta
     # Meta will still fail the download gracefully if the file isn't pushed to production, but the API payload will be valid
     if not base or "localhost" in base or "127.0.0.1" in base:
+        print(f"⚠️ [CONFIG] Building media URL with local/missing base: {base}")
         railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN", "app.sabeelstudio.com")
         base = f"https://{railway_domain}"
         

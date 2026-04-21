@@ -1837,6 +1837,12 @@ def render_minimal_quote_card(
     print(f"!!! [RENDERER] WRITING TO: {final_path}")
     final_img.save(final_path, format="JPEG", quality=95)
     
+    # ZERO-TRUST VERIFICATION
+    if os.path.exists(final_path):
+         print(f"✅ [RENDERER] SAVE VERIFIED: {final_path}")
+    else:
+         print(f"❌ [RENDERER] CRITICAL SAVE FAILURE: File missing immediately after save() at {final_path}")
+    
     from app.config import build_public_media_url
     return build_public_media_url(filename)
 def render_quote_card(background_local_path: Optional[str], quote: str,
@@ -1899,6 +1905,12 @@ def render_quote_card(background_local_path: Optional[str], quote: str,
     # Ensure explicit JPEG format
     print(f"!!! [RENDERER] WRITING TO: {fp2}")
     bg.save(fp2, format="JPEG", quality=95)
+    
+    # ZERO-TRUST VERIFICATION
+    if os.path.exists(fp2):
+         print(f"✅ [RENDERER] SAVE VERIFIED: {fp2}")
+    else:
+         print(f"❌ [RENDERER] CRITICAL SAVE FAILURE: File missing immediately after save() at {fp2}")
     
     from app.config import build_public_media_url
     return build_public_media_url(fn)
