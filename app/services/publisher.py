@@ -21,6 +21,9 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
 
     # PREFLIGHT CHECK: Ensure media URL is reachable and resolves to an image
     log_event("ig_media_preflight_check_start", url=media_url)
+    should_bypass = False
+    should_bypass_mime = False
+    
     try:
         if not media_url.startswith("https://"):
             return {"ok": False, "error": {"message": "Generated image is not publicly reachable yet."}}
@@ -40,34 +43,25 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
                 
                 # Cloud environments (Railway, Cloudflare) often block 'Hairpin NAT' loopbacks.
                 # If the server is 404ing its own public URL, but the file exists perfectly on disk, trust the disk.
-                should_bypass = False
-                if "/uploads/" in media_url:
-                    import os
-                    local_filename = media_url.split("/uploads/")[-1]
-                    local_path = os.path.join(settings.uploads_dir, local_filename)
-                    if os.path.exists(local_path):
-                        log_event("ig_media_preflight_loopback_bypass", url=media_url)
-                        should_bypass = True
-                        
         content_type = preflight.headers.get("Content-Type", "")
-        # If the preflight returned a non-image (like a 200 OK HTML page from a frontend router fallback)
-        # we still want to trust the local disk if it's an uploads file.
         if not content_type.startswith("image/"):
-            should_bypass_mime = False
+            # Check local disk if it's HTML or some other type (e.g. 200 OK from index.html)
             if "/uploads/" in media_url:
                 import os
                 local_filename = media_url.split("/uploads/")[-1]
                 local_path = os.path.join(settings.uploads_dir, local_filename)
                 if os.path.exists(local_path):
+                    log_event("ig_media_preflight_mime_bypass", url=media_url)
                     should_bypass_mime = True
             
-            if not should_bypass_mime and ("should_bypass" not in locals() or not should_bypass):
+            if not should_bypass_mime and not should_bypass:
                 log_event("ig_media_preflight_fail", reason="invalid_content_type_no_bypass", content_type=content_type)
                 return {
                     "ok": False,
                     "error": {"message": "Generated image is not publicly reachable yet."}
                 }
-            log_event("ig_media_preflight_success", status_code=preflight.status_code, content_type=content_type)
+        
+        log_event("ig_media_preflight_success", status_code=preflight.status_code, content_type=content_type)
             
     except Exception as e:
         log_event("ig_media_preflight_error", error=str(e))
