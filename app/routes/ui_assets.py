@@ -536,7 +536,28 @@ STUDIO_SCRIPTS_JS = """
     };
 
     window.updateAutoV2Summary = function() {
-        const topic = document.querySelector('textarea[name="topic_prompt"]')?.value || '';
+        const topicRaw = document.querySelector('textarea[name="topic_prompt"]')?.value || '';
+        
+        // Topic Pool Parsing
+        const topics = topicRaw.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        const uniqueTopics = [...new Set(topics)];
+        window.currentAutoTopicPool = uniqueTopics;
+
+        // Render Chips
+        const chipContainer = document.getElementById('autoV2TopicChips');
+        if (chipContainer) {
+            if (uniqueTopics.length > 0) {
+                chipContainer.innerHTML = uniqueTopics.map(t => `
+                    <span class="px-3 py-1 bg-brand/10 border border-brand/20 rounded-full text-[9px] font-bold text-brand uppercase tracking-widest flex items-center gap-2 animate-in zoom-in duration-200">
+                        <span class="w-1.5 h-1.5 rounded-full bg-accent"></span>
+                        ${t}
+                    </span>
+                `).join('');
+            } else {
+                chipContainer.innerHTML = '<p class="text-[8px] text-text-muted italic px-1 font-medium">Enter multiple topics separated by commas...</p>';
+            }
+        }
+
         const cadence = document.getElementById('autoV2CadenceInput')?.value || 'daily';
         const mode = document.getElementById('autoV2ApprovalModeInput')?.value || 'needs_manual_approve';
         const timeInput = document.querySelector('input[name="post_time_local"]')?.value || '09:00';
@@ -544,7 +565,6 @@ STUDIO_SCRIPTS_JS = """
         const spacing = document.querySelector('input[name="post_spacing_hours"]')?.value || 4;
         const dnaId = document.getElementById('autoV2StyleDNAInput')?.value;
         
-        // Lookup DNA label
         let dnaLabel = 'Atmospheric';
         if (window.v2DnaPresets && dnaId) {
             const match = v2DnaPresets.find(p => p.id == dnaId);
@@ -562,16 +582,20 @@ STUDIO_SCRIPTS_JS = """
                 timeStr = `${displayH}:${m} ${period}`;
             } catch(e) {}
 
+            const topicSummary = uniqueTopics.length > 1 
+                ? `${uniqueTopics.length} Rotational Topics` 
+                : (uniqueTopics[0] || 'Not defined');
+
             summaryEl.innerHTML = `
                 <div class="space-y-4 w-full">
                     <div class="flex items-center justify-between border-b border-brand/5 pb-2">
                         <span class="text-[10px] font-black text-brand uppercase tracking-widest">Growth Plan Summary</span>
-                        <span class="text-[9px] font-bold text-accent uppercase tracking-tighter italic">Review before launch</span>
+                        <span class="text-[9px] font-bold text-accent uppercase tracking-tighter italic">Dynamic Configuration</span>
                     </div>
                     <div class="grid grid-cols-2 gap-x-8 gap-y-3">
                         <div class="flex flex-col">
-                            <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Topic</span>
-                            <span class="text-[11px] font-black text-brand line-clamp-1 italic mt-1">"${topic || 'Not defined'}"</span>
+                            <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Topic Pool</span>
+                            <span class="text-[11px] font-black text-brand line-clamp-1 italic mt-1">"${topicSummary}"</span>
                         </div>
                         <div class="flex flex-col">
                             <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Style DNA</span>
@@ -641,11 +665,16 @@ STUDIO_SCRIPTS_JS = """
     window.testAutoV2Preview = async function() {
         const btn = document.getElementById('btnPreviewAutoV2');
         const form = document.getElementById('autoV2Form');
-        const topic = form.topic_prompt.value;
-        if (!topic) { alert("Please provide a CORE TOPIC before testing the engine."); return; }
+        
+        // Topic Pool Rotation (Preview)
+        const topics = (window.currentAutoTopicPool && window.currentAutoTopicPool.length > 0) 
+            ? window.currentAutoTopicPool 
+            : [form.topic_prompt.value].filter(t => t.trim());
+
+        if (topics.length === 0) { alert("Please provide a CORE TOPIC before testing the engine."); return; }
 
         const originalText = btn.innerHTML;
-        btn.innerHTML = '<span class="flex items-center gap-2"><svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Generating Samples...</span>';
+        btn.innerHTML = '<span class="flex items-center gap-2 text-[10px]"><svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Simulation in Progress...</span>';
         btn.disabled = true;
         
         const container = document.getElementById('autoV2PreviewContainer');
@@ -659,26 +688,36 @@ STUDIO_SCRIPTS_JS = """
                  if(match) styleStr = match.id || match.label;
             }
 
-            const reqUrl = `/automations/debug/llm-test?topic=${encodeURIComponent(topic)}&style=${encodeURIComponent(styleStr)}`;
+            // Call with separate topics from the pool for variety
+            const t1 = topics[0];
+            const t2 = topics[1] || topics[0];
+
+            const reqUrl1 = `/automations/debug/llm-test?topic=${encodeURIComponent(t1)}&style=${encodeURIComponent(styleStr)}`;
+            const reqUrl2 = `/automations/debug/llm-test?topic=${encodeURIComponent(t2)}&style=${encodeURIComponent(styleStr)}`;
+
             const responses = await Promise.all([
-                fetch(reqUrl).then(r => r.json()),
-                fetch(reqUrl).then(r => r.json())
+                fetch(reqUrl1).then(r => r.json()),
+                fetch(reqUrl2).then(r => r.json())
             ]);
             
             container.classList.remove('hidden');
             content.innerHTML = responses.map((data, i) => {
                 const type = data.grounding?.item_type || 'reflection';
+                const hasSource = !!data.grounding?.source;
                 const badgeColor = type === 'quran' ? 'bg-emerald-500' : (type === 'hadith' ? 'bg-indigo-500' : 'bg-brand/40');
                 
-                // Grounding Logic: Avoid fabricating references
-                let groundingText = 'Perspective Reflection';
-                let subBadge = 'Reflection Preview — no exact source selected';
+                // Enhanced Grounding Honesty
+                let groundingText = `Reflection on ${i === 0 ? t1 : t2}`;
+                let subBadge = 'Perspective Reflection';
                 
-                if (type === 'quran' && data.grounding?.source) {
-                    groundingText = `Sacred Text: ${data.grounding.source}`;
+                if (type === 'quran' && hasSource) {
+                    groundingText = `Surah: ${data.grounding.source}`;
                     subBadge = `Verified Qur'an Reference`;
-                } else if (type === 'hadith' && data.grounding?.source) {
-                    groundingText = `Hadith: ${data.grounding.source}`;
+                } else if (type === 'quran' && !hasSource) {
+                    groundingText = `Inspired by Qur'anic Wisdom`;
+                    subBadge = `Quran-Inspired Reflection`;
+                } else if (type === 'hadith' && hasSource) {
+                    groundingText = `Source: ${data.grounding.source}`;
                     subBadge = 'Verified Prophetic Guidance';
                 }
 
@@ -710,9 +749,7 @@ STUDIO_SCRIPTS_JS = """
                 `;
             }).join('');
             
-            // Smoothly scroll to preview
             container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
         } catch(e) {
             alert('Preview Engine disconnected: ' + e.message);
         } finally {
@@ -740,6 +777,7 @@ STUDIO_SCRIPTS_JS = """
         const payload = {
             name: form.name.value,
             topic_prompt: form.topic_prompt.value,
+            topic_pool: window.currentAutoTopicPool || [],
             style_dna_id: form.style_dna_id.value ? parseInt(form.style_dna_id.value) : null,
             automation_version: 2,
             approval_mode: document.getElementById('autoV2ApprovalModeInput') ? document.getElementById('autoV2ApprovalModeInput').value : 'auto_approve',
@@ -1000,7 +1038,8 @@ STUDIO_COMPONENTS_HTML = """
                 </div>
                 <div class="space-y-2">
                     <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Core Topic / Guidance</label>
-                    <textarea name="topic_prompt" required oninput="updateAutoV2Summary()" placeholder="e.g. Discuss the virtues of Sabr and reflecting on blessings" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-medium text-brand min-h-[100px] outline-none focus:border-brand/30"></textarea>
+                    <textarea name="topic_prompt" required oninput="updateAutoV2Summary()" placeholder="e.g. Sabr, Gratitude, Daily Prayers..." class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-medium text-brand min-h-[100px] outline-none focus:border-brand/30"></textarea>
+                    <div id="autoV2TopicChips" class="flex flex-wrap gap-2 mt-2"></div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-4 col-span-full">

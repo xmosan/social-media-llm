@@ -210,15 +210,20 @@ def run_automation_once(db: Session, automation_id: int) -> Post | None:
         return None
     
     try:
-        # Pillar Rotation Logic
-        pillars = automation.pillars or []
+        # 1. Topic Pool Rotation Logic
+        pool = automation.topic_pool or []
         topic_base = automation.topic_prompt
         
+        post_count = db.query(Post).filter(Post.automation_id == automation.id).count()
+        if pool:
+            topic_base = pool[post_count % len(pool)]
+            log_event("automation_topic_selected", automation_id=automation.id, topic=topic_base, index=post_count % len(pool))
+
+        # 2. Pillar Rotation Logic
+        pillars = automation.pillars or []
         if pillars:
-            # Count previous SUCCESSFUL posts to determine rotation index
-            post_count = db.query(Post).filter(Post.automation_id == automation.id, Post.status == "published").count()
             selected_pillar = pillars[post_count % len(pillars)]
-            # If topic_prompt exists, use it as grounding context, otherwise use pillar as main topic
+            # If topic exists, use it as grounding context, otherwise use pillar as main topic
             topic_base = f"{selected_pillar}: {topic_base}" if topic_base else selected_pillar
             log_event("automation_pillar_selected", automation_id=automation.id, pillar=selected_pillar, index=post_count % len(pillars))
 

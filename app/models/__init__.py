@@ -227,6 +227,7 @@ class TopicAutomation(Base):
     
     name = Column(String, nullable=False)
     topic_prompt = Column(Text, nullable=False)
+    topic_pool = Column(JSON, nullable=True) # List of strings for rotation
     style_preset = Column(String, nullable=False, default="islamic_reminder")
     custom_style_instructions = Column(Text, nullable=True)
     library_topic_slug = Column(String, nullable=True) # Added: Link to library topic

@@ -160,6 +160,7 @@ class TopicAutomationOut(BaseModel):
     ig_account_id: int
     name: str
     topic_prompt: str
+    topic_pool: list[str] | None = None
     library_topic_slug: str | None
     content_seed_mode: str
     content_provider_scope: str = "all_sources"
@@ -223,6 +224,7 @@ class TopicAutomationCreate(BaseModel):
     ig_account_id: int
     name: str
     topic_prompt: str
+    topic_pool: list[str] | None = None
     style_preset: str = "islamic_reminder"
     tone: str = "medium" # short, medium, long
     language: str = "english" # english, arabic_mix
@@ -280,6 +282,7 @@ class TopicAutomationCreate(BaseModel):
 class TopicAutomationUpdate(BaseModel):
     name: str | None = None
     topic_prompt: str | None = None
+    topic_pool: list[str] | None = None
     style_preset: str | None = None
     tone: str | None = None
     language: str | None = None

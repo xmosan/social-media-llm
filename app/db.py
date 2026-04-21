@@ -134,6 +134,7 @@ def sync_database_schema(log_func=None):
         ],
         "topic_automations": [
             ("library_topic_slug", "VARCHAR"),
+            ("topic_pool", json_type),
             ("tone", "VARCHAR DEFAULT 'medium'"),
             ("language", "VARCHAR DEFAULT 'english'"),
             ("banned_phrases", json_type),
