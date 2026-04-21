@@ -741,7 +741,6 @@ STUDIO_SCRIPTS_JS = """
                         <div class="space-y-3">
                              ${groundedText ? `
                              <div class="bg-brand/[0.03] border-l-4 border-accent/20 p-3 rounded-r-xl space-y-1">
-                                 <div class="text-[7px] font-black text-accent uppercase tracking-widest leading-none mb-1">Foundational Verse:</div>
                                  <p class="text-[10px] text-brand/90 font-bold leading-relaxed italic">"${groundedText}"</p>
                                  <div class="text-[8px] font-bold text-brand uppercase tracking-tighter text-right mt-1">— ${info.source}</div>
                              </div>
