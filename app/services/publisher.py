@@ -36,7 +36,7 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
                 log_event("ig_media_preflight_fail", reason="http_error", status=preflight.status_code)
                 return {
                     "ok": False,
-                    "error": {"message": f"Preflight validation failed: Server returned HTTP {preflight.status_code} for the media URL. It may not be publicly accessible."}
+                    "error": {"message": "Generated image is not publicly reachable yet."}
                 }
 
         content_type = preflight.headers.get("Content-Type", "")
@@ -44,7 +44,7 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
             log_event("ig_media_preflight_fail", reason="invalid_content_type", content_type=content_type)
             return {
                 "ok": False,
-                "error": {"message": f"Preflight validation failed: URL returned Content-Type '{content_type}' instead of an image type (e.g., image/jpeg)."}
+                "error": {"message": "Generated image is not publicly reachable yet."}
             }
             
         log_event("ig_media_preflight_success", status_code=preflight.status_code, content_type=content_type)
@@ -52,7 +52,7 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
         log_event("ig_media_preflight_error", error=str(e))
         return {
             "ok": False,
-            "error": {"message": f"Preflight validation failed: Could not reach media URL. Network error: {e}"}
+            "error": {"message": "Generated image is not publicly reachable yet."}
         }
 
     # Step 1: create media container
@@ -71,12 +71,12 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
         error_obj = j1.get("error", {})
         log_event("ig_media_create_fail", ig_user_id=ig_user_id, meta_error_code=error_obj.get("code"), fbtrace_id=error_obj.get("fbtrace_id"))
         
-        err_msg = error_obj.get("message", "Failed to upload image container.")
-        user_msg = error_obj.get("error_user_msg")
-        if user_msg:
-            err_msg = f"{err_msg} ({user_msg})"
+        err_msg = "Instagram could not fetch the generated image. Please regenerate the visual and try again."
+        
+        # Log the raw JSON so developers can still see it in the logs
+        print(f"[IG_PUBLISH][MEDIA_FAIL] Meta JSON: {j1}")
             
-        return {"ok": False, "error": {"step": "media_create", "message": err_msg, "response": j1}}
+        return {"ok": False, "error": {"step": "media_create", "message": err_msg}}
 
     creation_id = j1["id"]
     log_event("ig_media_create_success", ig_user_id=ig_user_id, creation_id=creation_id)
