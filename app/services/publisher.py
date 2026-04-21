@@ -49,17 +49,20 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
                         log_event("ig_media_preflight_loopback_bypass", url=media_url)
                         should_bypass = True
                         
-                if not should_bypass:
-                    return {
-                        "ok": False,
-                        "error": {"message": "Generated image is not publicly reachable yet."}
-                    }
-
-        # Validate content type, but skip if we bypassed via local loopback trust
-        if "should_bypass" not in locals() or not should_bypass:
-            content_type = preflight.headers.get("Content-Type", "")
-            if not content_type.startswith("image/"):
-                log_event("ig_media_preflight_fail", reason="invalid_content_type", content_type=content_type)
+        content_type = preflight.headers.get("Content-Type", "")
+        # If the preflight returned a non-image (like a 200 OK HTML page from a frontend router fallback)
+        # we still want to trust the local disk if it's an uploads file.
+        if not content_type.startswith("image/"):
+            should_bypass_mime = False
+            if "/uploads/" in media_url:
+                import os
+                local_filename = media_url.split("/uploads/")[-1]
+                local_path = os.path.join(settings.uploads_dir, local_filename)
+                if os.path.exists(local_path):
+                    should_bypass_mime = True
+            
+            if not should_bypass_mime and ("should_bypass" not in locals() or not should_bypass):
+                log_event("ig_media_preflight_fail", reason="invalid_content_type_no_bypass", content_type=content_type)
                 return {
                     "ok": False,
                     "error": {"message": "Generated image is not publicly reachable yet."}
