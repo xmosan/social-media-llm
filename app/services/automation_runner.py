@@ -531,7 +531,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                     "reference": reference,
                     "bg_url": bg_url if 'bg_url' in locals() else None,
                     "visual_mode": automation.image_mode,
-                    "style": automation.visual_style
+                    "style": automation.style_preset
                 }
             }
         )
