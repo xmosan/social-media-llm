@@ -389,7 +389,16 @@ async def serve_upload_forced(filename: str):
     from fastapi.responses import FileResponse
     full_path = os.path.join(settings.uploads_dir, filename)
     if not os.path.exists(full_path):
-        raise HTTPException(status_code=404, detail="File not found")
+        # DEEP 404 DIAGNOSTIC (Black Box logging for Railway)
+        print(f"❌ [MEDIA_404] File not found: {full_path}")
+        print(f"   - Current Working Directory: {os.getcwd()}")
+        try:
+            files = sorted(os.listdir(settings.uploads_dir))
+            print(f"   - Recent local files in {settings.uploads_dir}: {files[-5:]}")
+        except Exception as e:
+            print(f"   - Could not list contents of {settings.uploads_dir}: {e}")
+        
+        raise HTTPException(status_code=404, detail=f"File not found on server at {full_path}")
     # Force correct MIME type regardless of extension sniffing
     content_type = "image/jpeg" if filename.endswith((".jpg", ".jpeg")) else ("image/png" if filename.endswith(".png") else "application/octet-stream")
     return FileResponse(full_path, media_type=content_type)

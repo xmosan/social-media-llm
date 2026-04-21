@@ -1828,6 +1828,11 @@ def render_minimal_quote_card(
             print(f"   🖼️  Zone {i} composited.")
         
     final_img = apply_cinematic_layers(bg_rgba, glow_color=list(g_rgba) if g_rgba else None)
+    
+    filename = f"qcard_{int(time.time() * 1000)}.jpg"
+    final_path = os.path.join(output_dir, filename)
+    os.makedirs(output_dir, exist_ok=True)
+    
     # Force JPEG format to ensure Magic Bytes match the extension for Meta's crawler
     final_img.save(final_path, format="JPEG", quality=95)
     
@@ -1886,9 +1891,15 @@ def render_quote_card(background_local_path: Optional[str], quote: str,
         draw.text((W//2, y), l, font=fl, fill=(255, 255, 255), anchor="mt")
         y += 80
     os.makedirs(output_dir, exist_ok=True)
+    
+    fn = f"qcard_{int(time.time()*1000)}.jpg"
+    fp2 = os.path.join(output_dir, fn)
+    
     # Ensure explicit JPEG format
     bg.save(fp2, format="JPEG", quality=95)
-    return f"{settings.public_base_url.rstrip('/')}/uploads/{fn}"
+    
+    from app.config import build_public_media_url
+    return build_public_media_url(fn)
 
 def draw_soft_protection_glow(base_img, target_size, center, zone_box, blend_color=(0,0,0,128)):
     """

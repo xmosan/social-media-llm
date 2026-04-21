@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.uploads_dir = self.resolve_abs_path(self.uploads_dir)
+        print("\n" + "═"*64)
+        print(f"🚀 [INIT] MEDIA UPLOADS DIR: {self.uploads_dir}")
+        print("═"*64 + "\n")
 
     # Centralized Public Base URL (Production Custom Domain)
     public_base_url: str = Field(

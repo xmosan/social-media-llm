@@ -43,14 +43,18 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
                     with open(local_path, "rb") as f:
                         header = f.read(8).hex()
                         if header.startswith("ffd8") or header.startswith("89504e47"):
+                            print(f"✅ [IG_PUBLISH] Loopback Trust: Valid magic bytes found at {local_path}")
                             log_event("ig_media_preflight_loopback_trust_verified", path=local_path)
                             should_bypass = True
                         else:
+                            print(f"⚠️ [IG_PUBLISH] Loopback Fail: Invalid magic bytes ({header[:8]}...) at {local_path}")
                             log_event("ig_media_preflight_fail", reason="invalid_local_magic_bytes", header=header)
                             preflight_error = "Generated image file is corrupted or invalid."
                 except Exception as e:
+                    print(f"❌ [IG_PUBLISH] Loopback Error: Could not read {local_path}: {e}")
                     log_event("ig_media_preflight_local_read_error", error=str(e))
             else:
+                print(f"❌ [IG_PUBLISH] Loopback Fail: File NOT FOUND at {local_path}")
                 log_event("ig_media_preflight_local_not_found", path=local_path)
 
         # 3. Network Ping (If not already trusted via local check)
