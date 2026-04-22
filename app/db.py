@@ -180,6 +180,7 @@ def sync_database_schema(log_func=None):
             ("tone_style", "VARCHAR DEFAULT 'deep'"),
             ("verification_mode", "VARCHAR DEFAULT 'standard'"),
             ("style_dna_id", "INTEGER"),
+            ("style_dna_pool", json_type),
             ("automation_version", "INTEGER DEFAULT 1")
         ],
         "posts_extended": [
