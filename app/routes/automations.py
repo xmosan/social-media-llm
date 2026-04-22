@@ -124,6 +124,41 @@ def debug_llm_test(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/v2/simulate")
+def simulate_v2_growth_plan(
+    data: dict,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
+):
+    """
+    Simulation endpoint for Growth Plan V2.
+    Expects: { topic_pool: [], style_dna_pool: [], language: 'english' }
+    """
+    from app.services.automation_service import simulate_growth_plan
+    
+    topic_pool = data.get("topic_pool") or []
+    style_dna_ids = data.get("style_dna_pool") or []
+    language = data.get("language") or "english"
+    
+    if not topic_pool:
+        # Fallback to single topic if provided
+        single = data.get("topic")
+        if single: topic_pool = [single]
+    
+    try:
+        results = simulate_growth_plan(
+            db=db,
+            org_id=org_id,
+            topic_pool=topic_pool,
+            style_dna_ids=style_dna_ids,
+            language=language
+        )
+        return results
+    except Exception as e:
+        import traceback
+        print(f"❌ [SIMULATION_ERROR] {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/run-scheduler-now")
 def run_scheduler_now(
     db: Session = Depends(get_db),

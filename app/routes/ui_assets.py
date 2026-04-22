@@ -718,128 +718,124 @@ STUDIO_SCRIPTS_JS = """
         const btn = document.getElementById('btnPreviewAutoV2');
         const form = document.getElementById('autoV2Form');
         
-        // Topic Pool Rotation (Preview)
-        const topics = (window.currentAutoTopicPool && window.currentAutoTopicPool.length > 0) 
-            ? window.currentAutoTopicPool 
-            : [form.topic_prompt.value].filter(t => t.trim());
+        // Data Extraction
+        const topicPool = window.currentAutoTopicPool || [];
+        const stylePool = window.currentAutoStylePool || [];
+        const language = document.getElementById('autoV2LanguageInput')?.value || 'english';
 
-        if (topics.length === 0) { alert("Please provide a CORE TOPIC before testing the engine."); return; }
+        if (topicPool.length === 0) { 
+            alert("Please provide at least one topic in your Topic Pool before simulating."); 
+            return; 
+        }
 
         const originalText = btn.innerHTML;
-        btn.innerHTML = '<span class="flex items-center gap-2 text-[10px]"><svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Simulation in Progress...</span>';
+        btn.innerHTML = '<span class="flex items-center gap-2 text-[10px] pr-2"><svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Generating previews...</span>';
         btn.disabled = true;
         
         const container = document.getElementById('autoV2PreviewContainer');
         const content = document.getElementById('autoV2PreviewContent');
         
+        // Show Loading Skeleton / Cinematic Spinner
+        content.innerHTML = `
+            <div class="col-span-full py-12 flex flex-col items-center justify-center space-y-6">
+                <div class="relative">
+                    <div class="w-20 h-20 rounded-full border-4 border-brand/5 border-t-brand animate-spin"></div>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <svg class="w-6 h-6 text-brand/20 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <div class="text-[11px] font-black text-brand uppercase tracking-widest animate-pulse">Consulting Wisdom Libraries...</div>
+                    <div class="text-[9px] font-bold text-text-muted italic mt-1">Generating grounded samples and rendering visuals</div>
+                </div>
+            </div>
+        `;
+        container.classList.remove('hidden');
+        
         try {
-            let styleStr1 = 'islamic_reminder';
-            let styleStr2 = 'islamic_reminder';
+            const res = await fetch('/automations/v2/simulate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    topic_pool: topicPool,
+                    style_dna_pool: stylePool,
+                    language: language
+                })
+            });
             
-            const pool = window.currentAutoStylePool || [];
-            if (pool.length > 0) {
-                const s1 = pool[0];
-                const s2 = pool[1] || pool[0];
-                
-                const match1 = v2DnaPresets.find(p => p.id == s1);
-                const match2 = v2DnaPresets.find(p => p.id == s2);
-                
-                if (match1) styleStr1 = match1.id || match1.label;
-                if (match2) styleStr2 = match2.id || match2.label;
-            }
-
-            // Call with separate topics from the pool for variety
-            const t1 = topics[0];
-            const t2 = topics[1] || topics[0];
-
-            const reqUrl1 = `/automations/debug/llm-test?topic=${encodeURIComponent(t1)}&style=${encodeURIComponent(styleStr1)}`;
-            const reqUrl2 = `/automations/debug/llm-test?topic=${encodeURIComponent(t2)}&style=${encodeURIComponent(styleStr2)}`;
-
-            const responses = await Promise.all([
-                fetch(reqUrl1).then(r => r.json()),
-                fetch(reqUrl2).then(r => r.json())
-            ]);
+            if (!res.ok) throw new Error(await res.text());
+            const responses = await res.json();
             
             container.classList.remove('hidden');
             content.innerHTML = responses.map((data, i) => {
-                const topicLabel = i === 0 ? t1 : t2;
+                const topicLabel = data.topic;
                 
-                // --- HONEST GROUNDING HELPER ---
-                const getSourceInfo = (grounding) => {
-                    const type = grounding?.item_type;
-                    const ref = grounding?.source;
-                    
-                    // Exact Quran Match (Ensures Surah/Verse presence)
-                    if (type === 'quran' && ref) {
-                        return { badge: "Verified Qur'an Reference", source: ref, color: 'bg-emerald-500' };
-                    }
-                    // Quran Inspired (No exact reference)
-                    if (type === 'quran') {
-                        return { badge: 'Quran-Inspired Reflection', source: 'Quranic Wisdom (Not Grounded)', color: 'bg-emerald-500/40' };
-                    }
-                    // Hadith Match
-                    if (type === 'hadith' && ref) {
-                        return { badge: 'Verified Prophetic Guidance', source: ref, color: 'bg-indigo-500' };
-                    }
-                    // Default Fallback
-                    return { badge: 'Reflection Preview', source: 'Perspective Reflection', color: 'bg-brand/40' };
-                };
-
-                const info = getSourceInfo(data.grounding);
-                const groundedText = data.grounding?.text;
+                // Color mapping for badges
+                const isQuran = data.source_type === 'quran' && !data.fallback_mode;
+                const badgeColor = isQuran ? 'bg-emerald-500' : 'bg-brand/40';
+                
+                let badgeText = isQuran ? "Verified Qur'an Reference" : "Reflection Preview";
+                if (data.fallback_mode) {
+                    badgeText = "No direct source found • Reflection Mode";
+                }
                 
                 return `
-                    <div class="bg-white border border-brand/5 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all flex flex-col space-y-4">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <span class="w-1.5 h-1.5 rounded-full ${info.color}"></span>
-                                <span class="text-[9px] font-black text-brand uppercase tracking-widest">${info.badge}</span>
+                    <div class="bg-white border border-brand/5 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 flex flex-col group">
+                        <!-- Header Meta -->
+                        <div class="px-6 py-4 bg-brand/[0.02] flex items-center justify-between border-b border-brand/[0.03]">
+                            <div class="flex flex-col gap-0.5">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-1.5 h-1.5 rounded-full ${badgeColor} animate-pulse"></span>
+                                    <span class="text-[9px] font-black text-brand uppercase tracking-widest">${badgeText}</span>
+                                </div>
+                                <div class="text-[10px] font-bold text-text-muted italic ml-3.5">Topic: ${topicLabel} • Vision: ${data.style_name}</div>
                             </div>
-                            <span class="text-[8px] font-bold text-text-muted uppercase tracking-tighter italic">Sample ${i+1}</span>
+                            <span class="text-[9px] font-black text-brand/20 uppercase tracking-tighter">Sample ${data.sample_index}</span>
                         </div>
                         
-                        <div class="space-y-3">
-                             ${groundedText ? `
-                             <div class="bg-brand/[0.03] border-l-4 border-accent/20 p-3 rounded-r-xl space-y-1">
-                                 <p class="text-[10px] text-brand/90 font-bold leading-relaxed italic">"${groundedText}"</p>
-                                 <div class="text-[8px] font-bold text-brand uppercase tracking-tighter text-right mt-1">— ${info.source}</div>
-                             </div>
-                             ` : ''}
-
-                             <div class="flex flex-col gap-1">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Topic Context:</span>
-                                    <span class="text-[10px] font-black text-brand line-clamp-1 italic">${topicLabel}</span>
+                        <!-- Visual Area -->
+                        <div class="aspect-square bg-gray-100 relative group-hover:scale-[1.01] transition-transform duration-700">
+                             ${data.visual_url ? `
+                                <img src="${data.visual_url}" class="w-full h-full object-cover" alt="Post Preview">
+                             ` : `
+                                <div class="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-3 opacity-60">
+                                    <div class="w-16 h-16 rounded-2xl bg-brand/5 border border-brand/10 flex items-center justify-center">
+                                         <svg class="w-6 h-6 text-brand/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                    </div>
+                                    <div>
+                                        <div class="text-[10px] font-black text-brand uppercase tracking-widest">Visual Representative</div>
+                                        <div class="text-[9px] font-bold text-text-muted italic">Rendering occurs during live streams</div>
+                                    </div>
                                 </div>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Source Status:</span>
-                                    <span class="text-[10px] font-black text-brand/70 leading-tight">${info.source}</span>
-                                </div>
-                             </div>
+                             `}
                              
-                             <div class="pt-3 border-t border-brand/[0.01]">
-                                 <p class="text-[11px] text-brand/80 font-medium leading-relaxed italic border-l-2 border-brand/5 pl-3">
-                                    ${(data.caption || '').split('\\n')[0] || 'Perspective Reflection'}
-                                 </p>
-                                 <div class="text-[10px] text-text-muted leading-relaxed mt-2 line-clamp-3 opacity-60">
-                                    ${(data.caption || '').split('\\n').slice(1).join(' ') || 'Atmospheric insight based on selected guidance strategy.'}
-                                 </div>
-                             </div>
+                             <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                         </div>
 
-                        ${data.hashtags && data.hashtags.length > 0 ? `
-                        <div class="pt-3 border-t border-brand/[0.03] opacity-40 hover:opacity-100 transition-opacity flex flex-wrap gap-1">
-                            ${data.hashtags.slice(0, 4).map(h => `<span class="text-[7px] font-bold text-brand uppercase tracking-tighter">#${h}</span>`).join('')}
-                        </div>` : ''}
+                        <!-- Caption Area -->
+                        <div class="p-6 space-y-4">
+                             <div class="bg-brand/[0.02] border-l-4 border-brand/10 p-4 rounded-r-2xl">
+                                 <p class="text-[11px] text-brand font-black leading-relaxed italic line-clamp-3">
+                                    "${data.caption || 'Insight flowing from the selected wisdom pool...'}"
+                                 </p>
+                                 <div class="text-[9px] font-black text-brand uppercase tracking-widest text-right mt-3 opacity-60">— ${data.source_reference || 'Reflection'}</div>
+                             </div>
+
+                             ${data.hashtags && data.hashtags.length > 0 ? `
+                             <div class="pt-2 flex flex-wrap gap-1.5">
+                                 ${data.hashtags.slice(0, 5).map(h => `<span class="px-2 py-0.5 bg-brand/[0.03] rounded-md text-[8px] font-bold text-brand uppercase tracking-tighter opacity-50 hover:opacity-100 transition-opacity cursor-default">#${h}</span>`).join('')}
+                             </div>` : ''}
+                        </div>
                     </div>
                 `;
             }).join('');
             
             container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         } catch(e) {
-            alert('Preview Engine disconnected: ' + e.message);
+            console.error(e);
+            alert('Preview Engine error: ' + e.message);
         } finally {
-            btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg><span class="text-[10px]">Simulate Outcomes</span>';
+            btn.innerHTML = originalText;
             btn.disabled = false;
         }
     };

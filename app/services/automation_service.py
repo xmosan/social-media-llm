@@ -348,6 +348,172 @@ def disable_automation(db: Session, automation_id: int, org_id: int) -> bool:
     return True
 
 
+def simulate_growth_plan(
+    db: Session, 
+    org_id: int, 
+    topic_pool: list[str], 
+    style_dna_ids: list[int], 
+    language: str = "english",
+    count: int = 2
+) -> list[dict]:
+    """
+    Simulation Engine for Growth Plan V2.
+    Generates realistic post previews including grounded sources, captions, and real visuals.
+    """
+    import random
+    from app.services.library_retrieval import retrieve_relevant_chunks
+    from app.services.quran_service import search_quran, normalize_quran_verse
+    from app.services.relevance_engine import validate_source_relevance
+    from app.services.llm import generate_topic_caption
+    from app.services.image_renderer import render_minimal_quote_card
+    from app.config import settings
+    import os
+
+    results = []
+    
+    # 1. Resolve Style DNA objects
+    from app.models import StyleDNA
+    styles = []
+    for sid in style_dna_ids:
+        s = db.get(StyleDNA, sid)
+        if s: styles.append(s)
+    
+    # Fallback to defaults if no styles found
+    if not styles:
+        default_dna = get_automation_style_dna(db, TopicAutomation(style_preset="islamic_reminder"))
+        styles = [default_dna]
+
+    for i in range(min(count, 5)): # Limit to 5 samples
+        topic = topic_pool[i % len(topic_pool)] if topic_pool else "Daily Reminder"
+        style = styles[i % len(styles)]
+        
+        # 2. Content Discovery (Favor Quran for Simulation variety)
+        # Try Quran search first
+        pooled_items = search_quran(db, topic, limit=3)
+        
+        primary_item = None
+        fallback_mode = False
+        relevance_audit = None
+        
+        if pooled_items:
+            for cand in pooled_items:
+                # Audit
+                audit = validate_source_relevance(topic, cand.text, cand.reference)
+                if audit["accepted"]:
+                    # Ensure Arabic text exists
+                    if cand.arabic_text:
+                        primary_item = cand
+                        relevance_audit = audit
+                        break
+        
+        if not primary_item:
+            # Try general library logic if Quran check was too strict or failed
+            chunks = retrieve_relevant_chunks(db, org_id, query=topic, k=3)
+            if chunks:
+                for c in chunks:
+                    audit = validate_source_relevance(topic, c.get("text", ""), c.get("source", ""))
+                    if audit["accepted"]:
+                        # Convert chunk to pseudo-item
+                        from types import SimpleNamespace
+                        primary_item = SimpleNamespace(
+                            text=c.get("text"),
+                            arabic_text=c.get("arabic_text"),
+                            reference=c.get("source"),
+                            provider=c.get("item_type", "library")
+                        )
+                        relevance_audit = audit
+                        break
+
+        if not primary_item:
+            fallback_mode = True
+            primary_item = SimpleNamespace(
+                text=topic,
+                arabic_text=None,
+                reference="Reflection Preview",
+                provider="reflection"
+            )
+
+        # 3. Generate Caption
+        context_payload = {
+            "mode": "grounded_library",
+            "snippet": {
+                "text": primary_item.text,
+                "reference": primary_item.reference,
+                "item_type": getattr(primary_item, "provider", "reflection")
+            }
+        }
+        
+        llm_res = generate_topic_caption(
+            topic=topic,
+            style=style.family if hasattr(style, "family") else "sacred_black",
+            tone="medium",
+            language=language,
+            extra_context=context_payload
+        )
+
+        # 4. Generate Visual (Only for Sample 1 to stay fast)
+        visual_url = None
+        if i == 0:
+            try:
+                from app.services.automation_runner import clean_translation_for_card
+                quote_text = clean_translation_for_card(primary_item.text)
+                reference = (primary_item.reference or "Sacred Guidance").upper()
+                
+                segments = [{"text": reference, "size": 36}]
+                # Dual language for Quran
+                is_quran = "quran" in (getattr(primary_item, "provider", "") or "").lower() and not fallback_mode
+                if is_quran and primary_item.arabic_text:
+                    segments.append({"text": primary_item.arabic_text, "size": 60, "is_arabic": True})
+                    segments.append({"text": quote_text, "size": 52})
+                else:
+                    segments.append({"text": quote_text, "size": 72})
+                
+                # Map Family to Renderer Preset
+                family = style.family if hasattr(style, "family") else "sacred_black"
+                family_map = {
+                    "sacred_black": "quran",
+                    "emerald_forest": "fajr",
+                    "celestial_night": "laylulqadr",
+                    "parchment_manuscript": "scholar",
+                    "luxury_marble": "kaaba",
+                    "sacred_desert": "madinah"
+                }
+                render_style = family_map.get(family, "quran")
+                
+                visual_url = render_minimal_quote_card(
+                    segments=segments,
+                    output_dir=settings.uploads_dir,
+                    style=render_style,
+                    visual_prompt=style.visual_prompt if hasattr(style, "visual_prompt") else None,
+                    mode="custom" if hasattr(style, "visual_prompt") and style.visual_prompt else "preset"
+                )
+                # Mark as preview
+                if visual_url and "/uploads/" in visual_url:
+                    basename = visual_url.split("/")[-1]
+                    new_name = f"preview_{basename}"
+                    os.rename(os.path.join(settings.uploads_dir, basename), os.path.join(settings.uploads_dir, new_name))
+                    from app.config import build_public_media_url
+                    visual_url = build_public_media_url(new_name)
+                    
+            except Exception as ve:
+                logger.error(f"Visual preview generation failed: {ve}")
+
+        results.append({
+            "sample_index": i + 1,
+            "topic": topic,
+            "style_name": style.name if hasattr(style, "name") else "Dark Sacred",
+            "source_type": getattr(primary_item, "provider", "reflection"),
+            "source_reference": primary_item.reference,
+            "grounding_text": primary_item.text,
+            "caption": llm_res.get("caption"),
+            "hashtags": llm_res.get("hashtags", []),
+            "visual_url": visual_url,
+            "fallback_mode": fallback_mode,
+            "relevance_reason": relevance_audit.get("reason") if relevance_audit else "Manual Reflection"
+        })
+
+    return results
+
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
