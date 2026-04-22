@@ -170,26 +170,85 @@ def build_quran_quote_payload(user_input: str, db: Session) -> dict:
         logger.error(f"❌ [QURAN][ERROR] Failed to build quote payload: {e}")
         raise e
 
+TOPIC_ALIAS_MAP = {
+    "sabr": ["patience", "steadfast", "steadfastness", "persevere", "enduring", "perseverance"],
+    "patience": ["sabr", "steadfastness", "endurance", "perseverance"],
+    "salah": ["prayer", "prayers", "worship"],
+    "prayer": ["salah", "salat", "supplication"],
+    "shukr": ["gratitude", "thanks", "thankfulness", "appreciative"],
+    "gratitude": ["shukr", "thankfulness", "appreciation"],
+    "tawakkul": ["trust", "reliance", "trust in allah", "relying"],
+    "trust": ["tawakkul", "reliance", "confidence"],
+    "rahmah": ["mercy", "compassion", "merciful", "grace"],
+    "mercy": ["rahmah", "compassion", "forgiveness"],
+    "forgiveness": ["pardon", "forgiving", "maghfirah", "repentance"],
+    "hardship": ["ease", "trial", "test", "adversity", "struggle"],
+    "ease": ["hardship", "relief", "opening"],
+    "generosity": ["giving", "charity", "zakat", "sadakah"],
+    "knowledge": ["ilm", "learning", "wisdom", "education"],
+    "death": ["hereafter", "soul", "resurrection", "mortality"],
+}
+
 def search_quran(db: Session, query: str, limit: int = 15) -> List[ContentItem]:
     """
     Searches for verses by keyword in English text or within topic slugs.
+    Uses TOPIC_ALIAS_MAP to expand search relevance.
     """
-    # Clean query
-    query = query.strip()
+    # 1. Expand query with aliases
+    query = query.strip().lower()
     if not query:
         return []
 
-    # Search in text or topic slugs
+    search_terms = [query]
+    if query in TOPIC_ALIAS_MAP:
+        search_terms.extend(TOPIC_ALIAS_MAP[query])
+    
+    # Also check if any word in the query has an alias
+    words = query.split()
+    for w in words:
+        if w in TOPIC_ALIAS_MAP:
+            search_terms.extend(TOPIC_ALIAS_MAP[w])
+            
+    # Deduplicate
+    search_terms = list(set(search_terms))
+    
+    # 2. Build Query
+    # Use OR across all terms for maximum discovery
+    filters = []
+    for term in search_terms:
+        filters.append(ContentItem.text.ilike(f"%{term}%"))
+        filters.append(ContentItem.topics_slugs.contains([term]))
+        filters.append(ContentItem.title.ilike(f"%{term}%"))
+
     results = db.query(ContentItem).filter(
         ContentItem.item_type == "quran",
-        or_(
-            ContentItem.text.ilike(f"%{query}%"),
-            ContentItem.topics_slugs.contains([query.lower()])
-        )
+        or_(*filters)
     ).limit(limit).all()
     
-    logger.info(f"🔎 [QuranService] Search for '{query}' returned {len(results)} results.")
-    return results
+    # 3. Arabic Recovery: If results have missing Arabic, try to find the row with Arabic
+    final_results = []
+    for item in results:
+        if not item.arabic_text:
+            # Try to find the same verse (surah/ayah) that HAS Arabic
+            surah = item.meta.get("surah_number")
+            ayah = item.meta.get("verse_number")
+            if surah and ayah:
+                better_item = db.query(ContentItem).filter(
+                    ContentItem.item_type == "quran",
+                    text("meta->>'surah_number' = :s").bindparams(s=str(surah)),
+                    text("meta->>'verse_number' = :a").bindparams(a=str(ayah)),
+                    ContentItem.arabic_text != None,
+                    ContentItem.arabic_text != ""
+                ).first()
+                if better_item:
+                    # Swap the text but keep original ID if needed? 
+                    # Actually, just use the better item.
+                    item = better_item
+        
+        final_results.append(item)
+    
+    logger.info(f"🔎 [QuranService] Search for '{query}' (terms={search_terms}) returned {len(final_results)} results.")
+    return final_results
 
 def get_verse_by_id(db: Session, item_id: int) -> Optional[dict]:
     """Retrieves normalized verse by integer ID."""

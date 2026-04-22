@@ -8,45 +8,60 @@ from app.services.llm import get_client
 def validate_source_relevance(topic: str, content_text: str, reference: str = "") -> Dict[str, Any]:
     """
     Uses LLM to verify if a candidate piece of content is semantically relevant to a topic.
-    Returns a structured validation result.
+    RELEVANCE GATE v2.0 (GPT-4o-Mini)
     """
     client = get_client()
     if not client:
-        # Fallback to permissive if AI is offline to avoid blocking automation
         return {"accepted": True, "confidence": "low", "reason": "ai_offline_permissive"}
 
+    # Optimization: If topic is very short, expand it slightly for the auditor
+    audit_topic = topic
+    if len(topic) < 15:
+        audit_topic = f"{topic} (including related concepts of spiritual wisdom, practice, and character)"
+
     prompt = f"""
-    You are a Content Integrity Auditor for an Islamic social media platform.
+    You are a Content Integrity Auditor for Sabeel Studio, a premium Islamic platform.
     
-    TOPIC: {topic}
+    TOPIC: {audit_topic}
     CONTENT (Reference: {reference}):
     "{content_text}"
     
     TASK:
-    Determine if this content is HIGHLY RELEVANT and APPROPRIATE to use for a social media post about the provided topic.
+    Audit this candidate verse/text for a social media post about the provided topic.
     
-    CRITICAL RULES:
-    1. REJECT if the text is about a completely different subject (e.g., topic is 'Patience' but text is about 'Satan' or 'Hellfire' without constructive context).
-    2. REJECT if the text is negative, harsh, or strictly about punishment, unless the topic specifically asks for it (e.g. 'Warning against Arrogance').
-    3. ACCEPT if the text clearly supports, illustrates, or provides wisdom regarding the topic.
+    STRICT REJECTION RULES:
+    1. REJECT (accepted: false) if the text is about a specific historical event or story (e.g.Lot, Pharaoh, People of the City) that does NOT clearly illustrate the topic's attribute.
+    2. REJECT if the connection is forced or weak.
+    3. REJECT if the text is primarily about punishment, hellfire, or negative outcomes, unless the topic is specifically about 'Warning' or 'Consequences'.
+    4. REJECT if the text is irrelevant (e.g. topic is 'Patience' but text is 15:67 "And the people of the city came rejoicing").
     
-    JSON OUTPUT FORMAT:
+    STRICT ACCEPTANCE RULES:
+    1. ACCEPT only if a reader would immediately see the connection without needing a complex explanation.
+    2. ACCEPT if the verse is one of the "Golden Verses" for this topic (e.g. 2:153 for Patience, 2:186 for Supplication).
+
+    JSON OUTPUT:
     {{
         "accepted": true/false,
         "confidence": "high" | "medium" | "low",
-        "reason": "short explanation"
+        "reason": "short explanation of the semantic link or lack thereof"
     }}
     """
 
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object"}
+            response_format={"type": "json_object"},
+            temperature=0
         )
         result = json.loads(response.choices[0].message.content)
-        print(f"[RELEVANCE] topic='{topic}' ref='{reference}' result={result['accepted']} reason='{result['reason']}'")
+        # FORCE REJECTION if confidence is low to stay safe
+        if result.get("confidence") == "low":
+            result["accepted"] = False
+            result["reason"] = f"Low confidence match: {result.get('reason')}"
+            
+        print(f"🛡️ [RELEVANCE_GATE] topic='{topic}' ref='{reference}' -> {result['accepted']} ({result['confidence']})")
         return result
     except Exception as e:
-        print(f"[RELEVANCE] Error in AI relevance gate: {e}")
-        return {"accepted": True, "confidence": "low", "reason": f"error: {str(e)}"}
+        print(f"⚠️ [RELEVANCE_GATE] Error: {e}")
+        return {"accepted": False, "confidence": "low", "reason": f"error: {str(e)}"}

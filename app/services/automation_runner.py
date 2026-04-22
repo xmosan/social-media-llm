@@ -123,17 +123,25 @@ def clean_translation_for_card(text: str) -> str:
     """
     Cleans up translator artifacts like [brackets] for a more premium visual card look.
     Removes the brackets but keeps the inner text if it feels like part of the flow.
-    Example: "[O Muhammad]" -> "O Muhammad"
+    Also removes footnote digits (e.g. "verily. 1") that clutter the card.
     """
     import re
     if not text: return ""
-    # Remove brackets but keep the content inside them
+    # 1. Remove brackets but keep the content inside them
     cleaned = re.sub(r'\[(.*?)\]', r'\1', text)
-    # Remove digit artifacts like "Iblees;1" or footnotes like " (1) "
+    # 2. Remove footnote digits at the end of sentences (e.g., ". 1" or "word. 12")
+    # This matches a digit that appears at the end of a string or after a period/space
+    cleaned = re.sub(r'(?<=\.)\s*\d+\b', '', cleaned)
+    cleaned = re.sub(r'\s+\d+\s*$', '', cleaned)
+    
+    # 3. Remove digit artifacts like "Iblees;1" or explicit footnotes like " (1) "
     cleaned = re.sub(r';\d+', '', cleaned)
     cleaned = re.sub(r'\(\s*\d+\s*\)', '', cleaned)
     
-    # Remove any stray double spaces
+    # 4. Remove stray punctuation at the start or loose artifacts
+    cleaned = cleaned.strip()
+    
+    # 5. Collapse whitespace
     return " ".join(cleaned.split())
 
 def format_hashtags(tags: list[str]) -> list[str]:
@@ -339,6 +347,12 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             relevance_results[candidate.original_id] = audit
             
             if audit["accepted"]:
+                # QUALITY GATE FIX: Ensure Arabic exists for Quran posts
+                is_quran = "quran" in (candidate.provider or "").lower()
+                if is_quran and (not candidate.arabic_text or len(candidate.arabic_text) < 10):
+                    print(f"⚠️ [RELEVANCE] rejecting {candidate.reference}: Arabic text is missing or too short.")
+                    continue
+
                 primary_item = candidate
                 log_event("quran_relevance_passed", automation_id=automation.id, reference=candidate.reference, reason=audit["reason"])
                 break
@@ -350,7 +364,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             fallback_mode = True
             log_event("automation_relevance_fallback", automation_id=automation.id, topic=topic_base)
             print(f"⚠️ [RELEVANCE] No high-confidence match found for '{topic_base}'. Falling back to Reflection Mode.")
-            # Use the first item anyway but mark as reflection so card doesn't show weak ref
+            # Use the first item anyway if it's not empty, but mark as reflection
             primary_item = pooled_items[0] if pooled_items else None
 
         # [SAFETY] Guardrail: Abort if exactly 0 items found
@@ -359,6 +373,14 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             automation.last_error = "No verified content found across chosen providers."
             db.commit()
             return None
+
+        # QUALITY GATE FIX: Re-check Arabic for Quran posts again to be absolutely sure
+        if not fallback_mode and "quran" in (primary_item.provider or "").lower():
+            if not primary_item.arabic_text:
+                print(f"❌ [QUALITY_GATE] BLOCKING: Arabic missing for confirmed Quran post {primary_item.reference}.")
+                automation.last_error = f"Arabic source missing for {primary_item.reference}. Re-run needed."
+                db.commit()
+                return None
 
         # 1.5 Content Profile Injection
         content_profile_prompt = None
@@ -489,17 +511,22 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             
             # 2. Render Premium Quote Card
             try:
-                # Build v9.0 segments
+                # 1. Reference (Top Zone)
                 card_segments = [
-                    {"text": reference.upper(), "size": 36},   # Zone 0: Reference
-                    {"text": quote_text, "size": 72}            # Zone 1: Main Quote
+                    {"text": reference.upper(), "size": 36}
                 ]
                 
-                # Zone 2: Optional Arabic
-                if getattr(automation, 'include_arabic', False) and primary_item.arabic_text:
-                    card_segments.append({"text": primary_item.arabic_text, "size": 38, "is_arabic": True})
+                # 2. Arabic (Middle Zone) - Prominent if exists
+                is_quran = "quran" in (primary_item.provider if primary_item else "").lower() and not fallback_mode
+                if is_quran and primary_item.arabic_text:
+                    card_segments.append({"text": primary_item.arabic_text, "size": 60, "is_arabic": True})
+                    # Use smaller English quote if Arabic exists to avoid overcrowding
+                    card_segments.append({"text": quote_text, "size": 52})
+                else:
+                    # Standard Single-Language Layout
+                    card_segments.append({"text": quote_text, "size": 72})
                 
-                print(f"📡 [v9.0] Rendering premium card for {reference}")
+                print(f"📡 [v9.0] Rendering premium {'Dual-Language ' if is_quran else ''}card for {reference}")
                 
                 # Download bg if exists, otherwise render_minimal_quote_card will use preset/AI
                 tmp_bg_path = None
