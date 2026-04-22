@@ -345,11 +345,12 @@ class ContentItem(Base):
     tags = Column(JSON, nullable=False, default=list)
     topic = Column(String, nullable=True) # New: primary topic
     topics = Column(JSON, nullable=False, default=list) # Multi-topic tags
-    # USE JSONB for Postgres specific features like .contains()
+    
+    # Explicitly use JSONB for Postgres to enable native operators and avoid 'LIKE' mismatch
     try:
         from sqlalchemy.dialects.postgresql import JSONB
         topics_slugs = Column(JSONB, nullable=False, default=list)
-    except:
+    except ImportError:
         topics_slugs = Column(JSON, nullable=False, default=list)
     
     last_used_at = Column(DateTime(timezone=True), nullable=True)

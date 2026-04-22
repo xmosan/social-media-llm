@@ -214,13 +214,16 @@ def search_quran(db: Session, query: str, limit: int = 15) -> List[ContentItem]:
     
     # 2. Build Query
     # Use OR across all terms for maximum discovery
+    from sqlalchemy import cast, String
     filters = []
     for term in search_terms:
-        filters.append(ContentItem.text.ilike(f"%{term}%"))
-        filters.append(ContentItem.title.ilike(f"%{term}%"))
-        # Robust JSON search: cast to text to avoid operator mismatch
-        filters.append(text("content_items.topics_slugs::text ILIKE :t").bindparams(t=f"%{term}%"))
+        pattern = f"%{term}%"
+        filters.append(ContentItem.text.ilike(pattern))
+        filters.append(ContentItem.title.ilike(pattern))
+        # Use cast(..., String) for robust partial match on JSONB array
+        filters.append(cast(ContentItem.topics_slugs, String).ilike(pattern))
 
+    logger.info(f"📡 [QuranSearch] Searching for {len(search_terms)} terms. Using cast(topics_slugs, String) for Postgres safety.")
     results = db.query(ContentItem).filter(
         ContentItem.item_type == "quran",
         or_(*filters)
@@ -297,9 +300,10 @@ def get_quran_ayahs_by_theme(db: Session, theme: str, limit: int = 5) -> List[Co
     Used by the Caption Engine for grounded generation.
     """
     theme = theme.lower().strip()
+    from sqlalchemy import cast, String
     results = db.query(ContentItem).filter(
         ContentItem.item_type == "quran",
-        text("content_items.topics_slugs::text ILIKE :t").bindparams(t=f"%{theme}%")
+        cast(ContentItem.topics_slugs, String).ilike(f"%{theme}%")
     ).limit(limit).all()
     return results
 
