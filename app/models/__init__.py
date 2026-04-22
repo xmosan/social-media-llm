@@ -345,7 +345,12 @@ class ContentItem(Base):
     tags = Column(JSON, nullable=False, default=list)
     topic = Column(String, nullable=True) # New: primary topic
     topics = Column(JSON, nullable=False, default=list) # Multi-topic tags
-    topics_slugs = Column(JSON, nullable=False, default=list) # Added: normalized slugs for matching
+    # USE JSONB for Postgres specific features like .contains()
+    try:
+        from sqlalchemy.dialects.postgresql import JSONB
+        topics_slugs = Column(JSONB, nullable=False, default=list)
+    except:
+        topics_slugs = Column(JSON, nullable=False, default=list)
     
     last_used_at = Column(DateTime(timezone=True), nullable=True)
     use_count = Column(Integer, nullable=False, default=0)

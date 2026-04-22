@@ -217,8 +217,9 @@ def search_quran(db: Session, query: str, limit: int = 15) -> List[ContentItem]:
     filters = []
     for term in search_terms:
         filters.append(ContentItem.text.ilike(f"%{term}%"))
-        filters.append(ContentItem.topics_slugs.contains([term]))
         filters.append(ContentItem.title.ilike(f"%{term}%"))
+        # Robust JSON search: cast to text to avoid operator mismatch
+        filters.append(text("content_items.topics_slugs::text ILIKE :t").bindparams(t=f"%{term}%"))
 
     results = db.query(ContentItem).filter(
         ContentItem.item_type == "quran",
@@ -298,7 +299,7 @@ def get_quran_ayahs_by_theme(db: Session, theme: str, limit: int = 5) -> List[Co
     theme = theme.lower().strip()
     results = db.query(ContentItem).filter(
         ContentItem.item_type == "quran",
-        ContentItem.topics_slugs.contains([theme])
+        text("content_items.topics_slugs::text ILIKE :t").bindparams(t=f"%{theme}%")
     ).limit(limit).all()
     return results
 
