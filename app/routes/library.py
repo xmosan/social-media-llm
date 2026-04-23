@@ -666,4 +666,14 @@ def get_hadith_by_reference(
             detail="Hadith source data is incomplete. Please choose another Hadith."
         )
 
+@router.get("/hadith/test-public")
+def test_hadith_public():
+    """
+    TEMPORARY: Public test endpoint to verify sunnah.now connectivity.
+    Will be removed after verification.
+    """
+    from app.services.hadith_service import get_hadith_by_reference
+    item = get_hadith_by_reference(collection_key="bukhari", hadith_number=1)
+    if not item:
+        return {"error": "API returned no data. Check HADITH_API_KEY."}
     return item
