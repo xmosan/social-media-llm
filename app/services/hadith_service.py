@@ -12,16 +12,41 @@ SAFETY CONTRACT:
 - All fields are derived exclusively from the API response.
 - Missing fields are set to None — never guessed.
 
-PROVIDER SELECTION (auto, based on env vars):
-  Primary:  sunnah.com API (https://api.sunnah.com/v1)
-            Requires: HADITH_API_KEY
-            Auth:     X-API-Key header
-  Fallback: fawazahmed0 CDN (no key needed, CDN-based, no real search)
-            Used ONLY if HADITH_API_KEY is not set.
+PROVIDER: sunnah.now (https://api.sunnah.now)
+  Auth:    X-API-Key header (from HADITH_API_KEY env var)
+  Docs:    https://docs.sunnah.now
+  Routes:  /api/early-access/book/{slug}/hadith         (list, paginated)
+           /api/early-access/book/{slug}/hadith/{id}    (specific hadith)
+           /api/early-access/books                      (list collections)
 
-Log at startup:
-  [HADITH] provider=sunnah_now  (key present)
-  [HADITH] provider=fallback_cdn (key missing)
+FALLBACK: fawazahmed0 CDN (no key, CDN-based, no narrator/grade)
+  Used ONLY if HADITH_API_KEY is not set.
+
+Startup log:
+  [HADITH] provider=sunnah_now   — key present
+  [HADITH] provider=fallback_cdn — key missing
+
+sunnah.now response shape (from official docs at docs.sunnah.now):
+{
+  "id": 1,
+  "metadata": {
+    "volume": { "id": 1 },
+    "chapter": {
+      "id": 1,
+      "language": {
+        "en": { "text": "Chapter title in English" },
+        "ar": { "text": "Chapter title in Arabic" }
+      }
+    }
+  },
+  "language": {
+    "ar": { "text": "Arabic hadith text..." },
+    "en": {
+      "narrator": "Narrated 'Umar bin Al-Khattab:",
+      "text": "I heard Allah's Messenger (ﷺ) saying..."
+    }
+  }
+}
 """
 
 import logging
@@ -32,110 +57,94 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+
 # ─────────────────────────────────────────────────────────────────────────────
 # PROVIDER SELECTION
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _active_provider() -> str:
     """
-    Returns the provider mode string based on current config.
-    'sunnah_now'   → use sunnah.com API with key
-    'fallback_cdn' → use fawazahmed0 CDN
+    Returns 'sunnah_now' when HADITH_API_KEY is configured,
+    'fallback_cdn' otherwise.
     """
     return "sunnah_now" if settings.hadith_api_key else "fallback_cdn"
 
 
 def _sunnah_now_base() -> str:
     """
-    Returns the canonicalized sunnah.com API base URL.
-    Handles cases where the env value is missing scheme or /v1.
+    Returns the canonical sunnah.now API base URL.
+    HADITH_API_BASE_URL can be bare host or full URL — both are normalized.
 
-    HADITH_API_BASE_URL can be:
-      api.sunnah.com          → https://api.sunnah.com/v1
-      api.sunnah.now          → https://api.sunnah.com/v1  (alias corrected)
-      https://api.sunnah.com  → https://api.sunnah.com/v1
+    The sunnah.now API host is api.sunnah.now.
+    Routes are under /api/early-access/.
     """
-    raw = (settings.hadith_api_base_url or "api.sunnah.com").strip().rstrip("/")
-    # Normalise: strip any existing scheme
+    raw = (settings.hadith_api_base_url or "api.sunnah.now").strip().rstrip("/")
+    # Strip any scheme the user may have included
     for prefix in ["https://", "http://"]:
         if raw.startswith(prefix):
             raw = raw[len(prefix):]
-    # The actual sunnah.com API host is always api.sunnah.com
-    # If user has set api.sunnah.now or similar, redirect to the correct host
-    if "sunnah" in raw and "sunnah.com" not in raw:
-        logger.warning(
-            f"[HADITH] HADITH_API_BASE_URL='{raw}' does not look like the sunnah.com API host. "
-            "Correcting to 'api.sunnah.com'. Update HADITH_API_BASE_URL=api.sunnah.com in .env."
-        )
-        raw = "api.sunnah.com"
-    # Ensure /v1 suffix
-    base = f"https://{raw}"
-    if not base.endswith("/v1"):
-        base = f"{base}/v1"
-    return base
+    return f"https://{raw}"
 
 
 def _cdn_base() -> str:
     return "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1"
 
 
-# Log provider at module load time
-_provider = _active_provider()
-if _provider == "sunnah_now":
-    logger.info("[HADITH] provider=sunnah_now (api.sunnah.com, key configured)")
+# Log provider at module-import time (matches startup log contract)
+_provider_at_startup = _active_provider()
+if _provider_at_startup == "sunnah_now":
+    logger.info(f"[HADITH] provider=sunnah_now  base={_sunnah_now_base()}")
 else:
-    logger.info("[HADITH] provider=fallback_cdn (fawazahmed0, no key set)")
+    logger.info("[HADITH] provider=fallback_cdn  (no HADITH_API_KEY set)")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # COLLECTION REGISTRY
-# Maps Sabeel collection keys → sunnah.com collectionName slugs and display names.
-# Also retains fawazahmed0 edition names for CDN fallback mode.
+# sunnah.now uses slug-based routing: bukhari, muslim, abudawud, etc.
+# Slugs confirmed from docs.sunnah.now /api/books-list.html
 # ─────────────────────────────────────────────────────────────────────────────
 
 COLLECTION_REGISTRY = {
     "bukhari": {
         "name": "Sahih al-Bukhari",
-        "sunnah_slug": "bukhari",          # used in api.sunnah.com paths
-        "eng_edition": "eng-bukhari",      # fawazahmed0 CDN fallback
+        "sunnah_now_slug": "bukhari",
+        # fawazahmed0 CDN fallback editions
+        "eng_edition": "eng-bukhari",
         "ara_edition": "ara-bukhari",
     },
     "muslim": {
         "name": "Sahih Muslim",
-        "sunnah_slug": "muslim",
+        "sunnah_now_slug": "muslim",
         "eng_edition": "eng-muslim",
         "ara_edition": "ara-muslim",
     },
     "abudawud": {
         "name": "Sunan Abu Dawud",
-        "sunnah_slug": "abudawud",
+        "sunnah_now_slug": "abudawud",
         "eng_edition": "eng-abudawud",
         "ara_edition": "ara-abudawud",
     },
     "tirmidhi": {
         "name": "Jami' at-Tirmidhi",
-        "sunnah_slug": "tirmidhi",
+        "sunnah_now_slug": "tirmidhi",
         "eng_edition": "eng-tirmidhi",
         "ara_edition": "ara-tirmidhi",
     },
     "nasai": {
         "name": "Sunan an-Nasa'i",
-        "sunnah_slug": "nasai",
+        "sunnah_now_slug": "nasai",
         "eng_edition": "eng-nasai",
         "ara_edition": "ara-nasai",
     },
     "ibnmajah": {
         "name": "Sunan Ibn Majah",
-        "sunnah_slug": "ibnmajah",
+        "sunnah_now_slug": "ibnmajah",
         "eng_edition": "eng-ibnmajah",
         "ara_edition": "ara-ibnmajah",
     },
 }
 
-# Maximum card text length before excerpting
 _CARD_MAX_CHARS = 350
-
-# HTTP timeout (sunnah.com is a real API — lower than CDN)
 _HTTP_TIMEOUT = 12.0
 
 
@@ -143,36 +152,40 @@ _HTTP_TIMEOUT = 12.0
 # HTTP HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _sunnah_headers() -> dict:
-    """Returns auth headers for sunnah.com API. Never logs the key value."""
+def _sunnah_now_headers() -> dict:
+    """
+    Returns auth headers for sunnah.now API.
+    Auth: X-API-Key header (per docs.sunnah.now/guide/authentication.html)
+    Key value is NEVER logged.
+    """
     return {
         "X-API-Key": settings.hadith_api_key or "",
         "Accept": "application/json",
     }
 
 
-def _get_json(url: str, headers: Optional[dict] = None) -> Optional[dict]:
-    """Fetches JSON from a URL with graceful error handling."""
+def _get_json(url: str, headers: Optional[dict] = None) -> Optional[dict | list]:
+    """Fetches JSON from a URL. Returns dict or list depending on endpoint. Fails gracefully."""
     try:
         response = httpx.get(url, headers=headers or {}, timeout=_HTTP_TIMEOUT, follow_redirects=True)
         response.raise_for_status()
         return response.json()
     except httpx.TimeoutException:
-        logger.warning(f"[HADITH] Timeout fetching: {url}")
+        logger.warning(f"[HADITH] Timeout: {url}")
         return None
     except httpx.HTTPStatusError as e:
-        logger.warning(f"[HADITH] HTTP {e.response.status_code} for: {url}")
+        logger.warning(f"[HADITH] HTTP {e.response.status_code}: {url}")
         return None
     except Exception as e:
-        logger.error(f"[HADITH] Unexpected error fetching {url}: {e}")
+        logger.error(f"[HADITH] Error fetching {url}: {e}")
         return None
 
 
 def _safe_excerpt(text: str, max_chars: int = _CARD_MAX_CHARS) -> tuple[str, bool]:
     """
     Returns (text_for_card, was_excerpted).
-    Excerpts at the last sentence boundary before max_chars.
-    Never alters meaning — full text is preserved in metadata.
+    Excerpts at the last sentence boundary. Never alters meaning.
+    Full text preserved in translation_text field.
     """
     if not text or len(text) <= max_chars:
         return text, False
@@ -192,59 +205,54 @@ def _safe_excerpt(text: str, max_chars: int = _CARD_MAX_CHARS) -> tuple[str, boo
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# SUNNAH.COM PROVIDER (PRIMARY)
+# SUNNAH.NOW PROVIDER (PRIMARY)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _sunnah_get_hadith_by_reference(collection_key: str, hadith_number: int) -> Optional[dict]:
+def _sunnah_now_get_hadith_by_reference(collection_key: str, hadith_number: int) -> Optional[dict]:
     """
-    Fetches a single hadith from api.sunnah.com using X-API-Key auth.
-    Endpoint: GET /v1/collections/{slug}/hadiths/{hadithNumber}
+    Fetches a single hadith from sunnah.now.
 
-    Response shape (sunnah.com v1):
-    {
-      "hadith": [{
-        "collection": "bukhari",
-        "bookNumber": "1",
-        "chapterId": "1.00",
-        "hadithNumber": "1",
-        "hadith": [{
-          "lang": "en",
-          "chapterNumber": "1",
-          "chapterTitle": "...",
-          "urn": 123,
-          "body": "...",
-          "grades": [{"graded_by": "...", "grade": "Sahih"}]
-        }, {
-          "lang": "ar",
-          "body": "..."
-        }]
-      }]
-    }
+    Endpoint (from docs.sunnah.now/api/hadith-specific.html):
+      GET https://api.sunnah.now/api/early-access/book/{slug}/hadith/{id}
+      Header: X-API-Key: <token>
+
+    Response:
+      {
+        "id": 1,
+        "metadata": { "chapter": { "language": { "en": { "text": "..." }, "ar": { "text": "..." } } } },
+        "language": {
+          "ar": { "text": "Arabic text..." },
+          "en": { "narrator": "Narrated ...", "text": "English text..." }
+        }
+      }
     """
     col = COLLECTION_REGISTRY.get(collection_key)
     if not col:
         logger.warning(f"[HADITH][sunnah_now] Unknown collection key: '{collection_key}'")
         return None
 
-    slug = col["sunnah_slug"]
+    slug = col["sunnah_now_slug"]
     base = _sunnah_now_base()
-    url = f"{base}/collections/{slug}/hadiths/{hadith_number}"
+    url = f"{base}/api/early-access/book/{slug}/hadith/{hadith_number}"
 
     logger.info(f"[HADITH][sunnah_now] GET {url}")
-    data = _get_json(url, headers=_sunnah_headers())
-    if not data:
+    data = _get_json(url, headers=_sunnah_now_headers())
+    if not data or not isinstance(data, dict):
         return None
 
-    return _normalize_sunnah_response(data, collection_key, hadith_number)
+    return _normalize_sunnah_now_hadith(data, collection_key)
 
 
-def _sunnah_search_hadith(query: str, collection_key: Optional[str], limit: int) -> list[dict]:
+def _sunnah_now_search_hadith(query: str, collection_key: Optional[str], limit: int) -> list[dict]:
     """
-    Searches hadiths via api.sunnah.com by fetching collection pages and filtering.
-    Endpoint: GET /v1/collections/{slug}/hadiths?limit=50&page=1
+    Searches hadiths via sunnah.now by paginating through books and filtering locally.
 
-    sunnah.com does NOT have a text-search endpoint — we paginate and filter locally.
-    We scan up to 3 pages (150 hadiths) per collection for speed.
+    Endpoint (from docs.sunnah.now/api/book-hadiths.html):
+      GET https://api.sunnah.now/api/early-access/book/{slug}/hadith?page={n}&pageSize=50
+      Header: X-API-Key: <token>
+
+    sunnah.now does not have a server-side text search endpoint in v0.1.0.
+    We scan up to 3 pages (150 hadiths) per collection for keyword matches.
     """
     query_lower = query.lower().strip()
     results = []
@@ -260,99 +268,102 @@ def _sunnah_search_hadith(query: str, collection_key: Optional[str], limit: int)
             break
 
         col = COLLECTION_REGISTRY[col_key]
-        slug = col["sunnah_slug"]
+        slug = col["sunnah_now_slug"]
 
-        for page in range(1, 4):  # scan up to 3 pages × 50 hadiths = 150 per collection
+        for page in range(1, 4):  # 3 pages × 50 = 150 hadiths per collection
             if len(results) >= limit:
                 break
 
-            url = f"{base}/collections/{slug}/hadiths?limit=50&page={page}"
-            logger.info(f"[HADITH][sunnah_now] scanning {col['name']} page {page}")
-            data = _get_json(url, headers=_sunnah_headers())
-            if not data:
-                break
+            url = f"{base}/api/early-access/book/{slug}/hadith?page={page}&pageSize=50"
+            logger.info(f"[HADITH][sunnah_now] Scanning {col['name']} page {page}")
+            data = _get_json(url, headers=_sunnah_now_headers())
 
-            hadiths = data.get("data", [])
-            if not hadiths:
-                break  # no more pages
+            if not data or not isinstance(data, list):
+                break  # no more pages or error
 
-            for h_wrapper in hadiths:
+            for h in data:
                 if len(results) >= limit:
                     break
-                # Each wrapper has a "hadith" list with lang variants
-                lang_variants = h_wrapper.get("hadith", [])
-                en_variant = next((v for v in lang_variants if v.get("lang") == "en"), None)
-                if not en_variant:
-                    continue
-                body = en_variant.get("body", "") or ""
-                if query_lower in body.lower():
-                    normalized = _normalize_sunnah_hadith(h_wrapper, col_key)
+
+                # Match against English text
+                en_lang = (h.get("language") or {}).get("en") or {}
+                text = (en_lang.get("text") or "").lower()
+
+                if query_lower in text:
+                    normalized = _normalize_sunnah_now_hadith(h, col_key)
                     if normalized and validate_hadith_item(normalized):
                         results.append(normalized)
+
+            if len(data) < 50:
+                break  # last page reached
 
     logger.info(f"[HADITH][sunnah_now] Search '{query}' → {len(results)} results")
     return results[:limit]
 
 
-def _normalize_sunnah_response(data: dict, collection_key: str, hadith_number: int) -> Optional[dict]:
-    """Normalizes a single-hadith response from the sunnah.com API."""
-    hadiths = data.get("hadith", [])
-    if not hadiths:
-        logger.warning(f"[HADITH][sunnah_now] Empty hadith list in response for {collection_key}#{hadith_number}")
-        return None
-    return _normalize_sunnah_hadith(hadiths[0] if isinstance(hadiths[0], dict) and "hadith" in hadiths[0]
-                                    else {"hadith": hadiths, "hadithNumber": str(hadith_number)},
-                                    collection_key)
-
-
-def _normalize_sunnah_hadith(h_wrapper: dict, collection_key: str) -> Optional[dict]:
+def _normalize_sunnah_now_hadith(h: dict, collection_key: str) -> Optional[dict]:
     """
-    Converts a single sunnah.com hadith wrapper object to the normalized schema.
+    Normalizes a sunnah.now hadith response object into the internal schema.
+
+    sunnah.now response structure (from docs.sunnah.now/api/hadith-specific.html):
+    {
+      "id": 1,
+      "metadata": {
+        "chapter": { "language": { "en": { "text": "..." }, "ar": { "text": "..." } } }
+      },
+      "language": {
+        "ar": { "text": "..." },
+        "en": { "narrator": "Narrated 'Umar bin Al-Khattab:", "text": "..." }
+      }
+    }
 
     SAFETY RULES:
-    - grade: only set if the API provides it in the 'grades' field
-    - narrator: not provided by sunnah.com API at this level → None
-    - chapter/book: taken directly from API fields
+    - narrator: taken from language.en.narrator (sunnah.now provides this) — not fabricated
+    - grade: NOT provided by sunnah.now v0.1.0 API — set to None, never guessed
+    - All text fields taken verbatim from API
     """
+    if not h or not isinstance(h, dict):
+        return None
+
     col_meta = COLLECTION_REGISTRY.get(collection_key, {})
     collection_name = col_meta.get("name", collection_key)
 
-    lang_variants = h_wrapper.get("hadith", [])
-    if not lang_variants:
-        return None
+    lang = h.get("language") or {}
+    en_lang = lang.get("en") or {}
+    ar_lang = lang.get("ar") or {}
 
-    en_variant = next((v for v in lang_variants if v.get("lang") == "en"), None)
-    ar_variant = next((v for v in lang_variants if v.get("lang") == "ar"), None)
+    # English translation text — from language.en.text
+    translation_text = (en_lang.get("text") or "").strip() or None
 
-    translation_text = (en_variant.get("body", "") or "").strip() if en_variant else None
-    if not translation_text:
-        translation_text = None
+    # Arabic text — from language.ar.text
+    arabic_text = (ar_lang.get("text") or "").strip() or None
 
-    arabic_text = (ar_variant.get("body", "") or "").strip() if ar_variant else None
-    if not arabic_text:
-        arabic_text = None
+    # Narrator — from language.en.narrator (sunnah.now provides this field)
+    narrator_raw = (en_lang.get("narrator") or "").strip() or None
 
-    # Hadith number from wrapper
-    h_num_raw = h_wrapper.get("hadithNumber") or h_wrapper.get("hadith_number")
-    h_num = int(h_num_raw) if h_num_raw and str(h_num_raw).isdigit() else h_num_raw
+    # Hadith ID (sunnah.now uses "id" as the hadith number)
+    h_num = h.get("id")
 
-    # Reference string — consistent format
-    reference = f"{collection_name} {h_num}" if h_num else collection_name
+    # Reference string
+    reference = f"{collection_name} {h_num}" if h_num is not None else collection_name
 
-    # Grade — ONLY from API 'grades' field; never guessed
-    grade = None
-    grades_list = (en_variant or {}).get("grades", []) if en_variant else []
-    if grades_list:
-        # Take the first grade entry's 'grade' value if present
-        first_grade = grades_list[0].get("grade") if grades_list else None
-        grade = first_grade if first_grade else None  # still None if empty string
+    # Chapter title — from metadata.chapter.language.en.text
+    chapter_title = None
+    try:
+        chapter_title = (
+            (h.get("metadata") or {})
+            .get("chapter", {})
+            .get("language", {})
+            .get("en", {})
+            .get("text") or None
+        )
+        if chapter_title:
+            chapter_title = chapter_title.strip() or None
+    except (AttributeError, TypeError):
+        pass
 
-    # Narrator — sunnah.com v1 API does not expose narrator per-hadith at this endpoint
-    narrator = None
-
-    # Chapter info
-    chapter_title = (en_variant or {}).get("chapterTitle") if en_variant else None
-    book_number = h_wrapper.get("bookNumber")
+    # Grade — sunnah.now v0.1.0 does not provide grade per-hadith
+    grade = None  # never guessed, set to None explicitly
 
     card_text, was_excerpted = _safe_excerpt(translation_text or arabic_text or "")
 
@@ -360,23 +371,40 @@ def _normalize_sunnah_hadith(h_wrapper: dict, collection_key: str) -> Optional[d
         "source_type": "hadith",
         "collection": collection_name,
         "collection_key": collection_key,
-        "book": book_number or collection_name,
-        "chapter": chapter_title or None,
+        "book": collection_name,
+        "chapter": chapter_title,
         "hadith_number": h_num,
         "reference": reference,
         "arabic_text": arabic_text,
         "translation_text": translation_text,
         "card_text": card_text,
         "was_excerpted": was_excerpted,
-        "narrator": narrator,       # None — not provided by sunnah.com v1 per-hadith
-        "grade": grade,             # From API only — None if not provided
+        "narrator": narrator_raw,   # From API — sunnah.now provides narrator in en.narrator
+        "grade": grade,             # None — not provided by sunnah.now v0.1.0
         "topics": [],
-        "api_source": "sunnah.com/v1",
+        "api_source": "sunnah.now/api/early-access",
     }
 
 
+def _sunnah_now_get_collections() -> list[dict]:
+    """
+    Fetches the live list of available books from sunnah.now.
+    Endpoint: GET /api/early-access/books
+    Response: [{ "collection": "Sahih al-Bukhari", "slug": "bukhari" }]
+    Falls back to the static registry if the API is unavailable.
+    """
+    base = _sunnah_now_base()
+    url = f"{base}/api/early-access/books"
+    data = _get_json(url, headers=_sunnah_now_headers())
+    if data and isinstance(data, list):
+        return [{"key": b.get("slug"), "name": b.get("collection")} for b in data if b.get("slug")]
+    # Fallback to static registry
+    logger.warning("[HADITH][sunnah_now] Could not fetch live books — returning static registry")
+    return [{"key": k, "name": v["name"]} for k, v in COLLECTION_REGISTRY.items()]
+
+
 # ─────────────────────────────────────────────────────────────────────────────
-# FAWAZAHMED0 CDN FALLBACK (used only when no API key is set)
+# FAWAZAHMED0 CDN FALLBACK (only when no HADITH_API_KEY is configured)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _cdn_get_hadith_by_reference(collection_key: str, hadith_number: int) -> Optional[dict]:
@@ -411,27 +439,17 @@ def _cdn_search_hadith(query: str, collection_key: Optional[str], limit: int) ->
     for col_key in collections_to_search:
         if len(results) >= limit:
             break
-
         col = COLLECTION_REGISTRY[col_key]
-        edition_url = f"{base}/editions/{col['eng_edition']}.min.json"
-        data = _get_json(edition_url)
-
+        data = _get_json(f"{base}/editions/{col['eng_edition']}.min.json")
         if not data:
-            logger.warning(f"[HADITH][fallback_cdn] Could not fetch collection: {col_key}")
             continue
-
-        hadiths = data.get("hadiths", [])
-        logger.info(f"[HADITH][fallback_cdn] Scanning {len(hadiths)} in {col['name']} for '{query}'")
-
-        for h in hadiths:
+        for h in data.get("hadiths", []):
             if len(results) >= limit:
                 break
-            text = h.get("text", "") or ""
-            if query_lower in text.lower():
+            if query_lower in (h.get("text") or "").lower():
                 normalized = _normalize_cdn_hadith(
                     {"hadiths": [h], "metadata": data.get("metadata", {})},
-                    None, col_key, h.get("hadithnumber"),
-                    single_hadith=h,
+                    None, col_key, h.get("hadithnumber"), single_hadith=h,
                 )
                 if normalized and validate_hadith_item(normalized):
                     results.append(normalized)
@@ -472,7 +490,6 @@ def _normalize_cdn_hadith(
 
     h_num = (eng_hadith.get("hadithnumber") if eng_hadith else None) or hadith_number
     reference = f"{collection_name} {h_num}" if h_num else collection_name
-
     metadata = eng_data.get("metadata", {}) if eng_data else {}
     book_name = metadata.get("name") or collection_name
 
@@ -490,8 +507,8 @@ def _normalize_cdn_hadith(
         "translation_text": translation_text,
         "card_text": card_text,
         "was_excerpted": was_excerpted,
-        "narrator": None,   # Not provided by CDN
-        "grade": None,      # Not provided by CDN
+        "narrator": None,   # fawazahmed0 CDN does not provide narrator
+        "grade": None,      # fawazahmed0 CDN does not provide grade
         "topics": [],
         "api_source": "fawazahmed0/hadith-api@1",
     }
@@ -504,8 +521,11 @@ def _normalize_cdn_hadith(
 def get_supported_collections() -> list[dict]:
     """
     Returns the list of supported Hadith collections.
-    Static registry — no API call needed.
+    When sunnah.now is active, fetches live list and falls back to static registry.
     """
+    provider = _active_provider()
+    if provider == "sunnah_now":
+        return _sunnah_now_get_collections()
     return [{"key": k, "name": v["name"]} for k, v in COLLECTION_REGISTRY.items()]
 
 
@@ -513,19 +533,19 @@ def get_hadith_by_reference(collection_key: str, hadith_number: int) -> Optional
     """
     Fetches an exact hadith by collection key and hadith number.
 
-    Uses sunnah.com API (primary) if HADITH_API_KEY is set.
-    Falls back to fawazahmed0 CDN otherwise.
+    Uses sunnah.now (primary) if HADITH_API_KEY is set.
+    Falls back to fawazahmed0 CDN if no key is configured.
 
     SAFETY: Returns only what the API provides. No fields are fabricated.
     """
     provider = _active_provider()
-    logger.info(f"[HADITH] get_hadith_by_reference provider={provider} collection={collection_key} #{hadith_number}")
+    logger.info(f"[HADITH] get_hadith_by_reference provider={provider} {collection_key}#{hadith_number}")
 
     if provider == "sunnah_now":
-        result = _sunnah_get_hadith_by_reference(collection_key, hadith_number)
+        result = _sunnah_now_get_hadith_by_reference(collection_key, hadith_number)
         if result:
             return result
-        logger.warning(f"[HADITH] sunnah_now failed for {collection_key}#{hadith_number} — no CDN fallback in key mode")
+        logger.warning(f"[HADITH] sunnah_now failed for {collection_key}#{hadith_number} — not falling back to CDN (key mode)")
         return None
     else:
         return _cdn_get_hadith_by_reference(collection_key, hadith_number)
@@ -535,8 +555,8 @@ def search_hadith(query: str, collection_key: Optional[str] = None, limit: int =
     """
     Searches Hadith text for the given query string.
 
-    Uses sunnah.com API (primary) if HADITH_API_KEY is set.
-    Falls back to fawazahmed0 CDN otherwise.
+    Uses sunnah.now (primary) if HADITH_API_KEY is set.
+    Falls back to fawazahmed0 CDN if no key is configured.
 
     SAFETY: Returns only real hadiths. No fabricated results.
     """
@@ -544,10 +564,10 @@ def search_hadith(query: str, collection_key: Optional[str] = None, limit: int =
         return []
 
     provider = _active_provider()
-    logger.info(f"[HADITH] search_hadith provider={provider} query='{query}' collection={collection_key}")
+    logger.info(f"[HADITH] search_hadith provider={provider} query='{query}'")
 
     if provider == "sunnah_now":
-        return _sunnah_search_hadith(query, collection_key, limit)
+        return _sunnah_now_search_hadith(query, collection_key, limit)
     else:
         return _cdn_search_hadith(query, collection_key, limit)
 
@@ -558,8 +578,8 @@ def search_hadith(query: str, collection_key: Optional[str] = None, limit: int =
 
 def validate_hadith_item(item: Optional[dict]) -> bool:
     """
-    Safety gate: validates minimum quality requirements before a Hadith is used
-    in a quote card or post.
+    Safety gate: validates minimum quality requirements before a Hadith is
+    used in a quote card or post.
 
     NEVER passes items with fabricated fields.
     """
