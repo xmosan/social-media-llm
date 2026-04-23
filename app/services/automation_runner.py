@@ -350,8 +350,19 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 # QUALITY GATE FIX: Ensure Arabic exists for Quran posts
                 is_quran = "quran" in (candidate.provider or "").lower()
                 if is_quran and (not candidate.arabic_text or len(candidate.arabic_text) < 10):
-                    print(f"⚠️ [RELEVANCE] rejecting {candidate.reference}: Arabic text is missing or too short.")
-                    continue
+                    print(f"📡 [QURAN_ARABIC] fetching Arabic for confirmed Quran candidate: {candidate.reference}")
+                    try:
+                        from app.services.quran_service import get_verse_by_reference
+                        item = get_verse_by_reference(db, candidate.reference)
+                        if item and item.arabic_text:
+                            candidate.arabic_text = item.arabic_text
+                            print(f"📡 [QURAN_ARABIC] loaded")
+                        else:
+                            print(f"⚠️ [QURAN_ARABIC] fetch failed for {candidate.reference}. Rejecting.")
+                            continue
+                    except Exception as e:
+                        print(f"⚠️ [QURAN_ARABIC] fetch error: {e}")
+                        continue
 
                 primary_item = candidate
                 log_event("quran_relevance_passed", automation_id=automation.id, reference=candidate.reference, reason=audit["reason"])

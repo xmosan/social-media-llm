@@ -323,6 +323,7 @@ def fit_text_to_zone(
     # Long Quote detection (v9.0)
     is_long = len(text) > 100
     if is_long:
+        print(f"📡 [QURAN_CARD] long verse layout adjusted (len={len(text)})")
         curr_size = int(start_size * 0.85)
 
     if is_arabic:

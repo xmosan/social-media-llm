@@ -401,7 +401,20 @@ def simulate_growth_plan(
                 cand_ref = getattr(cand, "reference", getattr(cand, "title", "Quran"))
                 audit = validate_source_relevance(topic, cand.text, cand_ref)
                 if audit["accepted"]:
-                    # Ensure Arabic text exists
+                    # Ensure Arabic text exists - Fetch if missing
+                    if not cand.arabic_text:
+                        print(f"📡 [QURAN_ARABIC] fetching Arabic for {cand_ref}")
+                        try:
+                            from app.services.quran_service import get_verse_by_reference
+                            item = get_verse_by_reference(db, cand_ref)
+                            if item and item.arabic_text:
+                                cand.arabic_text = item.arabic_text
+                                print(f"📡 [QURAN_ARABIC] loaded")
+                            else:
+                                print(f"📡 [QURAN_ARABIC][FAIL] missing Arabic for {cand_ref}")
+                        except Exception as e:
+                            print(f"⚠️ [QURAN_ARABIC] fetch error: {e}")
+
                     if cand.arabic_text:
                         primary_item = cand
                         relevance_audit = audit
@@ -426,6 +439,22 @@ def simulate_growth_plan(
                         break
 
         if not primary_item:
+            # Try parsing topic for exact Quran reference (e.g. "Surah 70, Verse 5")
+            import re
+            q_match = re.search(r"Surah\s+(\d+),?\s+Verse\s+(\d+)", topic, re.I)
+            if not q_match:
+                q_match = re.search(r"Qur'?an\s+(\d+):(\d+)", topic, re.I)
+            
+            if q_match:
+                s_num, a_num = q_match.groups()
+                print(f"📡 [QURAN_ARABIC] Direct topic match: {s_num}:{a_num}")
+                from app.services.quran_service import get_quran_ayah
+                exact_item = get_quran_ayah(db, int(s_num), int(a_num))
+                if exact_item:
+                    primary_item = exact_item
+                    relevance_audit = {"accepted": True, "reason": "Direct reference match"}
+
+        if not primary_item:
             fallback_mode = True
             primary_item = SimpleNamespace(
                 text=topic,
@@ -436,12 +465,14 @@ def simulate_growth_plan(
 
         # 3. Generate Caption
         item_ref = getattr(primary_item, "reference", getattr(primary_item, "title", "Quran"))
+        is_verified_quran = "quran" in (getattr(primary_item, "provider", "") or "").lower() and not fallback_mode
+        
         context_payload = {
             "mode": "grounded_library",
             "snippet": {
                 "text": primary_item.text,
                 "reference": item_ref,
-                "item_type": getattr(primary_item, "provider", "reflection")
+                "item_type": "quran" if is_verified_quran else getattr(primary_item, "provider", "reflection")
             }
         }
         
@@ -504,9 +535,11 @@ def simulate_growth_plan(
             "sample_index": i + 1,
             "topic": topic,
             "style_name": style.name if hasattr(style, "name") else "Dark Sacred",
-            "source_type": getattr(primary_item, "provider", "reflection"),
+            "source_type": "quran" if is_verified_quran else getattr(primary_item, "provider", "reflection"),
+            "source_label": "Qur'an Preview" if is_verified_quran else "Reflection Preview",
             "source_reference": item_ref,
             "grounding_text": primary_item.text,
+            "arabic_text": primary_item.arabic_text,
             "caption": llm_res.get("caption"),
             "hashtags": llm_res.get("hashtags", []),
             "visual_url": visual_url,

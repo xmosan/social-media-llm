@@ -76,6 +76,23 @@ def parse_quran_reference(ref: str) -> tuple[int, int]:
         
     return surah, ayah
 
+def get_verse_by_reference(db: Session, ref: str) -> Optional[ContentItem]:
+    """
+    Highly flexible reference resolver for Quran verses.
+    Accepts: 'Surah 70, Verse 5', '70:5', 'Qur'an 70:5', etc.
+    """
+    import re
+    if not ref: return None
+    
+    # Try different formats
+    m = re.search(r"(\d+)[:,\s]+(\d+)", normalize_reference_input(ref))
+    if not m:
+        # Fallback to direct title match
+        return db.query(ContentItem).filter(ContentItem.item_type == "quran", ContentItem.title == ref).first()
+    
+    s_num, a_num = map(int, m.groups())
+    return get_quran_ayah(db, s_num, a_num)
+
 def get_quran_ayah_exact(surah: int, ayah: int, db: Session) -> dict:
     """
     Return the exact ayah record and matching translation.
