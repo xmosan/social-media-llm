@@ -397,8 +397,9 @@ def simulate_growth_plan(
         
         if pooled_items:
             for cand in pooled_items:
-                # Audit
-                audit = validate_source_relevance(topic, cand.text, cand.reference)
+                # Audit - Use cand.title as ContentItem doesn't have .reference
+                cand_ref = getattr(cand, "reference", getattr(cand, "title", "Quran"))
+                audit = validate_source_relevance(topic, cand.text, cand_ref)
                 if audit["accepted"]:
                     # Ensure Arabic text exists
                     if cand.arabic_text:
@@ -434,11 +435,12 @@ def simulate_growth_plan(
             )
 
         # 3. Generate Caption
+        item_ref = getattr(primary_item, "reference", getattr(primary_item, "title", "Quran"))
         context_payload = {
             "mode": "grounded_library",
             "snippet": {
                 "text": primary_item.text,
-                "reference": primary_item.reference,
+                "reference": item_ref,
                 "item_type": getattr(primary_item, "provider", "reflection")
             }
         }
@@ -457,7 +459,7 @@ def simulate_growth_plan(
             try:
                 from app.services.automation_runner import clean_translation_for_card
                 quote_text = clean_translation_for_card(primary_item.text)
-                reference = (primary_item.reference or "Sacred Guidance").upper()
+                reference = (item_ref or "Sacred Guidance").upper()
                 
                 segments = [{"text": reference, "size": 36}]
                 # Dual language for Quran
@@ -503,7 +505,7 @@ def simulate_growth_plan(
             "topic": topic,
             "style_name": style.name if hasattr(style, "name") else "Dark Sacred",
             "source_type": getattr(primary_item, "provider", "reflection"),
-            "source_reference": primary_item.reference,
+            "source_reference": item_ref,
             "grounding_text": primary_item.text,
             "caption": llm_res.get("caption"),
             "hashtags": llm_res.get("hashtags", []),
