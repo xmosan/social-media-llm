@@ -571,3 +571,99 @@ async def suggest_library_entries(
         }
         res_dicts.append(r_dict)
     return res_dicts
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HADITH LIBRARY ENDPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.get("/hadith/collections")
+def list_hadith_collections(user: User = Depends(require_user)):
+    """
+    Returns the list of supported Hadith collections.
+    Static registry — no API call needed.
+    """
+    from app.services.hadith_service import get_supported_collections
+    return {"collections": get_supported_collections()}
+
+
+@router.get("/hadith/search")
+def search_hadith_library(
+    query: str,
+    collection: Optional[str] = None,
+    limit: int = 10,
+    user: User = Depends(require_user)
+):
+    """
+    Searches Hadith text for the given keyword query.
+
+    Returns a list of normalized Hadith objects with Arabic + English.
+    Fails gracefully if the Hadith API is unavailable.
+
+    Params:
+        query: Keyword(s) to search (e.g. "patience", "intention")
+        collection: Optional collection key (e.g. "bukhari", "muslim")
+        limit: Max results (default 10, max 30)
+    """
+    from app.services.hadith_service import search_hadith
+
+    if not query or not query.strip():
+        raise HTTPException(status_code=400, detail="Query parameter is required.")
+
+    limit = min(limit, 30)
+
+    try:
+        results = search_hadith(query=query.strip(), collection_key=collection, limit=limit)
+        return {
+            "query": query,
+            "collection": collection,
+            "count": len(results),
+            "items": results
+        }
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"[HADITH] Search error: {e}")
+        return {
+            "query": query,
+            "collection": collection,
+            "count": 0,
+            "items": [],
+            "error": "Hadith API unavailable. Please try again later."
+        }
+
+
+@router.get("/hadith/reference")
+def get_hadith_by_reference(
+    collection: str,
+    hadith_number: int,
+    user: User = Depends(require_user)
+):
+    """
+    Fetches a single Hadith by exact collection + hadith number.
+
+    Returns a normalized Hadith object or 404 if not found.
+
+    Params:
+        collection: Collection key (e.g. "bukhari")
+        hadith_number: Integer hadith number
+    """
+    from app.services.hadith_service import get_hadith_by_reference, validate_hadith_item
+
+    item = get_hadith_by_reference(
+        collection_key=collection,
+        hadith_number=hadith_number
+    )
+
+    if not item:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Hadith not found: {collection} #{hadith_number}. API may be unavailable."
+        )
+
+    if not validate_hadith_item(item):
+        raise HTTPException(
+            status_code=422,
+            detail="Hadith source data is incomplete. Please choose another Hadith."
+        )
+
+    return item

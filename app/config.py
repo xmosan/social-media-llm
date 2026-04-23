@@ -39,6 +39,11 @@ class Settings(BaseSettings):
         print(f"!!! [RESOLVED UPLOADS DIR]: {self.uploads_dir}")
         print(f"!!! [CURRENT WORKING DIR ]: {os.getcwd()}")
         print("!"*64 + "\n")
+        # Hadith API startup log (never print key value)
+        if self.hadith_api_key:
+            print("[HADITH] API configured (HadithAPI.com mode — key loaded)")
+        else:
+            print("[HADITH] API configured (fawazahmed0 CDN — no key required)")
 
     # Centralized Public Base URL (Production Custom Domain)
     public_base_url: str = Field(
@@ -92,6 +97,17 @@ class Settings(BaseSettings):
     qf_client_id: str | None = Field(default=None, env="QF_CLIENT_ID")
     qf_client_secret: str | None = Field(default=None, env="QF_CLIENT_SECRET")
     qf_env: str = Field(default="prod", env="QF_ENV")
+
+    # Hadith API
+    # Default: fawazahmed0 CDN (free, no key, no rate limits)
+    # Set HADITH_API_KEY + HADITH_API_BASE_URL to use HadithAPI.com instead
+    hadith_api_key: str | None = Field(default=None, env="HADITH_API_KEY")
+    hadith_api_base_url: str = Field(
+        default="https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1",
+        env="HADITH_API_BASE_URL"
+    )
+    # Phase 2 gate: Hadith in automations (disabled in Phase 1)
+    hadith_in_automations_enabled: bool = Field(default=False, env="HADITH_IN_AUTOMATIONS_ENABLED")
 
     # Email Service (Resend)
     resend_api_key: str | None = Field(default=None, env="RESEND_API_KEY")

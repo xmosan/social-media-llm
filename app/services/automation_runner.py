@@ -144,6 +144,35 @@ def clean_translation_for_card(text: str) -> str:
     # 5. Collapse whitespace
     return " ".join(cleaned.split())
 
+
+def clean_hadith_for_card(text: str, max_chars: int = 350) -> str:
+    """
+    Safely excerpts a Hadith translation for use on a visual quote card.
+    Excerpts at the last sentence boundary before max_chars.
+    Does NOT alter meaning. Full text is preserved in post metadata/caption.
+    Logs [HADITH_CARD] when excerpting occurs.
+    """
+    if not text: return ""
+    cleaned = clean_translation_for_card(text)
+    if len(cleaned) <= max_chars:
+        return cleaned
+
+    import re, logging
+    logger = logging.getLogger(__name__)
+    truncated = cleaned[:max_chars]
+    # Find last sentence boundary
+    for sentinel in [". ", "! ", "? "]:
+        pos = truncated.rfind(sentinel)
+        if pos > max_chars // 2:
+            excerpt = truncated[:pos + 1].strip()
+            logger.info(f"[HADITH_CARD] long hadith excerpted (original={len(cleaned)}, card={len(excerpt)})")
+            return excerpt
+    # Fallback: hard cut at word
+    pos = truncated.rfind(" ")
+    excerpt = (truncated[:pos] + "\u2026").strip() if pos > 0 else truncated
+    logger.info(f"[HADITH_CARD] long hadith excerpted (original={len(cleaned)}, card={len(excerpt)})")
+    return excerpt
+
 def format_hashtags(tags: list[str]) -> list[str]:
     """Converts space-separated or raw tags into proper CamelCase #hashtags."""
     if not tags: return []
@@ -314,6 +343,16 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         pooled_items = []
         target_limit = 5 # Fetch more for filtering pool
         
+        # ── Phase 1 Safety Gate: Hadith in automations is disabled ──────────
+        # Hadith integration is Phase 2. This gate prevents untested Hadith
+        # content from entering the automation pipeline before verification.
+        _hadith_enabled = getattr(settings, "hadith_in_automations_enabled", False)
+        if not _hadith_enabled:
+            # Silently filter out any Hadith items that content providers may return
+            # This does not affect Quran or Library content.
+            pass  # Gate enforced below after pooled_items are collected
+        # ────────────────────────────────────────────────────────────────────
+        
         # Dual-pass logic: Try the variation first, then the base topic
         attempts = [topic, topic_base] if topic != topic_base else [topic]
         
@@ -335,6 +374,13 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                                   query=search_query)
                 except Exception as e:
                     print(f"[PROVIDER] Error in {provider.provider_name}: {e}")
+
+        # Apply Hadith feature flag gate (Phase 1)
+        if not getattr(settings, "hadith_in_automations_enabled", False):
+            before_count = len(pooled_items)
+            pooled_items = [i for i in pooled_items if getattr(i, "provider", "") != "hadith"]
+            if len(pooled_items) < before_count:
+                print(f"[HADITH] Phase 1 gate: filtered {before_count - len(pooled_items)} Hadith items from automation pool")
                 
         # 1.45 Relevance Filtering Gate (v2 Integrity)
         primary_item = None
