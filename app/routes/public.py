@@ -921,7 +921,7 @@ COMING_SOON_HTML = """<!doctype html>
     <footer class="pt-16">
       <div class="flex items-center justify-center gap-4 mb-8">
         <div class="h-px w-8 bg-[var(--primary)] opacity-10"></div>
-        <div class="text-[10px] font-bold uppercase tracking-[0.3em] text-[var(--primary)] opacity-40 italic">Coming April 2026</div>
+        <div class="text-[10px] font-bold uppercase tracking-[0.3em] text-[var(--primary)] opacity-40 italic">Coming May 2026</div>
         <div class="h-px w-8 bg-[var(--primary)] opacity-10"></div>
       </div>
       <p class="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] opacity-30">&copy; 2026 Sabeel Studio &bull; Grounded in Truth</p>
