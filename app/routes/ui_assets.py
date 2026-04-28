@@ -361,15 +361,23 @@ STUDIO_SCRIPTS_JS = """
             }
             const data = await res.json();
             if (!Array.isArray(data) || data.length === 0) { resultsArea.classList.add('hidden'); return; }
-            resultsArea.innerHTML = data.map(v => `
-                <div onclick="selectAyah('${v.id}', '${v.title.replace(/'/g, "\\'")}', '${v.text.replace(/'/g, "\\'")}')" class="p-4 border-b border-brand/5 hover:bg-brand/5 cursor-pointer transition-all">
+            resultsArea.innerHTML = data.map(v => {
+                const ref = v.reference || v.title || '';
+                const txt = v.translation_text || v.text || '';
+                const safeRef = ref.replace(/'/g, "\\'");
+                const safeTxt = txt.replace(/'/g, "\\'");
+                return `
+                <div onclick="selectAyah('${v.id}', '${safeRef}', '${safeTxt}')" class="p-4 border-b border-brand/5 hover:bg-brand/5 cursor-pointer transition-all">
                     <div class="flex justify-between items-start mb-1">
-                        <span class="text-[8px] font-black text-brand uppercase tracking-widest">${v.title}</span>
+                        <span class="text-[8px] font-black text-brand uppercase tracking-widest">${ref}</span>
                     </div>
-                    <div class="text-[10px] text-text-muted font-medium italic line-clamp-2">${v.text}</div>
-                </div>
-            `).join('');
-        } catch (e) { console.error(e); }
+                    <div class="text-[10px] text-text-muted font-medium italic line-clamp-2">${txt}</div>
+                </div>`;
+            }).join('');
+        } catch (e) {
+            console.error('[STUDIO_QURAN] fetch/parse error:', e);
+            resultsArea.innerHTML = `<div class="p-4 text-center text-[10px] font-bold text-red-500 uppercase tracking-widest">Error loading results</div>`;
+        }
     }
 
     window.selectedAyahMetadata = null;
