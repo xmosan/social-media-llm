@@ -368,7 +368,8 @@ STUDIO_SCRIPTS_JS = """
                 const metaJson = JSON.stringify({
                     id: v.id,
                     reference: ref,
-                    translation_text: txt
+                    translation_text: txt,
+                    arabic_text: v.arabic_text || ''
                 }).replace(/"/g, '&quot;');
                 
                 return `
@@ -391,16 +392,16 @@ STUDIO_SCRIPTS_JS = """
         try {
             const raw = el.getAttribute('data-meta');
             const meta = JSON.parse(raw.replace(/&quot;/g, '"'));
-            selectAyah(meta.id, meta.reference, meta.translation_text);
+            selectAyah(meta.id, meta.reference, meta.translation_text, meta.arabic_text);
         } catch(e) {
             console.error('[Studio] selectAyahFromEl parse error:', e);
         }
     }
 
-    function selectAyah(id, title, text) {
+    function selectAyah(id, title, text, arabic_text = '') {
         selectedAyahId = id;
         selectedHadithId = null;
-        window.selectedAyahMetadata = { reference: title, translation_text: text, id: id };
+        window.selectedAyahMetadata = { reference: title, translation_text: text, arabic_text: arabic_text, id: id };
         document.getElementById('selectedAyahBadge').classList.remove('hidden');
         document.getElementById('selectedHadithBadge').classList.add('hidden');
         document.getElementById('selectedAyahTitle').innerText = title;
@@ -438,11 +439,16 @@ STUDIO_SCRIPTS_JS = """
                 sourcePayload = window.selectedHadithMetadata;
             }
 
+            const customPrompt = document.getElementById('studioCustomPrompt')?.value || "";
+
             const payload = {
                 source_type: sourceType,
                 source_payload: sourcePayload,
                 tone: tone,
-                intent: intention
+                intent: intention,
+                custom_payload: {
+                    custom_prompt: customPrompt
+                }
             };
 
             const res = await fetch('/api/studio/generate-card-message', {
@@ -453,11 +459,14 @@ STUDIO_SCRIPTS_JS = """
             const data = await res.json();
             if (data.card_message) {
                 studioCardMessage = data.card_message;
-                document.getElementById('editEyebrow').value = studioCardMessage.eyebrow;
-                document.getElementById('editHeadline').value = studioCardMessage.headline;
-                document.getElementById('editSupporting').value = studioCardMessage.supporting_text;
+                document.getElementById('editEyebrow').value = studioCardMessage.eyebrow || '';
+                document.getElementById('editHeadline').value = studioCardMessage.headline || '';
+                document.getElementById('editSupporting').value = studioCardMessage.supporting_text || '';
                 document.getElementById('cardMessageWorkspace').classList.remove('hidden');
                 invalidateQuoteCard();
+                
+                // Automatically advance to Phase 2
+                switchStudioSection(2);
             }
         } catch (e) {
             alert('Architecture failed. Please try again.');
@@ -1445,6 +1454,11 @@ STUDIO_COMPONENTS_HTML = """
                         </select>
                     </div>
 
+                    <div class="space-y-4 pt-4 border-t border-brand/5 pb-4">
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Custom Instructions (Optional)</label>
+                        <textarea id="studioCustomPrompt" placeholder="E.g. Focus on patience during hardship..." class="w-full bg-cream/20 border border-brand/5 rounded-2xl px-6 py-4 text-xs font-medium text-brand outline-none focus:border-brand/20 h-20 resize-none transition-all placeholder:text-brand/30 shadow-inner"></textarea>
+                    </div>
+
                     <!-- Intent Selection -->
                     <div class="space-y-3">
                         <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Intent (Flavor)</label>
@@ -1514,25 +1528,25 @@ STUDIO_COMPONENTS_HTML = """
                         <span class="btn-text">Build Quote Card Message</span>
                     </button>
                 </div>
-                <div id="cardMessageWorkspace" class="hidden animate-in fade-in slide-in-from-top-4 duration-500 space-y-6 bg-brand/[0.02] p-8 rounded-[2.5rem] border border-brand/5">
-                    <div class="space-y-4">
-                        <div class="space-y-2">
-                            <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Eyebrow</label>
-                            <input type="text" id="editEyebrow" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-bold text-brand outline-none focus:border-brand/30">
-                        </div>
-                        <div class="space-y-2">
-                            <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Headline</label>
-                            <textarea id="editHeadline" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-medium text-brand outline-none focus:border-brand/30 h-24 resize-none"></textarea>
-                        </div>
-                        <div class="space-y-2">
-                            <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Reference</label>
-                            <input type="text" id="editSupporting" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-bold text-brand outline-none focus:border-brand/30">
-                        </div>
-                    </div>
-                </div>
             </div>
           </div>
           <div id="studioSection2" class="studio-section hidden space-y-10">
+            <div id="cardMessageWorkspace" class="hidden animate-in fade-in slide-in-from-top-4 duration-500 space-y-6 bg-brand/[0.02] p-8 rounded-[2.5rem] border border-brand/5">
+                <div class="space-y-4">
+                    <div class="space-y-2">
+                        <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Eyebrow</label>
+                        <input type="text" id="editEyebrow" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-bold text-brand outline-none focus:border-brand/30">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Headline</label>
+                        <textarea id="editHeadline" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-medium text-brand outline-none focus:border-brand/30 h-24 resize-none"></textarea>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Supporting Text</label>
+                        <textarea id="editSupporting" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-medium text-brand outline-none focus:border-brand/30 h-16 resize-none"></textarea>
+                    </div>
+                </div>
+            </div>
             <div id="outOfSyncBanner" class="hidden p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
                 <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
                 <span class="text-[9px] font-black text-amber-800 uppercase tracking-widest">Message has changed. Re-generate visual to sync.</span>

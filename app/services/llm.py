@@ -469,6 +469,60 @@ def refine_caption(text: str, refinement_type: str) -> str:
     except Exception as e:
         print(f"[LLM] Refinement failed: {e}")
         return text # Return original if failed
+def generate_card_framing_from_source(source_text: str, intent: str, tone: str, custom_prompt: str, source_type: str, reference: str) -> dict[str, Any]:
+    """
+    Generates the framing text (eyebrow and supporting reflection) for a sacred source text.
+    It deliberately does NOT generate a headline, as the headline must remain the exact translation.
+    """
+    client = get_client()
+    if not client:
+        return {
+            "eyebrow": reference,
+            "supporting_text": "May your heart find peace in remembrance." if tone == "calm" else ""
+        }
+
+    prompt = f"""
+    Source Type: {source_type.capitalize()}
+    Reference: {reference}
+    Exact Translation Text: "{source_text}"
+    
+    User Goal / Intent: {intent}
+    Desired Tone / Vibe: {tone}
+    Custom Instructions from User: {custom_prompt or "None"}
+
+    Task: Generate the thematic framing for this quote card. 
+    You are generating ONLY the contextual framing. The main text on the card will be the EXACT translation provided above. You must not fabricate or rephrase the translation.
+
+    Card Structure:
+    1. Eyebrow: A very short (1-4 words) category, theme, or the exact reference (e.g., 'DIVINE MERCY', 'TRUE PATIENCE', '{reference}').
+    2. Supporting Text: A deep, 1-2 sentence reflection or framing based on the Custom Instructions, Intent, and Tone. This text appears smaller at the bottom of the card to ground the main translation in modern heart-work or practice.
+
+    IMPORTANT: If the Custom Instructions specifically ask you to emphasize something, do so in the Supporting Text. Keep it respectful, authentic, and impactful.
+
+    Format: JSON only.
+    {{
+        "eyebrow": "string",
+        "supporting_text": "string"
+    }}
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a master of spiritual typography and minimalist Islamic content design."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"}
+        )
+        return json.loads(response.choices[0].message.content)
+    except Exception as e:
+        print(f"[LLM] Card framing generation failed: {e}")
+        return {
+            "eyebrow": reference,
+            "supporting_text": ""
+        }
+
 def generate_card_message_from_topic(topic: str, tone: str = "calm", intent: str = "wisdom") -> dict[str, Any]:
     """
     Generates structured content specifically for a visual quote card based on a topic.

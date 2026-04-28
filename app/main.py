@@ -286,7 +286,8 @@ async def api_build_quote_message(req: QuoteCardBuildRequest, db: Session = Depe
             source_payload["topic"] = req.reference
     
     try:
-        msg = build_quote_card_message(req.source_type, source_payload, req.tone, req.intent)
+        custom_prompt = (req.custom_payload or {}).get("custom_prompt", "")
+        msg = build_quote_card_message(req.source_type, source_payload, req.tone, req.intent, custom_prompt)
         return {"card_message": msg, "source_metadata": source_payload}
     except Exception as e:
         logger.error(f"Error building card message: {e}")
