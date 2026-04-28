@@ -12,6 +12,8 @@ def build_quote_card_message(source_type: str, source_payload: Dict[str, Any], t
     
     if source_type == "quran":
         return build_quran_quote_message(source_payload, tone, intent)
+    elif source_type == "hadith":
+        return build_hadith_quote_message(source_payload, tone, intent)
     elif source_type == "manual":
         return build_manual_quote_message(source_payload, tone, intent)
     else:
@@ -40,9 +42,6 @@ def build_quran_quote_message(ayah_record: Dict[str, Any], tone: str, intent: st
 
     logger.info(f"[QUOTE_MESSAGE] Quran verse resolved: {reference}")
 
-    # For now, literal translation is the headline.
-    # In the future, we can add 'supporting_text' grounded reflection if needed.
-    
     message = {
         "eyebrow": reference,
         "headline": translation,
@@ -52,6 +51,66 @@ def build_quran_quote_message(ayah_record: Dict[str, Any], tone: str, intent: st
     
     logger.info("[QUOTE_MESSAGE] Card message built successfully")
     return message
+
+
+def build_hadith_quote_message(hadith_record: Dict[str, Any], tone: str, intent: str) -> Dict[str, Any]:
+    """
+    Strict literal logic for Hadith card text.
+
+    SAFETY CONTRACT:
+    - reference, arabic_text, and translation_text come ONLY from the verified API response.
+    - narrator is set only if the API returned it — never fabricated.
+    - grade is never set here; it is not fabricated.
+    - card_text is the safe excerpt produced by hadith_service._safe_excerpt().
+      If card_text is absent, falls back to translation_text (full text).
+    - Full translation_text is always preserved in metadata for caption and post storage.
+    """
+    reference = hadith_record.get("reference") or hadith_record.get("collection", "")
+    collection = hadith_record.get("collection", "")
+
+    # card_text is the safe excerpt from hadith_service (sentence-boundary truncated)
+    # translation_text is always the full text
+    card_text = (hadith_record.get("card_text") or hadith_record.get("translation_text") or "").strip()
+    translation_text = (hadith_record.get("translation_text") or card_text).strip()
+    arabic_text = (hadith_record.get("arabic_text") or "").strip()
+    was_excerpted = bool(hadith_record.get("was_excerpted", False))
+
+    if not reference:
+        logger.error("[QUOTE_MESSAGE] Hadith resolution failed: missing reference")
+        raise ValueError("Selected Hadith is missing a reference. Please choose another Hadith.")
+
+    if not card_text and not arabic_text:
+        logger.error(f"[QUOTE_MESSAGE] Hadith has no text content: {reference}")
+        raise ValueError("Selected Hadith has no text content. Please choose another Hadith.")
+
+    # Narrator — taken verbatim from API; never fabricated
+    narrator_raw = (hadith_record.get("narrator") or "").strip()
+    supporting_text = narrator_raw if narrator_raw else ""
+
+    # Log for traceability
+    logger.info(
+        f"[QUOTE_MESSAGE] Hadith resolved: {reference} | "
+        f"has_arabic={bool(arabic_text)} | has_en={bool(card_text)} | "
+        f"was_excerpted={was_excerpted} | narrator={'yes' if narrator_raw else 'no'}"
+    )
+
+    return {
+        # Eyebrow: exact reference (e.g. "Sahih al-Bukhari 1")
+        "eyebrow": reference,
+        # Arabic zone — full Arabic text; image_card renders it RTL via Amiri font
+        "arabic_text": arabic_text,
+        # Headline: safe excerpt (sentence-boundary truncated if long)
+        "headline": card_text,
+        # Supporting text: narrator if provided by API, else empty string
+        "supporting_text": supporting_text,
+        # Structural metadata — passed through to image_card for layout decisions
+        "was_excerpted": was_excerpted,
+        "hadith_narrator": narrator_raw or None,   # explicit field, never fabricated
+        "hadith_collection": collection,
+        # Full text always preserved for post storage and caption grounding
+        "full_translation_text": translation_text,
+    }
+
 
 def build_manual_quote_message(payload: Dict[str, Any], tone: str = "calm", intent: str = "wisdom") -> Dict[str, Any]:
     # Check if this is a "topic" that needs expansion

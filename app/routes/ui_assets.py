@@ -57,6 +57,8 @@ STUDIO_SCRIPTS_JS = """
     let studioEngine       = 'dalle';  
     let studioGlossy       = false;    
     let selectedAyahId     = null;
+    let selectedHadithId   = null;
+    let activeSourceTab    = 'quran'; // quran or hadith
 
     // Structured State
     let studioCardMessage = null; // { eyebrow, headline, supporting_text }
@@ -70,9 +72,11 @@ STUDIO_SCRIPTS_JS = """
         studioEngine = 'dalle';
         studioGlossy = false;
         selectedAyahId = null;
+        selectedHadithId = null;
         studioCardMessage = null;
         studioCaptionMessage = null;
         window.selectedAyahMetadata = null;
+        window.selectedHadithMetadata = null;
 
         // Reset Physical Elements
         const setVal = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
@@ -162,6 +166,127 @@ STUDIO_SCRIPTS_JS = """
         if (stepIndex === 4) prepareShare();
     }
 
+    function switchSourceTab(tab) {
+        activeSourceTab = tab;
+        const qBtn = document.getElementById('tabBtnQuran');
+        const hBtn = document.getElementById('tabBtnHadith');
+        
+        if (tab === 'quran') {
+            qBtn.classList.add('bg-brand', 'text-white');
+            qBtn.classList.remove('bg-brand/5', 'text-brand');
+            hBtn.classList.add('bg-brand/5', 'text-brand');
+            hBtn.classList.remove('bg-brand', 'text-white');
+            hide('hadithSearchResults');
+            document.getElementById('studioTopic').placeholder = "e.g. Patience, 70:5, or Gratitude...";
+        } else {
+            hBtn.classList.add('bg-brand', 'text-white');
+            hBtn.classList.remove('bg-brand/5', 'text-brand');
+            qBtn.classList.add('bg-brand/5', 'text-brand');
+            qBtn.classList.remove('bg-brand', 'text-white');
+            hide('quranSearchResults');
+            document.getElementById('studioTopic').placeholder = "e.g. Intention, Charity, or Kindness...";
+        }
+        onSourceInput();
+    }
+
+    function onSourceInput() {
+        if (activeSourceTab === 'quran') searchQuran();
+        else searchHadith();
+    }
+
+    async function searchHadith() {
+        const query = document.getElementById('studioTopic').value;
+        const resultsArea = document.getElementById('hadithSearchResults');
+        if (query.length < 2) {
+            resultsArea.classList.add('hidden');
+            return;
+        }
+        resultsArea.innerHTML = '<div class="p-4 text-center text-[8px] font-bold text-brand animate-pulse uppercase tracking-widest">Searching Wisdom...</div>';
+        resultsArea.classList.remove('hidden');
+        try {
+            const res = await fetch(`/api/library/hadith/search?query=${encodeURIComponent(query)}`);
+            const data = await res.json();
+            if (!data.items || data.items.length === 0) { resultsArea.classList.add('hidden'); return; }
+            // Store full hadith objects on the results elements via data attributes
+            resultsArea.innerHTML = data.items.map((h, idx) => {
+                const safeRef = (h.reference || '').replace(/"/g, '&quot;');
+                const metaJson = JSON.stringify({
+                    source_type: 'hadith',
+                    id: h.hadith_number,
+                    collection: h.collection || '',
+                    collection_key: h.collection_key || '',
+                    reference: h.reference || '',
+                    hadith_number: h.hadith_number,
+                    arabic_text: h.arabic_text || '',
+                    translation_text: h.translation_text || '',
+                    card_text: h.card_text || '',
+                    narrator: h.narrator || null,
+                    grade: h.grade || null,
+                    api_source: h.api_source || '',
+                    was_excerpted: !!h.was_excerpted
+                }).replace(/"/g, '&quot;');
+                return `
+                <div data-meta="${metaJson}" onclick="selectHadithFromEl(this)" class="p-4 border-b border-brand/5 hover:bg-brand/5 cursor-pointer transition-all">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="text-[8px] font-black text-brand uppercase tracking-widest">${safeRef}</span>
+                        ${h.narrator ? `<span class="text-[7px] font-bold text-accent uppercase tracking-widest">${h.narrator.replace(/</g,'&lt;')}</span>` : ''}
+                    </div>
+                    <div class="text-[10px] text-text-muted font-medium italic line-clamp-2">${(h.card_text || h.translation_text || '').replace(/</g,'&lt;')}</div>
+                </div>`;
+            }).join('');
+        } catch (e) { console.error(e); }
+    }
+
+    window.selectedHadithMetadata = null;
+
+    // selectHadithFromEl — reads full metadata from the clicked result element
+    function selectHadithFromEl(el) {
+        try {
+            const raw = el.getAttribute('data-meta');
+            const meta = JSON.parse(raw.replace(/&quot;/g, '"'));
+            _applyHadithSelection(meta);
+        } catch(e) {
+            console.error('[Studio] selectHadithFromEl parse error:', e);
+        }
+    }
+
+    // Legacy wrapper kept for any existing inline callers
+    function selectHadith(id, collection, reference, text) {
+        _applyHadithSelection({
+            source_type: 'hadith',
+            id: id,
+            collection: collection,
+            reference: reference,
+            translation_text: text,
+            card_text: text
+        });
+    }
+
+    function _applyHadithSelection(meta) {
+        selectedHadithId = meta.hadith_number || meta.id;
+        selectedAyahId = null;
+        window.selectedHadithMetadata = meta;
+        document.getElementById('selectedHadithBadge').classList.remove('hidden');
+        document.getElementById('selectedAyahBadge').classList.add('hidden');
+        document.getElementById('selectedHadithTitle').innerText = meta.reference || '';
+        document.getElementById('hadithSearchResults').classList.add('hidden');
+        document.getElementById('studioTopic').value = meta.reference || '';
+
+        // Arabic preview (first ~60 chars of arabic_text)
+        const arabicEl = document.getElementById('selectedHadithArabicPreview');
+        if (arabicEl) {
+            const ar = (meta.arabic_text || '').trim();
+            arabicEl.textContent = ar ? (ar.length > 80 ? ar.slice(0, 80) + '…' : ar) : '';
+        }
+        // English snippet (card_text or translation_text, truncated)
+        const textEl = document.getElementById('selectedHadithTextPreview');
+        if (textEl) {
+            const en = (meta.card_text || meta.translation_text || '').trim();
+            textEl.textContent = en ? (en.length > 110 ? en.slice(0, 110) + '…' : en) : '';
+        }
+    }
+
+
     async function searchQuran() {
         const query = document.getElementById('studioTopic').value;
         const resultsArea = document.getElementById('quranSearchResults');
@@ -189,8 +314,10 @@ STUDIO_SCRIPTS_JS = """
     window.selectedAyahMetadata = null;
     function selectAyah(id, title, text) {
         selectedAyahId = id;
+        selectedHadithId = null;
         window.selectedAyahMetadata = { reference: title, translation_text: text, id: id };
         document.getElementById('selectedAyahBadge').classList.remove('hidden');
+        document.getElementById('selectedHadithBadge').classList.add('hidden');
         document.getElementById('selectedAyahTitle').innerText = title;
         document.getElementById('quranSearchResults').classList.add('hidden');
         document.getElementById('studioTopic').value = title;
@@ -204,8 +331,8 @@ STUDIO_SCRIPTS_JS = """
         const icon = btn.querySelector('.btn-icon');
         const text = btn.querySelector('.btn-text');
 
-        if (!topic && !selectedAyahId) {
-            alert('Please define a topic or select a verse.');
+        if (!topic && !selectedAyahId && !selectedHadithId) {
+            alert('Please define a topic or select a source.');
             return;
         }
 
@@ -214,9 +341,13 @@ STUDIO_SCRIPTS_JS = """
         if(text) text.innerText = 'Architecting Message...';
 
         try {
+            let sourceType = 'manual';
+            if (selectedAyahId) sourceType = 'quran';
+            else if (selectedHadithId) sourceType = 'hadith';
+
             const payload = {
-                source_type: selectedAyahId ? 'quran' : 'manual',
-                source_payload: selectedAyahId ? window.selectedAyahMetadata : { text: topic, reference: topic },
+                source_type: sourceType,
+                source_payload: selectedAyahId ? window.selectedAyahMetadata : (selectedHadithId ? window.selectedHadithMetadata : { text: topic, reference: topic }),
                 tone: tone,
                 intent: intention
             };
@@ -306,15 +437,28 @@ STUDIO_SCRIPTS_JS = """
         const btn = document.getElementById('btnGenerateCaption');
         const icon = btn.querySelector('.btn-icon');
         const text = btn.querySelector('.btn-text');
-        
+
         btn.disabled = true;
         if(icon) icon.classList.add('animate-spin');
         if(text) text.innerText = 'Crafting Social Presence...';
 
         try {
+            // Determine correct source type and payload
+            let srcType = 'manual';
+            let srcPayload = { text: studioCardMessage ? studioCardMessage.headline : '' };
+
+            if (selectedHadithId && window.selectedHadithMetadata) {
+                // Hadith: pass full metadata so caption is grounded in exact Hadith text
+                srcType = 'hadith';
+                srcPayload = window.selectedHadithMetadata;
+            } else if (selectedAyahId && window.selectedAyahMetadata) {
+                srcType = 'quran';
+                srcPayload = window.selectedAyahMetadata;
+            }
+
             const payload = {
-                source_type: selectedAyahId ? 'quran' : 'manual',
-                source_payload: selectedAyahId ? window.selectedAyahMetadata : { text: studioCardMessage.headline },
+                source_type: srcType,
+                source_payload: srcPayload,
                 topic: document.getElementById('studioTopic').value,
                 tone: document.getElementById('studioTone').value,
                 intent: document.getElementById('studioIntent').value
@@ -326,10 +470,16 @@ STUDIO_SCRIPTS_JS = """
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
+            // Handle both structured caption_message and plain caption string
             if (data.caption_message) {
                 studioCaptionMessage = data.caption_message;
-                const fullText = `${studioCaptionMessage.hook}\\n\\n${studioCaptionMessage.body}\\n\\n${studioCaptionMessage.cta}\\n\\n${studioCaptionMessage.hashtags}`;
-                document.getElementById('studioCaption').value = fullText;
+                const fullText = `${studioCaptionMessage.hook || ''}\n\n${studioCaptionMessage.body || ''}\n\n${studioCaptionMessage.cta || ''}\n\n${(studioCaptionMessage.hashtags || []).join(' ')}`;
+                document.getElementById('studioCaption').value = fullText.trim();
+                document.getElementById('captionResultArea').classList.remove('hidden');
+            } else if (data.caption) {
+                // Plain string caption from Hadith / fallback path
+                studioCaptionMessage = { caption: data.caption };
+                document.getElementById('studioCaption').value = data.caption;
                 document.getElementById('captionResultArea').classList.remove('hidden');
             }
         } catch (e) {
@@ -435,12 +585,27 @@ STUDIO_SCRIPTS_JS = """
         const accountId = document.getElementById('studioAccount').value;
         const topicVal = document.getElementById('studioTopic').value;
 
+        // ── Determine source type and metadata ──────────────────────────────────
+        let srcType = 'manual';
+        let srcReference = topicVal;
+        let srcMetadata = null;
+
+        if (selectedHadithId && window.selectedHadithMetadata) {
+            srcType = 'hadith';
+            srcReference = window.selectedHadithMetadata.reference || topicVal;
+            srcMetadata = window.selectedHadithMetadata;
+        } else if (selectedAyahId && window.selectedAyahMetadata) {
+            srcType = 'quran';
+            srcReference = window.selectedAyahMetadata.reference || topicVal;
+            srcMetadata = window.selectedAyahMetadata;
+        }
+
         const reqPayload = {
             ig_account_id: parseInt(accountId, 10),
             visual_mode: 'quote_card',
-            source_type: selectedAyahId ? 'quran' : 'manual',
-            source_reference: selectedAyahId && window.selectedAyahMetadata ? window.selectedAyahMetadata.reference : topicVal,
-            source_metadata: selectedAyahId ? window.selectedAyahMetadata : null,
+            source_type: srcType,
+            source_reference: srcReference,
+            source_metadata: srcMetadata,
             topic: topicVal,
             card_message: studioCardMessage,
             caption_message: studioCaptionMessage,
@@ -479,6 +644,10 @@ STUDIO_SCRIPTS_JS = """
                     openNewPostModal();
                     if (item.type === 'quran_verse' || item.type === 'quran') {
                         selectAyah(item.id, item.reference, item.translation_text);
+                    } else if (item.type === 'hadith' || item.source_type === 'hadith') {
+                        // Switch source tab to Hadith and load the item
+                        if (typeof switchSourceTab === 'function') switchSourceTab('hadith');
+                        _applyHadithSelection(item);
                     } else if (item.type === 'quote') {
                         const topicInput = document.getElementById('studioTopic');
                         if (topicInput) topicInput.value = item.text || item.translation_text || item.reference;
@@ -1154,15 +1323,21 @@ STUDIO_COMPONENTS_HTML = """
             <div>
               <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 1</label>
               <h4 class="text-3xl font-bold text-brand italic">Ignite the Spark</h4>
-              <p class="text-xs text-text-muted mt-2 font-medium">Search the Qur'an or define a topic to build your card's central message.</p>
+              <p class="text-xs text-text-muted mt-2 font-medium">Search the Qur'an or Hadith to build your card's central message.</p>
             </div>
 
             <div class="space-y-8">
                 <div class="space-y-4">
                     <div class="space-y-3">
-                       <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Foundation Source</label>
+                       <div class="flex items-center justify-between mb-2">
+                           <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Foundation Source</label>
+                           <div class="flex gap-1 bg-brand/5 p-1 rounded-xl">
+                               <button type="button" id="tabBtnQuran" onclick="switchSourceTab('quran')" class="px-4 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-brand text-white transition-all">Qur'an</button>
+                               <button type="button" id="tabBtnHadith" onclick="switchSourceTab('hadith')" class="px-4 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-brand/5 text-brand hover:bg-brand/10 transition-all">Hadith</button>
+                           </div>
+                       </div>
                        <div class="relative">
-                            <input type="text" id="studioTopic" name="topic" oninput="searchQuran()" placeholder="e.g. Patience, 70:5, or Gratitude..." class="w-full bg-cream/20 border border-brand/5 rounded-2xl px-8 py-6 text-sm font-medium text-brand outline-none focus:border-brand/20 transition-all shadow-inner">
+                            <input type="text" id="studioTopic" name="topic" oninput="onSourceInput()" placeholder="e.g. Patience, 70:5, or Gratitude..." class="w-full bg-cream/20 border border-brand/5 rounded-2xl px-8 py-6 text-sm font-medium text-brand outline-none focus:border-brand/20 transition-all shadow-inner">
                             <div class="absolute right-6 top-1/2 -translate-y-1/2 text-brand/20">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                             </div>
@@ -1175,12 +1350,28 @@ STUDIO_COMPONENTS_HTML = """
                         </select>
                     </div>
                     <div id="quranSearchResults" class="hidden max-h-48 overflow-y-auto bg-white border border-brand/10 rounded-2xl shadow-xl custom-scrollbar z-[120]"></div>
+                    <div id="hadithSearchResults" class="hidden max-h-48 overflow-y-auto bg-white border border-brand/10 rounded-2xl shadow-xl custom-scrollbar z-[120]"></div>
+                    
                     <div id="selectedAyahBadge" class="hidden p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between shadow-sm">
                         <div class="flex items-center gap-3">
                             <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                             <span id="selectedAyahTitle" class="text-[10px] font-black text-emerald-800 uppercase tracking-widest"></span>
                         </div>
                         <button type="button" onclick="selectedAyahId=null; document.getElementById('selectedAyahBadge').classList.add('hidden');" class="text-[8px] font-bold text-emerald-600 uppercase hover:underline">Change</button>
+                    </div>
+
+                    <div id="selectedHadithBadge" class="hidden p-4 bg-accent/5 border border-accent/20 rounded-2xl shadow-sm">
+                        <div class="flex items-start justify-between gap-3">
+                          <div class="flex items-start gap-3 min-w-0">
+                            <div class="w-2 h-2 rounded-full bg-accent animate-pulse mt-1 shrink-0"></div>
+                            <div class="min-w-0">
+                              <span id="selectedHadithTitle" class="block text-[10px] font-black text-brand uppercase tracking-widest truncate"></span>
+                              <span id="selectedHadithArabicPreview" class="block text-[13px] text-brand/60 mt-1 leading-relaxed font-normal" style="font-family:'Amiri',serif;direction:rtl;text-align:right;"></span>
+                              <span id="selectedHadithTextPreview" class="block text-[9px] text-brand/45 mt-0.5 italic line-clamp-2"></span>
+                            </div>
+                          </div>
+                          <button type="button" onclick="selectedHadithId=null; window.selectedHadithMetadata=null; document.getElementById('selectedHadithBadge').classList.add('hidden');" class="text-[8px] font-bold text-brand uppercase hover:underline shrink-0">Change</button>
+                        </div>
                     </div>
                 </div>
                 <div class="pt-4">

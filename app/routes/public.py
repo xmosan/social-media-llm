@@ -803,71 +803,208 @@ COMING_SOON_HTML = """<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Coming Soon | Sabeel Studio</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root { --primary: #0F3D2E; --bg-cream: #F8F6F2; --accent: #C9A96E; --text-muted: #4A4A4A; }
-    body { font-family: 'Inter', sans-serif; background-color: var(--bg-cream); color: #1A1A1A; }
-    .btn-primary { background-color: var(--primary); color: white; transition: all 0.3s ease; }
-    .btn-primary:hover { background-color: #0a2d22; transform: translateY(-2px); }
+    :root {
+      --primary: #0D3D2E;
+      --primary-soft: rgba(13, 61, 46, 0.05);
+      --bg-ivory: #FDFCF9;
+      --accent: #C9A96E;
+      --accent-glow: rgba(201, 169, 110, 0.2);
+      --text-main: #1A1A1A;
+      --text-muted: #6B7280;
+    }
+    body { 
+      font-family: 'Inter', sans-serif; 
+      background-color: var(--bg-ivory); 
+      color: var(--text-main);
+      overflow-x: hidden;
+    }
+    .premium-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 140%;
+      height: 140%;
+      background: radial-gradient(circle at center, var(--primary-soft) 0%, transparent 70%);
+      z-index: -1;
+      pointer-events: none;
+    }
+    .btn-premium {
+      background: var(--primary);
+      color: white;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 10px 25px -5px rgba(13, 61, 46, 0.2);
+    }
+    .btn-premium:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 30px -5px rgba(13, 61, 46, 0.3), 0 0 15px var(--accent-glow);
+      background: #0a3326;
+    }
+    .btn-premium:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .input-premium {
+      background: white;
+      border: 1px solid rgba(13, 61, 46, 0.08);
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+    }
+    .input-premium:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px var(--primary-soft);
+      outline: none;
+    }
+    .underline-accent {
+      position: relative;
+      display: inline-block;
+    }
+    .underline-accent::after {
+      content: '';
+      position: absolute;
+      bottom: 4px;
+      left: 0;
+      width: 100%;
+      height: 8px;
+      background: var(--accent);
+      opacity: 0.2;
+      z-index: -1;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-6 text-center">
-  <div class="max-w-2xl w-full space-y-12">
-    <div class="flex flex-col items-center">
-      <div class="text-3xl font-extrabold tracking-tighter text-primary">SABEEL</div>
-      <div class="text-[10px] font-bold text-primary uppercase tracking-[0.3em] pl-1">Studio</div>
+<body class="min-h-screen flex items-center justify-center p-6 text-center relative">
+  <div class="premium-glow"></div>
+  
+  <div class="max-w-3xl w-full space-y-12 animate-fade-in">
+    <!-- Logo -->
+    <div class="flex flex-col items-center space-y-1">
+      <div class="text-3xl font-extrabold tracking-tighter text-[var(--primary)]">SABEEL</div>
+      <div class="text-[10px] font-bold text-[var(--primary)] uppercase tracking-[0.4em] pl-1.5 opacity-80">Studio</div>
     </div>
+
+    <!-- Content -->
     <div class="space-y-6">
-      <h1 class="text-5xl md:text-7xl font-black tracking-tight text-primary">Something <span class="text-accent underline decoration-accent/30 underline-offset-8">Meaningful</span> is coming.</h1>
-      <p class="text-text-muted text-lg font-medium italic opacity-80">Authentic Islamic content creation, grounded in truth. We're refining the engine.</p>
+      <h1 class="text-5xl md:text-7xl font-black tracking-tight text-[var(--primary)] leading-[1.1]">
+        Something <span class="underline-accent">Meaningful</span> <br class="hidden md:block"/> is coming.
+      </h1>
+      <p class="max-w-xl mx-auto text-[var(--text-muted)] text-lg md:text-xl font-medium italic opacity-90 leading-relaxed">
+        Authentic Islamic content creation, grounded in truth. <br class="hidden md:block"/> We're refining the engine.
+      </p>
     </div>
-    <div class="max-w-md mx-auto w-full flex gap-3">
-        <input type="email" id="waitlistEmail" placeholder="Enter your email" class="flex-1 bg-white border border-gray-100 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-primary transition-all shadow-sm">
-        <button id="waitlistBtn" onclick="submitToWaitlist()" class="btn-primary px-8 py-4 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-xl shadow-primary/10 transition-all">Notify Me</button>
+
+    <!-- Waitlist Form -->
+    <div class="max-w-lg mx-auto w-full">
+      <div class="flex flex-col sm:flex-row gap-3 p-2 bg-white/40 backdrop-blur-sm rounded-[2rem] border border-white/60 shadow-xl shadow-black/[0.02]">
+        <input type="email" id="waitlistEmail" placeholder="Enter your email" class="input-premium flex-1 px-8 py-5 rounded-[1.5rem] text-sm font-medium">
+        <button id="waitlistBtn" onclick="submitToWaitlist()" class="btn-premium px-10 py-5 rounded-[1.5rem] font-bold text-xs uppercase tracking-widest transition-all">Notify Me</button>
+      </div>
+      
+      <!-- Success/Error Message Container -->
+      <div id="waitlistStatus" class="hidden transition-all duration-300">
+        <div id="statusContent" class="inline-flex items-center gap-2 mt-6 px-5 py-3 rounded-full text-xs font-bold shadow-sm">
+          <!-- Icon injected by JS -->
+          <span id="statusText"></span>
+        </div>
+      </div>
     </div>
-    <div id="waitlistStatus" class="hidden text-xs font-bold pt-4"></div>
-    <footer class="pt-12 border-t border-primary/5 text-[10px] font-bold uppercase tracking-widest text-text-muted/40">© 2026 Sabeel Studio</footer>
+
+    <!-- Footer -->
+    <footer class="pt-16">
+      <div class="flex items-center justify-center gap-4 mb-8">
+        <div class="h-px w-8 bg-[var(--primary)] opacity-10"></div>
+        <div class="text-[10px] font-bold uppercase tracking-[0.3em] text-[var(--primary)] opacity-40 italic">Coming April 2026</div>
+        <div class="h-px w-8 bg-[var(--primary)] opacity-10"></div>
+      </div>
+      <p class="text-[10px] font-bold uppercase tracking-widest text-[var(--text-muted)] opacity-30">&copy; 2026 Sabeel Studio &bull; Grounded in Truth</p>
+    </footer>
   </div>
 
   <script>
     async function submitToWaitlist() {
       const emailInput = document.getElementById('waitlistEmail');
       const btn = document.getElementById('waitlistBtn');
-      const status = document.getElementById('waitlistStatus');
+      const statusContainer = document.getElementById('waitlistStatus');
+      const statusContent = document.getElementById('statusContent');
+      const statusText = document.getElementById('statusText');
       const email = emailInput.value.trim();
 
-      if (!email) return;
+      // Reset state
+      statusContainer.classList.add('hidden');
+      
+      if (!email) {
+        showStatus("Please enter your email address.", "error");
+        return;
+      }
+
+      // Basic regex check before posting
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        showStatus("Please enter a valid email address.", "error");
+        return;
+      }
 
       try {
         btn.disabled = true;
-        btn.textContent = "WAIT...";
+        btn.textContent = "JOINING...";
         
         const res = await fetch('/api/waitlist/join', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email, source: "homepage" })
+          body: JSON.stringify({ 
+            email: email.toLowerCase(), 
+            name: "",
+            source: "coming_soon",
+            wants_updates: true
+          })
         });
 
         const data = await res.json();
         
-        status.classList.remove('hidden');
         if (res.ok) {
-          status.textContent = data.message || "You're on the list!";
-          status.className = "text-xs font-bold pt-4 text-emerald-600";
-          emailInput.value = "";
+          if (data.already_exists) {
+            showStatus("You're already on the waitlist.", "info");
+          } else {
+            showStatus("You're on the list — we'll keep you updated.", "success");
+            emailInput.value = "";
+          }
           btn.textContent = "DONE";
         } else {
-          status.textContent = data.detail || "Error joining list.";
-          status.className = "text-xs font-bold pt-4 text-rose-500";
+          // Handle 422 or other backend errors
+          const msg = data.detail || "Something went wrong. Please try again.";
+          showStatus(msg === "value_error.email" ? "Please enter a valid email address." : msg, "error");
           btn.textContent = "NOTIFY ME";
           btn.disabled = false;
         }
       } catch (err) {
-        status.textContent = "Connection error.";
-        status.className = "text-xs font-bold pt-4 text-rose-500";
-        status.classList.remove('hidden');
+        showStatus("Something went wrong. Please try again.", "error");
         btn.disabled = false;
         btn.textContent = "NOTIFY ME";
+      }
+    }
+
+    function showStatus(text, type) {
+      const statusContainer = document.getElementById('waitlistStatus');
+      const statusContent = document.getElementById('statusContent');
+      const statusText = document.getElementById('statusText');
+      
+      statusText.textContent = text;
+      statusContainer.classList.remove('hidden');
+      
+      if (type === "success") {
+        statusContent.className = "inline-flex items-center gap-2 mt-6 px-5 py-3 rounded-full text-xs font-bold shadow-sm bg-emerald-50 text-emerald-700 border border-emerald-100";
+      } else if (type === "info") {
+        statusContent.className = "inline-flex items-center gap-2 mt-6 px-5 py-3 rounded-full text-xs font-bold shadow-sm bg-amber-50 text-amber-700 border border-amber-100";
+      } else {
+        statusContent.className = "inline-flex items-center gap-2 mt-6 px-5 py-3 rounded-full text-xs font-bold shadow-sm bg-rose-50 text-rose-700 border border-rose-100";
       }
     }
   </script>

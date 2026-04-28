@@ -1,5 +1,5 @@
-# Sabeel Knowledge Library: Neural Hub (v3.0 — Quran Browser Edition)
-# Isolated Router with dedicated Quran browsing experience.
+# Sabeel Knowledge Library: Neural Hub (v3.1 — Hadith Edition)
+# Isolated Router with dedicated Quran + Hadith browsing experience.
 
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse
@@ -15,6 +15,7 @@ LIBRARY_HTML = """\
 <!-- ===== TAB NAVIGATION ===== -->
 <div class="flex items-center gap-1 mb-10 border-b border-brand/8 pb-0">
   <button onclick="LibHub.setTab('quran')" id="tab-quran" class="lib-tab active px-6 py-4 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all">Qur'an</button>
+  <button onclick="LibHub.setTab('hadith')" id="tab-hadith" class="lib-tab px-6 py-4 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all">Hadith</button>
   <button onclick="LibHub.setTab('wisdom')" id="tab-wisdom" class="lib-tab px-6 py-4 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all">Wisdom</button>
   <button onclick="LibHub.setTab('org')" id="tab-org" class="lib-tab px-6 py-4 text-[11px] font-black uppercase tracking-widest border-b-2 transition-all">Organization</button>
 </div>
@@ -78,8 +79,52 @@ LIBRARY_HTML = """\
   </div>
 </div>
 
+<!-- ===== HADITH TAB ===== -->
+<div id="panel-hadith" class="lib-panel hidden">
+  <div class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-3 mb-2">
+        <span class="text-[9px] font-black uppercase tracking-[0.4em] text-brand/40">Prophetic Tradition</span>
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block"></span>
+        <span class="text-[9px] font-black uppercase tracking-widest text-amber-700">Live · sunnah.now</span>
+      </div>
+      <h1 class="text-5xl font-black text-brand tracking-tighter italic">The Hadith Library</h1>
+      <p class="text-sm text-text-muted mt-2 italic">Verified Hadith from the six canonical collections</p>
+    </div>
+    <div class="relative w-full md:w-96">
+      <input type="text" id="hadithLibSearch" oninput="HadithLib.onSearch()" placeholder="Search Hadith by keyword (e.g. intention, patience)..." class="w-full bg-white border border-brand/10 rounded-2xl pl-10 pr-10 py-3 text-sm font-medium text-brand outline-none focus:border-brand/30 transition-all placeholder:text-brand/25 shadow-sm">
+      <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand/25" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-width="2" stroke-linecap="round"/></svg>
+      <button onclick="HadithLib.clearSearch()" id="hadithLibSearchClear" class="absolute right-3 top-1/2 -translate-y-1/2 hidden text-brand/30 hover:text-brand transition-colors text-xl leading-none">&times;</button>
+    </div>
+  </div>
+
+  <!-- Collection Filter Chips -->
+  <div class="flex flex-wrap gap-2 mb-8">
+    <button onclick="HadithLib.setCollection(null, this)" id="hadithChipAll" class="hadith-chip active px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all">All Collections</button>
+    <button onclick="HadithLib.setCollection('bukhari', this)" id="hadithChipBukhari" class="hadith-chip px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all">Sahih al-Bukhari</button>
+    <button onclick="HadithLib.setCollection('muslim', this)" id="hadithChipMuslim" class="hadith-chip px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all">Sahih Muslim</button>
+    <button onclick="HadithLib.setCollection('abudawud', this)" id="hadithChipAbudawud" class="hadith-chip px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all">Abu Dawud</button>
+    <button onclick="HadithLib.setCollection('tirmidhi', this)" id="hadithChipTirmidhi" class="hadith-chip px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all">Tirmidhi</button>
+    <button onclick="HadithLib.setCollection('nasai', this)" id="hadithChipNasai" class="hadith-chip px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all">An-Nasa'i</button>
+    <button onclick="HadithLib.setCollection('ibnmajah', this)" id="hadithChipIbnmajah" class="hadith-chip px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-all">Ibn Majah</button>
+  </div>
+
+  <!-- Status Bar -->
+  <div id="hadithLibStatus" class="hidden mb-4 text-[10px] font-bold text-brand/50 uppercase tracking-widest"></div>
+
+  <!-- Results Grid -->
+  <div id="hadithLibGrid" class="space-y-4">
+    <div class="py-20 text-center">
+      <div class="text-4xl mb-4">📜</div>
+      <div class="text-sm font-bold uppercase tracking-widest text-brand/20">Search Hadith to Begin</div>
+      <div class="text-xs text-brand/15 mt-1 italic">Type a keyword above to explore the prophetic tradition</div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== WISDOM TAB ===== -->
 <div id="panel-wisdom" class="lib-panel hidden">
+
   <div class="mb-8">
     <h1 class="text-5xl font-black text-brand tracking-tighter italic mb-2">Wisdom Archive</h1>
     <p class="text-sm text-text-muted italic">Curated quotes, hadith, and reflections</p>
@@ -136,6 +181,23 @@ LIBRARY_HTML = """\
   .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(15,61,46,0.15); border-radius: 4px; }
   .wisdom-card { background: white; border: 1px solid rgba(15,61,46,0.08); border-radius: 16px; padding: 24px; transition: all 200ms ease; }
   .wisdom-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(15,61,46,0.08); }
+  /* ── Hadith Library ── */
+  .hadith-chip { background: rgba(15,61,46,0.04); border-color: rgba(15,61,46,0.10); color: rgba(15,61,46,0.45); }
+  .hadith-chip:hover { background: rgba(15,61,46,0.08); color: var(--brand); border-color: rgba(15,61,46,0.25); }
+  .hadith-chip.active { background: var(--brand); color: white; border-color: var(--brand); }
+  .hadith-card { background: white; border: 1px solid rgba(15,61,46,0.08); border-radius: 20px; overflow: hidden; transition: box-shadow 200ms ease, transform 200ms ease; }
+  .hadith-card:hover { box-shadow: 0 6px 28px rgba(15,61,46,0.09); transform: translateY(-2px); }
+  .hadith-arabic { font-family: 'Amiri', 'Scheherazade New', 'Noto Naskh Arabic', serif; font-size: 22px; line-height: 2.1; text-align: right; direction: rtl; color: #1a3a2e; padding: 20px 24px 12px; border-bottom: 1px solid rgba(15,61,46,0.06); background: rgba(15,61,46,0.015); }
+  .hadith-body { padding: 16px 24px; }
+  .hadith-translation { font-size: 14px; line-height: 1.8; color: #4a5568; font-style: italic; margin-bottom: 0; }
+  .hadith-translation.collapsed { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .hadith-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; justify-content: space-between; padding: 12px 24px; border-top: 1px solid rgba(15,61,46,0.05); background: rgba(15,61,46,0.012); }
+  .hadith-ref { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.2em; color: rgba(15,61,46,0.5); }
+  .hadith-narrator { font-size: 9px; font-weight: 700; color: #6d5a2c; background: rgba(218,165,32,0.10); border: 1px solid rgba(218,165,32,0.25); border-radius: 20px; padding: 2px 8px; }
+  .hadith-grade { font-size: 9px; font-weight: 700; color: #1a6b3a; background: rgba(26,107,58,0.08); border: 1px solid rgba(26,107,58,0.2); border-radius: 20px; padding: 2px 8px; }
+  .hadith-expand-btn { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; color: var(--brand); background: none; border: none; cursor: pointer; padding: 0; opacity: 0.7; }
+  .hadith-expand-btn:hover { opacity: 1; text-decoration: underline; }
+  .hadith-actions { display: flex; gap: 6px; }
   @import url('https://fonts.googleapis.com/css2?family=Amiri:ital@0;1&display=swap');
 </style>
 
@@ -149,8 +211,172 @@ window.LibHub = {
     document.querySelectorAll('.lib-panel').forEach(p => p.classList.add('hidden'));
     document.getElementById('panel-' + id).classList.remove('hidden');
     if (id === 'quran' && !QuranBrowser._loaded) QuranBrowser.init();
+    if (id === 'hadith' && !HadithLib._loaded) HadithLib.init();
     if (id === 'wisdom' && !WisdomLib._loaded) WisdomLib.init();
     if (id === 'org' && !OrgLib._loaded) OrgLib.init();
+  }
+};
+
+// ── HADITH LIBRARY ──────────────────────────────────────────────────────────
+window.HadithLib = {
+  _loaded: false,
+  _searchTimer: null,
+  _activeCollection: null,
+  _lastQuery: '',
+  _expanded: {},  // card uid → boolean
+
+  init() {
+    this._loaded = true;
+    // Pre-warm with a broad search so the tab isn't empty
+    // (only fires once; user can change it)
+  },
+
+  setCollection(key, btn) {
+    this._activeCollection = key;
+    document.querySelectorAll('.hadith-chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    const q = (document.getElementById('hadithLibSearch').value || '').trim();
+    if (q.length >= 2) this.runSearch(q);
+  },
+
+  onSearch() {
+    const q = (document.getElementById('hadithLibSearch').value || '').trim();
+    document.getElementById('hadithLibSearchClear').classList.toggle('hidden', !q);
+    clearTimeout(this._searchTimer);
+    if (!q || q.length < 2) { return; }
+    this._searchTimer = setTimeout(() => this.runSearch(q), 450);
+  },
+
+  clearSearch() {
+    document.getElementById('hadithLibSearch').value = '';
+    document.getElementById('hadithLibSearchClear').classList.add('hidden');
+    document.getElementById('hadithLibStatus').classList.add('hidden');
+    document.getElementById('hadithLibGrid').innerHTML = `
+      <div class="py-20 text-center">
+        <div class="text-4xl mb-4">📜</div>
+        <div class="text-sm font-bold uppercase tracking-widest text-brand/20">Search Hadith to Begin</div>
+        <div class="text-xs text-brand/15 mt-1 italic">Type a keyword above to explore the prophetic tradition</div>
+      </div>`;
+  },
+
+  async runSearch(q) {
+    this._lastQuery = q;
+    const grid = document.getElementById('hadithLibGrid');
+    const status = document.getElementById('hadithLibStatus');
+    grid.innerHTML = '<div class="py-16 text-center text-brand/20 text-xs animate-pulse uppercase tracking-widest">Searching Prophetic Tradition…</div>';
+    status.classList.add('hidden');
+    try {
+      let url = `/api/library/hadith/search?query=${encodeURIComponent(q)}&limit=15`;
+      if (this._activeCollection) url += `&collection=${encodeURIComponent(this._activeCollection)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      const items = (data && data.items) ? data.items : [];
+
+      status.textContent = items.length
+        ? `${items.length} result${items.length !== 1 ? 's' : ''} for "${q}"` + (this._activeCollection ? ` · ${this._activeCollection}` : '')
+        : '';
+      status.classList.toggle('hidden', !items.length);
+
+      if (!items.length) {
+        grid.innerHTML = `<div class="py-16 text-center"><div class="text-3xl mb-3">🔍</div><div class="text-sm font-bold text-brand/25 uppercase tracking-widest">No Hadith found for "${q}"</div><div class="text-xs text-brand/15 mt-1 italic">Try a different keyword or broaden the collection</div></div>`;
+        return;
+      }
+
+      grid.innerHTML = items.map((h, i) => this.renderCard(h, i)).join('');
+    } catch(e) {
+      grid.innerHTML = '<div class="py-16 text-center text-rose-400 text-sm">Failed to load Hadith results. Please try again.</div>';
+      console.error('[HadithLib] search error:', e);
+    }
+  },
+
+  renderCard(h, idx) {
+    const uid = `hl_${idx}_${h.hadith_number || idx}`;
+    const ref = (h.reference || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    const collection = (h.collection || '').replace(/</g, '&lt;');
+    const arabic = (h.arabic_text || '').replace(/</g, '&lt;');
+    const fullText = (h.translation_text || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    const cardText = (h.card_text || fullText);
+    const isLong = h.was_excerpted || (h.translation_text || '').length > 400;
+    const narrator = (h.narrator || '').replace(/</g, '&lt;');
+    const grade = (h.grade || '').replace(/</g, '&lt;');
+    const hadithNum = h.hadith_number || '';
+    const apiSrc = (h.api_source || '').replace(/</g, '&lt;');
+
+    // Data attrs carry the full metadata for the quote-card bridge
+    const metaJson = JSON.stringify({
+      source_type: 'hadith',
+      type: 'hadith',
+      collection: h.collection || '',
+      collection_key: h.collection_key || '',
+      reference: h.reference || '',
+      hadith_number: hadithNum,
+      arabic_text: h.arabic_text || '',
+      translation_text: h.translation_text || '',
+      card_text: h.card_text || '',
+      narrator: h.narrator || null,
+      grade: h.grade || null,
+      api_source: h.api_source || '',
+      was_excerpted: !!h.was_excerpted
+    }).replace(/"/g, '&quot;');
+
+    return [
+      `<div class="hadith-card" id="${uid}">`,
+        arabic ? `<div class="hadith-arabic">${arabic}</div>` : '',
+        `<div class="hadith-body">`,
+          isLong
+            ? `<div class="hadith-translation collapsed" id="${uid}_text">${fullText}</div>
+               <button class="hadith-expand-btn mt-2" id="${uid}_btn" onclick="HadithLib.toggleExpand('${uid}')">Show more ↓</button>`
+            : `<div class="hadith-translation">${fullText}</div>`,
+        `</div>`,
+        `<div class="hadith-footer">`,
+          `<div class="flex items-center flex-wrap gap-2">`,
+            `<span class="hadith-ref">${ref}</span>`,
+            narrator ? `<span class="hadith-narrator">🎙 ${narrator}</span>` : '',
+            grade   ? `<span class="hadith-grade">✓ ${grade}</span>` : '',
+          `</div>`,
+          `<div class="hadith-actions">`,
+            `<button class="btn-copy" data-ref="${ref}" data-text="${(h.translation_text||'').replace(/"/g,'&quot;')}" onclick="HadithLib.handleCopy(this)">Copy</button>`,
+            `<button class="btn-use" data-meta="${metaJson}" onclick="HadithLib.useInStudio(this)">Use in Quote Card</button>`,
+          `</div>`,
+        `</div>`,
+      `</div>`
+    ].join('');
+  },
+
+  toggleExpand(uid) {
+    const textEl = document.getElementById(uid + '_text');
+    const btn = document.getElementById(uid + '_btn');
+    if (!textEl || !btn) return;
+    this._expanded[uid] = !this._expanded[uid];
+    if (this._expanded[uid]) {
+      textEl.classList.remove('collapsed');
+      btn.textContent = 'Show less ↑';
+    } else {
+      textEl.classList.add('collapsed');
+      btn.textContent = 'Show more ↓';
+    }
+  },
+
+  handleCopy(btn) {
+    const ref  = btn.getAttribute('data-ref');
+    const text = btn.getAttribute('data-text');
+    const full = '\u201c' + text + '\u201d \u2014 ' + ref;
+    navigator.clipboard.writeText(full).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = orig, 1500);
+    }).catch(() => {});
+  },
+
+  useInStudio(btn) {
+    try {
+      const raw = btn.getAttribute('data-meta');
+      const meta = JSON.parse(raw.replace(/&quot;/g, '"'));
+      sessionStorage.setItem('sabeel_pending_quote_item', JSON.stringify(meta));
+      window.location.href = '/app?studio=true';
+    } catch(e) {
+      console.error('[HadithLib] useInStudio parse error:', e);
+    }
   }
 };
 

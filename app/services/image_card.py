@@ -16,6 +16,8 @@ ZONE_SIZES = {
     "kaaba":      (36, 70, 50),
     "laylulqadr": (34, 64, 46),
     "custom":     (36, 68, 48),  # default — overridden by palette in renderer
+    # Hadith: slightly smaller base sizes — Hadith text often longer than Quran ayahs
+    "hadith":     (34, 60, 42),
 }
 
 
@@ -47,10 +49,26 @@ def generate_quote_card(
     if style == "custom":
         mode = "custom"
 
+    # ── Determine zone sizes ──────────────────────────────────────────────────
+    # Use 'hadith' sizes when card_message signals a Hadith source
+    is_hadith = bool(
+        card_message and (
+            card_message.get("hadith_collection")
+            or card_message.get("hadith_narrator")
+            or card_message.get("was_excerpted") is not None
+        )
+    )
+    key = "hadith" if is_hadith else (style if style in ZONE_SIZES else "quran")
+    sizes = list(ZONE_SIZES[key])  # mutable copy
+
+    # If this hadith was excerpted (long text truncated at sentence boundary),
+    # reduce the headline zone size by ~10% so the excerpt fits comfortably
+    if is_hadith and card_message and card_message.get("was_excerpted"):
+        sizes[1] = max(44, int(sizes[1] * 0.90))
+        print(f"📏 [ImageCard] was_excerpted=True — headline size reduced to {sizes[1]}")
+
     # ── Parse caption into logical zones ──────────────────────────────────────
     segments = []
-    key   = style if style in ZONE_SIZES else "quran"
-    sizes = ZONE_SIZES[key]
 
     if card_message:
         print(f"📦 [ImageCard] Using structured card_message")
