@@ -364,10 +364,15 @@ STUDIO_SCRIPTS_JS = """
             resultsArea.innerHTML = data.map(v => {
                 const ref = v.reference || v.title || '';
                 const txt = v.translation_text || v.text || '';
-                const safeRef = ref.replace(/'/g, "\\'");
-                const safeTxt = txt.replace(/'/g, "\\'");
+                
+                const metaJson = JSON.stringify({
+                    id: v.id,
+                    reference: ref,
+                    translation_text: txt
+                }).replace(/"/g, '&quot;');
+                
                 return `
-                <div onclick="selectAyah('${v.id}', '${safeRef}', '${safeTxt}')" class="p-4 border-b border-brand/5 hover:bg-brand/5 cursor-pointer transition-all">
+                <div data-meta="${metaJson}" onclick="selectAyahFromEl(this)" class="p-4 border-b border-brand/5 hover:bg-brand/5 cursor-pointer transition-all">
                     <div class="flex justify-between items-start mb-1">
                         <span class="text-[8px] font-black text-brand uppercase tracking-widest">${ref}</span>
                     </div>
@@ -381,6 +386,17 @@ STUDIO_SCRIPTS_JS = """
     }
 
     window.selectedAyahMetadata = null;
+
+    function selectAyahFromEl(el) {
+        try {
+            const raw = el.getAttribute('data-meta');
+            const meta = JSON.parse(raw.replace(/&quot;/g, '"'));
+            selectAyah(meta.id, meta.reference, meta.translation_text);
+        } catch(e) {
+            console.error('[Studio] selectAyahFromEl parse error:', e);
+        }
+    }
+
     function selectAyah(id, title, text) {
         selectedAyahId = id;
         selectedHadithId = null;
