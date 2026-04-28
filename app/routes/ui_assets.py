@@ -59,6 +59,10 @@ STUDIO_SCRIPTS_JS = """
     let selectedAyahId     = null;
     let selectedHadithId   = null;
     let activeSourceTab    = 'quran'; // quran or hadith
+    
+    // Helpers
+    const hide = (id) => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); };
+    const show = (id) => { const el = document.getElementById(id); if(el) el.classList.remove('hidden'); };
 
     // Structured State
     let studioCardMessage = null; // { eyebrow, headline, supporting_text }
@@ -80,7 +84,6 @@ STUDIO_SCRIPTS_JS = """
 
         // Reset Physical Elements
         const setVal = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
-        const hide = (id) => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); };
 
         setVal('studioTopic', '');
         setVal('editEyebrow', '');
@@ -99,6 +102,11 @@ STUDIO_SCRIPTS_JS = """
 
         const preview = document.getElementById('quoteCardPreview');
         if (preview) { preview.src = ''; preview.classList.add('hidden'); }
+        
+        // Initialize UI states
+        if (typeof updateBuildButtonState === 'function') {
+            updateBuildButtonState();
+        }
     };
 
     function openNewPostModal() {
@@ -209,9 +217,31 @@ STUDIO_SCRIPTS_JS = """
         onSourceInput();
     }
 
+    let searchDebounceTimeout = null;
     function onSourceInput() {
-        if (activeSourceTab === 'quran') searchQuran();
-        else searchHadith();
+        updateBuildButtonState();
+        clearTimeout(searchDebounceTimeout);
+        searchDebounceTimeout = setTimeout(() => {
+            if (activeSourceTab === 'quran') searchQuran();
+            else searchHadith();
+        }, 300);
+    }
+    
+    function updateBuildButtonState() {
+        const topic = document.getElementById('studioTopic').value.trim();
+        const btn = document.getElementById('btnBuildMessage');
+        const hasSelection = selectedAyahId || selectedHadithId;
+        const hasManual = topic.length >= 2;
+        
+        if (hasSelection || hasManual) {
+            btn.classList.remove('opacity-50', 'cursor-not-allowed', 'grayscale');
+            btn.classList.add('hover:scale-[1.01]', 'shadow-brand/20');
+            btn.disabled = false;
+        } else {
+            btn.classList.add('opacity-50', 'cursor-not-allowed', 'grayscale');
+            btn.classList.remove('hover:scale-[1.01]', 'shadow-brand/20');
+            btn.disabled = true;
+        }
     }
 
     async function searchHadith() {
@@ -225,6 +255,11 @@ STUDIO_SCRIPTS_JS = """
         resultsArea.classList.remove('hidden');
         try {
             const res = await fetch(`/api/library/hadith/search?query=${encodeURIComponent(query)}`);
+            if (!res.ok) {
+                const err = await res.json().catch(()=>({}));
+                resultsArea.innerHTML = `<div class="p-4 text-center text-[10px] font-bold text-red-500 uppercase tracking-widest">Error: ${err.detail || res.statusText}</div>`;
+                return;
+            }
             const data = await res.json();
             if (!data.items || data.items.length === 0) { resultsArea.classList.add('hidden'); return; }
             // Store full hadith objects on the results elements via data attributes
@@ -291,6 +326,7 @@ STUDIO_SCRIPTS_JS = """
         document.getElementById('selectedHadithTitle').innerText = meta.reference || '';
         document.getElementById('hadithSearchResults').classList.add('hidden');
         document.getElementById('studioTopic').value = meta.reference || '';
+        updateBuildButtonState();
 
         // Arabic preview (first ~60 chars of arabic_text)
         const arabicEl = document.getElementById('selectedHadithArabicPreview');
@@ -318,8 +354,13 @@ STUDIO_SCRIPTS_JS = """
         resultsArea.classList.remove('hidden');
         try {
             const res = await fetch(`/api/quran/search?q=${encodeURIComponent(query)}`);
+            if (!res.ok) {
+                const err = await res.json().catch(()=>({}));
+                resultsArea.innerHTML = `<div class="p-4 text-center text-[10px] font-bold text-red-500 uppercase tracking-widest">Error: ${err.detail || res.statusText}</div>`;
+                return;
+            }
             const data = await res.json();
-            if (data.length === 0) { resultsArea.classList.add('hidden'); return; }
+            if (!Array.isArray(data) || data.length === 0) { resultsArea.classList.add('hidden'); return; }
             resultsArea.innerHTML = data.map(v => `
                 <div onclick="selectAyah('${v.id}', '${v.title.replace(/'/g, "\\'")}', '${v.text.replace(/'/g, "\\'")}')" class="p-4 border-b border-brand/5 hover:bg-brand/5 cursor-pointer transition-all">
                     <div class="flex justify-between items-start mb-1">
@@ -341,6 +382,7 @@ STUDIO_SCRIPTS_JS = """
         document.getElementById('selectedAyahTitle').innerText = title;
         document.getElementById('quranSearchResults').classList.add('hidden');
         document.getElementById('studioTopic').value = title;
+        updateBuildButtonState();
     }
 
     async function buildCardMessage() {
@@ -547,12 +589,8 @@ STUDIO_SCRIPTS_JS = """
 
     function setStudioEngine(engine, el) {
         studioEngine = engine;
-        document.querySelectorAll('.engine-chip').forEach(c => {
-            c.classList.remove('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
-            c.classList.add('bg-brand/5', 'text-brand');
-        });
-        el.classList.remove('bg-brand/5', 'text-brand');
-        el.classList.add('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
+        document.querySelectorAll('.engine-chip').forEach(c => c.classList.remove('active'));
+        el.classList.add('active');
         invalidateQuoteCard();
     }
 
@@ -1345,6 +1383,11 @@ STUDIO_COMPONENTS_HTML = """
         <input type="hidden" name="visual_mode" id="studioVisualMode" value="quote_card">
         <input type="hidden" name="visual_style" id="studioStyle" value="quran">
         <input type="hidden" name="media_url" id="finalMediaUrl">
+        <input type="hidden" name="intent_type" id="studioIntent" value="wisdom">
+        <input type="hidden" name="tone_style" id="studioTone" value="calm">
+        <input type="hidden" name="scheduled_time" id="studioSchedule">
+        <input type="hidden" id="studioVisualPrompt">
+        <input type="hidden" id="studioTextStylePrompt">
 
         <div class="flex-1 overflow-y-auto p-6 md:p-12 pb-32 custom-scrollbar">
           <div id="studioSection1" class="studio-section space-y-10 animate-in slide-in-from-right-8 duration-500">
@@ -1377,6 +1420,45 @@ STUDIO_COMPONENTS_HTML = """
                             {account_options}
                         </select>
                     </div>
+
+                    <!-- Intent Selection -->
+                    <div class="space-y-3">
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Intent (Flavor)</label>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div onclick="setStudioIntent('wisdom', this)" class="intent-card active p-3 bg-brand/5 border border-brand/5 rounded-xl cursor-pointer hover:border-brand/20 transition-all text-center">
+                                <span class="block text-[8px] font-black text-brand uppercase tracking-widest">Wisdom</span>
+                            </div>
+                            <div onclick="setStudioIntent('reminder', this)" class="intent-card p-3 bg-brand/5 border border-brand/5 rounded-xl cursor-pointer hover:border-brand/20 transition-all text-center">
+                                <span class="block text-[8px] font-black text-brand uppercase tracking-widest">Reminder</span>
+                            </div>
+                            <div onclick="setStudioIntent('warning', this)" class="intent-card p-3 bg-brand/5 border border-brand/5 rounded-xl cursor-pointer hover:border-brand/20 transition-all text-center">
+                                <span class="block text-[8px] font-black text-brand uppercase tracking-widest">Warning</span>
+                            </div>
+                            <div onclick="setStudioIntent('glad_tidings', this)" class="intent-card p-3 bg-brand/5 border border-brand/5 rounded-xl cursor-pointer hover:border-brand/20 transition-all text-center">
+                                <span class="block text-[8px] font-black text-brand uppercase tracking-widest">Tidings</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tone Selection -->
+                    <div class="space-y-3">
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Vibe (Atmosphere)</label>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div onclick="setStudioTone('calm', this)" class="tone-card active p-3 bg-brand/5 border border-brand/5 rounded-xl cursor-pointer hover:border-brand/20 transition-all text-center">
+                                <span class="block text-[8px] font-black text-brand uppercase tracking-widest">Calm</span>
+                            </div>
+                            <div onclick="setStudioTone('bold', this)" class="tone-card p-3 bg-brand/5 border border-brand/5 rounded-xl cursor-pointer hover:border-brand/20 transition-all text-center">
+                                <span class="block text-[8px] font-black text-brand uppercase tracking-widest">Bold</span>
+                            </div>
+                            <div onclick="setStudioTone('soft', this)" class="tone-card p-3 bg-brand/5 border border-brand/5 rounded-xl cursor-pointer hover:border-brand/20 transition-all text-center">
+                                <span class="block text-[8px] font-black text-brand uppercase tracking-widest">Soft</span>
+                            </div>
+                            <div onclick="setStudioTone('dramatic', this)" class="tone-card p-3 bg-brand/5 border border-brand/5 rounded-xl cursor-pointer hover:border-brand/20 transition-all text-center">
+                                <span class="block text-[8px] font-black text-brand uppercase tracking-widest">Dramatic</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div id="quranSearchResults" class="hidden max-h-48 overflow-y-auto bg-white border border-brand/10 rounded-2xl shadow-xl custom-scrollbar z-[120]"></div>
                     <div id="hadithSearchResults" class="hidden max-h-48 overflow-y-auto bg-white border border-brand/10 rounded-2xl shadow-xl custom-scrollbar z-[120]"></div>
                     
@@ -1427,8 +1509,45 @@ STUDIO_COMPONENTS_HTML = """
             </div>
           </div>
           <div id="studioSection2" class="studio-section hidden space-y-10">
+            <div id="outOfSyncBanner" class="hidden p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+                <span class="text-[9px] font-black text-amber-800 uppercase tracking-widest">Message has changed. Re-generate visual to sync.</span>
+            </div>
              <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <div class="space-y-8">
+                    <!-- Style Selection -->
+                    <div class="space-y-4">
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Aesthetic Style</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div onclick="setStudioStyle('quran', this)" class="style-card active p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
+                                <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Sacred Script</span>
+                                <span class="block text-[8px] text-text-muted mt-1">Classic spiritual aesthetic</span>
+                            </div>
+                            <div onclick="setStudioStyle('midnight', this)" class="style-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
+                                <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Midnight Oasis</span>
+                                <span class="block text-[8px] text-text-muted mt-1">Deep, atmospheric tones</span>
+                            </div>
+                            <div onclick="setStudioStyle('desert', this)" class="style-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
+                                <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Desert Glow</span>
+                                <span class="block text-[8px] text-text-muted mt-1">Warm, golden atmosphere</span>
+                            </div>
+                            <div onclick="setStudioStyle('minimal', this)" class="style-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
+                                <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Pure Minimal</span>
+                                <span class="block text-[8px] text-text-muted mt-1">Clean, typography focused</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Engine Selection -->
+                    <div class="space-y-4">
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">AI Vision Engine</label>
+                        <div class="flex flex-wrap gap-2">
+                            <div onclick="setStudioEngine('dalle', this)" class="engine-chip active px-4 py-2 bg-brand/5 border border-brand/5 rounded-full cursor-pointer text-[8px] font-black uppercase tracking-widest transition-all">DALL-E 3</div>
+                            <div onclick="setStudioEngine('midjourney', this)" class="engine-chip px-4 py-2 bg-brand/5 border border-brand/5 rounded-full cursor-pointer text-[8px] font-black uppercase tracking-widest transition-all">Midjourney v6</div>
+                            <div onclick="setStudioEngine('flux', this)" class="engine-chip px-4 py-2 bg-brand/5 border border-brand/5 rounded-full cursor-pointer text-[8px] font-black uppercase tracking-widest transition-all">Flux.1 [dev]</div>
+                        </div>
+                    </div>
+
                     <button type="button" id="btnGenerateCard" onclick="generateQuoteCard()" class="w-full py-6 bg-brand text-white rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20">Generate Cinematic Visual</button>
                 </div>
                 <div class="flex flex-col items-center gap-6">
@@ -1643,6 +1762,16 @@ APP_LAYOUT_HTML = """<!doctype html>
     .heading-premium {{ font-family: 'Inter', sans-serif !important; font-weight: 950 !important; font-style: italic !important; letter-spacing: -0.05em !important; color: var(--brand) !important; line-height: 0.9 !important; }}
     .text-premium-muted {{ font-size: 13px; font-weight: 500; font-style: italic; color: var(--text-muted); opacity: 0.8; }}
     .badge-premium {{ font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.3em; color: var(--brand); opacity: 0.4; }}
+
+    /* Studio Active States */
+    .intent-card.active, .tone-card.active, .style-card.active, .engine-chip.active {{ 
+      background: var(--brand) !important; 
+      color: white !important; 
+      border-color: var(--brand) !important;
+      box-shadow: 0 10px 25px rgba(15, 61, 46, 0.15);
+      transform: scale(1.02);
+    }}
+    .intent-card.active span, .tone-card.active span, .style-card.active span {{ color: white !important; }}
     
     /* Utility Overrides for Brand */
     .bg-brand-premium {{ background-color: var(--brand) !important; }}
