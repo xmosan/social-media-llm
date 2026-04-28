@@ -177,6 +177,12 @@ STUDIO_SCRIPTS_JS = """
             hBtn.classList.add('bg-brand/5', 'text-brand');
             hBtn.classList.remove('bg-brand', 'text-white');
             hide('hadithSearchResults');
+            
+            // Clear Hadith selection when switching to Quran
+            selectedHadithId = null;
+            window.selectedHadithMetadata = null;
+            hide('selectedHadithBadge');
+            
             document.getElementById('studioTopic').placeholder = "e.g. Patience, 70:5, or Gratitude...";
         } else {
             hBtn.classList.add('bg-brand', 'text-white');
@@ -184,8 +190,22 @@ STUDIO_SCRIPTS_JS = """
             qBtn.classList.add('bg-brand/5', 'text-brand');
             qBtn.classList.remove('bg-brand', 'text-white');
             hide('quranSearchResults');
+            
+            // Clear Quran selection when switching to Hadith
+            selectedAyahId = null;
+            window.selectedAyahMetadata = null;
+            hide('selectedAyahBadge');
+            
             document.getElementById('studioTopic').placeholder = "e.g. Intention, Charity, or Kindness...";
         }
+        
+        // Reset topic if it was a reference from the other tab
+        // But only if it matches a reference pattern to avoid clearing manual topic ideas
+        const currentTopic = document.getElementById('studioTopic').value;
+        if (currentTopic.includes(':') || currentTopic.toLowerCase().includes('bukhari') || currentTopic.toLowerCase().includes('muslim')) {
+            document.getElementById('studioTopic').value = '';
+        }
+
         onSourceInput();
     }
 
@@ -342,12 +362,19 @@ STUDIO_SCRIPTS_JS = """
 
         try {
             let sourceType = 'manual';
-            if (selectedAyahId) sourceType = 'quran';
-            else if (selectedHadithId) sourceType = 'hadith';
+            let sourcePayload = { text: topic, reference: topic };
+
+            if (activeSourceTab === 'quran' && selectedAyahId) {
+                sourceType = 'quran';
+                sourcePayload = window.selectedAyahMetadata;
+            } else if (activeSourceTab === 'hadith' && selectedHadithId) {
+                sourceType = 'hadith';
+                sourcePayload = window.selectedHadithMetadata;
+            }
 
             const payload = {
                 source_type: sourceType,
-                source_payload: selectedAyahId ? window.selectedAyahMetadata : (selectedHadithId ? window.selectedHadithMetadata : { text: topic, reference: topic }),
+                source_payload: sourcePayload,
                 tone: tone,
                 intent: intention
             };
@@ -643,6 +670,7 @@ STUDIO_SCRIPTS_JS = """
                 if (typeof openNewPostModal === 'function') {
                     openNewPostModal();
                     if (item.type === 'quran_verse' || item.type === 'quran') {
+                        if (typeof switchSourceTab === 'function') switchSourceTab('quran');
                         selectAyah(item.id, item.reference, item.translation_text);
                     } else if (item.type === 'hadith' || item.source_type === 'hadith') {
                         // Switch source tab to Hadith and load the item
@@ -1357,7 +1385,7 @@ STUDIO_COMPONENTS_HTML = """
                             <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                             <span id="selectedAyahTitle" class="text-[10px] font-black text-emerald-800 uppercase tracking-widest"></span>
                         </div>
-                        <button type="button" onclick="selectedAyahId=null; document.getElementById('selectedAyahBadge').classList.add('hidden');" class="text-[8px] font-bold text-emerald-600 uppercase hover:underline">Change</button>
+                        <button type="button" onclick="selectedAyahId=null; window.selectedAyahMetadata=null; document.getElementById('selectedAyahBadge').classList.add('hidden');" class="text-[8px] font-bold text-emerald-600 uppercase hover:underline">Change</button>
                     </div>
 
                     <div id="selectedHadithBadge" class="hidden p-4 bg-accent/5 border border-accent/20 rounded-2xl shadow-sm">
