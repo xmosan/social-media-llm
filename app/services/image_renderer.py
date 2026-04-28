@@ -1487,6 +1487,36 @@ PRESET_CONFIGS = {
         "glow": (165, 105, 255, 72),
         "atmosphere": "celestial",
     },
+    "midnight": {
+        "base": (5, 8, 22),
+        "bg_start": (12, 16, 44), "bg_end": (2, 3, 10),
+        "pattern": "starry", "pattern_density": 0.0007,
+        "vignette": 0.85,
+        "border": "none",
+        "light_pos": "center", "light_col": (138, 172, 250), "light_r": 450,
+        "glow": (138, 172, 250, 45),
+        "atmosphere": "celestial",
+    },
+    "desert": {
+        "base": (26, 16, 5),
+        "bg_start": (56, 32, 5), "bg_end": (16, 8, 2),
+        "pattern": "paper",
+        "vignette": 0.70,
+        "border": "corner_filigree",
+        "light_pos": "center", "light_col": (255, 195, 75), "light_r": 500,
+        "glow": (255, 195, 75, 40),
+        "atmosphere": "warm gold",
+    },
+    "minimal": {
+        "base": (12, 12, 14),
+        "bg_start": (22, 20, 25), "bg_end": (2, 2, 4),
+        "pattern": "none",
+        "vignette": 0.85,
+        "border": "none",
+        "light_pos": "center", "light_col": (200, 195, 215), "light_r": 350,
+        "glow": (200, 195, 215, 15),
+        "atmosphere": "none",
+    },
 }
 
 PRESET_TEXT = {
@@ -1496,6 +1526,9 @@ PRESET_TEXT = {
     "madinah":    [(215, 168, 62), (255, 242, 210), (202, 178, 132)],
     "kaaba":      [(180, 148, 50), (255, 255, 255), (185, 185, 185)],
     "laylulqadr": [(180, 145, 238), (238, 230, 255), (195, 175, 242)],
+    "midnight":   [(138, 172, 250), (255, 255, 255), (170, 190, 240)],
+    "desert":     [(255, 195, 75),  (255, 255, 255), (220, 200, 160)],
+    "minimal":    [(160, 160, 160), (255, 255, 255), (140, 140, 140)],
 }
 
 CUSTOM_TEXT_DARK  = [(212, 175, 55), (255, 255, 255), (210, 210, 210)]
