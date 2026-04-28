@@ -18,6 +18,7 @@ class UnifiedContent(BaseModel):
     verified: bool
     provider: str
     original_id: Optional[str] = None
+    meta: Optional[dict] = {}
 
 class BaseContentProvider(ABC):
     @property
@@ -96,7 +97,8 @@ class SystemLibraryProvider(BaseContentProvider):
                 topic_tags=s.topics or [],
                 verified=True, # System library is verified by definition
                 provider=self.provider_name,
-                original_id=str(s.id)
+                original_id=str(s.id),
+                meta=meta
             ))
             
         return results
@@ -158,7 +160,8 @@ class UserLibraryProvider(BaseContentProvider):
                 topic_tags=s.topics or [],
                 verified=meta.get("approval_status") == "approved", 
                 provider=self.provider_name,
-                original_id=str(s.id)
+                original_id=str(s.id),
+                meta=meta
             ))
             
         return results

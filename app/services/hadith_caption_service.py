@@ -89,15 +89,15 @@ def generate_hadith_caption(
 
     if not reference:
         logger.error("[HadithCaption] Missing reference — cannot generate grounded caption")
-        return _fallback_caption(reference, translation_text)
+        return _fallback_caption(reference, translation_text, narrator_raw)
 
     if not translation_text:
         logger.error(f"[HadithCaption] Missing translation text for: {reference}")
-        return _fallback_caption(reference, translation_text)
+        return _fallback_caption(reference, translation_text, narrator_raw)
 
     if not settings.openai_api_key:
         logger.error("[HadithCaption] No OpenAI API key — returning fallback")
-        return _fallback_caption(reference, translation_text)
+        return _fallback_caption(reference, translation_text, narrator_raw)
 
     # If the translation is very long, use the first 400 chars for caption grounding
     # (the full text is preserved in post metadata; this is just for the LLM prompt)
@@ -138,19 +138,23 @@ def generate_hadith_caption(
             return "\n\n".join(raw_lines)
 
         logger.warning(f"[HadithCaption] LLM returned empty content for {reference}")
-        return _fallback_caption(reference, translation_text)
+        return _fallback_caption(reference, translation_text, narrator_raw)
 
     except Exception as e:
         logger.error(f"[HadithCaption] LLM error for {reference}: {e}")
-        return _fallback_caption(reference, translation_text)
+        return _fallback_caption(reference, translation_text, narrator_raw)
 
 
-def _fallback_caption(reference: str, translation_text: str) -> str:
+def _fallback_caption(reference: str, translation_text: str, narrator: str = "") -> str:
     """
     Clean fallback that still cites the exact reference.
     Never fabricates narrator or grade.
     """
     ref_line = f'"{reference}"' if reference else "Prophetic Hadith"
+    
+    # Prepend narrator if provided
+    header = f"{narrator} {ref_line}" if narrator else ref_line
+    
     # Use first 120 chars of translation if available
     excerpt = ""
     if translation_text:
@@ -159,5 +163,5 @@ def _fallback_caption(reference: str, translation_text: str) -> str:
             excerpt += "…"
 
     if excerpt:
-        return f"{ref_line} — {excerpt}\n\nThe Prophet ﷺ left us no room for ambiguity.\n\nAct on what you know."
-    return f"{ref_line}\n\nThe Prophet ﷺ left us no room for ambiguity.\n\nAct on what you know."
+        return f"{header} — {excerpt}\n\nThe Prophet ﷺ left us no room for ambiguity.\n\nAct on what you know."
+    return f"{header}\n\nThe Prophet ﷺ left us no room for ambiguity.\n\nAct on what you know."

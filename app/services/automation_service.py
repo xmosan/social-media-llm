@@ -61,6 +61,8 @@ class StyleDNASpec:
     tone_style: str = "deep"
     variation_pool: list = field(default_factory=lambda: ["lighting", "texture"])
     locked_traits: dict = field(default_factory=dict)
+    visual_prompt: Optional[str] = None
+    glow_aura: Optional[str] = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -439,6 +439,21 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 db.commit()
                 return None
 
+        # ── Hadith Automation Safety Pass (Validation Gate) ─────────────────────────
+        if not fallback_mode and primary_item and primary_item.type == "hadith":
+            has_reference = bool(primary_item.reference and primary_item.reference.strip())
+            has_text = bool(primary_item.arabic_text or primary_item.text)
+            
+            if not has_reference or not has_text:
+                print(f"❌ [HADITH_AUTOMATION][BLOCKED] reason=missing_critical_metadata ref={primary_item.reference}")
+                log_event("hadith_automation_blocked", automation_id=automation.id, reason="missing_critical_metadata", reference=primary_item.reference)
+                automation.last_error = "Hadith source integrity failed: missing reference or text."
+                db.commit()
+                return None
+            else:
+                print(f"✅ [HADITH_AUTOMATION] source validated ref={primary_item.reference}")
+                log_event("hadith_automation_validated", automation_id=automation.id, reference=primary_item.reference)
+
         # 1.5 Content Profile Injection
         content_profile_prompt = None
         if getattr(automation, "content_profile_id", None):
@@ -515,16 +530,37 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         print(f"[AUTO] Generating for automation_id={automation.id} topic='{topic}'")
         
         try:
-            result = generate_topic_caption(
-                topic=topic,
-                style=style_dna_spec.family,
-                tone=automation.tone or "medium",
-                language=automation.language or "english",
-                banned_phrases=automation.banned_phrases if isinstance(automation.banned_phrases, list) else None,
-                content_profile_prompt=content_profile_prompt,
-                creativity_level=getattr(automation, "creativity_level", 3),
-                extra_context=context_payload
-            )
+            if primary_item and primary_item.type == "hadith" and not fallback_mode:
+                # Bypass generic LLM for Hadith to ensure STRICT GROUNDING
+                from app.services.hadith_caption_service import generate_hadith_caption
+                
+                # Support extracting narrator from meta if available in UnifiedContent or elsewhere
+                narrator_val = ""
+                if hasattr(primary_item, "meta") and isinstance(primary_item.meta, dict):
+                    narrator_val = primary_item.meta.get("narrator", "")
+
+                payload = {
+                    "reference": final_reference,
+                    "translation_text": primary_item.text,
+                    "narrator": narrator_val
+                }
+                caption = generate_hadith_caption(payload, tone=automation.tone or "calm")
+                hashtags = automation.hashtag_set or ["#Hadith", "#PropheticWisdom", "#IslamicReminder"]
+                alt_text = f"Hadith quote: {quote_text_cleaned}"
+                
+                result = {"caption": caption, "hashtags": hashtags, "alt_text": alt_text}
+                print(f"✅ [HADITH_AUTOMATION] routed to strict generate_hadith_caption service")
+            else:
+                result = generate_topic_caption(
+                    topic=topic,
+                    style=style_dna_spec.family,
+                    tone=automation.tone or "medium",
+                    language=automation.language or "english",
+                    banned_phrases=automation.banned_phrases if isinstance(automation.banned_phrases, list) else None,
+                    content_profile_prompt=content_profile_prompt,
+                    creativity_level=getattr(automation, "creativity_level", 3),
+                    extra_context=context_payload
+                )
             caption = result.get("caption", "").strip()
             hashtags = result.get("hashtags", [])
             alt_text = result.get("alt_text", "")
@@ -575,10 +611,29 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 
                 # 2. Arabic (Middle Zone) - Prominent if exists
                 is_quran = "quran" in (primary_item.provider if primary_item else "").lower() and not fallback_mode
+                is_hadith = primary_item and primary_item.type == "hadith" and not fallback_mode
+                
                 if is_quran and primary_item.arabic_text:
                     card_segments.append({"text": primary_item.arabic_text, "size": 60, "is_arabic": True})
                     # Use smaller English quote if Arabic exists to avoid overcrowding
                     card_segments.append({"text": quote_text, "size": 52})
+                elif is_hadith:
+                    # Same logic as build_hadith_quote_message
+                    if primary_item.arabic_text:
+                        card_segments.append({"text": primary_item.arabic_text, "size": 60, "is_arabic": True})
+                    
+                    # Detect if we excerpted the hadith heavily
+                    was_excerpted = len(quote_text) < len(uncleaned_text) * 0.9 if uncleaned_text else False
+                    headline_size = 54 if was_excerpted else 60
+                    if not primary_item.arabic_text:
+                         headline_size = 72 # larger if no arabic
+                         
+                    card_segments.append({"text": quote_text, "size": headline_size})
+                    
+                    # Log excerpt status
+                    if was_excerpted:
+                        print(f"✂️ [HADITH_AUTOMATION] excerpted (original={len(uncleaned_text)}, card={len(quote_text)})")
+                        log_event("hadith_automation_excerpted", automation_id=automation.id, reference=reference)
                 else:
                     # Standard Single-Language Layout
                     card_segments.append({"text": quote_text, "size": 72})

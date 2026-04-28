@@ -44,6 +44,9 @@ class Settings(BaseSettings):
             print("[HADITH] API configured (HadithAPI.com mode — key loaded)")
         else:
             print("[HADITH] API configured (fawazahmed0 CDN — no key required)")
+        
+        if self.hadith_in_automations_enabled:
+            print("[HADITH_AUTOMATION] feature_flag_enabled=true")
 
     # Centralized Public Base URL (Production Custom Domain)
     public_base_url: str = Field(
@@ -106,8 +109,8 @@ class Settings(BaseSettings):
         default="https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1",
         env="HADITH_API_BASE_URL"
     )
-    # Phase 2 gate: Hadith in automations (disabled in Phase 1)
-    hadith_in_automations_enabled: bool = Field(default=False, env="HADITH_IN_AUTOMATIONS_ENABLED")
+    # Phase 2 gate: Hadith in automations (enabled)
+    hadith_in_automations_enabled: bool = Field(default=True, env="HADITH_IN_AUTOMATIONS_ENABLED")
 
     # Email Service (Resend)
     resend_api_key: str | None = Field(default=None, env="RESEND_API_KEY")
