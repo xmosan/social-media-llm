@@ -189,6 +189,34 @@ def draw_top_gradient_band(image: Image.Image, color: tuple, alpha: int, height_
         
     return Image.alpha_composite(image.convert("RGBA"), band_layer).convert("RGB")
 
+def draw_bottom_gradient_band(image: Image.Image, color: tuple, alpha: int, height_percent: float = 0.35):
+    """
+    Creates a soft horizontal gradient band at the bottom of the image for text legibility.
+    """
+    w, h = image.size
+    band_h = int(h * height_percent)
+    start_y = h - band_h
+    
+    # Create vertical gradient mask
+    band_mask = Image.new("L", (w, band_h), 0)
+    for y in range(band_h):
+        # Quadratic falloff from bottom to top
+        v = int(255 * ((y / float(band_h))**1.8))
+        for x in range(w):
+            band_mask.putpixel((x, y), v)
+            
+    band_mask = Image.eval(band_mask, lambda x: int(x * (alpha / 255.0)))
+    
+    band_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    band_color = (int(color[0]), int(color[1]), int(color[2]), 255)
+    band_layer.paste(band_color, (0, start_y), band_mask)
+    
+    if SHOW_READABILITY_MASKS:
+        draw_debug = ImageDraw.Draw(band_layer)
+        draw_debug.rectangle((0, start_y, w, h), outline=(0, 255, 0, 180), width=2)
+        
+    return Image.alpha_composite(image.convert("RGBA"), band_layer).convert("RGB")
+
 def get_gemini_client():
     if not settings.gemini_api_key:
         return None
@@ -1685,9 +1713,9 @@ def render_minimal_quote_card(
 
     # 3. V9.0 PRECISION LAYOUT BUDGETS
     BUDGETS = [
-        [int(H * 0.08), int(H * 0.23), int(W * 0.78), int(H * 0.15)], # Top
-        [int(H * 0.28), int(H * 0.68), int(W * 0.86), int(H * 0.40)], # Main
-        [int(H * 0.72), int(H * 0.88), int(W * 0.82), int(H * 0.16)], # Sub
+        [int(H * 0.09), int(H * 0.23), int(W * 0.78), int(H * 0.14)], # Top (shifted slightly down)
+        [int(H * 0.28), int(H * 0.65), int(W * 0.86), int(H * 0.37)], # Main (Arabic - tightened to avoid bottom bleed)
+        [int(H * 0.70), int(H * 0.88), int(W * 0.80), int(H * 0.18)], # Sub (English - moved up and taller)
     ]
     
     draw_tmp = ImageDraw.Draw(bg)
@@ -1747,10 +1775,11 @@ def render_minimal_quote_card(
         start_sz = int(seg["size"])
         if i == 1 and len(seg_text) > 90: start_sz = int(start_sz * 0.88)
         elif i == 0 and len(seg_text) > 40: start_sz = int(start_sz * 0.90)
+        elif i == 2: start_sz = max(start_sz, int(start_sz * 1.15)) # Boost English translation
 
         # 4. Fit to Zone (v9.0 Unified)
         z_y, z_h, z_w, max_h = BUDGETS[i]
-        zd_ls_base = [0.12, 0.22, 0.12][i]
+        zd_ls_base = [0.12, 0.22, 0.18][i]
         is_ar_seg = seg.get("is_arabic", False)
 
         lines, fnt, block_h, zd_ls, final_track = fit_text_to_zone(
@@ -1781,10 +1810,11 @@ def render_minimal_quote_card(
                 elif ts.alignment == "Right": zd.update({"x_center": int(W * 0.88) - ts.horiz_offset, "anchor": "rt"})
 
     # 5. Atmospheric Pass
+    # Apply directional veils to protect text areas without destroying center beauty
+    bg = draw_top_gradient_band(bg, (5, 5, 10), 85, height_percent=0.22)
+    bg = draw_bottom_gradient_band(bg, (5, 5, 10), 120, height_percent=0.32)
+    
     if typo_spec:
-        if getattr(typo_spec, "top_band_enabled", False):
-            bg = draw_top_gradient_band(bg, typo_spec.top_band_color[:3], typo_spec.top_band_alpha, height_percent=0.20)
-            
         # Refined Atmospheric Layering (Glossy > Halo)
         if glossy:
             # Subtle centered frosted glass only when requested by UI
@@ -1798,6 +1828,10 @@ def render_minimal_quote_card(
     bg_rgba = bg.convert("RGBA")
     g_rgba = typo_spec.glow_rgba if typo_spec else glow_rgba
 
+    # Calculate global zone brightness to detect high-contrast legibility danger
+    zone_brightness_avg = _detect_center_brightness(bg, target_size)
+    dynamic_text_shadow = (0, 0, 0, 160) if zone_brightness_avg > 140 else (0, 0, 0, 100)
+
     # 6. Render Loop (v9.1 Cinematic Dual-Language)
     for i, zd in enumerate(zone_data):
         z_y, cx, anchor, z_font, lp_track, zd_ls = zd["y"], zd["x_center"], zd["anchor"], zd["font"], zd["tracking"], zd["ls"]
@@ -1805,7 +1839,7 @@ def render_minimal_quote_card(
         fc = (int(col[0]), int(col[1]), int(col[2]), int(255 * opacity))
         
         z_style = zd["style_ref"]
-        shd_fill = tuple(z_style.shadow_fill) if z_style else (0,0,0,128)
+        shd_fill = tuple(z_style.shadow_fill) if z_style else dynamic_text_shadow
         
         # Readiness metrics
         base_rad = 8 * (z_font.size / 74)
@@ -1813,6 +1847,12 @@ def render_minimal_quote_card(
         radius = base_rad * (1.8 if risk == "high" else 1.3 if risk == "medium" else 1.0)
         h_col = (255, 252, 240, 140 if risk == "high" else 100) if (sum(col[:3]) > 400) else (0, 0, 0, 110 if risk == "high" else 70)
         
+        # Force dark halo on very bright backgrounds
+        if zone_brightness_avg > 160:
+            h_col = (0, 0, 0, 180)
+            shd_fill = (0, 0, 0, 200)
+            radius = radius * 1.2
+            
         # Create a dedicated layer for this zone's text to apply effects cleanly
         zone_mask = Image.new("RGBA", target_size, (0, 0, 0, 0))
         z_draw = ImageDraw.Draw(zone_mask)
