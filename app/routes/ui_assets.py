@@ -1419,7 +1419,6 @@ STUDIO_COMPONENTS_HTML = """
         <input type="hidden" name="intent_type" id="studioIntent" value="wisdom">
         <input type="hidden" name="tone_style" id="studioTone" value="calm">
         <input type="hidden" name="scheduled_time" id="studioSchedule">
-        <input type="hidden" id="studioVisualPrompt">
         <input type="hidden" id="studioTextStylePrompt">
 
         <div class="flex-1 overflow-y-auto p-6 md:p-12 pb-32 custom-scrollbar">
@@ -1553,10 +1552,17 @@ STUDIO_COMPONENTS_HTML = """
             </div>
              <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <div class="space-y-8">
-                    <!-- Style Selection -->
+                    <!-- Style Selection & Custom Mode -->
                     <div class="space-y-4">
-                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Aesthetic Style</label>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Visual Creation Mode</label>
+                            <div class="flex gap-1 bg-brand/5 p-1 rounded-xl">
+                                <button type="button" id="btnModePreset" onclick="switchStudioMode('preset')" class="px-4 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-brand text-white shadow-lg shadow-brand/20 transition-all">Presets</button>
+                                <button type="button" id="btnModeCustom" onclick="switchStudioMode('custom')" class="px-4 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-brand/5 text-brand hover:bg-brand/10 transition-all">Describe</button>
+                            </div>
+                        </div>
+                        
+                        <div id="presetModeContainer" class="grid grid-cols-2 gap-3">
                             <div onclick="setStudioStyle('quran', this)" class="style-card active p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
                                 <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Sacred Script</span>
                                 <span class="block text-[8px] text-text-muted mt-1">Classic spiritual aesthetic</span>
@@ -1573,6 +1579,10 @@ STUDIO_COMPONENTS_HTML = """
                                 <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Pure Minimal</span>
                                 <span class="block text-[8px] text-text-muted mt-1">Clean, typography focused</span>
                             </div>
+                        </div>
+
+                        <div id="customModeContainer" class="hidden">
+                            <textarea id="studioVisualPrompt" placeholder="Describe the background image you want... e.g., 'hyper-realistic desert at sunset with volumetric lighting and soft dust particles'" class="w-full bg-cream/20 border border-brand/5 rounded-2xl px-6 py-5 text-sm font-medium text-brand outline-none focus:border-brand/20 h-32 resize-none transition-all placeholder:text-brand/30 shadow-inner"></textarea>
                         </div>
                     </div>
 
