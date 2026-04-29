@@ -1502,9 +1502,118 @@ STUDIO_SCRIPTS_JS = """
     };
 
     window.openEditPostModal = function(id, caption, time) {
-        // Simple stub for now to prevent crashes, or we could redirect to a dedicated editor
-        console.log("Edit Post:", id, caption, time);
-        alert("Refine feature is being optimized. Please use the Studio to create new reminders.");
+        const modal = document.getElementById('editPostModal');
+        if (!modal) {
+            alert("Refine feature is being optimized. Please use the Studio to create new reminders.");
+            return;
+        }
+        document.getElementById('editPostId').value = id;
+        const captionEl = document.getElementById('editPostCaption');
+        if (captionEl) captionEl.value = caption || '';
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+    };
+
+    window.closeEditPostModal = function() {
+        const modal = document.getElementById('editPostModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+    };
+
+    window.savePostEdit = async function() {
+        const id = document.getElementById('editPostId')?.value;
+        const caption = document.getElementById('editPostCaption')?.value;
+        if (!id || !caption) return;
+        try {
+            const res = await fetch(`/posts/${id}`, {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ caption })
+            });
+            if (res.ok) {
+                window.closeEditPostModal();
+                window.location.reload();
+            } else {
+                const data = await res.json().catch(() => ({}));
+                alert('Save failed: ' + (data.detail || 'Unknown error'));
+            }
+        } catch (e) {
+            alert('Connection error: ' + e.message);
+        }
+    };
+
+    window.publishPostNow = async function() {
+        const id = document.getElementById('editPostId')?.value;
+        if (!id) return;
+        const btn = document.getElementById('postNowBtn');
+        const original = btn ? btn.innerText : '';
+        if (btn) { btn.disabled = true; btn.innerText = 'SHARING...'; }
+        try {
+            // First save any edits
+            const caption = document.getElementById('editPostCaption')?.value;
+            if (caption) {
+                await fetch(`/posts/${id}`, {
+                    method: 'PATCH',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ caption })
+                });
+            }
+            // Then publish
+            const res = await fetch(`/posts/${id}/publish`, { method: 'POST' });
+            if (res.ok) {
+                window.closeEditPostModal();
+                window.location.reload();
+            } else {
+                const data = await res.json().catch(() => ({}));
+                alert('Publish failed: ' + (data.detail || 'Unknown error'));
+            }
+        } catch (e) {
+            alert('Connection error: ' + e.message);
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerText = original; }
+        }
+    };
+
+    window.refinePostAI = async function(style) {
+        const id = document.getElementById('editPostId')?.value;
+        const captionEl = document.getElementById('editPostCaption');
+        if (!id || !captionEl) return;
+        const btns = document.querySelectorAll('.refine-ai-btn');
+        btns.forEach(b => { b.disabled = true; });
+        try {
+            const res = await fetch(`/posts/${id}/refine`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ style, current_caption: captionEl.value })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.caption) captionEl.value = data.caption;
+            } else {
+                const data = await res.json().catch(() => ({}));
+                alert('Refinement failed: ' + (data.detail || 'Try again'));
+            }
+        } catch (e) {
+            console.error('Refine error:', e);
+        } finally {
+            btns.forEach(b => { b.disabled = false; });
+        }
+    };
+
+    window.showDeleteConfirm = function() {
+        const actions = document.getElementById('editPostActions');
+        const confirm = document.getElementById('deleteConfirmActions');
+        if (actions) actions.classList.add('hidden');
+        if (confirm) confirm.classList.remove('hidden');
+    };
+
+    window.hideDeleteConfirm = function() {
+        const actions = document.getElementById('editPostActions');
+        const confirm = document.getElementById('deleteConfirmActions');
+        if (actions) actions.classList.remove('hidden');
+        if (confirm) confirm.classList.add('hidden');
     };
 
 </script>
