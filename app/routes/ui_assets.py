@@ -3,6 +3,8 @@
 
 STUDIO_SCRIPTS_JS = """
 <script>
+(function() {
+    'use strict';
     // --- ACCOUNT SWITCHER LOGIC ---
     window.toggleAccountSwitcher = function(ev) {
         const dropdown = document.getElementById('accountSwitcherDropdown');
@@ -1622,6 +1624,7 @@ STUDIO_SCRIPTS_JS = """
 
     window.SABEEL_STUDIO_READY = true;
     console.log("✨ Sabeel Studio Core v4.1 Initialized Successfully");
+})();
 </script>
 """
 
