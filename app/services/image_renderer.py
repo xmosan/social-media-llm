@@ -90,11 +90,9 @@ def reshape_arabic(text: str) -> str:
     if not _ARABIC_OK or not text:
         return text
     
-    # IDEMPOTENCY CHECK (v3 Absolute Fix)
-    # If the text already contains Presentation Forms, it has likely been reshaped.
-    # Re-reshaping it would DOUBLE-REVERSE the word order back to LTR.
-    if any("\uFB50" <= c <= "\uFEFF" for c in text):
-        return text
+    # IDEMPOTENCY CHECK (DISABLED v4 - Always process to ensure reordering)
+    # if any("\uFB50" <= c <= "\uFEFF" for c in text):
+    #     return text
 
     try:
         # CLEANING: Strip LTR/RTL control marks (v2 Absolute Fix)
@@ -111,14 +109,28 @@ def reshape_arabic(text: str) -> str:
         reshaped_text = reshaper.reshape(clean_text)
         
         # BIDI: Force Right-to-Left base direction (v2 Absolute Fix)
-        # This ensures the FIRST word of the sentence is placed at the end of the string
-        # for an LTR rendering engine (which results in it being on the RIGHT side visually).
         bidi_text = get_display(reshaped_text, base_dir='R')
+        
+        # FAILSAFE: If the result is still logically ordered (Word 1 at start), 
+        # force a word-level reversal. get_display can sometimes be confused 
+        # by Presentation Forms in certain environments.
+        words = bidi_text.split()
+        if len(words) > 1 and bidi_text.strip().startswith(reshaped_text.strip().split()[0]):
+            # If the first word of bidi matches the first word of reshaped, 
+            # then NO word reversal occurred. Force it.
+            bidi_text = " ".join(reversed(reshaped_text.split()))
+            print("🧬 [ArabicEngine] Using Word-Level Failsafe Reorder")
         
         # LOGGING (Debug): Confirming the reordering for the logs
         first_orig = clean_text[:5]
         first_bidi = bidi_text[:5]
-        print(f"🧬 [ArabicEngine] Reordered: '{first_orig}...' -> '{first_bidi}...' (base_dir=R)")
+        
+        # Hex codes for deep debug
+        orig_hex = " ".join([hex(ord(c)) for c in first_orig])
+        bidi_hex = " ".join([hex(ord(c)) for c in first_bidi])
+        
+        print(f"🧬 [ArabicEngine] Input: '{first_orig}' ({orig_hex})")
+        print(f"🧬 [ArabicEngine] BIDI : '{first_bidi}' ({bidi_hex})")
         
         return bidi_text
     except Exception as e:
@@ -1710,7 +1722,7 @@ def render_minimal_quote_card(
             bg = Image.open(bg_path).convert("RGB")
             if bg.size != target_size:
                 bg = bg.resize(target_size, Image.LANCZOS)
-            bg = apply_vignette(bg, intensity=0.42)
+            # bg = apply_vignette(bg, intensity=0.42)
         except Exception as e:
             print(f"⚠️ [Gallery Mode] Could not load {style}: {e}")
             bg = None
@@ -1801,7 +1813,7 @@ def render_minimal_quote_card(
             bg = Image.alpha_composite(bg.convert("RGBA"), arch).convert("RGB")
             
         v = cfg.get("vignette", 0)
-        if v > 0: bg = apply_vignette(bg, intensity=v)
+        # if v > 0: bg = apply_vignette(bg, intensity=v)
             
         bdr = cfg.get("border")
         draw = ImageDraw.Draw(bg)
@@ -1851,7 +1863,11 @@ def render_minimal_quote_card(
         # Font Selection (with robust fallback)
         variant = "Inter"
         if typo_spec and typo_spec.text_style:
-            f_base = "Amiri" if typo_spec.text_style.font_family == "Serif" else "Inter"
+            # FORCE Amiri for Arabic segments to ensure ligature support
+            if segments[i].get("is_arabic", False):
+                f_base = "Amiri"
+            else:
+                f_base = "Amiri" if typo_spec.text_style.font_family == "Serif" else "Inter"
             variant = f_base
             if typo_spec.text_style.weight == "Bold": variant += "-Bold"
             elif typo_spec.text_style.weight == "Light": variant += "-Light"
@@ -1922,8 +1938,8 @@ def render_minimal_quote_card(
 
     # 5. Atmospheric Pass
     # Apply directional veils to protect text areas without destroying center beauty
-    bg = draw_top_gradient_band(bg, (5, 5, 10), 85, height_percent=0.22)
-    bg = draw_bottom_gradient_band(bg, (5, 5, 10), 120, height_percent=0.32)
+    # bg = draw_top_gradient_band(bg, (5, 5, 10), 85, height_percent=0.22)
+    # bg = draw_bottom_gradient_band(bg, (5, 5, 10), 120, height_percent=0.32)
     
     if typo_spec:
         # Refined Atmospheric Layering (Feathered Halo Only)
