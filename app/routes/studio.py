@@ -204,6 +204,7 @@ def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = 
         topic=data.get("topic"),
         media_url=data.get("media_url"),
         card_message=card_msg,
+        caption=caption_msg.get("caption", "") if isinstance(caption_msg, dict) else caption_msg,
         caption_message=caption_msg if isinstance(caption_msg, dict) else {"caption": caption_msg},
         post_format=data.get("post_format"),
         visual_style=data.get("visual_style"),
