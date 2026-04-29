@@ -1815,15 +1815,15 @@ def render_minimal_quote_card(
     bg = draw_bottom_gradient_band(bg, (5, 5, 10), 120, height_percent=0.32)
     
     if typo_spec:
-        # Refined Atmospheric Layering (Glossy > Halo)
-        if glossy:
-            # Subtle centered frosted glass only when requested by UI
+        # Refined Atmospheric Layering (Feathered Halo Only)
+        if getattr(typo_spec, "halo_radius", 0) > 0 or glossy:
             main_zd = zone_data[1]
-            bx = (int(W * 0.08), main_zd["y"] - 20, int(W * 0.92), main_zd["y"] + main_zd["block_h"] + 20)
-            bg = apply_glass_morphism(bg, target_size, (W//2, main_zd["y"]), bx, blend_color=(0,0,0,32), intensity=30)
-        elif getattr(typo_spec, "halo_radius", 0) > 0:
-            main_zd = zone_data[1]
-            bg = draw_radial_halo(bg, (main_zd["x_center"], main_zd["y"] + main_zd["block_h"] // 2), typo_spec.halo_radius, typo_spec.halo_color[:3], typo_spec.halo_opacity)
+            # Use a feathered radial halo instead of a hard rectangular glass box
+            radius = typo_spec.halo_radius if getattr(typo_spec, "halo_radius", 0) > 0 else 350
+            h_op = typo_spec.halo_opacity if getattr(typo_spec, "halo_opacity", 0) > 0 else 45
+            h_col = typo_spec.halo_color[:3] if hasattr(typo_spec, "halo_color") else (0, 0, 0)
+            
+            bg = draw_radial_halo(bg, (main_zd["x_center"], main_zd["y"] + main_zd["block_h"] // 2), radius, h_col, h_op)
 
     bg_rgba = bg.convert("RGBA")
     g_rgba = typo_spec.glow_rgba if typo_spec else glow_rgba
@@ -1989,67 +1989,3 @@ def render_quote_card(background_local_path: Optional[str], quote: str,
     from app.config import build_public_media_url
     return build_public_media_url(fn)
 
-def draw_soft_protection_glow(base_img, target_size, center, zone_box, blend_color=(0,0,0,128)):
-    """
-    Subtle contrast boost (ATMOSPHERIC BLOOM).
-    No blur, no smudge—just preserves the texture while making text pop.
-    """
-    if not base_img: return base_img
-    
-    # We ignore the 'blend_color' alpha and force a much tighter/subtler alpha (5-10%)
-    # to avoid the "weird box" reported by the user.
-    r, g, b, _ = blend_color
-    subtle_color = (r, g, b, 25) # 10% opacity
-    
-    x1, y1, x2, y2 = zone_box
-    mask_region = Image.new("RGBA", (x2-x1, y2-y1), subtle_color)
-    
-    # Smooth edges for the non-destructive layer
-    clean_box = Image.new("RGBA", target_size, (0,0,0,0))
-    clean_box.paste(mask_region, (x1, y1))
-    
-    return Image.alpha_composite(base_img.convert("RGBA"), clean_box).convert("RGB")
-
-def apply_glass_morphism(base_img, target_size, center, zone_box, blend_color=(0,0,0,128), intensity=40):
-    """
-    Applies a premium frosted glass (Glassmorphism) effect to a specific zone.
-    Refracted blur, frosted highlight, and subtle alpha blending.
-    """
-    if not base_img: return base_img
-    
-    # Gaussian Blur depth
-    blur_radius = intensity // 2
-    
-    # 1. Extract the region to be frosted
-    # Padding to ensure blur doesn't have hard edges
-    x1, y1, x2, y2 = zone_box
-    pad = 20
-    crop_box = (max(0, x1-pad), max(0, y1-pad), min(target_size[0], x2+pad), min(target_size[1], y2+pad))
-    
-    region = base_img.crop(crop_box)
-    
-    # 2. Apply atmospheric blur
-    blurred = region.filter(ImageFilter.GaussianBlur(radius=blur_radius))
-    
-    # 3. Apply frosted tint
-    overlay = Image.new("RGBA", blurred.size, blend_color)
-    frosted = Image.alpha_composite(blurred.convert("RGBA"), overlay)
-    
-    # 4. Create mask for the actual zone (Cine-Ellipse instead of Box)
-    mask = Image.new("L", blurred.size, 0)
-    m_draw = ImageDraw.Draw(mask)
-    # Draw centered ellipse for the bloom effect
-    lx1, ly1 = pad, pad
-    lx2, ly2 = (x2-x1) + pad, (y2-y1) + pad
-    m_draw.ellipse([lx1-40, ly1-20, lx2+40, ly2+20], fill=255)
-    
-    # 5. Soften the mask significantly (atmospheric bloom)
-    mask = mask.filter(ImageFilter.GaussianBlur(radius=30))
-    
-    # 6. Composite back onto main image
-    final_region = Image.composite(frosted, blurred.convert("RGBA"), mask)
-    
-    # Paste back
-    base_img.paste(final_region.convert("RGB"), crop_box)
-    
-    return base_img
