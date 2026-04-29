@@ -1469,6 +1469,32 @@ STUDIO_COMPONENTS_HTML = """
                             <div class="absolute right-6 top-1/2 -translate-y-1/2 text-brand/20">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                             </div>
+                            <!-- Search Results Floating Dropdown -->
+                            <div id="quranSearchResults" class="absolute left-0 right-0 top-full mt-2 hidden max-h-64 overflow-y-auto bg-white border border-brand/10 rounded-2xl shadow-2xl custom-scrollbar z-[150]"></div>
+                            <div id="hadithSearchResults" class="absolute left-0 right-0 top-full mt-2 hidden max-h-64 overflow-y-auto bg-white border border-brand/10 rounded-2xl shadow-2xl custom-scrollbar z-[150]"></div>
+                       </div>
+
+                       <!-- Selection Badges (Moved Up) -->
+                       <div id="selectedAyahBadge" class="hidden p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between shadow-sm mt-3">
+                           <div class="flex items-center gap-3">
+                               <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                               <span id="selectedAyahTitle" class="text-[10px] font-black text-emerald-800 uppercase tracking-widest"></span>
+                           </div>
+                           <button type="button" onclick="selectedAyahId=null; window.selectedAyahMetadata=null; document.getElementById('selectedAyahBadge').classList.add('hidden');" class="text-[8px] font-bold text-emerald-600 uppercase hover:underline">Change</button>
+                       </div>
+
+                       <div id="selectedHadithBadge" class="hidden p-4 bg-accent/5 border border-accent/20 rounded-2xl shadow-sm mt-3">
+                           <div class="flex items-start justify-between gap-3">
+                             <div class="flex items-start gap-3 min-w-0">
+                               <div class="w-2 h-2 rounded-full bg-accent animate-pulse mt-1 shrink-0"></div>
+                               <div class="min-w-0">
+                                 <span id="selectedHadithTitle" class="block text-[10px] font-black text-brand uppercase tracking-widest truncate"></span>
+                                 <span id="selectedHadithArabicPreview" class="block text-[13px] text-brand/60 mt-1 leading-relaxed font-normal" style="font-family:'Amiri',serif;direction:rtl;text-align:right;"></span>
+                                 <span id="selectedHadithTextPreview" class="block text-[9px] text-brand/45 mt-0.5 italic line-clamp-2"></span>
+                               </div>
+                             </div>
+                             <button type="button" onclick="selectedHadithId=null; window.selectedHadithMetadata=null; document.getElementById('selectedHadithBadge').classList.add('hidden');" class="text-[8px] font-bold text-brand uppercase hover:underline shrink-0">Change</button>
+                           </div>
                        </div>
                     </div>
                     <div class="space-y-3">
@@ -1518,31 +1544,6 @@ STUDIO_COMPONENTS_HTML = """
                             <div onclick="setStudioTone('dramatic', this)" class="tone-card p-3 bg-brand/5 border border-brand/5 rounded-xl cursor-pointer hover:border-brand/20 transition-all text-center">
                                 <span class="block text-[8px] font-black text-brand uppercase tracking-widest">Dramatic</span>
                             </div>
-                        </div>
-                    </div>
-
-                    <div id="quranSearchResults" class="hidden max-h-48 overflow-y-auto bg-white border border-brand/10 rounded-2xl shadow-xl custom-scrollbar z-[120]"></div>
-                    <div id="hadithSearchResults" class="hidden max-h-48 overflow-y-auto bg-white border border-brand/10 rounded-2xl shadow-xl custom-scrollbar z-[120]"></div>
-                    
-                    <div id="selectedAyahBadge" class="hidden p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center justify-between shadow-sm">
-                        <div class="flex items-center gap-3">
-                            <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                            <span id="selectedAyahTitle" class="text-[10px] font-black text-emerald-800 uppercase tracking-widest"></span>
-                        </div>
-                        <button type="button" onclick="selectedAyahId=null; window.selectedAyahMetadata=null; document.getElementById('selectedAyahBadge').classList.add('hidden');" class="text-[8px] font-bold text-emerald-600 uppercase hover:underline">Change</button>
-                    </div>
-
-                    <div id="selectedHadithBadge" class="hidden p-4 bg-accent/5 border border-accent/20 rounded-2xl shadow-sm">
-                        <div class="flex items-start justify-between gap-3">
-                          <div class="flex items-start gap-3 min-w-0">
-                            <div class="w-2 h-2 rounded-full bg-accent animate-pulse mt-1 shrink-0"></div>
-                            <div class="min-w-0">
-                              <span id="selectedHadithTitle" class="block text-[10px] font-black text-brand uppercase tracking-widest truncate"></span>
-                              <span id="selectedHadithArabicPreview" class="block text-[13px] text-brand/60 mt-1 leading-relaxed font-normal" style="font-family:'Amiri',serif;direction:rtl;text-align:right;"></span>
-                              <span id="selectedHadithTextPreview" class="block text-[9px] text-brand/45 mt-0.5 italic line-clamp-2"></span>
-                            </div>
-                          </div>
-                          <button type="button" onclick="selectedHadithId=null; window.selectedHadithMetadata=null; document.getElementById('selectedHadithBadge').classList.add('hidden');" class="text-[8px] font-bold text-brand uppercase hover:underline shrink-0">Change</button>
                         </div>
                     </div>
                 </div>
