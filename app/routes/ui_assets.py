@@ -1441,18 +1441,49 @@ STUDIO_SCRIPTS_JS = r"""
         }
     };
 
-    window.deletePost = async function(id) {
+    window.deletePost = async function(id, event) {
         if (!confirm("Discard this piece of reminder?")) return;
+        
+        const btn = (event && event.currentTarget) ? event.currentTarget : null;
+        const card = btn ? btn.closest('.card') : null;
+        
         try {
+            if (card) {
+                card.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                card.style.opacity = '0.5';
+                card.style.pointerEvents = 'none';
+            }
+            
             const res = await fetch(`/posts/${id}`, { method: 'DELETE' });
             if (res.ok) {
-                window.location.reload();
+                if (card) {
+                    card.style.transform = 'scale(0.95) translateY(10px)';
+                    card.style.opacity = '0';
+                    setTimeout(() => {
+                        const parent = card.parentElement;
+                        card.remove();
+                        // If the grid is now empty, we might want to reload or hide the section
+                        if (parent && parent.children.length === 0) {
+                            window.location.reload();
+                        }
+                    }, 400);
+                } else {
+                    window.location.reload();
+                }
             } else {
                 const errorData = await res.json().catch(() => ({}));
                 alert('Failed to discard post: ' + (errorData.detail || 'Unknown error'));
+                if (card) {
+                    card.style.opacity = '1';
+                    card.style.pointerEvents = 'auto';
+                }
             }
         } catch (e) {
             alert('Connection failure.');
+            if (card) {
+                card.style.opacity = '1';
+                card.style.pointerEvents = 'auto';
+            }
         }
     };
     window.approvePost = async function(id, event) {
@@ -1721,7 +1752,7 @@ STUDIO_COMPONENTS_HTML = """
             </div>
             <div class="flex gap-4">
                 <button onclick="hideDeleteConfirm()" class="flex-1 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-brand">No, Keep it</button>
-                <button id="confirmDeleteBtn" onclick="deletePost(document.getElementById('editPostId').value)" class="flex-1 py-4 bg-rose-600 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-xl shadow-rose-200">Yes, Delete</button>
+                <button id="confirmDeleteBtn" onclick="deletePost(document.getElementById('editPostId').value, event)" class="flex-1 py-4 bg-rose-600 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-xl shadow-rose-200">Yes, Delete</button>
             </div>
         </div>
         

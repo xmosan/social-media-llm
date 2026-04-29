@@ -940,7 +940,7 @@ async def app_dashboard_page(
             
             retry_btn = f"""<button onclick="approvePost('{p.id}', event)" class="flex-1 py-3 bg-rose-500 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-rose-600 transition-all shadow-xl shadow-rose-500/20">Retry Share</button>"""
             
-            delete_btn = f"""<button onclick="deletePost('{p.id}')" class="p-3 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-100">
+            delete_btn = f"""<button onclick="deletePost('{p.id}', event)" class="p-3 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-100">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
             </button>"""
             
@@ -1233,7 +1233,7 @@ async def app_calendar_page(
                 </div>
                 <div class="flex items-center gap-6">
                     <div class="badge-premium !text-[8px]">{time_str}</div>
-                    <button onclick="deletePost('{p.id}')" class="p-2 text-rose-300 hover:text-rose-600 transition-colors">
+                    <button onclick="deletePost('{p.id}', event)" class="p-2 text-rose-300 hover:text-rose-600 transition-colors">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
                     </button>
                 </div>
