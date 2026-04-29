@@ -159,9 +159,12 @@ STUDIO_SCRIPTS_JS = """
             alert("Please build your card message first.");
             return;
         }
-        if (stepIndex === 4 && (!currentQuoteCardUrl || !studioCaptionMessage)) {
-            alert("Please ensure your visual and caption are ready before moving to Share.");
-            return;
+        if (stepIndex === 4) {
+            const manualCaption = document.getElementById('studioCaption')?.value || "";
+            if (!currentQuoteCardUrl || (!studioCaptionMessage && !manualCaption)) {
+                alert("Please ensure your visual and caption are ready before moving to Share.");
+                return;
+            }
         }
 
         for(let i=1; i<=4; i++) {
@@ -794,7 +797,15 @@ STUDIO_SCRIPTS_JS = """
         btn.innerHTML = 'PREPARING... <span class="animate-pulse">✨</span>';
 
         const accountId = document.getElementById('studioAccount').value;
+        if (!accountId) {
+            alert("Please select a target account before scheduling.");
+            btn.innerText = original;
+            btn.disabled = false;
+            return;
+        }
+        
         const topicVal = document.getElementById('studioTopic').value;
+        const editedCaption = document.getElementById('studioCaption').value;
 
         // ── Determine source type and metadata ──────────────────────────────────
         let srcType = 'manual';
@@ -811,6 +822,16 @@ STUDIO_SCRIPTS_JS = """
             srcMetadata = window.selectedAyahMetadata;
         }
 
+        // If the user edited the caption, we should prioritize the edited text.
+        // If studioCaptionMessage is an object, we keep it but update the body or similar if needed.
+        // For simplicity, if edited, we send it as a plain string or wrap it.
+        let finalCaptionMsg = studioCaptionMessage;
+        if (editedCaption) {
+            // If we have a structured object but the text is different from what was rendered,
+            // the backend should probably just take the full string.
+            finalCaptionMsg = editedCaption;
+        }
+
         const reqPayload = {
             ig_account_id: parseInt(accountId, 10),
             visual_mode: 'quote_card',
@@ -819,7 +840,7 @@ STUDIO_SCRIPTS_JS = """
             source_metadata: srcMetadata,
             topic: topicVal,
             card_message: studioCardMessage,
-            caption_message: studioCaptionMessage,
+            caption_message: finalCaptionMsg,
             media_url: document.getElementById('finalMediaUrl')?.value || currentQuoteCardUrl,
             intent_type: document.getElementById('studioIntent').value,
             visual_style: studioCreationMode === 'custom' ? 'custom' : document.getElementById('studioStyle').value
