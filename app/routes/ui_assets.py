@@ -625,7 +625,7 @@ STUDIO_SCRIPTS_JS = r"""
             console.error(e);
         } finally {
             btn.disabled = false;
-            btn.innerText = 'Generate Cinematic Visual';
+            btn.innerText = 'Craft your visual through Sabeel Vision';
         }
     }
 
@@ -2101,17 +2101,18 @@ STUDIO_COMPONENTS_HTML = """
                         </div>
                     </div>
 
-                    <!-- Engine Selection -->
+                    <!-- Sabeel Vision Rebrand -->
                     <div class="space-y-4">
-                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">AI Vision Engine</label>
-                        <div class="flex flex-wrap gap-2">
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Sabeel Vision</label>
+                        <!-- Provider chips hidden to maintain proprietary feel; internal mapping preserved -->
+                        <div class="flex flex-wrap gap-2 hidden">
                             <div onclick="setStudioEngine('dalle', this)" class="engine-chip active px-4 py-2 bg-brand/5 border border-brand/5 rounded-full cursor-pointer text-[8px] font-black uppercase tracking-widest transition-all">DALL-E 3</div>
                             <div onclick="setStudioEngine('midjourney', this)" class="engine-chip px-4 py-2 bg-brand/5 border border-brand/5 rounded-full cursor-pointer text-[8px] font-black uppercase tracking-widest transition-all">Midjourney v6</div>
                             <div onclick="setStudioEngine('flux', this)" class="engine-chip px-4 py-2 bg-brand/5 border border-brand/5 rounded-full cursor-pointer text-[8px] font-black uppercase tracking-widest transition-all">Flux.1 [dev]</div>
                         </div>
                     </div>
 
-                    <button type="button" id="btnGenerateCard" onclick="generateQuoteCard()" class="w-full py-6 bg-brand text-white rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20">Generate Cinematic Visual</button>
+                    <button type="button" id="btnGenerateCard" onclick="generateQuoteCard()" class="w-full py-6 bg-brand text-white rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Craft your visual through Sabeel Vision</button>
                 </div>
                 <div class="flex flex-col items-center gap-6">
                     <div id="cardPreviewContainer" class="w-full max-w-[340px] aspect-square bg-cream rounded-[3rem] border-8 border-brand/5 overflow-hidden relative shadow-2xl flex items-center justify-center">
