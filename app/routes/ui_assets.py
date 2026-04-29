@@ -2,10 +2,11 @@
 # Copyright (c) 2026 Mohammed Hassan. All rights reserved.
 
 STUDIO_SCRIPTS_JS = """
-<script>
+<script>;
 (function() {
     'use strict';
-    // --- ACCOUNT SWITCHER LOGIC ---
+    try {
+        // --- ACCOUNT SWITCHER LOGIC ---
     window.toggleAccountSwitcher = function(ev) {
         const dropdown = document.getElementById('accountSwitcherDropdown');
         if (dropdown) {
@@ -251,6 +252,7 @@ STUDIO_SCRIPTS_JS = """
     };
 
     let searchDebounceTimeout = null;
+    window.onSourceInput = onSourceInput;
     function onSourceInput() {
         updateBuildButtonState();
         clearTimeout(searchDebounceTimeout);
@@ -1622,8 +1624,13 @@ STUDIO_SCRIPTS_JS = """
         if (confirm) confirm.classList.add('hidden');
     };
 
-    window.SABEEL_STUDIO_READY = true;
-    console.log("✨ Sabeel Studio Core v4.1 Initialized Successfully");
+        window.loadStyleDnaPresets = loadStyleDnaPresets;
+        window.selectHadith = selectHadith;
+        window.SABEEL_STUDIO_READY = true;
+        console.log("✨ Sabeel Studio Core v4.1 Initialized Successfully");
+    } catch (e) {
+        console.error("❌ Sabeel Studio Core failed to initialize:", e);
+    }
 })();
 </script>
 """
