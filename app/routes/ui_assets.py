@@ -6,6 +6,15 @@ STUDIO_SCRIPTS_JS = """
 (function() {
     'use strict';
     try {
+        // --- GLOBAL MODAL TEARDOWN (Ensures no stale overlays) ---
+        ['editPostModal', 'newPostModal', 'newAutoModalV2', 'connectInstagramModal', 'accountSwitcherDropdown'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.classList.add('hidden');
+                el.style.display = 'none';
+            }
+        });
+
         // --- ACCOUNT SWITCHER LOGIC ---
     window.toggleAccountSwitcher = function(ev) {
         const dropdown = document.getElementById('accountSwitcherDropdown');
@@ -1530,6 +1539,22 @@ STUDIO_SCRIPTS_JS = """
         }
     };
 
+    window.openConnectInstagramModal = function() {
+        const modal = document.getElementById('connectInstagramModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+        }
+    };
+
+    window.closeConnectInstagramModal = function() {
+        const modal = document.getElementById('connectInstagramModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+    };
+
     window.savePostEdit = async function() {
         const id = document.getElementById('editPostId')?.value;
         const caption = document.getElementById('editPostCaption')?.value;
@@ -1636,6 +1661,76 @@ STUDIO_SCRIPTS_JS = """
 """
 
 STUDIO_COMPONENTS_HTML = """
+<!-- Edit Post Modal (Refinement) -->
+<div id="editPostModal" class="fixed inset-0 bg-brand/40 backdrop-blur-xl z-[200] hidden flex items-center justify-center p-6 animate-in fade-in duration-300">
+  <div class="glass max-w-2xl w-full p-8 md:p-12 rounded-[3rem] border border-brand/10 shadow-2xl space-y-8 bg-white max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-start">
+        <div>
+            <h2 class="text-3xl font-bold text-brand tracking-tight">Improve Your <span class="text-accent">Message</span></h2>
+            <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.2em] mt-1">Polish your message before it goes live</p>
+        </div>
+        <button onclick="closeEditPostModal()" class="w-10 h-10 rounded-2xl bg-brand/5 flex items-center justify-center text-text-muted hover:bg-brand/10 hover:text-brand transition-all">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+        </button>
+    </div>
+
+    <input type="hidden" id="editPostId">
+    
+    <div class="space-y-6">
+        <div class="space-y-3">
+            <label class="text-[10px] font-bold uppercase tracking-[0.3em] text-brand ml-1">Your Message</label>
+            <textarea id="editPostCaption" rows="8" class="w-full bg-cream/50 border border-brand/10 rounded-[2rem] px-8 py-8 text-sm text-brand outline-none focus:ring-2 focus:ring-brand leading-relaxed font-medium italic"></textarea>
+        </div>
+
+        <!-- AI Assist Toolbar -->
+        <div class="space-y-3">
+            <label class="text-[9px] font-bold uppercase tracking-[0.2em] text-text-muted ml-1 italic">AI Enhancements</label>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="refinePostAI('emotional')" class="refine-ai-btn px-4 py-2.5 bg-brand/5 border border-brand/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-brand hover:bg-brand hover:text-white transition-all transition-colors flex items-center gap-2">
+                    ✨ Emotional
+                </button>
+                <button onclick="refinePostAI('shorter')" class="refine-ai-btn px-4 py-2.5 bg-brand/5 border border-brand/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-brand hover:bg-brand hover:text-white transition-all transition-colors flex items-center gap-2">
+                    📏 Shorter
+                </button>
+                <button onclick="refinePostAI('ayah')" class="refine-ai-btn px-4 py-2.5 bg-brand/5 border border-brand/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-brand hover:bg-brand hover:text-white transition-all transition-colors flex items-center gap-2">
+                    📖 Add Ayah
+                </button>
+                <button onclick="refinePostAI('hadith')" class="refine-ai-btn px-4 py-2.5 bg-brand/5 border border-brand/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-brand hover:bg-brand hover:text-white transition-all transition-colors flex items-center gap-2">
+                    📜 Add Hadith
+                </button>
+                <button onclick="refinePostAI('clarity')" class="refine-ai-btn px-4 py-2.5 bg-brand/5 border border-brand/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-brand hover:bg-brand hover:text-white transition-all transition-colors flex items-center gap-2">
+                    ⚖️ Clarity
+                </button>
+            </div>
+        </div>
+
+        <div id="editPostActions" class="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-6">
+            <button onclick="closeEditPostModal()" class="py-5 bg-white border border-brand/10 rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] text-brand hover:bg-brand/5 transition-all">Cancel</button>
+            <button id="savePostBtn" onclick="savePostEdit()" class="py-5 bg-brand/5 border border-brand/10 rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] text-brand hover:bg-brand hover:text-white transition-all">Save Changes</button>
+            <button id="postNowBtn" onclick="publishPostNow()" class="col-span-2 py-5 bg-brand rounded-2xl font-bold text-[11px] uppercase tracking-[0.2em] text-white shadow-2xl shadow-brand/40 hover:bg-brand-hover transition-all flex items-center justify-center gap-3">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                Share Now
+            </button>
+        </div>
+
+        <!-- Delete Confirmation Area (Hidden by default) -->
+        <div id="deleteConfirmActions" class="hidden flex flex-col gap-4 pt-6 animate-in slide-in-from-top-2">
+            <div class="p-6 bg-rose-50 border border-rose-100 rounded-3xl text-center">
+                <p class="text-[10px] font-bold text-rose-600 uppercase tracking-widest">Are you absolutely sure?</p>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="hideDeleteConfirm()" class="flex-1 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-brand">No, Keep it</button>
+                <button id="confirmDeleteBtn" onclick="deletePost(document.getElementById('editPostId').value)" class="flex-1 py-4 bg-rose-600 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-xl shadow-rose-200">Yes, Delete</button>
+            </div>
+        </div>
+        
+        <div class="flex justify-center pt-2">
+            <button onclick="showDeleteConfirm()" class="text-[9px] font-black uppercase tracking-widest text-rose-500/50 hover:text-rose-500 transition-colors">Discard this piece of reminder</button>
+        </div>
+    </div>
+  </div>
+</div>
+
 <!-- CONTENT STUDIO MODAL -->
 
 <div id="newPostModal" class="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[100] flex items-end md:items-center justify-center p-0 md:p-10 hidden">
