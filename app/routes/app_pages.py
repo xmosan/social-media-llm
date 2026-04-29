@@ -4,7 +4,7 @@
 from fastapi import APIRouter, Request, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_, and_
 from app.db import get_db
 from app.models import User, Org, OrgMember, IGAccount, Post, TopicAutomation, ContentProfile
 from app.security.auth import require_user, optional_user
@@ -846,8 +846,10 @@ async def app_dashboard_page(
         post_count = db.query(func.count(Post.id)).filter(
             Post.org_id == org_id,
             Post.ig_account_id == active_acc_id,
-            Post.scheduled_time >= day_start,
-            Post.scheduled_time < day_end
+            or_(
+                and_(Post.scheduled_time >= day_start, Post.scheduled_time < day_end),
+                and_(Post.published_time >= day_start, Post.published_time < day_end)
+            )
         ).scalar() or 0
         
         state_html = ""
@@ -947,7 +949,8 @@ async def app_dashboard_page(
             if sec_title == "Needs Attention":
                 actions_html = refine_btn + retry_btn + delete_btn
             elif sec_title == "Drafts & Ideas":
-                actions_html = refine_btn + share_btn + delete_btn
+                schedule_btn = f"""<button onclick="openScheduleModal('{p.id}', event)" class="flex-1 py-3 bg-brand/5 border border-brand/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-brand hover:bg-brand hover:text-white transition-all shadow-sm">Schedule</button>"""
+                actions_html = refine_btn + schedule_btn + share_btn + delete_btn
             elif sec_title == "Scheduled Queue":
                 actions_html = refine_btn + delete_btn
             else: # Published
@@ -1088,7 +1091,7 @@ async def app_dashboard_page(
     
     # --- GET ACCOUNT OPTIONS FOR STUDIO MODAL ---
     accs = db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
-    account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in accs])
+    account_options = "".join([f'<option value="{a.id}" {"selected" if a.id == active_acc_id else ""}>@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in accs])
     if not accs:
         account_options = '<option value="">No accounts connected</option>'
 
@@ -1150,14 +1153,18 @@ async def app_calendar_page(
     posts = db.query(Post).filter(
         Post.org_id == org.id,
         Post.ig_account_id == active_acc_id,
-        Post.scheduled_time >= query_start,
-        Post.scheduled_time < query_end
+        or_(
+            and_(Post.scheduled_time >= query_start, Post.scheduled_time < query_end),
+            and_(Post.published_time >= query_start, Post.published_time < query_end)
+        )
     ).all()
     
     # Map posts to days
     post_map = {}
     for p in posts:
-        day = p.scheduled_time.day
+        dt = p.scheduled_time or p.published_time
+        if not dt: continue
+        day = dt.day
         if day not in post_map: post_map[day] = []
         post_map[day].append(p)
         

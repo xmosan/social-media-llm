@@ -1724,6 +1724,62 @@ STUDIO_SCRIPTS_JS = r"""
         if (confirm) confirm.classList.add('hidden');
     };
 
+    window.openScheduleModal = function(id, event) {
+        if(event) event.stopPropagation();
+        document.getElementById('schedulePostId').value = id;
+        // Set default to 24h from now
+        const now = new Date();
+        now.setHours(now.getHours() + 24);
+        now.setMinutes(0);
+        const localISO = now.toISOString().slice(0, 16);
+        document.getElementById('schedulePostTime').value = localISO;
+        
+        const modal = document.getElementById('schedulePostModal');
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+    };
+
+    window.closeScheduleModal = function() {
+        const modal = document.getElementById('schedulePostModal');
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+    };
+
+    window.schedulePost = async function() {
+        const id = document.getElementById('schedulePostId').value;
+        const time = document.getElementById('schedulePostTime').value;
+        const btn = document.getElementById('confirmScheduleBtn');
+        
+        if (!id || !time) return;
+        
+        btn.disabled = true;
+        btn.innerText = 'SCHEDULING...';
+        
+        try {
+            const res = await fetch(`/posts/${id}/approve`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    scheduled_time: new Date(time).toISOString(),
+                    approve_anyway: true
+                })
+            });
+            
+            if (res.ok) {
+                window.closeScheduleModal();
+                window.location.reload();
+            } else {
+                const data = await res.json().catch(() => ({}));
+                alert('Scheduling failed: ' + (data.detail || 'Unknown error'));
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = 'Confirm';
+        }
+    };
+
         window.loadStyleDnaPresets = loadStyleDnaPresets;
         window.selectHadith = selectHadith;
         window.SABEEL_STUDIO_READY = true;
@@ -2359,6 +2415,30 @@ STUDIO_COMPONENTS_HTML = """
             </form>
         </div>
     </div>
+</div>
+
+<!-- Schedule Post Modal -->
+<div id="schedulePostModal" class="fixed inset-0 bg-brand/40 backdrop-blur-xl z-[250] hidden flex items-center justify-center p-6 animate-in fade-in duration-300">
+  <div class="glass max-w-sm w-full p-8 md:p-10 rounded-[3rem] border border-brand/10 shadow-2xl space-y-8 bg-white">
+    <div class="text-center">
+        <h2 class="text-2xl font-bold text-brand tracking-tight">Schedule <span class="text-accent">Reminder</span></h2>
+        <p class="text-[9px] font-bold text-text-muted uppercase tracking-[0.2em] mt-1">Select a time for this guidance</p>
+    </div>
+
+    <input type="hidden" id="schedulePostId">
+    
+    <div class="space-y-6">
+        <div class="space-y-3">
+            <label class="text-[10px] font-bold uppercase tracking-[0.3em] text-brand ml-1">Planned Time</label>
+            <input type="datetime-local" id="schedulePostTime" class="w-full bg-cream/50 border border-brand/10 rounded-2xl px-6 py-4 text-sm text-brand outline-none focus:ring-2 focus:ring-brand font-bold">
+        </div>
+
+        <div class="flex gap-4 pt-4">
+            <button onclick="closeScheduleModal()" class="flex-1 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-brand hover:bg-brand/5 transition-all">Cancel</button>
+            <button id="confirmScheduleBtn" onclick="schedulePost()" class="flex-1 py-4 bg-brand text-white rounded-2xl font-bold text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Confirm</button>
+        </div>
+    </div>
+  </div>
 </div>
 
 <!-- Global Confirmation Modal -->
