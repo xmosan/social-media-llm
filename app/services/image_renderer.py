@@ -1700,6 +1700,20 @@ def render_minimal_quote_card(
     if mode == "scene" or (style in _SCENE_KEYS and mode not in {"custom"}):
         mode = "scene"
 
+    if mode == "gallery":
+        # Load the user-selected premium background from the uploads directory
+        try:
+            bg_path = os.path.join(os.path.dirname(__file__), "..", "..", "uploads", style)
+            bg = Image.open(bg_path).convert("RGB")
+            if bg.size != target_size:
+                bg = bg.resize(target_size, Image.LANCZOS)
+            bg = apply_vignette(bg, intensity=0.42)
+        except Exception as e:
+            print(f"⚠️ [Gallery Mode] Could not load {style}: {e}")
+            bg = None
+            mode = "preset"
+            style = "sacred_script"
+
     if mode == "custom":
         if _VS_OK:
             vs_spec = vs_interpret(visual_prompt)

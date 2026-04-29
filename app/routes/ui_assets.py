@@ -502,12 +502,12 @@ STUDIO_SCRIPTS_JS = """
         try {
             const payload = {
                 card_message: studioCardMessage,
-                style: document.getElementById('studioStyle').value,
+                style: studioGalleryImage ? studioGalleryImage : document.getElementById('studioStyle').value,
                 visual_prompt: document.getElementById('studioCustomDirection')?.value,
                 text_style_prompt: document.getElementById('studioTextStylePrompt')?.value,
                 engine: studioEngine,
                 glossy: studioGlossy,
-                mode: 'scene'
+                mode: studioGalleryImage ? 'gallery' : 'scene'
             };
 
             const res = await fetch('/api/studio/generate-visual', {
@@ -621,13 +621,23 @@ STUDIO_SCRIPTS_JS = """
         invalidateQuoteCard();
     }
 
-    let studioSceneKey = null; // null = standard preset, non-null = scene mode
+    let studioGalleryImage = null; // null = generate, non-null = bypass DALL-E
 
     function setStudioScene(sceneKey, el) {
-        studioSceneKey = sceneKey;
+        studioGalleryImage = null;
+        document.querySelectorAll('.gallery-thumb').forEach(c => c.classList.remove('border-brand', 'ring-2', 'ring-brand/20'));
         document.getElementById('studioStyle').value = sceneKey;
         document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
         el.closest('.style-card').classList.add('active');
+        invalidateQuoteCard();
+    }
+
+    function setStudioGallery(filename, el) {
+        studioGalleryImage = filename;
+        // Visual feedback for gallery selection
+        document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.gallery-thumb').forEach(c => c.classList.remove('border-brand', 'ring-2', 'ring-brand/20'));
+        el.classList.add('border-brand', 'ring-2', 'ring-brand/20');
         invalidateQuoteCard();
     }
 
@@ -1597,6 +1607,24 @@ STUDIO_COMPONENTS_HTML = """
                         <div class="space-y-2">
                             <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Optional Direction</label>
                             <input type="text" id="studioCustomDirection" placeholder="e.g. sunset dunes, moonlit hall, softer gold tones..." class="w-full bg-cream/20 border border-brand/5 rounded-2xl px-6 py-4 text-xs font-medium text-brand outline-none focus:border-brand/20 transition-all shadow-inner placeholder:text-brand/30">
+                        </div>
+
+                        <!-- Premium Gallery (App Defaults) -->
+                        <div class="space-y-3 pt-4 border-t border-brand/5">
+                            <div class="flex items-center justify-between">
+                                <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Or Choose a Premium Background</label>
+                                <span class="text-[8px] text-text-muted uppercase tracking-widest bg-brand/5 px-2 py-0.5 rounded-md">Instant</span>
+                            </div>
+                            <div class="flex gap-3 overflow-x-auto pb-2 snap-x hide-scrollbar">
+                                <img src="/uploads/vsbg_1703898d266c.jpg" onclick="setStudioGallery('vsbg_1703898d266c.jpg', this)" class="gallery-thumb w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-brand/30 snap-start shrink-0 transition-all">
+                                <img src="/uploads/vsbg_483ca6ddb2c3.jpg" onclick="setStudioGallery('vsbg_483ca6ddb2c3.jpg', this)" class="gallery-thumb w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-brand/30 snap-start shrink-0 transition-all">
+                                <img src="/uploads/vsbg_8e6c34cea9aa.jpg" onclick="setStudioGallery('vsbg_8e6c34cea9aa.jpg', this)" class="gallery-thumb w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-brand/30 snap-start shrink-0 transition-all">
+                                <img src="/uploads/vsbg_7e47e2ef36e5.jpg" onclick="setStudioGallery('vsbg_7e47e2ef36e5.jpg', this)" class="gallery-thumb w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-brand/30 snap-start shrink-0 transition-all">
+                                <img src="/uploads/vsbg_6a4e0c22c2ce.jpg" onclick="setStudioGallery('vsbg_6a4e0c22c2ce.jpg', this)" class="gallery-thumb w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-brand/30 snap-start shrink-0 transition-all">
+                                <img src="/uploads/vsbg_5e98671f4321.jpg" onclick="setStudioGallery('vsbg_5e98671f4321.jpg', this)" class="gallery-thumb w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-brand/30 snap-start shrink-0 transition-all">
+                                <img src="/uploads/vsbg_3cdd20be4a77.jpg" onclick="setStudioGallery('vsbg_3cdd20be4a77.jpg', this)" class="gallery-thumb w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-brand/30 snap-start shrink-0 transition-all">
+                                <img src="/uploads/vsbg_1bf225ff5dda.jpg" onclick="setStudioGallery('vsbg_1bf225ff5dda.jpg', this)" class="gallery-thumb w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-brand/30 snap-start shrink-0 transition-all">
+                            </div>
                         </div>
                     </div>
 
