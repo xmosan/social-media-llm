@@ -170,7 +170,7 @@ class Post(Base):
     content_item = relationship("ContentItem", back_populates="posts", foreign_keys=[content_item_id])
     library_item = relationship("ContentItem", back_populates="library_posts", foreign_keys=[library_item_id])
     media_asset = relationship("MediaAsset", back_populates="posts")
-    content_usage = relationship("ContentUsage", back_populates="post", uselist=False)
+    content_usage = relationship("ContentUsage", back_populates="post", uselist=False, cascade="all, delete-orphan")
 
     # Content Sourcing
     used_source_id = Column(Integer, ForeignKey("content_sources.id"), nullable=True)
