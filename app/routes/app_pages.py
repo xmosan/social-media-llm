@@ -165,12 +165,11 @@ APP_DASHBOARD_CONTENT = """
         </div>
 
         <!-- Reflection Feed -->
-        <div class="space-y-6">
-          <h2 class="text-[10px] font-bold uppercase tracking-[0.4em] text-text-muted">Reflection Feed</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {recent_posts}
-            </div>
+        <!-- Reflection Feed Sections -->
+        <div class="space-y-16">
+            {dashboard_feed_sections}
         </div>
+
       </div>
     </div>
 """
@@ -874,75 +873,132 @@ async def app_dashboard_page(
         </div>
         """
 
-    # Intelligence Feed (Recent Content - Filtered by Active Account)
+    # Intelligence Feed (Dashboard Sections)
     posts = db.query(Post).filter(
         Post.org_id == org_id,
         Post.ig_account_id == active_acc_id
-    ).order_by(Post.created_at.desc()).limit(6).all()
-    recent_posts_html = ""
+    ).order_by(Post.created_at.desc()).limit(30).all()
+    
+    sections = {
+        "Needs Attention": {"posts": [], "icon": '<svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>'},
+        "Drafts & Ideas": {"posts": [], "icon": '<svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>'},
+        "Scheduled Queue": {"posts": [], "icon": '<svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>'},
+        "Recently Shared": {"posts": [], "icon": '<svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'}
+    }
+    
     for p in posts:
-        # Determine Type
-        cap = p.caption or ""
-        p_type = "REFLECTION"
-        if any(x in cap for x in ["Surah", "Verse", "Ayah", "Quran"]): p_type = "QURAN"
-        elif any(x in cap for x in ["Hadith", "Prophet", "Sahih", "Bukhari", "Muslim"]): p_type = "HADITH"
-        
-        status_color = "text-text-muted"
-        status_bg = "bg-brand/5"
-        status_label = "Reflection Draft" if p.status == "draft" else p.status.capitalize()
-        
-        if p.status == "published": 
-            status_color = "text-emerald-600"
-            status_bg = "bg-emerald-50"
-            status_label = "Shared"
-        elif p.status == "scheduled": 
-            status_color = "text-brand"
-            status_bg = "bg-brand/10 shadow-sm"
-            status_label = "Planned"
-        elif p.status == "ready":
-            status_color = "text-accent"
-            status_bg = "bg-accent/10"
-            status_label = "Review Ready"
-        
-        caption_json = html.escape(json.dumps(p.caption or ""), quote=True)
-        date_str = p.created_at.strftime("%b %d")
-        
-        approve_btn = ""
-        if p.status in ["draft", "ready"]:
-            approve_btn = f"""
-                <button onclick="approvePost('{p.id}')" class="px-4 py-2 bg-brand/5 text-brand rounded-xl font-bold text-[8px] uppercase tracking-widest hover:bg-brand hover:text-white transition-all">Share Now</button>
-            """
-
-        recent_posts_html += f"""
-        <div class="card p-6 bg-white border-brand/5 flex flex-col gap-6 group">
-          <div class="flex items-start justify-between">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 rounded-2xl bg-cream overflow-hidden border border-brand/8 shrink-0 shadow-inner">
-                    {f'<img src="{p.media_url}" class="w-full h-full object-cover">' if p.media_url else '<div class="w-full h-full flex items-center justify-center text-[8px] font-black text-brand/20 uppercase tracking-widest">NULL</div>'}
+        if p.status in ["failed", "needs_review"]:
+            sections["Needs Attention"]["posts"].append(p)
+        elif p.status in ["draft", "drafted", "ready"]:
+            sections["Drafts & Ideas"]["posts"].append(p)
+        elif p.status == "scheduled":
+            sections["Scheduled Queue"]["posts"].append(p)
+        elif p.status in ["published", "shared"]:
+            sections["Recently Shared"]["posts"].append(p)
+            
+    dashboard_feed_sections = ""
+    for sec_title, sec_data in sections.items():
+        if not sec_data["posts"]:
+            continue
+            
+        cards_html = ""
+        for p in sec_data["posts"][:6]: # Limit 6 per section for UI balance
+            # Determine Type
+            cap = p.caption or ""
+            p_type = "REFLECTION"
+            if any(x in cap for x in ["Surah", "Verse", "Ayah", "Quran"]): p_type = "QURAN"
+            elif any(x in cap for x in ["Hadith", "Prophet", "Sahih", "Bukhari", "Muslim"]): p_type = "HADITH"
+            
+            status_color = "text-text-muted"
+            status_bg = "bg-brand/5"
+            status_label = "Reflection Draft" if p.status == "draft" else p.status.capitalize()
+            
+            if p.status in ["published", "shared"]: 
+                status_color = "text-emerald-600"
+                status_bg = "bg-emerald-50"
+                status_label = "Shared"
+            elif p.status == "scheduled": 
+                status_color = "text-brand"
+                status_bg = "bg-brand/10"
+                status_label = "Planned"
+            elif p.status == "ready":
+                status_color = "text-accent"
+                status_bg = "bg-accent/10"
+                status_label = "Review Ready"
+            elif p.status in ["failed", "needs_review"]:
+                status_color = "text-rose-600"
+                status_bg = "bg-rose-50"
+            
+            caption_json = html.escape(json.dumps(p.caption or ""), quote=True)
+            date_str = p.created_at.strftime("%b %d")
+            
+            # Action Buttons based on status
+            actions_html = ""
+            refine_btn = f"""<button onclick="openEditPostModal('{p.id}', {caption_json}, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}')" class="flex-1 py-3 bg-white border border-brand/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-text-muted hover:text-brand hover:border-brand/30 transition-all shadow-sm">Refine</button>"""
+            
+            share_btn = f"""<button onclick="approvePost('{p.id}', event)" class="flex-1 py-3 bg-brand text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:scale-[1.02] transition-all shadow-xl shadow-brand/20">Share Now</button>"""
+            
+            retry_btn = f"""<button onclick="approvePost('{p.id}', event)" class="flex-1 py-3 bg-rose-500 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-rose-600 transition-all shadow-xl shadow-rose-500/20">Retry Share</button>"""
+            
+            delete_btn = f"""<button onclick="deletePost('{p.id}')" class="p-3 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-100">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+            </button>"""
+            
+            if sec_title == "Needs Attention":
+                actions_html = refine_btn + retry_btn + delete_btn
+            elif sec_title == "Drafts & Ideas":
+                actions_html = refine_btn + share_btn + delete_btn
+            elif sec_title == "Scheduled Queue":
+                actions_html = refine_btn + delete_btn
+            else: # Published
+                actions_html = delete_btn
+                
+            # Card UI
+            cards_html += f"""
+            <div class="card bg-white border border-brand/5 shadow-sm hover:shadow-xl hover:shadow-brand/[0.02] transition-all duration-300 flex flex-col group overflow-hidden">
+                <!-- Visual Banner -->
+                <div class="h-32 w-full bg-cream relative border-b border-brand/5 overflow-hidden flex items-center justify-center">
+                    {f'<img src="{p.media_url}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700">' if p.media_url else '<svg class="w-8 h-8 text-brand/10" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.058-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>'}
+                    <div class="absolute top-4 right-4 px-2.5 py-1 {status_bg} {status_color} backdrop-blur-md rounded-lg text-[8px] font-black uppercase tracking-[0.2em] shadow-sm">{status_label}</div>
                 </div>
-                <div>
-                   <div class="badge-premium mb-1">{p_type}</div>
-                   <div class="px-2.5 py-1 {status_bg} {status_color} rounded-lg text-[7px] font-black uppercase tracking-[0.2em] inline-block border border-brand/5">{status_label}</div>
+                
+                <div class="p-6 flex flex-col flex-1 gap-5">
+                    <!-- Header -->
+                    <div class="flex items-center justify-between">
+                        <div class="badge-premium !text-[9px]">{p_type}</div>
+                        <div class="text-[9px] font-bold text-text-muted uppercase tracking-[0.2em]">{date_str}</div>
+                    </div>
+                    
+                    <!-- Content -->
+                    <div class="flex-1">
+                        <p class="text-[13px] font-medium text-text-main leading-relaxed line-clamp-3 italic opacity-90">
+                            "{p.caption[:120] if p.caption else "Suggested Reminder"}"
+                        </p>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div class="flex items-center gap-3 pt-4 border-t border-brand/5 mt-auto">
+                        {actions_html}
+                    </div>
                 </div>
             </div>
-            <div class="text-[9px] font-black text-brand/20 uppercase tracking-[0.3em]">{date_str}</div>
-          </div>
-
-          <div class="space-y-4">
-              <p class="text-[12px] font-bold text-brand/80 leading-relaxed line-clamp-3 italic group-hover:text-brand transition-colors">
-                "{p.caption[:120] if p.caption else "Suggested Reminder"}"
-              </p>
-          </div>
-
-          <div class="flex items-center gap-3 pt-4 border-t border-brand/[0.04]">
-             <button onclick="openEditPostModal('{p.id}', {caption_json}, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}')" class="flex-1 py-3 bg-white border border-brand/10 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] text-brand/60 hover:text-brand hover:border-brand/30 transition-all">Refine</button>
-             {approve_btn.replace('rounded-xl', 'rounded-xl border border-brand/5 py-3 flex-1').replace('text-[8px]', 'text-[9px]')}
-             <button onclick="deletePost('{p.id}')" class="p-3 text-rose-300 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-             </button>
-          </div>
+            """
+            
+        dashboard_feed_sections += f"""
+        <div class="space-y-6">
+            <div class="flex items-center gap-3 border-b border-brand/5 pb-4">
+                {sec_data['icon']}
+                <h2 class="text-[11px] font-black uppercase tracking-[0.3em] text-brand/80">{sec_title}</h2>
+                <span class="ml-2 px-2 py-0.5 bg-brand/5 rounded-md text-[9px] font-bold text-brand">{{len(sec_data['posts'])}}</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {cards_html}
+            </div>
         </div>
         """
+        
+    if not dashboard_feed_sections:
+        dashboard_feed_sections = '<div class="text-center py-16 text-[10px] font-black uppercase text-text-muted italic border-dashed border-2 border-brand/10 rounded-[2rem] bg-brand/[0.01]">No recent activity in your studio</div>'
     
     # Connection CTA for empty states
     connection_cta = ""
@@ -1023,7 +1079,7 @@ async def app_dashboard_page(
                                    .replace("{next_post_media}", next_post_media)\
                                    .replace("{calendar_headers}", calendar_headers)\
                                    .replace("{calendar_days}", calendar_days)\
-                                   .replace("{recent_posts}", recent_posts_html or '<div class="text-center py-6 text-[10px] font-black uppercase text-muted italic">No recent activity</div>')\
+                                   .replace("{dashboard_feed_sections}", dashboard_feed_sections)\
                                    .replace("{next_post_id}", str(next_post_id))\
                                    .replace("{next_post_caption_json}", str(next_post_caption_json))\
                                    .replace("{next_post_time_iso}", str(next_post_time_iso))\
