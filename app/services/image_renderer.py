@@ -105,6 +105,7 @@ def reshape_arabic(text: str) -> str:
         configuration = {
             'delete_harakat': False,
             'support_zwj': True,
+            'use_unshaped_instead_of_isolated': True,
         }
         reshaper = arabic_reshaper.ArabicReshaper(configuration=configuration)
         reshaped_text = reshaper.reshape(clean_text)
@@ -1703,7 +1704,9 @@ def render_minimal_quote_card(
     if mode == "gallery":
         # Load the user-selected premium background from the app's static directory
         try:
-            bg_path = os.path.join(os.path.dirname(__file__), "..", "static", "img", "gallery", style)
+            # Robust pathing: find the static/img/gallery folder relative to the app root
+            app_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            bg_path = os.path.join(app_root, "static", "img", "gallery", style)
             bg = Image.open(bg_path).convert("RGB")
             if bg.size != target_size:
                 bg = bg.resize(target_size, Image.LANCZOS)

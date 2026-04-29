@@ -630,6 +630,8 @@ STUDIO_SCRIPTS_JS = """
         document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
         el.closest('.style-card').classList.add('active');
         invalidateQuoteCard();
+        // Instant Feedback: Automatically trigger regeneration when style is changed
+        if (studioCardMessage) generateQuoteCard();
     }
 
     function setStudioGallery(filename, el) {
@@ -639,6 +641,8 @@ STUDIO_SCRIPTS_JS = """
         document.querySelectorAll('.gallery-thumb').forEach(c => c.classList.remove('border-brand', 'ring-2', 'ring-brand/20'));
         el.classList.add('border-brand', 'ring-2', 'ring-brand/20');
         invalidateQuoteCard();
+        // Instant Feedback: Automatically trigger regeneration when gallery image is selected
+        if (studioCardMessage) generateQuoteCard();
     }
 
     function setStudioEngine(engine, el) {
@@ -1581,25 +1585,33 @@ STUDIO_COMPONENTS_HTML = """
                             
                             <!-- Unified Scene-Based Presets -->
                             <div class="grid grid-cols-2 gap-3" id="presetModeContainer">
-                                <div onclick="setStudioScene('sacred_script', this)" class="style-card scene-card active p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
-                                    <span class="text-brand text-[10px] block mb-1">🕌</span>
-                                    <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Sacred Script</span>
-                                    <span class="block text-[8px] text-text-muted mt-1">Classic spiritual aesthetic</span>
+                                <div onclick="setStudioScene('sacred_script', this)" class="style-card scene-card active p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all flex flex-col items-center text-center group">
+                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-brand/20 to-brand/5 flex items-center justify-center mb-2 shadow-inner group-hover:scale-110 transition-transform">
+                                        <div class="w-3 h-3 rounded-full bg-brand/20 animate-pulse"></div>
+                                    </div>
+                                    <span class="block text-[9px] font-black text-brand uppercase tracking-widest">Sacred Script</span>
+                                    <span class="block text-[7px] text-text-muted mt-0.5">Classic spiritual aesthetic</span>
                                 </div>
-                                <div onclick="setStudioScene('midnight_oasis', this)" class="style-card scene-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
-                                    <span class="text-brand text-[10px] block mb-1">🌙</span>
-                                    <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Midnight Oasis</span>
-                                    <span class="block text-[8px] text-text-muted mt-1">Deep atmospheric tones</span>
+                                <div onclick="setStudioScene('midnight_oasis', this)" class="style-card scene-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all flex flex-col items-center text-center group">
+                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-900/40 to-brand/5 flex items-center justify-center mb-2 shadow-inner group-hover:scale-110 transition-transform">
+                                        <div class="w-3 h-3 rounded-full bg-indigo-400/20 animate-pulse"></div>
+                                    </div>
+                                    <span class="block text-[9px] font-black text-brand uppercase tracking-widest">Midnight Oasis</span>
+                                    <span class="block text-[7px] text-text-muted mt-0.5">Deep atmospheric tones</span>
                                 </div>
-                                <div onclick="setStudioScene('desert_glow', this)" class="style-card scene-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
-                                    <span class="text-brand text-[10px] block mb-1">🏜️</span>
-                                    <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Desert Glow</span>
-                                    <span class="block text-[8px] text-text-muted mt-1">Warm golden atmosphere</span>
+                                <div onclick="setStudioScene('desert_glow', this)" class="style-card scene-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all flex flex-col items-center text-center group">
+                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-600/30 to-brand/5 flex items-center justify-center mb-2 shadow-inner group-hover:scale-110 transition-transform">
+                                        <div class="w-3 h-3 rounded-full bg-amber-400/20 animate-pulse"></div>
+                                    </div>
+                                    <span class="block text-[9px] font-black text-brand uppercase tracking-widest">Desert Glow</span>
+                                    <span class="block text-[7px] text-text-muted mt-0.5">Warm golden atmosphere</span>
                                 </div>
-                                <div onclick="setStudioScene('luxury_editorial', this)" class="style-card scene-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
-                                    <span class="text-brand text-[10px] block mb-1">⬛</span>
-                                    <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Luxury Editorial</span>
-                                    <span class="block text-[8px] text-text-muted mt-1">Premium magazine feel</span>
+                                <div onclick="setStudioScene('luxury_editorial', this)" class="style-card scene-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all flex flex-col items-center text-center group">
+                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-slate-900 to-brand/5 flex items-center justify-center mb-2 shadow-inner group-hover:scale-110 transition-transform">
+                                        <div class="w-3 h-3 rounded-full bg-slate-400/20 animate-pulse"></div>
+                                    </div>
+                                    <span class="block text-[9px] font-black text-brand uppercase tracking-widest">Luxury Editorial</span>
+                                    <span class="block text-[7px] text-text-muted mt-0.5">Premium magazine feel</span>
                                 </div>
                             </div>
                         </div>
@@ -1615,15 +1627,70 @@ STUDIO_COMPONENTS_HTML = """
                                 <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Or Choose a Premium Background</label>
                                 <span class="text-[8px] text-text-muted uppercase tracking-widest bg-brand/5 px-2 py-0.5 rounded-md">Instant</span>
                             </div>
-                            <div class="flex gap-3 overflow-x-auto pb-2 snap-x hide-scrollbar">
-                                <img src="/static/img/gallery/vsbg_1703898d266c.jpg" onclick="setStudioGallery('vsbg_1703898d266c.jpg', this)" class="gallery-thumb w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-brand/30 snap-start shrink-0 transition-all">
-                                <img src="/static/img/gallery/vsbg_483ca6ddb2c3.jpg" onclick="setStudioGallery('vsbg_483ca6ddb2c3.jpg', this)" class="gallery-thumb w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-brand/30 snap-start shrink-0 transition-all">
-                                <img src="/static/img/gallery/vsbg_8e6c34cea9aa.jpg" onclick="setStudioGallery('vsbg_8e6c34cea9aa.jpg', this)" class="gallery-thumb w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-brand/30 snap-start shrink-0 transition-all">
-                                <img src="/static/img/gallery/vsbg_7e47e2ef36e5.jpg" onclick="setStudioGallery('vsbg_7e47e2ef36e5.jpg', this)" class="gallery-thumb w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-brand/30 snap-start shrink-0 transition-all">
-                                <img src="/static/img/gallery/vsbg_6a4e0c22c2ce.jpg" onclick="setStudioGallery('vsbg_6a4e0c22c2ce.jpg', this)" class="gallery-thumb w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-brand/30 snap-start shrink-0 transition-all">
-                                <img src="/static/img/gallery/vsbg_5e98671f4321.jpg" onclick="setStudioGallery('vsbg_5e98671f4321.jpg', this)" class="gallery-thumb w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-brand/30 snap-start shrink-0 transition-all">
-                                <img src="/static/img/gallery/vsbg_3cdd20be4a77.jpg" onclick="setStudioGallery('vsbg_3cdd20be4a77.jpg', this)" class="gallery-thumb w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-brand/30 snap-start shrink-0 transition-all">
-                                <img src="/static/img/gallery/vsbg_1bf225ff5dda.jpg" onclick="setStudioGallery('vsbg_1bf225ff5dda.jpg', this)" class="gallery-thumb w-20 h-20 rounded-xl object-cover cursor-pointer border-2 border-transparent hover:border-brand/30 snap-start shrink-0 transition-all">
+                            <div class="flex gap-4 overflow-x-auto pb-4 snap-x hide-scrollbar">
+                                <!-- Sacred Corridor -->
+                                <div onclick="setStudioGallery('vsbg_1703898d266c.jpg', this)" class="gallery-thumb group relative w-24 h-28 snap-start shrink-0 cursor-pointer transition-all border-2 border-transparent rounded-2xl p-0.5">
+                                    <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
+                                        <img src="/static/img/gallery/vsbg_1703898d266c.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
+                                    </div>
+                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Sacred Corridor</span>
+                                </div>
+
+                                <!-- Golden Manuscript -->
+                                <div onclick="setStudioGallery('vsbg_483ca6ddb2c3.jpg', this)" class="gallery-thumb group relative w-24 h-28 snap-start shrink-0 cursor-pointer transition-all border-2 border-transparent rounded-2xl p-0.5">
+                                    <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
+                                        <img src="/static/img/gallery/vsbg_483ca6ddb2c3.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
+                                    </div>
+                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Golden Manuscript</span>
+                                </div>
+
+                                <!-- Midnight Oasis -->
+                                <div onclick="setStudioGallery('vsbg_8e6c34cea9aa.jpg', this)" class="gallery-thumb group relative w-24 h-28 snap-start shrink-0 cursor-pointer transition-all border-2 border-transparent rounded-2xl p-0.5">
+                                    <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
+                                        <img src="/static/img/gallery/vsbg_8e6c34cea9aa.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
+                                    </div>
+                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Midnight Oasis</span>
+                                </div>
+
+                                <!-- Celestial Glow -->
+                                <div onclick="setStudioGallery('vsbg_7e47e2ef36e5.jpg', this)" class="gallery-thumb group relative w-24 h-28 snap-start shrink-0 cursor-pointer transition-all border-2 border-transparent rounded-2xl p-0.5">
+                                    <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
+                                        <img src="/static/img/gallery/vsbg_7e47e2ef36e5.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
+                                    </div>
+                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Celestial Glow</span>
+                                </div>
+
+                                <!-- Desert Silence -->
+                                <div onclick="setStudioGallery('vsbg_6a4e0c22c2ce.jpg', this)" class="gallery-thumb group relative w-24 h-28 snap-start shrink-0 cursor-pointer transition-all border-2 border-transparent rounded-2xl p-0.5">
+                                    <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
+                                        <img src="/static/img/gallery/vsbg_6a4e0c22c2ce.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
+                                    </div>
+                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Desert Silence</span>
+                                </div>
+
+                                <!-- Eternal Stone -->
+                                <div onclick="setStudioGallery('vsbg_5e98671f4321.jpg', this)" class="gallery-thumb group relative w-24 h-28 snap-start shrink-0 cursor-pointer transition-all border-2 border-transparent rounded-2xl p-0.5">
+                                    <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
+                                        <img src="/static/img/gallery/vsbg_5e98671f4321.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
+                                    </div>
+                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Eternal Stone</span>
+                                </div>
+
+                                <!-- Fajr Horizon -->
+                                <div onclick="setStudioGallery('vsbg_3cdd20be4a77.jpg', this)" class="gallery-thumb group relative w-24 h-28 snap-start shrink-0 cursor-pointer transition-all border-2 border-transparent rounded-2xl p-0.5">
+                                    <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
+                                        <img src="/static/img/gallery/vsbg_3cdd20be4a77.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
+                                    </div>
+                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Fajr Horizon</span>
+                                </div>
+
+                                <!-- Royal Velvet -->
+                                <div onclick="setStudioGallery('vsbg_1bf225ff5dda.jpg', this)" class="gallery-thumb group relative w-24 h-28 snap-start shrink-0 cursor-pointer transition-all border-2 border-transparent rounded-2xl p-0.5">
+                                    <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
+                                        <img src="/static/img/gallery/vsbg_1bf225ff5dda.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
+                                    </div>
+                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Royal Velvet</span>
+                                </div>
                             </div>
                         </div>
                     </div>

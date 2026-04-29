@@ -380,9 +380,12 @@ def readiness_check():
         from fastapi.responses import JSONResponse
         return JSONResponse(status_code=503, content={"status": "not_ready", "detail": "Database migrations pending or DB unreachable."})
 
-# Serve uploads with dynamic absolute pathing
+# Serve uploads and static assets with dynamic absolute pathing
 uploads_absolute_path = settings.uploads_dir
 os.makedirs(uploads_absolute_path, exist_ok=True)
+
+# Static assets (fonts, system gallery, etc.)
+static_absolute_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
 # EXPLICIT IMAGE SERVING OVERRIDE (Bypass StaticFiles if needed)
 @app.get("/uploads/{filename}")
@@ -412,7 +415,9 @@ async def serve_upload_forced(filename: str):
     return FileResponse(full_path, media_type=content_type, headers=headers)
 
 app.mount("/uploads", StaticFiles(directory=uploads_absolute_path), name="uploads")
-print(f"📁 [System] Uploads mounted at: {uploads_absolute_path}")
+app.mount("/static", StaticFiles(directory=static_absolute_path), name="static")
+print(f"📁 [System] Media mounted: {uploads_absolute_path}")
+print(f"📁 [System] Assets mounted: {static_absolute_path}")
 
 # Include Routers
 from .routes import neural_hub, studio

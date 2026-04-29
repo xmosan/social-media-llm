@@ -168,6 +168,12 @@ def normalize_quran_verse(item: Any) -> Dict[str, Any]:
     # 3. Enrich Surah names from map
     surah_info = SURAH_MAP.get(surah_num, {"en": "Unknown Surah", "ar": ""})
     
+    # 3.5 CLEANING: Strip the Basmala prefix if present (except for Al-Fatihah 1:1)
+    # Standard Basmala string in many datasets: بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ
+    basmala = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ"
+    if surah_num != 1 and arabic_text.startswith(basmala):
+        arabic_text = arabic_text[len(basmala):].strip()
+    
     # 4. Final Construction
     verse_key = f"{surah_num}:{ayah_num}"
     reference = f"Qur'an {verse_key}"

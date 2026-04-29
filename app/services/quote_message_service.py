@@ -71,6 +71,8 @@ def build_quran_quote_message(ayah_record: Dict[str, Any], tone: str, intent: st
         reference=reference
     )
 
+    logger.info(f"[QUOTE_MESSAGE] Final Arabic text for {reference} (first 20 chars): {repr(arabic_text[:20])}")
+
     message = {
         "eyebrow": framing.get("eyebrow", reference),
         "headline": translation,
