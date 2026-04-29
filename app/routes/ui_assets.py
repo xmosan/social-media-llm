@@ -1,7 +1,7 @@
 # Shared UI Assets for Sabeel Studio
 # Copyright (c) 2026 Mohammed Hassan. All rights reserved.
 
-STUDIO_SCRIPTS_JS = """
+STUDIO_SCRIPTS_JS = r"""
 <script>;
 (function() {
     'use strict';
