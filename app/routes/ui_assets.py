@@ -97,10 +97,11 @@ STUDIO_SCRIPTS_JS = r"""
         confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
         
         newConfirmBtn.onclick = () => {
-            modal.classList.add('hidden');
+            window.closeConfirmModal();
             if (onConfirm) onConfirm();
         };
         
+        modal.style.opacity = '1';
         modal.classList.remove('hidden');
         modal.style.display = 'flex';
     };
@@ -108,8 +109,15 @@ STUDIO_SCRIPTS_JS = r"""
     window.closeConfirmModal = function() {
         const modal = document.getElementById('globalConfirmModal');
         if (modal) {
-            modal.classList.add('hidden');
-            modal.style.display = 'none';
+            modal.classList.add('fade-out');
+            modal.style.opacity = '0';
+            modal.style.transition = 'all 0.3s ease-in-out';
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+                modal.classList.remove('fade-out');
+                modal.style.opacity = '1'; // Reset for next time
+            }, 300);
         }
     };
 
