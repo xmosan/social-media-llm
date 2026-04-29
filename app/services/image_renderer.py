@@ -1701,9 +1701,9 @@ def render_minimal_quote_card(
         mode = "scene"
 
     if mode == "gallery":
-        # Load the user-selected premium background from the uploads directory
+        # Load the user-selected premium background from the app's static directory
         try:
-            bg_path = os.path.join(os.path.dirname(__file__), "..", "..", "uploads", style)
+            bg_path = os.path.join(os.path.dirname(__file__), "..", "static", "img", "gallery", style)
             bg = Image.open(bg_path).convert("RGB")
             if bg.size != target_size:
                 bg = bg.resize(target_size, Image.LANCZOS)
