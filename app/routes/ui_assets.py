@@ -68,6 +68,31 @@ STUDIO_SCRIPTS_JS = """
     let studioCardMessage = null; // { eyebrow, headline, supporting_text }
     let studioCaptionMessage = null; // { hook, body, cta, hashtags }
 
+    // ── Shared Source-of-Truth (Phase 1 → 2 → 3) ──────────────────────────────
+    // Single canonical object for the selected source.
+    // Set by selectAyah() / _applyHadithSelection().
+    // Read by generateSocialCaption() — never re-derived from topic string.
+    window.studioSourceContext = null;
+
+    function _setSourceContext(ctx) {
+        window.studioSourceContext = ctx;
+        // Update the Phase 3 grounding badge whenever source changes
+        _renderGroundingBadge();
+    }
+
+    function _renderGroundingBadge() {
+        const badge = document.getElementById('presenceGroundingBadge');
+        const label = document.getElementById('presenceSourceLabel');
+        if (!badge || !label) return;
+        const ctx = window.studioSourceContext;
+        if (ctx && ctx.reference) {
+            label.textContent = ctx.reference;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
     window.resetStudioSession = function() {
         // Reset Logic state
         currentQuoteCardUrl = null;
@@ -81,6 +106,7 @@ STUDIO_SCRIPTS_JS = """
         studioCaptionMessage = null;
         window.selectedAyahMetadata = null;
         window.selectedHadithMetadata = null;
+        window.studioSourceContext = null;
 
         // Reset Physical Elements
         const setVal = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
@@ -172,6 +198,17 @@ STUDIO_SCRIPTS_JS = """
         }
 
         if (stepIndex === 4) prepareShare();
+
+        // Phase 3: wire mini card thumbnail and re-render grounding badge
+        if (stepIndex === 3) {
+            _renderGroundingBadge();
+            const thumb = document.getElementById('presenceCardThumbImg');
+            const thumbContainer = document.getElementById('presenceCardThumb');
+            if (thumb && thumbContainer && currentQuoteCardUrl) {
+                thumb.src = currentQuoteCardUrl;
+                thumbContainer.classList.remove('hidden');
+            }
+        }
     }
 
     function switchSourceTab(tab) {
@@ -321,6 +358,8 @@ STUDIO_SCRIPTS_JS = """
         selectedHadithId = meta.hadith_number || meta.id;
         selectedAyahId = null;
         window.selectedHadithMetadata = meta;
+        // Populate the shared source-of-truth for Phase 3
+        _setSourceContext({ type: 'hadith', reference: meta.reference || '', ...meta });
         document.getElementById('selectedHadithBadge').classList.remove('hidden');
         document.getElementById('selectedAyahBadge').classList.add('hidden');
         document.getElementById('selectedHadithTitle').innerText = meta.reference || '';
@@ -402,6 +441,8 @@ STUDIO_SCRIPTS_JS = """
         selectedAyahId = id;
         selectedHadithId = null;
         window.selectedAyahMetadata = { reference: title, translation_text: text, arabic_text: arabic_text, id: id };
+        // Populate the shared source-of-truth for Phase 3
+        _setSourceContext({ type: 'quran', reference: title, translation_text: text, arabic_text: arabic_text, id: id });
         document.getElementById('selectedAyahBadge').classList.remove('hidden');
         document.getElementById('selectedHadithBadge').classList.add('hidden');
         document.getElementById('selectedAyahTitle').innerText = title;
@@ -539,23 +580,32 @@ STUDIO_SCRIPTS_JS = """
         const btn = document.getElementById('btnGenerateCaption');
         const icon = btn.querySelector('.btn-icon');
         const text = btn.querySelector('.btn-text');
+        const driftWarning = document.getElementById('presenceDriftWarning');
 
         btn.disabled = true;
         if(icon) icon.classList.add('animate-spin');
-        if(text) text.innerText = 'Crafting Social Presence...';
+        if(text) text.innerText = 'Crafting Presence...';
+        if(driftWarning) driftWarning.classList.add('hidden');
 
         try {
-            // Determine correct source type and payload
-            let srcType = 'manual';
-            let srcPayload = { text: studioCardMessage ? studioCardMessage.headline : '' };
+            // ── Read from the single shared source-of-truth ───────────────────
+            // studioSourceContext is set by selectAyah() / _applyHadithSelection().
+            // It carries exactly what was used to build the card, preventing drift.
+            const ctx = window.studioSourceContext;
 
-            if (selectedHadithId && window.selectedHadithMetadata) {
-                // Hadith: pass full metadata so caption is grounded in exact Hadith text
+            let srcType = 'manual';
+            let srcPayload = { text: studioCardMessage ? (studioCardMessage.headline || '') : '' };
+
+            if (ctx && ctx.type === 'hadith') {
                 srcType = 'hadith';
-                srcPayload = window.selectedHadithMetadata;
-            } else if (selectedAyahId && window.selectedAyahMetadata) {
+                srcPayload = ctx;
+            } else if (ctx && ctx.type === 'quran') {
                 srcType = 'quran';
-                srcPayload = window.selectedAyahMetadata;
+                srcPayload = ctx;
+            } else if (!ctx) {
+                // No source context — show the no-source warning in the UI
+                const noSrc = document.getElementById('presenceNoSourceWarning');
+                if (noSrc) noSrc.classList.remove('hidden');
             }
 
             const payload = {
@@ -572,25 +622,63 @@ STUDIO_SCRIPTS_JS = """
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
+
             // Handle both structured caption_message and plain caption string
+            let captionText = '';
             if (data.caption_message) {
                 studioCaptionMessage = data.caption_message;
-                const fullText = `${studioCaptionMessage.hook || ''}\n\n${studioCaptionMessage.body || ''}\n\n${studioCaptionMessage.cta || ''}\n\n${(studioCaptionMessage.hashtags || []).join(' ')}`;
-                document.getElementById('studioCaption').value = fullText.trim();
-                document.getElementById('captionResultArea').classList.remove('hidden');
+                captionText = `${studioCaptionMessage.hook || ''}\n\n${studioCaptionMessage.body || ''}\n\n${studioCaptionMessage.cta || ''}\n\n${(studioCaptionMessage.hashtags || []).join(' ')}`;
             } else if (data.caption) {
-                // Plain string caption from Hadith / fallback path
                 studioCaptionMessage = { caption: data.caption };
-                document.getElementById('studioCaption').value = data.caption;
+                captionText = data.caption;
+            }
+
+            if (captionText) {
+                captionText = captionText.trim();
+                document.getElementById('studioCaption').value = captionText;
                 document.getElementById('captionResultArea').classList.remove('hidden');
+
+                // ── Render the premium caption preview ───────────────────────
+                _renderCaptionPreview(captionText);
+
+                // ── Soft drift validation ─────────────────────────────────────
+                if (ctx && ctx.reference && driftWarning) {
+                    // Check if the expected reference appears anywhere in the caption
+                    // Extract key identifiers (e.g. "94:5" from "Qur'an 94:5")
+                    const refParts = ctx.reference.replace(/[^0-9:a-zA-Z]/g, ' ').trim().split(/\s+/).filter(p => p.length > 1);
+                    const captionLower = captionText.toLowerCase();
+                    const isGrounded = refParts.some(part => captionLower.includes(part.toLowerCase()));
+                    if (!isGrounded) {
+                        driftWarning.classList.remove('hidden');
+                    }
+                }
             }
         } catch (e) {
-            alert('Social caption generation failed.');
+            console.error('[Studio Phase 3] Caption generation failed:', e);
+            alert('Caption generation failed. Please try again.');
         } finally {
             btn.disabled = false;
             if(icon) icon.classList.remove('animate-spin');
-            if(text) text.innerText = 'Generate Social Caption';
+            if(text) text.innerText = 'Generate Caption';
         }
+    }
+
+    function _renderCaptionPreview(captionText) {
+        const preview = document.getElementById('captionPreviewBlock');
+        if (!preview) return;
+        // Split on double newlines into structured lines
+        const lines = captionText.split(/\n\n+/).map(l => l.trim()).filter(Boolean);
+        if (lines.length === 0) return;
+
+        let html = '';
+        if (lines[0]) html += `<p class="text-[11px] font-bold text-brand leading-relaxed">${lines[0].replace(/\n/g, '<br>')}</p>`;
+        if (lines[1]) html += `<p class="text-[11px] font-medium text-text-muted italic leading-relaxed mt-3">${lines[1].replace(/\n/g, '<br>')}</p>`;
+        if (lines[2]) html += `<p class="text-[11px] font-black text-brand/80 leading-relaxed mt-3">${lines[2].replace(/\n/g, '<br>')}</p>`;
+        if (lines.length > 3) {
+            html += `<p class="text-[9px] font-bold text-accent/70 mt-4">${lines.slice(3).join('  ')}</p>`;
+        }
+        preview.innerHTML = html;
+        preview.closest('#captionPreviewContainer')?.classList.remove('hidden');
     }
 
     function invalidateQuoteCard() {
@@ -1719,16 +1807,94 @@ STUDIO_COMPONENTS_HTML = """
                 </div>
              </div>
           </div>
-          <div id="studioSection3" class="studio-section hidden space-y-10">
-                <button type="button" id="btnGenerateCaption" onclick="generateSocialCaption()" class="w-full py-6 bg-brand/5 text-brand border border-brand/10 rounded-[2rem] font-black text-xs uppercase tracking-widest hover:bg-brand/10 transition-all flex items-center justify-center gap-3">
-                    <span class="btn-text">Generate Social Caption</span>
-                </button>
-                <div id="captionResultArea" class="hidden space-y-6">
-                    <textarea id="studioCaption" name="caption" class="w-full bg-white border border-brand/10 rounded-[2.5rem] p-10 text-sm font-medium text-brand min-h-[300px] outline-none shadow-xl leading-relaxed custom-scrollbar"></textarea>
-                    <div class="flex justify-end pt-4">
-                       <button type="button" onclick="switchStudioSection(4)" class="px-10 py-5 bg-brand text-white rounded-2xl font-bold text-[11px] uppercase tracking-widest">Final Review &rarr;</button>
-                    </div>
-                </div>
+          <!-- ─────────────────────────────────────────────────────────────────
+               PHASE 3 — PRESENCE
+               Caption refinement stage. Source is locked from Phase 1 selection.
+               ───────────────────────────────────────────────────────────────── -->
+          <div id="studioSection3" class="studio-section hidden space-y-8">
+
+              <!-- Source Grounding Banner -->
+              <div id="presenceGroundingBadge" class="hidden flex items-center gap-3 bg-brand/[0.04] border border-brand/10 rounded-2xl px-6 py-4">
+                  <div class="w-2 h-2 rounded-full bg-accent flex-shrink-0 animate-pulse"></div>
+                  <div class="flex-1 min-w-0">
+                      <div class="text-[8px] font-black uppercase tracking-widest text-brand/40 mb-0.5">Grounded Source</div>
+                      <div id="presenceSourceLabel" class="text-[11px] font-black text-brand truncate"></div>
+                  </div>
+                  <div class="text-[8px] font-bold text-accent/70 uppercase tracking-widest flex-shrink-0">Locked</div>
+              </div>
+
+              <!-- No-source warning (only shown if user skipped source selection) -->
+              <div id="presenceNoSourceWarning" class="hidden flex items-start gap-3 bg-amber-50 border border-amber-200/60 rounded-2xl px-6 py-4">
+                  <svg class="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                  <div>
+                      <div class="text-[9px] font-black uppercase tracking-widest text-amber-700 mb-1">No Source Selected</div>
+                      <div class="text-[10px] font-medium text-amber-600 leading-relaxed">The caption will be generated without a specific Qur'an or Hadith anchor. Return to Source to select one.</div>
+                  </div>
+              </div>
+
+              <!-- Mini Card Thumbnail + Generate -->  
+              <div class="grid grid-cols-1 md:grid-cols-[auto,1fr] gap-6 items-start">
+
+                  <!-- Card Thumbnail -->
+                  <div id="presenceCardThumb" class="hidden md:block flex-shrink-0">
+                      <div class="w-28 h-28 rounded-2xl overflow-hidden border-2 border-brand/10 shadow-xl bg-brand/5">
+                          <img id="presenceCardThumbImg" class="w-full h-full object-cover" alt="Your quote card">
+                      </div>
+                      <div class="text-[7px] font-black uppercase tracking-widest text-brand/30 text-center mt-2">Your Card</div>
+                  </div>
+
+                  <!-- Generate Button + helper -->
+                  <div class="flex flex-col justify-center gap-3">
+                      <div class="text-[9px] font-medium text-text-muted leading-relaxed">
+                          Generate a social caption grounded in the source above. You can edit it after.
+                      </div>
+                      <button type="button" id="btnGenerateCaption" onclick="generateSocialCaption()" class="w-full py-5 bg-brand text-white rounded-[2rem] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:shadow-brand/30 hover:scale-[1.005] transition-all flex items-center justify-center gap-3">
+                          <svg class="btn-icon w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                          <span class="btn-text">Generate Caption</span>
+                      </button>
+                  </div>
+              </div>
+
+              <!-- Caption Result Area -->
+              <div id="captionResultArea" class="hidden space-y-5">
+
+                  <!-- Drift Warning (soft validation) -->
+                  <div id="presenceDriftWarning" class="hidden flex items-start gap-3 bg-rose-50 border border-rose-200/60 rounded-2xl px-6 py-4">
+                      <svg class="w-4 h-4 text-rose-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+                      <div>
+                          <div class="text-[9px] font-black uppercase tracking-widest text-rose-600 mb-1">Source Reference Not Detected in Caption</div>
+                          <div class="text-[10px] font-medium text-rose-500 leading-relaxed">The caption may not be grounded to your selected source. Review before publishing, or regenerate.</div>
+                      </div>
+                  </div>
+
+                  <!-- Formatted Caption Preview -->
+                  <div id="captionPreviewContainer" class="hidden bg-white border border-brand/10 rounded-[2.5rem] shadow-2xl overflow-hidden">
+                      <div class="px-8 pt-6 pb-2 border-b border-brand/5">
+                          <div class="text-[8px] font-black uppercase tracking-widest text-brand/30">Caption Preview</div>
+                      </div>
+                      <div id="captionPreviewBlock" class="px-8 py-6 space-y-1 leading-relaxed">
+                          <!-- Rendered by _renderCaptionPreview() -->
+                      </div>
+                  </div>
+
+                  <!-- Divider -->
+                  <div class="flex items-center gap-4 px-2">
+                      <div class="h-px flex-1 bg-brand/5"></div>
+                      <div class="text-[8px] font-black uppercase tracking-widest text-brand/20">Edit Caption</div>
+                      <div class="h-px flex-1 bg-brand/5"></div>
+                  </div>
+
+                  <!-- Editable Refinement Zone -->
+                  <div class="relative">
+                      <textarea id="studioCaption" name="caption" class="w-full bg-brand/[0.02] border border-brand/10 rounded-[2rem] px-8 py-7 text-[11px] font-medium text-brand min-h-[200px] outline-none leading-relaxed custom-scrollbar focus:border-brand/30 focus:bg-white transition-all resize-none" placeholder="Your generated caption will appear here. You can edit it before publishing."></textarea>
+                  </div>
+
+                  <!-- Continue -->
+                  <div class="flex justify-end pt-2">
+                      <button type="button" onclick="switchStudioSection(4)" class="px-10 py-5 bg-brand text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-brand/15 hover:shadow-brand/25 hover:scale-[1.01] transition-all">Approve &amp; Review &rarr;</button>
+                  </div>
+
+              </div>
           </div>
           <div id="studioSection4" class="studio-section hidden space-y-12">
                <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">

@@ -44,9 +44,11 @@ def studio_generate_caption(data: dict):
     Phase 3: Generate the social media caption explicitly.
     Does NOT affect or generate visual card text.
 
-    For Hadith: uses exact reference + translation_text from source_payload.
-    Caption clearly separates the Hadith text from AI reflection.
-    narrator is cited only if present in source_payload — never fabricated.
+    Source grounding contract:
+    - Hadith: uses exact reference + translation_text from source_payload → generate_hadith_caption()
+    - Quran:  if source_payload has translation_text → bypass DB re-search, call generate_ai_caption_from_quran() directly
+              otherwise fall through to topic-based search (manual/fallback)
+    - narrator is cited only if present in source_payload — never fabricated
     """
     source_type = data.get("source_type") or "manual"
     source_payload = data.get("source_payload") or {}
@@ -64,7 +66,22 @@ def studio_generate_caption(data: dict):
             logger.error(f"[STUDIO] Hadith caption generation failed: {e}")
             return JSONResponse(status_code=500, content={"error": str(e)})
 
-    # ── Quran: inject reference into topic for grounded generation ─────────────
+    # ── Quran: bypass DB re-search if payload is complete ─────────────────────
+    # This is the critical source-drift fix.
+    # If source_payload has both reference and translation_text, we already have
+    # exactly what was shown on the card — no need to re-search, which could
+    # return a different verse entirely.
+    if source_type == "quran" and source_payload.get("translation_text") and source_payload.get("reference"):
+        try:
+            from app.services.quran_caption_service import generate_ai_caption_from_quran
+            caption = generate_ai_caption_from_quran(source_payload, style=tone)
+            logger.info(f"[STUDIO] Quran caption grounded directly to: {source_payload.get('reference')}")
+            return {"caption": caption}
+        except Exception as e:
+            logger.error(f"[STUDIO] Quran grounded caption failed: {e}")
+            # Fall through to topic-based generation below
+
+    # ── Quran fallback: inject reference into topic for topic-based search ─────
     if source_payload and source_type == "quran":
         reference = source_payload.get("reference") or source_payload.get("verse_key")
         if reference and topic:
