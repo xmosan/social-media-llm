@@ -157,13 +157,22 @@ def normalize_quran_verse(item: Any) -> Dict[str, Any]:
     ayah_num = raw_meta.get("verse_number") or raw_meta.get("ayah")
 
     if not surah_num or not ayah_num:
-        match = re.search(r"(\d+)[:,\s]+(\d+)", raw_title)
-        if match:
-            if not surah_num: surah_num = int(match.group(1))
-            if not ayah_num: ayah_num = int(match.group(2))
+        # 1. Try "Surah X, Verse Y" format
+        m = re.search(r"Surah\s+(\d+)[\s,]+Verse\s+(\d+)", raw_title, re.IGNORECASE)
+        if m:
+            surah_num = int(m.group(1))
+            ayah_num = int(m.group(2))
+        else:
+            # 2. Try any "X:Y" or "X Y" format
+            m = re.search(r"(\d+)[:,\s]+(\d+)", raw_title)
+            if m:
+                surah_num = int(m.group(1))
+                ayah_num = int(m.group(2))
 
-    surah_num = int(surah_num) if surah_num else 1
-    ayah_num = int(ayah_num) if ayah_num else 1
+    # Strict fallback: DO NOT default to 1:1 if we found nothing. 
+    # Use 0:0 to signify a parsing failure so we don't report incorrect references.
+    surah_num = int(surah_num) if surah_num else 0
+    ayah_num = int(ayah_num) if ayah_num else 0
 
     # 3. Enrich Surah names from map
     surah_info = SURAH_MAP.get(surah_num, {"en": "Unknown Surah", "ar": ""})

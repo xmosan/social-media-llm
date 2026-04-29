@@ -767,7 +767,7 @@ STUDIO_SCRIPTS_JS = """
                     openNewPostModal();
                     if (item.type === 'quran_verse' || item.type === 'quran') {
                         if (typeof switchSourceTab === 'function') switchSourceTab('quran');
-                        selectAyah(item.id, item.reference, item.translation_text, item.arabic_text);
+                        selectAyah(item.id, item.reference, item.translation_text || item.text, item.arabic_text);
                     } else if (item.type === 'hadith' || item.source_type === 'hadith') {
                         // Switch source tab to Hadith and load the item
                         if (typeof switchSourceTab === 'function') switchSourceTab('hadith');
@@ -1634,7 +1634,7 @@ STUDIO_COMPONENTS_HTML = """
                                     <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
                                         <img src="/static/img/gallery/vsbg_1703898d266c.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
                                     </div>
-                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Sacred Corridor</span>
+                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Sacred Obsidian</span>
                                 </div>
 
                                 <!-- Golden Manuscript -->
@@ -1642,7 +1642,7 @@ STUDIO_COMPONENTS_HTML = """
                                     <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
                                         <img src="/static/img/gallery/vsbg_483ca6ddb2c3.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
                                     </div>
-                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Golden Manuscript</span>
+                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Midnight Scholar</span>
                                 </div>
 
                                 <!-- Midnight Oasis -->
@@ -1650,7 +1650,7 @@ STUDIO_COMPONENTS_HTML = """
                                     <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
                                         <img src="/static/img/gallery/vsbg_8e6c34cea9aa.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
                                     </div>
-                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Midnight Oasis</span>
+                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Vestige of Light</span>
                                 </div>
 
                                 <!-- Celestial Glow -->
@@ -1658,7 +1658,7 @@ STUDIO_COMPONENTS_HTML = """
                                     <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
                                         <img src="/static/img/gallery/vsbg_7e47e2ef36e5.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
                                     </div>
-                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Celestial Glow</span>
+                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Divine Forest</span>
                                 </div>
 
                                 <!-- Desert Silence -->
@@ -1666,7 +1666,7 @@ STUDIO_COMPONENTS_HTML = """
                                     <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
                                         <img src="/static/img/gallery/vsbg_6a4e0c22c2ce.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
                                     </div>
-                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Desert Silence</span>
+                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Royal Obsidian</span>
                                 </div>
 
                                 <!-- Eternal Stone -->
@@ -1674,7 +1674,7 @@ STUDIO_COMPONENTS_HTML = """
                                     <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
                                         <img src="/static/img/gallery/vsbg_5e98671f4321.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
                                     </div>
-                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Eternal Stone</span>
+                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Zenith Stone</span>
                                 </div>
 
                                 <!-- Fajr Horizon -->
@@ -1682,7 +1682,7 @@ STUDIO_COMPONENTS_HTML = """
                                     <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
                                         <img src="/static/img/gallery/vsbg_3cdd20be4a77.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
                                     </div>
-                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Fajr Horizon</span>
+                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Midnight Tea</span>
                                 </div>
 
                                 <!-- Royal Velvet -->
@@ -1690,7 +1690,7 @@ STUDIO_COMPONENTS_HTML = """
                                     <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
                                         <img src="/static/img/gallery/vsbg_1bf225ff5dda.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
                                     </div>
-                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Royal Velvet</span>
+                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Celestial Silk</span>
                                 </div>
                             </div>
                         </div>

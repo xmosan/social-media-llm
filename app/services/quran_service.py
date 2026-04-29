@@ -26,10 +26,20 @@ def get_quran_ayah(db: Session, surah: int, ayah: int) -> Optional[ContentItem]:
     Reference: Surah {surah}, Verse {ayah}
     """
     title = f"Surah {surah}, Verse {ayah}"
-    item = db.query(ContentItem).filter(
+    source = get_quran_source(db)
+    
+    query = db.query(ContentItem).filter(
         ContentItem.item_type == "quran",
         ContentItem.title == title
-    ).first()
+    )
+    
+    if source:
+        # Prioritize the verified global source
+        item = query.filter(ContentItem.source_id == source.id).first()
+        if item: return item
+        
+    # Fallback to any matching title if global source match fails
+    return query.first()
     
     if not item:
         logger.warning(f"⚠️ [QuranService] Ayah not found: {title}")
@@ -200,7 +210,7 @@ TOPIC_ALIAS_MAP = {
     "mercy": ["rahmah", "compassion", "forgiveness"],
     "forgiveness": ["pardon", "forgiving", "maghfirah", "repentance"],
     "hardship": ["ease", "trial", "test", "adversity", "struggle"],
-    "ease": ["hardship", "relief", "opening"],
+    "ease": ["hardship", "relief"],
     "generosity": ["giving", "charity", "zakat", "sadakah"],
     "knowledge": ["ilm", "learning", "wisdom", "education"],
     "death": ["hereafter", "soul", "resurrection", "mortality"],
@@ -244,13 +254,14 @@ def search_quran(db: Session, query: str, limit: int = 15) -> List[ContentItem]:
     results = db.query(ContentItem).filter(
         ContentItem.item_type == "quran",
         or_(*filters)
-    ).limit(limit).all()
+    ).all() # Get all and sort in Python for more complex logic
     
-    # 3. Arabic Recovery: If results have missing Arabic, try to find the row with Arabic
+    # 3. Arabic Recovery & Source Prioritization
+    source = get_quran_source(db)
     final_results = []
     for item in results:
+        # Arabic Recovery (if needed)
         if not item.arabic_text:
-            # Try to find the same verse (surah/ayah) that HAS Arabic
             surah = item.meta.get("surah_number")
             ayah = item.meta.get("verse_number")
             if surah and ayah:
@@ -262,14 +273,21 @@ def search_quran(db: Session, query: str, limit: int = 15) -> List[ContentItem]:
                     ContentItem.arabic_text != ""
                 ).first()
                 if better_item:
-                    # Swap the text but keep original ID if needed? 
-                    # Actually, just use the better item.
                     item = better_item
         
         final_results.append(item)
     
-    logger.info(f"🔎 [QuranService] Search for '{query}' (terms={search_terms}) returned {len(final_results)} results.")
-    return final_results
+    # 4. Final Sort: Official source first, then by Surah:Ayah
+    def final_sort_key(it):
+        is_global = 0 if source and it.source_id == source.id else 1
+        s_num = it.meta.get("surah_number") or 999
+        a_num = it.meta.get("verse_number") or 999
+        return (is_global, s_num, a_num)
+
+    final_results.sort(key=final_sort_key)
+    
+    logger.info(f"🔎 [QuranService] Search for '{query}' returned {len(final_results)} results.")
+    return final_results[:limit]
 
 def get_verse_by_id(db: Session, item_id: int) -> Optional[dict]:
     """Retrieves normalized verse by integer ID."""
@@ -296,10 +314,19 @@ def get_surah_verses(db: Session, surah_num: int) -> List[dict]:
     # We filter by title pattern "Surah {num}, Verse %" and sort by parsed verse number
     # This is safer than meta filtering if JSON support is inconsistent.
     title_prefix = f"Surah {surah_num}, Verse "
-    results = db.query(ContentItem).filter(
+    source = get_quran_source(db)
+    
+    query = db.query(ContentItem).filter(
         ContentItem.item_type == "quran",
         ContentItem.title.ilike(f"{title_prefix}%")
-    ).all()
+    )
+    
+    if source:
+        results = query.filter(ContentItem.source_id == source.id).all()
+        if not results:
+            results = query.all()
+    else:
+        results = query.all()
     
     # Sort manually by ayah number safely
     def sort_key(item):

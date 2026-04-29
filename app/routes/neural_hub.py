@@ -519,7 +519,7 @@ window.QuranBrowser = {
     const bridge = {
       type: 'quran_verse',
       id: btn.getAttribute('data-id'),
-      text: btn.getAttribute('data-text'),
+      translation_text: btn.getAttribute('data-text'),
       reference: btn.getAttribute('data-ref'),
       arabic_text: btn.getAttribute('data-arabic'),
       timestamp: Date.now()

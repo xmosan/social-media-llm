@@ -1743,9 +1743,11 @@ def render_minimal_quote_card(
             if center_b > 180:
                 # Add a subtle dark wash to ensure white text pops or switch to dark text
                 # We'll stick to a subtle wash to preserve the aesthetic
-                bg = apply_vignette(bg, intensity=0.45)
+                # bg = apply_vignette(bg, intensity=0.45)
+                pass
             else:
-                bg = apply_vignette(bg, intensity=0.38)
+                # bg = apply_vignette(bg, intensity=0.38)
+                pass
 
     if mode == "scene":
         # SCENE MODE: text-stage-first composition with dynamic variation
@@ -1757,7 +1759,7 @@ def render_minimal_quote_card(
             dalle_bg = generate_background(scene_prompt, target_size, cache_dir=output_dir, engine=engine, vs_spec=None)
             if dalle_bg:
                 bg = dalle_bg
-                bg = apply_vignette(bg, intensity=0.42)
+                # bg = apply_vignette(bg, intensity=0.42)
         
         if bg is None:
             # PIL fallback: use the scene preset config
@@ -2089,8 +2091,8 @@ def render_quote_card(background_local_path: Optional[str], quote: str,
         fs, fl = ImageFont.truetype(fp, 36), ImageFont.truetype(fp, 72)
     except Exception:
         fs = fl = ImageFont.load_default()
-    ov = Image.new("RGBA", (W, H), (0, 0, 0, 120))
-    bg = Image.alpha_composite(bg.convert("RGBA"), ov).convert("RGB")
+    # ov = Image.new("RGBA", (W, H), (0, 0, 0, 120))
+    # bg = Image.alpha_composite(bg.convert("RGBA"), ov).convert("RGB")
     draw = ImageDraw.Draw(bg)
     for i, l in enumerate(textwrap.wrap(reference, 44)[:2]):
         draw.text((W//2, 120 + i*44), l, font=fs, fill=(212, 175, 55), anchor="mt")
