@@ -630,16 +630,33 @@ def delete_post(
 ):
     post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
     if not post:
+        # Debug helper: check if it exists at all to differentiate between "missing" and "permission denied"
+        exists = db.query(Post).filter(Post.id == post_id).first()
+        if exists:
+            print(f"!!! [DELETE FAIL] Post {post_id} found but Org ID mismatch. Post Org={exists.org_id}, User Org={org_id}")
+            raise HTTPException(status_code=403, detail="Forbidden: This post belongs to a different organization.")
         raise HTTPException(status_code=404, detail="Post not found")
     
-    if post.media_url and "uploads" in post.media_url:
-        try:
-            filename = post.media_url.split("/")[-1]
-            local_path = os.path.join(settings.uploads_dir, filename)
-            if os.path.exists(local_path):
-                os.remove(local_path)
-        except Exception as e:
-            print(f"Error deleting file for post {post_id}: {e}")
-    db.delete(post)
-    db.commit()
-    return {"ok": True, "message": f"Post {post_id} deleted"}
+    try:
+        # 1. Manual Cleanup of linked records that might block deletion
+        from app.models import ContentUsage
+        db.query(ContentUsage).filter(ContentUsage.post_id == post.id).delete()
+        
+        # 2. Media File Cleanup
+        if post.media_url and "uploads" in post.media_url:
+            try:
+                filename = post.media_url.split("/")[-1]
+                local_path = os.path.join(settings.uploads_dir, filename)
+                if os.path.exists(local_path):
+                    os.remove(local_path)
+            except Exception as e:
+                print(f"Error deleting file for post {post_id}: {e}")
+        
+        # 3. Final Deletion
+        db.delete(post)
+        db.commit()
+        return {"ok": True, "message": f"Post {post_id} deleted"}
+    except Exception as e:
+        db.rollback()
+        print(f"!!! [CRITICAL] Delete failed for post {post_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database error during deletion: {str(e)}")

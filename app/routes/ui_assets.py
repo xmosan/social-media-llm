@@ -1448,7 +1448,8 @@ STUDIO_SCRIPTS_JS = r"""
             if (res.ok) {
                 window.location.reload();
             } else {
-                alert('Failed to discard post.');
+                const errorData = await res.json().catch(() => ({}));
+                alert('Failed to discard post: ' + (errorData.detail || 'Unknown error'));
             }
         } catch (e) {
             alert('Connection failure.');
