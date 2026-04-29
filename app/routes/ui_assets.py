@@ -50,7 +50,7 @@ STUDIO_SCRIPTS_JS = """
         }
     });
 
-    // --- REMINDER STUDIO CORE LOGIC (v4.0 - Decoupled) ---
+    // --- STUDIO CORE LOGIC (v4.1 - Hardened) ---
     let currentQuoteCardUrl = null;
     let isQuoteCardOutOfDate = false;
     let studioCreationMode = 'preset'; 
@@ -58,103 +58,17 @@ STUDIO_SCRIPTS_JS = """
     let studioGlossy       = false;    
     let selectedAyahId     = null;
     let selectedHadithId   = null;
+    let studioSceneKey     = null;
     let activeSourceTab    = 'quran'; // quran or hadith
+    let studioCardMessage  = null; // { eyebrow, headline, supporting_text }
+    let studioCaptionMessage = null; // { hook, body, cta, hashtags }
     
     // Helpers
     const hide = (id) => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); };
     const show = (id) => { const el = document.getElementById(id); if(el) el.classList.remove('hidden'); };
 
-    // Structured State
-    let studioCardMessage = null; // { eyebrow, headline, supporting_text }
-    let studioCaptionMessage = null; // { hook, body, cta, hashtags }
-
-    // ── Shared Source-of-Truth (Phase 1 → 2 → 3) ──────────────────────────────
-    // Single canonical object for the selected source.
-    // Set by selectAyah() / _applyHadithSelection().
-    // Read by generateSocialCaption() — never re-derived from topic string.
-    window.studioSourceContext = null;
-
-    function _setSourceContext(ctx) {
-        window.studioSourceContext = ctx;
-        // Update the Phase 3 grounding badge whenever source changes
-        _renderGroundingBadge();
-    }
-
-    function _renderGroundingBadge() {
-        const badge = document.getElementById('presenceGroundingBadge');
-        const label = document.getElementById('presenceSourceLabel');
-        if (!badge || !label) return;
-        const ctx = window.studioSourceContext;
-        if (ctx && ctx.reference) {
-            label.textContent = ctx.reference;
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
-    }
-
-    window.resetStudioSession = function() {
-        // Reset Logic state
-        currentQuoteCardUrl = null;
-        isQuoteCardOutOfDate = false;
-        studioCreationMode = 'preset';
-        studioEngine = 'dalle';
-        studioGlossy = false;
-        selectedAyahId = null;
-        selectedHadithId = null;
-        studioCardMessage = null;
-        studioCaptionMessage = null;
-        window.selectedAyahMetadata = null;
-        window.selectedHadithMetadata = null;
-        window.studioSourceContext = null;
-
-        // Reset Physical Elements
-        const setVal = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
-
-        setVal('studioTopic', '');
-        setVal('editEyebrow', '');
-        setVal('editHeadline', '');
-        setVal('editSupporting', '');
-        setVal('studioCaption', '');
-        setVal('finalMediaUrl', '');
-        setVal('studioVisualPrompt', '');
-        
-        hide('quranSearchResults');
-        hide('selectedAyahBadge');
-        hide('cardMessageWorkspace');
-        hide('captionResultArea');
-        hide('cardActions');
-        hide('outOfSyncBanner');
-
-        const preview = document.getElementById('quoteCardPreview');
-        if (preview) { preview.src = ''; preview.classList.add('hidden'); }
-        
-        // Initialize UI states
-        if (typeof updateBuildButtonState === 'function') {
-            updateBuildButtonState();
-        }
-    };
-
-    window.openNewPostModal = function() {
-        console.log("[Sabeel Studio] Opening Modal...");
-        window.resetStudioSession();
-        const modal = document.getElementById('newPostModal');
-        if (modal) {
-            modal.style.display = 'flex';
-            modal.classList.remove('hidden');
-        }
-        window.switchStudioSection(1);
-    }
-
-    window.closeNewPostModal = function() {
-        const modal = document.getElementById('newPostModal');
-        if (modal) {
-            modal.classList.add('hidden');
-            modal.style.display = 'none';
-        }
-        window.resetStudioSession();
-    }
-
+    // ── Function Registry (Exported to window early) ───────────────────────────
+    
     window.switchStudioSection = function(stepIndex) {
         if (stepIndex === 2 && !studioCardMessage) {
             alert("Please build your card message first.");
@@ -201,7 +115,7 @@ STUDIO_SCRIPTS_JS = """
            }
         }
 
-        if (stepIndex === 4) prepareShare();
+        if (stepIndex === 4) window.prepareShare();
 
         // Phase 3: wire mini card thumbnail and re-render grounding badge
         if (stepIndex === 3) {
@@ -215,48 +129,124 @@ STUDIO_SCRIPTS_JS = """
         }
     }
 
-    function switchSourceTab(tab) {
-        activeSourceTab = tab;
-        const qBtn = document.getElementById('tabBtnQuran');
-        const hBtn = document.getElementById('tabBtnHadith');
-        
-        if (tab === 'quran') {
-            qBtn.classList.add('bg-brand', 'text-white');
-            qBtn.classList.remove('bg-brand/5', 'text-brand');
-            hBtn.classList.add('bg-brand/5', 'text-brand');
-            hBtn.classList.remove('bg-brand', 'text-white');
-            hide('hadithSearchResults');
-            
-            // Clear Hadith selection when switching to Quran
-            selectedHadithId = null;
-            window.selectedHadithMetadata = null;
-            hide('selectedHadithBadge');
-            
-            document.getElementById('studioTopic').placeholder = "e.g. Patience, 70:5, or Gratitude...";
-        } else {
-            hBtn.classList.add('bg-brand', 'text-white');
-            hBtn.classList.remove('bg-brand/5', 'text-brand');
-            qBtn.classList.add('bg-brand/5', 'text-brand');
-            qBtn.classList.remove('bg-brand', 'text-white');
-            hide('quranSearchResults');
-            
-            // Clear Quran selection when switching to Hadith
-            selectedAyahId = null;
-            window.selectedAyahMetadata = null;
-            hide('selectedAyahBadge');
-            
-            document.getElementById('studioTopic').placeholder = "e.g. Intention, Charity, or Kindness...";
-        }
-        
-        // Reset topic if it was a reference from the other tab
-        // But only if it matches a reference pattern to avoid clearing manual topic ideas
-        const currentTopic = document.getElementById('studioTopic').value;
-        if (currentTopic.includes(':') || currentTopic.toLowerCase().includes('bukhari') || currentTopic.toLowerCase().includes('muslim')) {
-            document.getElementById('studioTopic').value = '';
-        }
+    window.resetStudioSession = function() {
+        currentQuoteCardUrl = null;
+        isQuoteCardOutOfDate = false;
+        studioCreationMode = 'preset';
+        studioEngine = 'dalle';
+        studioGlossy = false;
+        selectedAyahId = null;
+        selectedHadithId = null;
+        studioCardMessage = null;
+        studioCaptionMessage = null;
+        window.selectedAyahMetadata = null;
+        window.selectedHadithMetadata = null;
+        window.studioSourceContext = null;
 
-        onSourceInput();
+        const setVal = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
+        setVal('studioTopic', '');
+        setVal('editEyebrow', '');
+        setVal('editHeadline', '');
+        setVal('editSupporting', '');
+        setVal('studioCaption', '');
+        setVal('finalMediaUrl', '');
+        setVal('studioVisualPrompt', '');
+        
+        hide('quranSearchResults');
+        hide('selectedAyahBadge');
+        hide('hadithSearchResults');
+        hide('selectedHadithBadge');
+        hide('cardMessageWorkspace');
+        hide('captionResultArea');
+        hide('cardActions');
+        hide('outOfSyncBanner');
+
+        const preview = document.getElementById('quoteCardPreview');
+        if (preview) { preview.src = ''; preview.classList.add('hidden'); }
+        
+        if (typeof window.updateBuildButtonState === 'function') {
+            window.updateBuildButtonState();
+        }
+    };
+
+    window.openNewPostModal = function() {
+        window.resetStudioSession();
+        const modal = document.getElementById('newPostModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
+        }
+        window.switchStudioSection(1);
+    };
+
+    window.closeNewPostModal = function() {
+        const modal = document.getElementById('newPostModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+        window.resetStudioSession();
+    };
+
+    // ── Shared Source-of-Truth (Phase 1 → 2 → 3) ──────────────────────────────
+    window.studioSourceContext = null;
+
+    function _setSourceContext(ctx) {
+        window.studioSourceContext = ctx;
+        _renderGroundingBadge();
     }
+
+    function _renderGroundingBadge() {
+        const badge = document.getElementById('presenceGroundingBadge');
+        const label = document.getElementById('presenceSourceLabel');
+        if (!badge || !label) return;
+        const ctx = window.studioSourceContext;
+        if (ctx && ctx.reference) {
+            label.textContent = ctx.reference;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+    }
+
+    window.switchSourceTab = function(tab) {
+        activeSourceTab = tab;
+        const btnQuran = document.getElementById('tabBtnQuran');
+        const btnHadith = document.getElementById('tabBtnHadith');
+        const quranSearch = document.getElementById('quranSearchSection');
+        const hadithSearch = document.getElementById('hadithSearchSection');
+
+        if (tab === 'quran') {
+            if(btnQuran) btnQuran.classList.add('bg-brand', 'text-white');
+            if(btnQuran) btnQuran.classList.remove('bg-brand/5', 'text-brand');
+            if(btnHadith) btnHadith.classList.remove('bg-brand', 'text-white');
+            if(btnHadith) btnHadith.classList.add('bg-brand/5', 'text-brand');
+            if(quranSearch) quranSearch.classList.remove('hidden');
+            if(hadithSearch) hadithSearch.classList.add('hidden');
+        } else {
+            if(btnHadith) btnHadith.classList.add('bg-brand', 'text-white');
+            if(btnHadith) btnHadith.classList.remove('bg-brand/5', 'text-brand');
+            if(btnQuran) btnQuran.classList.remove('bg-brand', 'text-white');
+            if(btnQuran) btnQuran.classList.add('bg-brand/5', 'text-brand');
+            if(hadithSearch) hadithSearch.classList.remove('hidden');
+            if(quranSearch) quranSearch.classList.add('hidden');
+        }
+    };
+
+    window.updateBuildButtonState = function() {
+        const btn = document.getElementById('btnBuildMessage');
+        if (!btn) return;
+        const topic = document.getElementById('studioTopic')?.value || '';
+        if (selectedAyahId || selectedHadithId || topic) {
+            btn.classList.remove('opacity-50', 'cursor-not-allowed', 'grayscale');
+            btn.classList.add('hover:scale-[1.01]', 'shadow-brand/20');
+            btn.disabled = false;
+        } else {
+            btn.classList.add('opacity-50', 'cursor-not-allowed', 'grayscale');
+            btn.classList.remove('hover:scale-[1.01]', 'shadow-brand/20');
+            btn.disabled = true;
+        }
+    };
 
     let searchDebounceTimeout = null;
     function onSourceInput() {
@@ -267,27 +257,12 @@ STUDIO_SCRIPTS_JS = """
             else searchHadith();
         }, 300);
     }
-    
-    function updateBuildButtonState() {
-        const topic = document.getElementById('studioTopic').value.trim();
-        const btn = document.getElementById('btnBuildMessage');
-        const hasSelection = selectedAyahId || selectedHadithId;
-        const hasManual = topic.length >= 2;
-        
-        if (hasSelection || hasManual) {
-            btn.classList.remove('opacity-50', 'cursor-not-allowed', 'grayscale');
-            btn.classList.add('hover:scale-[1.01]', 'shadow-brand/20');
-            btn.disabled = false;
-        } else {
-            btn.classList.add('opacity-50', 'cursor-not-allowed', 'grayscale');
-            btn.classList.remove('hover:scale-[1.01]', 'shadow-brand/20');
-            btn.disabled = true;
-        }
-    }
 
-    async function searchHadith() {
-        const query = document.getElementById('studioTopic').value;
+    window.searchHadith = async function() {
+        const topicEl = document.getElementById('studioTopic');
+        const query = topicEl ? topicEl.value : '';
         const resultsArea = document.getElementById('hadithSearchResults');
+        if (!resultsArea) return;
         if (query.length < 2) {
             resultsArea.classList.add('hidden');
             return;
@@ -331,20 +306,20 @@ STUDIO_SCRIPTS_JS = """
                 </div>`;
             }).join('');
         } catch (e) { console.error(e); }
-    }
+    };
 
     window.selectedHadithMetadata = null;
 
     // selectHadithFromEl — reads full metadata from the clicked result element
-    function selectHadithFromEl(el) {
+    window.selectHadithFromEl = function(el) {
         try {
             const raw = el.getAttribute('data-meta');
             const meta = JSON.parse(raw.replace(/&quot;/g, '"'));
-            _applyHadithSelection(meta);
+            window._applyHadithSelection(meta);
         } catch(e) {
             console.error('[Studio] selectHadithFromEl parse error:', e);
         }
-    }
+    };
 
     // Legacy wrapper kept for any existing inline callers
     function selectHadith(id, collection, reference, text) {
@@ -358,18 +333,27 @@ STUDIO_SCRIPTS_JS = """
         });
     }
 
-    function _applyHadithSelection(meta) {
+    window._applyHadithSelection = function(meta) {
         selectedHadithId = meta.hadith_number || meta.id;
         selectedAyahId = null;
         window.selectedHadithMetadata = meta;
         // Populate the shared source-of-truth for Phase 3
         _setSourceContext({ type: 'hadith', reference: meta.reference || '', ...meta });
-        document.getElementById('selectedHadithBadge').classList.remove('hidden');
-        document.getElementById('selectedAyahBadge').classList.add('hidden');
-        document.getElementById('selectedHadithTitle').innerText = meta.reference || '';
-        document.getElementById('hadithSearchResults').classList.add('hidden');
-        document.getElementById('studioTopic').value = meta.reference || '';
-        updateBuildButtonState();
+        const badgeH = document.getElementById('selectedHadithBadge');
+        const badgeA = document.getElementById('selectedAyahBadge');
+        if(badgeH) badgeH.classList.remove('hidden');
+        if(badgeA) badgeA.classList.add('hidden');
+        
+        const titleEl = document.getElementById('selectedHadithTitle');
+        if(titleEl) titleEl.innerText = meta.reference || '';
+        
+        const results = document.getElementById('hadithSearchResults');
+        if(results) results.classList.add('hidden');
+        
+        const topicIn = document.getElementById('studioTopic');
+        if(topicIn) topicIn.value = meta.reference || '';
+        
+        window.updateBuildButtonState();
 
         // Arabic preview (first ~60 chars of arabic_text)
         const arabicEl = document.getElementById('selectedHadithArabicPreview');
@@ -383,12 +367,14 @@ STUDIO_SCRIPTS_JS = """
             const en = (meta.card_text || meta.translation_text || '').trim();
             textEl.textContent = en ? (en.length > 110 ? en.slice(0, 110) + '…' : en) : '';
         }
-    }
+    };
 
 
-    async function searchQuran() {
-        const query = document.getElementById('studioTopic').value;
+    window.searchQuran = async function() {
+        const topicEl = document.getElementById('studioTopic');
+        const query = topicEl ? topicEl.value : '';
         const resultsArea = document.getElementById('quranSearchResults');
+        if (!resultsArea) return;
         if (query.length < 2) {
             resultsArea.classList.add('hidden');
             return;
@@ -427,35 +413,45 @@ STUDIO_SCRIPTS_JS = """
             console.error('[STUDIO_QURAN] fetch/parse error:', e);
             resultsArea.innerHTML = `<div class="p-4 text-center text-[10px] font-bold text-red-500 uppercase tracking-widest">Error loading results</div>`;
         }
-    }
+    };
 
     window.selectedAyahMetadata = null;
 
-    function selectAyahFromEl(el) {
+    window.selectAyahFromEl = function(el) {
         try {
             const raw = el.getAttribute('data-meta');
             const meta = JSON.parse(raw.replace(/&quot;/g, '"'));
-            selectAyah(meta.id, meta.reference, meta.translation_text, meta.arabic_text);
+            window.selectAyah(meta.id, meta.reference, meta.translation_text, meta.arabic_text);
         } catch(e) {
             console.error('[Studio] selectAyahFromEl parse error:', e);
         }
-    }
+    };
 
-    function selectAyah(id, title, text, arabic_text = '') {
+    window.selectAyah = function(id, title, text, arabic_text = '') {
         selectedAyahId = id;
         selectedHadithId = null;
         window.selectedAyahMetadata = { reference: title, translation_text: text, arabic_text: arabic_text, id: id };
         // Populate the shared source-of-truth for Phase 3
         _setSourceContext({ type: 'quran', reference: title, translation_text: text, arabic_text: arabic_text, id: id });
-        document.getElementById('selectedAyahBadge').classList.remove('hidden');
-        document.getElementById('selectedHadithBadge').classList.add('hidden');
-        document.getElementById('selectedAyahTitle').innerText = title;
-        document.getElementById('quranSearchResults').classList.add('hidden');
-        document.getElementById('studioTopic').value = title;
-        updateBuildButtonState();
-    }
+        
+        const badgeA = document.getElementById('selectedAyahBadge');
+        const badgeH = document.getElementById('selectedHadithBadge');
+        if(badgeA) badgeA.classList.remove('hidden');
+        if(badgeH) badgeH.classList.add('hidden');
+        
+        const titleEl = document.getElementById('selectedAyahTitle');
+        if(titleEl) titleEl.innerText = title;
+        
+        const results = document.getElementById('quranSearchResults');
+        if(results) results.classList.add('hidden');
+        
+        const topicIn = document.getElementById('studioTopic');
+        if(topicIn) topicIn.value = title;
+        
+        window.updateBuildButtonState();
+    };
 
-    async function buildCardMessage() {
+    window.buildCardMessage = async function() {
         const topic = document.getElementById('studioTopic').value;
         const intention = document.getElementById('studioIntent').value;
         const tone = document.getElementById('studioTone').value;
@@ -522,13 +518,13 @@ STUDIO_SCRIPTS_JS = """
         }
     }
 
-    function updateStudioCardFromUI() {
+    window.updateStudioCardFromUI = function() {
         if(!studioCardMessage) studioCardMessage = {};
-        studioCardMessage.eyebrow = document.getElementById('editEyebrow').value;
-        studioCardMessage.headline = document.getElementById('editHeadline').value;
-        studioCardMessage.supporting_text = document.getElementById('editSupporting').value;
-        invalidateQuoteCard();
-    }
+        studioCardMessage.eyebrow = document.getElementById('editEyebrow')?.value || '';
+        studioCardMessage.headline = document.getElementById('editHeadline')?.value || '';
+        studioCardMessage.supporting_text = document.getElementById('editSupporting')?.value || '';
+        window.invalidateQuoteCard();
+    };
 
     window.generateQuoteCard = async function() {
         if (!studioCardMessage) { alert("Build a message first."); return; }
@@ -685,66 +681,70 @@ STUDIO_SCRIPTS_JS = """
         preview.closest('#captionPreviewContainer')?.classList.remove('hidden');
     }
 
-    function invalidateQuoteCard() {
+    window.invalidateQuoteCard = function() {
         if (currentQuoteCardUrl) {
             isQuoteCardOutOfDate = true;
             const banner = document.getElementById('outOfSyncBanner');
             if(banner) banner.classList.remove('hidden');
         }
-    }
+    };
 
-    function setStudioIntent(intent, el) {
-        document.getElementById('studioIntent').value = intent;
+    window.setStudioIntent = function(intent, el) {
+        const input = document.getElementById('studioIntent');
+        if (input) input.value = intent;
         document.querySelectorAll('.intent-card').forEach(c => c.classList.remove('active'));
-        el.closest('.intent-card').classList.add('active');
-    }
+        if (el) el.closest('.intent-card').classList.add('active');
+    };
 
-    function setStudioTone(tone, el) {
-        document.getElementById('studioTone').value = tone;
+    window.setStudioTone = function(tone, el) {
+        const input = document.getElementById('studioTone');
+        if (input) input.value = tone;
         document.querySelectorAll('.tone-card').forEach(c => c.classList.remove('active'));
-        el.closest('.tone-card').classList.add('active');
-    }
+        if (el) el.closest('.tone-card').classList.add('active');
+    };
 
-    function setStudioStyle(style, el) {
-        document.getElementById('studioStyle').value = style;
+    window.setStudioStyle = function(style, el) {
+        const input = document.getElementById('studioStyle');
+        if (input) input.value = style;
         studioSceneKey = null; // Clear any scene selection
         document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
-        el.closest('.style-card').classList.add('active');
-        invalidateQuoteCard();
-    }
+        if (el) el.closest('.style-card').classList.add('active');
+        window.invalidateQuoteCard();
+    };
 
     let studioGalleryImage = null; // null = generate, non-null = bypass DALL-E
 
-    function setStudioScene(sceneKey, el) {
+    window.setStudioScene = function(sceneKey, el) {
         studioGalleryImage = null;
         document.querySelectorAll('.gallery-thumb').forEach(c => c.classList.remove('border-brand', 'ring-2', 'ring-brand/20'));
-        document.getElementById('studioStyle').value = sceneKey;
+        const input = document.getElementById('studioStyle');
+        if (input) input.value = sceneKey;
         document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
-        el.closest('.style-card').classList.add('active');
-        invalidateQuoteCard();
+        if (el) el.closest('.style-card').classList.add('active');
+        window.invalidateQuoteCard();
         // Instant Feedback: Automatically trigger regeneration when style is changed
-        if (studioCardMessage) generateQuoteCard();
-    }
+        if (studioCardMessage) window.generateQuoteCard();
+    };
 
-    function setStudioGallery(filename, el) {
+    window.setStudioGallery = function(filename, el) {
         studioGalleryImage = filename;
         // Visual feedback for gallery selection
         document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('.gallery-thumb').forEach(c => c.classList.remove('border-brand', 'ring-2', 'ring-brand/20'));
-        el.classList.add('border-brand', 'ring-2', 'ring-brand/20');
-        invalidateQuoteCard();
+        if (el) el.classList.add('border-brand', 'ring-2', 'ring-brand/20');
+        window.invalidateQuoteCard();
         // Instant Feedback: Automatically trigger regeneration when gallery image is selected
-        if (studioCardMessage) generateQuoteCard();
-    }
+        if (studioCardMessage) window.generateQuoteCard();
+    };
 
-    function setStudioEngine(engine, el) {
+    window.setStudioEngine = function(engine, el) {
         studioEngine = engine;
         document.querySelectorAll('.engine-chip').forEach(c => c.classList.remove('active'));
-        el.classList.add('active');
-        invalidateQuoteCard();
-    }
+        if (el) el.classList.add('active');
+        window.invalidateQuoteCard();
+    };
 
-    function switchStudioMode(mode) {
+    window.switchStudioMode = function(mode) {
         studioCreationMode = mode;
         const presetBtn = document.getElementById('btnModePreset');
         const customBtn = document.getElementById('btnModeCustom');
@@ -752,38 +752,42 @@ STUDIO_SCRIPTS_JS = """
         const customContainer = document.getElementById('customModeContainer');
 
         if (mode === 'preset') {
-            presetBtn.classList.add('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
-            presetBtn.classList.remove('bg-brand/5', 'text-brand');
-            customBtn.classList.remove('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
-            customBtn.classList.add('bg-brand/5', 'text-brand');
-            presetContainer.classList.remove('hidden');
-            customContainer.classList.add('hidden');
+            if(presetBtn) presetBtn.classList.add('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
+            if(presetBtn) presetBtn.classList.remove('bg-brand/5', 'text-brand');
+            if(customBtn) customBtn.classList.remove('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
+            if(customBtn) customBtn.classList.add('bg-brand/5', 'text-brand');
+            if(presetContainer) presetContainer.classList.remove('hidden');
+            if(customContainer) customContainer.classList.add('hidden');
         } else {
-            customBtn.classList.add('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
-            customBtn.classList.remove('bg-brand/5', 'text-brand');
-            presetBtn.classList.remove('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
-            presetBtn.classList.add('bg-brand/5', 'text-brand');
-            customContainer.classList.remove('hidden');
-            presetContainer.classList.add('hidden');
+            if(customBtn) customBtn.classList.add('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
+            if(customBtn) customBtn.classList.remove('bg-brand/5', 'text-brand');
+            if(presetBtn) presetBtn.classList.remove('bg-brand', 'text-white', 'shadow-lg', 'shadow-brand/20');
+            if(presetBtn) presetBtn.classList.add('bg-brand/5', 'text-brand');
+            if(customContainer) customContainer.classList.remove('hidden');
+            if(presetContainer) presetContainer.classList.add('hidden');
         }
-        invalidateQuoteCard();
-    }
+        window.invalidateQuoteCard();
+    };
 
-    function prepareShare() {
-        const caption = document.getElementById('studioCaption').value;
-        const account = document.getElementById('studioAccount').options[document.getElementById('studioAccount').selectedIndex]?.text || "No Account";
-        const timeVal = document.getElementById('studioSchedule').value;
+    window.prepareShare = function() {
+        const caption = document.getElementById('studioCaption')?.value || "";
+        const account = document.getElementById('studioAccount')?.options[document.getElementById('studioAccount')?.selectedIndex]?.text || "No Account";
+        const timeVal = document.getElementById('studioSchedule')?.value;
         const timeStr = timeVal ? new Date(timeVal).toLocaleString() : "Next Available Slot";
         const previewImg = document.getElementById('finalPreviewImage');
 
-        document.getElementById('manifestCaption').innerText = caption;
-        document.getElementById('manifestAccount').innerText = account;
-        document.getElementById('manifestTime').innerText = timeStr;
+        const manifestC = document.getElementById('manifestCaption');
+        const manifestA = document.getElementById('manifestAccount');
+        const manifestT = document.getElementById('manifestTime');
         
-        if (currentQuoteCardUrl) {
+        if (manifestC) manifestC.innerText = caption;
+        if (manifestA) manifestA.innerText = account;
+        if (manifestT) manifestT.innerText = timeStr;
+        
+        if (currentQuoteCardUrl && previewImg) {
             previewImg.src = currentQuoteCardUrl;
         }
-    }
+    };
 
     window.submitNewPost = async function(event) {
         if (event) event.preventDefault();
@@ -1616,6 +1620,8 @@ STUDIO_SCRIPTS_JS = """
         if (confirm) confirm.classList.add('hidden');
     };
 
+    window.SABEEL_STUDIO_READY = true;
+    console.log("✨ Sabeel Studio Core v4.1 Initialized Successfully");
 </script>
 """
 

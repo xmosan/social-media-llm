@@ -231,7 +231,7 @@ APP_DASHBOARD_CONTENT = """
                 </div>
                 <div class="flex gap-4">
                     <button onclick="hideDeleteConfirm()" class="flex-1 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-brand">No, Keep it</button>
-                    <button id="confirmDeleteBtn" onclick="deletePost()" class="flex-1 py-4 bg-rose-600 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-xl shadow-rose-200">Yes, Delete</button>
+                    <button id="confirmDeleteBtn" onclick="deletePost(document.getElementById('editPostId').value)" class="flex-1 py-4 bg-rose-600 rounded-2xl font-bold text-[10px] uppercase tracking-widest text-white shadow-xl shadow-rose-200">Yes, Delete</button>
                 </div>
             </div>
             
@@ -1207,7 +1207,7 @@ async def app_calendar_page(
                     elif dp.status == "draft": display_status = "Reflection Draft"
                     
                     posts_html += f"""
-                    <div class="p-3 rounded-2xl border border-brand/5 bg-white/60 space-y-2 overflow-hidden group/post cursor-pointer hover:bg-white transition-all shadow-sm" onclick="openEditPostModal('{dp.id}', `{dp.caption}`, '{dp.scheduled_time.isoformat()}')">
+                    <div class="p-3 rounded-2xl border border-brand/5 bg-white/60 space-y-2 overflow-hidden group/post cursor-pointer hover:bg-white transition-all shadow-sm" onclick="openEditPostModal('{dp.id}', {json.dumps(dp.caption or '')}, '{dp.scheduled_time.isoformat()}')">
                         <div class="flex justify-between items-center mb-1">
                             <span class="text-[7px] font-black uppercase tracking-[0.2em] text-accent/60 group-hover/post:text-accent transition-colors">{p_type}</span>
                             <span class="px-1.5 py-0.5 rounded-lg {status_class} text-[6px] font-black uppercase tracking-widest">{display_status}</span>
