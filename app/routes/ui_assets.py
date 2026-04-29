@@ -102,11 +102,15 @@ STUDIO_SCRIPTS_JS = r"""
         };
         
         modal.classList.remove('hidden');
+        modal.style.display = 'flex';
     };
 
     window.closeConfirmModal = function() {
         const modal = document.getElementById('globalConfirmModal');
-        if (modal) modal.classList.add('hidden');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
     };
 
     window.switchStudioSection = function(stepIndex) {
