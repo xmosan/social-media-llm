@@ -135,17 +135,18 @@ STUDIO_SCRIPTS_JS = """
         }
     };
 
-    function openNewPostModal() {
+    window.openNewPostModal = function() {
+        console.log("[Sabeel Studio] Opening Modal...");
         window.resetStudioSession();
         const modal = document.getElementById('newPostModal');
         if (modal) {
             modal.style.display = 'flex';
             modal.classList.remove('hidden');
         }
-        switchStudioSection(1);
+        window.switchStudioSection(1);
     }
 
-    function closeNewPostModal() {
+    window.closeNewPostModal = function() {
         const modal = document.getElementById('newPostModal');
         if (modal) {
             modal.classList.add('hidden');
@@ -154,7 +155,7 @@ STUDIO_SCRIPTS_JS = """
         window.resetStudioSession();
     }
 
-    function switchStudioSection(stepIndex) {
+    window.switchStudioSection = function(stepIndex) {
         if (stepIndex === 2 && !studioCardMessage) {
             alert("Please build your card message first.");
             return;
@@ -529,7 +530,7 @@ STUDIO_SCRIPTS_JS = """
         invalidateQuoteCard();
     }
 
-    async function generateQuoteCard() {
+    window.generateQuoteCard = async function() {
         if (!studioCardMessage) { alert("Build a message first."); return; }
         
         const btn = document.getElementById('btnGenerateCard');
@@ -579,7 +580,7 @@ STUDIO_SCRIPTS_JS = """
         }
     }
 
-    async function generateSocialCaption() {
+    window.generateSocialCaption = async function() {
         const btn = document.getElementById('btnGenerateCaption');
         const icon = btn.querySelector('.btn-icon');
         const text = btn.querySelector('.btn-text');
@@ -784,8 +785,8 @@ STUDIO_SCRIPTS_JS = """
         }
     }
 
-    async function submitNewPost(event) {
-        event.preventDefault();
+    window.submitNewPost = async function(event) {
+        if (event) event.preventDefault();
         const btn = document.getElementById('studioSubmitBtn');
         const original = btn.innerText;
 
@@ -1436,8 +1437,8 @@ STUDIO_SCRIPTS_JS = """
             alert('Connection failure.');
         }
     };
-    window.approvePost = async function(id) {
-        const btn = event?.target || {};
+    window.approvePost = async function(id, event) {
+        const btn = (event && event.target) ? event.target : {};
         const originalText = btn.innerText || 'Share Now';
         
         try {
