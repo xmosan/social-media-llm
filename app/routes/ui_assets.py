@@ -7,7 +7,7 @@ STUDIO_SCRIPTS_JS = r"""
     'use strict';
     try {
         // --- GLOBAL MODAL TEARDOWN (Ensures no stale overlays) ---
-        ['editPostModal', 'newPostModal', 'newAutoModalV2', 'connectInstagramModal', 'accountSwitcherDropdown'].forEach(id => {
+        ['editPostModal', 'newPostModal', 'newAutoModalV2', 'connectInstagramModal', 'accountSwitcherDropdown', 'globalConfirmModal'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
                 el.classList.add('hidden');
@@ -81,6 +81,34 @@ STUDIO_SCRIPTS_JS = r"""
 
     // ── Function Registry (Exported to window early) ───────────────────────────
     
+    window.showStudioConfirm = function(title, message, onConfirm) {
+        const modal = document.getElementById('globalConfirmModal');
+        const titleEl = document.getElementById('confirmTitle');
+        const messageEl = document.getElementById('confirmMessage');
+        const confirmBtn = document.getElementById('confirmActionButton');
+        
+        if (!modal) return;
+        
+        titleEl.innerText = title;
+        messageEl.innerText = message;
+        
+        // Clone and replace to clear previous listeners
+        const newConfirmBtn = confirmBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+        
+        newConfirmBtn.onclick = () => {
+            modal.classList.add('hidden');
+            if (onConfirm) onConfirm();
+        };
+        
+        modal.classList.remove('hidden');
+    };
+
+    window.closeConfirmModal = function() {
+        const modal = document.getElementById('globalConfirmModal');
+        if (modal) modal.classList.add('hidden');
+    };
+
     window.switchStudioSection = function(stepIndex) {
         if (stepIndex === 2 && !studioCardMessage) {
             alert("Please build your card message first.");
@@ -1442,49 +1470,52 @@ STUDIO_SCRIPTS_JS = r"""
     };
 
     window.deletePost = async function(id, event) {
-        if (!confirm("Discard this piece of reminder?")) return;
-        
         const btn = (event && event.currentTarget) ? event.currentTarget : null;
         const card = btn ? btn.closest('.card') : null;
-        
-        try {
-            if (card) {
-                card.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
-                card.style.opacity = '0.5';
-                card.style.pointerEvents = 'none';
-            }
-            
-            const res = await fetch(`/posts/${id}`, { method: 'DELETE' });
-            if (res.ok) {
-                if (card) {
-                    card.style.transform = 'scale(0.95) translateY(10px)';
-                    card.style.opacity = '0';
-                    setTimeout(() => {
-                        const parent = card.parentElement;
-                        card.remove();
-                        // If the grid is now empty, we might want to reload or hide the section
-                        if (parent && parent.children.length === 0) {
+
+        window.showStudioConfirm(
+            "Discard Reminder?", 
+            "This action cannot be undone. The guidance will be lost from your studio.",
+            async () => {
+                try {
+                    if (card) {
+                        card.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+                        card.style.opacity = '0.5';
+                        card.style.pointerEvents = 'none';
+                    }
+                    
+                    const res = await fetch(`/posts/${id}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        if (card) {
+                            card.style.transform = 'scale(0.95) translateY(10px)';
+                            card.style.opacity = '0';
+                            setTimeout(() => {
+                                const parent = card.parentElement;
+                                card.remove();
+                                if (parent && parent.children.length === 0) {
+                                    window.location.reload();
+                                }
+                            }, 400);
+                        } else {
                             window.location.reload();
                         }
-                    }, 400);
-                } else {
-                    window.location.reload();
-                }
-            } else {
-                const errorData = await res.json().catch(() => ({}));
-                alert('Failed to discard post: ' + (errorData.detail || 'Unknown error'));
-                if (card) {
-                    card.style.opacity = '1';
-                    card.style.pointerEvents = 'auto';
+                    } else {
+                        const errorData = await res.json().catch(() => ({}));
+                        alert('Failed to discard post: ' + (errorData.detail || 'Unknown error'));
+                        if (card) {
+                            card.style.opacity = '1';
+                            card.style.pointerEvents = 'auto';
+                        }
+                    }
+                } catch (e) {
+                    alert('Connection failure.');
+                    if (card) {
+                        card.style.opacity = '1';
+                        card.style.pointerEvents = 'auto';
+                    }
                 }
             }
-        } catch (e) {
-            alert('Connection failure.');
-            if (card) {
-                card.style.opacity = '1';
-                card.style.pointerEvents = 'auto';
-            }
-        }
+        );
     };
     window.approvePost = async function(id, event) {
         const btn = (event && event.target) ? event.target : {};
@@ -2315,6 +2346,23 @@ STUDIO_COMPONENTS_HTML = """
             </form>
         </div>
     </div>
+</div>
+
+<!-- Global Confirmation Modal -->
+<div id="globalConfirmModal" class="fixed inset-0 bg-brand/40 backdrop-blur-xl z-[300] hidden flex items-center justify-center p-6 animate-in fade-in duration-300">
+  <div class="glass max-w-sm w-full p-8 rounded-[2.5rem] border border-brand/10 shadow-2xl space-y-6 bg-white text-center">
+    <div class="w-16 h-16 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-500 mx-auto">
+        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+    </div>
+    <div>
+        <h3 id="confirmTitle" class="text-xl font-bold text-brand">Discard Reminder?</h3>
+        <p id="confirmMessage" class="text-[11px] font-medium text-text-muted mt-2">This action cannot be undone. The guidance will be lost from your studio.</p>
+    </div>
+    <div class="flex gap-3">
+        <button onclick="closeConfirmModal()" class="flex-1 py-4 bg-white border border-brand/10 rounded-2xl font-bold text-[11px] uppercase tracking-widest text-brand hover:bg-brand/5 transition-all">Cancel</button>
+        <button id="confirmActionButton" class="flex-1 py-4 bg-rose-600 rounded-2xl font-bold text-[11px] uppercase tracking-widest text-white shadow-xl shadow-rose-200 hover:bg-rose-700 transition-all">Confirm</button>
+    </div>
+  </div>
 </div>
 """
 
