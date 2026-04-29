@@ -431,10 +431,10 @@ STUDIO_SCRIPTS_JS = """
             let sourceType = 'manual';
             let sourcePayload = { text: topic, reference: topic };
 
-            if (activeSourceTab === 'quran' && selectedAyahId) {
+            if (selectedAyahId) {
                 sourceType = 'quran';
                 sourcePayload = window.selectedAyahMetadata;
-            } else if (activeSourceTab === 'hadith' && selectedHadithId) {
+            } else if (selectedHadithId) {
                 sourceType = 'hadith';
                 sourcePayload = window.selectedHadithMetadata;
             }
@@ -502,12 +502,12 @@ STUDIO_SCRIPTS_JS = """
         try {
             const payload = {
                 card_message: studioCardMessage,
-                style: studioCreationMode === 'custom' ? 'custom' : document.getElementById('studioStyle').value,
-                visual_prompt: document.getElementById('studioVisualPrompt')?.value,
+                style: document.getElementById('studioStyle').value,
+                visual_prompt: document.getElementById('studioCustomDirection')?.value,
                 text_style_prompt: document.getElementById('studioTextStylePrompt')?.value,
                 engine: studioEngine,
                 glossy: studioGlossy,
-                mode: studioCreationMode
+                mode: 'scene'
             };
 
             const res = await fetch('/api/studio/generate-visual', {
@@ -531,7 +531,7 @@ STUDIO_SCRIPTS_JS = """
             console.error(e);
         } finally {
             btn.disabled = false;
-            btn.innerText = studioCreationMode === 'custom' ? 'Generate From Description' : 'Generate Cinematic Visual';
+            btn.innerText = 'Generate Cinematic Visual';
         }
     }
 
@@ -615,6 +615,17 @@ STUDIO_SCRIPTS_JS = """
 
     function setStudioStyle(style, el) {
         document.getElementById('studioStyle').value = style;
+        studioSceneKey = null; // Clear any scene selection
+        document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
+        el.closest('.style-card').classList.add('active');
+        invalidateQuoteCard();
+    }
+
+    let studioSceneKey = null; // null = standard preset, non-null = scene mode
+
+    function setStudioScene(sceneKey, el) {
+        studioSceneKey = sceneKey;
+        document.getElementById('studioStyle').value = sceneKey;
         document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
         el.closest('.style-card').classList.add('active');
         invalidateQuoteCard();
@@ -742,7 +753,7 @@ STUDIO_SCRIPTS_JS = """
                     openNewPostModal();
                     if (item.type === 'quran_verse' || item.type === 'quran') {
                         if (typeof switchSourceTab === 'function') switchSourceTab('quran');
-                        selectAyah(item.id, item.reference, item.translation_text);
+                        selectAyah(item.id, item.reference, item.translation_text, item.arabic_text);
                     } else if (item.type === 'hadith' || item.source_type === 'hadith') {
                         // Switch source tab to Hadith and load the item
                         if (typeof switchSourceTab === 'function') switchSourceTab('hadith');
@@ -1414,7 +1425,7 @@ STUDIO_COMPONENTS_HTML = """
 
       <form id="composerForm" onsubmit="submitNewPost(event)" class="flex-1 overflow-hidden flex flex-col relative bg-white">
         <input type="hidden" name="visual_mode" id="studioVisualMode" value="quote_card">
-        <input type="hidden" name="visual_style" id="studioStyle" value="quran">
+        <input type="hidden" name="visual_style" id="studioStyle" value="sacred_script">
         <input type="hidden" name="media_url" id="finalMediaUrl">
         <input type="hidden" name="intent_type" id="studioIntent" value="wisdom">
         <input type="hidden" name="tone_style" id="studioTone" value="calm">
@@ -1553,36 +1564,39 @@ STUDIO_COMPONENTS_HTML = """
              <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <div class="space-y-8">
                     <!-- Style Selection & Custom Mode -->
-                    <div class="space-y-4">
-                        <div class="flex items-center justify-between mb-2">
-                            <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Visual Creation Mode</label>
-                            <div class="flex gap-1 bg-brand/5 p-1 rounded-xl">
-                                <button type="button" id="btnModePreset" onclick="switchStudioMode('preset')" class="px-4 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-brand text-white shadow-lg shadow-brand/20 transition-all">Presets</button>
-                                <button type="button" id="btnModeCustom" onclick="switchStudioMode('custom')" class="px-4 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest bg-brand/5 text-brand hover:bg-brand/10 transition-all">Describe</button>
-                            </div>
-                        </div>
-                        
-                        <div id="presetModeContainer" class="grid grid-cols-2 gap-3">
-                            <div onclick="setStudioStyle('quran', this)" class="style-card active p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
-                                <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Sacred Script</span>
-                                <span class="block text-[8px] text-text-muted mt-1">Classic spiritual aesthetic</span>
-                            </div>
-                            <div onclick="setStudioStyle('midnight', this)" class="style-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
-                                <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Midnight Oasis</span>
-                                <span class="block text-[8px] text-text-muted mt-1">Deep, atmospheric tones</span>
-                            </div>
-                            <div onclick="setStudioStyle('desert', this)" class="style-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
-                                <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Desert Glow</span>
-                                <span class="block text-[8px] text-text-muted mt-1">Warm, golden atmosphere</span>
-                            </div>
-                            <div onclick="setStudioStyle('minimal', this)" class="style-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
-                                <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Pure Minimal</span>
-                                <span class="block text-[8px] text-text-muted mt-1">Clean, typography focused</span>
+                    <!-- Style Selection & Custom Mode -->
+                    <div class="space-y-6">
+                        <div class="space-y-4">
+                            <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Choose a Style Family</label>
+                            
+                            <!-- Unified Scene-Based Presets -->
+                            <div class="grid grid-cols-2 gap-3" id="presetModeContainer">
+                                <div onclick="setStudioScene('sacred_script', this)" class="style-card scene-card active p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
+                                    <span class="text-brand text-[10px] block mb-1">🕌</span>
+                                    <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Sacred Script</span>
+                                    <span class="block text-[8px] text-text-muted mt-1">Classic spiritual aesthetic</span>
+                                </div>
+                                <div onclick="setStudioScene('midnight_oasis', this)" class="style-card scene-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
+                                    <span class="text-brand text-[10px] block mb-1">🌙</span>
+                                    <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Midnight Oasis</span>
+                                    <span class="block text-[8px] text-text-muted mt-1">Deep atmospheric tones</span>
+                                </div>
+                                <div onclick="setStudioScene('desert_glow', this)" class="style-card scene-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
+                                    <span class="text-brand text-[10px] block mb-1">🏜️</span>
+                                    <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Desert Glow</span>
+                                    <span class="block text-[8px] text-text-muted mt-1">Warm golden atmosphere</span>
+                                </div>
+                                <div onclick="setStudioScene('luxury_editorial', this)" class="style-card scene-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all">
+                                    <span class="text-brand text-[10px] block mb-1">⬛</span>
+                                    <span class="block text-[10px] font-black text-brand uppercase tracking-widest">Luxury Editorial</span>
+                                    <span class="block text-[8px] text-text-muted mt-1">Premium magazine feel</span>
+                                </div>
                             </div>
                         </div>
 
-                        <div id="customModeContainer" class="hidden">
-                            <textarea id="studioVisualPrompt" placeholder="Describe the background image you want... e.g., 'hyper-realistic desert at sunset with volumetric lighting and soft dust particles'" class="w-full bg-cream/20 border border-brand/5 rounded-2xl px-6 py-5 text-sm font-medium text-brand outline-none focus:border-brand/20 h-32 resize-none transition-all placeholder:text-brand/30 shadow-inner"></textarea>
+                        <div class="space-y-2">
+                            <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Optional Direction</label>
+                            <input type="text" id="studioCustomDirection" placeholder="e.g. sunset dunes, moonlit hall, softer gold tones..." class="w-full bg-cream/20 border border-brand/5 rounded-2xl px-6 py-4 text-xs font-medium text-brand outline-none focus:border-brand/20 transition-all shadow-inner placeholder:text-brand/30">
                         </div>
                     </div>
 

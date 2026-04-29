@@ -626,6 +626,90 @@ class VariationEngine:
             "variation_traits": chosen_traits_dict
         }
 
+
+# ───────────────────────────────────────────────────────────────────────────────
+# PREMIUM SCENE PROMPT TEMPLATES
+# Text-stage-first prompts for DALL-E/Gemini background generation.
+# The central quiet zone is explicitly mandated before describing the environment.
+# ───────────────────────────────────────────────────────────────────────────────
+
+SCENE_PROMPT_TEMPLATES = {
+    "sacred_script": {
+        "base": (
+            "BACKGROUND PLATE for a premium sacred Islamic quote card. "
+            "Setting: A scholarly study or ancient architectural space. "
+            "The center MUST be a clear, calm, softly lit open space — the text stage. "
+            "No clutter or texture in the center zone. Cinematic 4K editorial quality. "
+            "1:1 square composition. Absolutely no text, no calligraphy, no letters."
+        ),
+        "variations": [
+            "Ancient manuscripts and an ink vessel at the edges, warm golden candlelight.",
+            "Grand, symmetrical Islamic archway corridor interior, warm amber-gold light streaming from the far vanishing point.",
+            "Aged manuscript parchment surface, warm ivory-amber tones, naturally non-uniform surface with subtle grain.",
+            "Soft overhead diffuse wash on a deep textured stone floor, ancient geometric patterns at the extreme corners."
+        ]
+    },
+    "midnight_oasis": {
+        "base": (
+            "BACKGROUND PLATE for a premium sacred Islamic quote card. "
+            "Setting: A nocturnal environment with deep atmospheric tones. "
+            "The center must be perfectly calm and quiet — the text stage. "
+            "Cinematic and serene. 1:1 square composition. Absolutely no text, no calligraphy, no letters."
+        ),
+        "variations": [
+            "Moonlit courtyard scene bathed in cool silver-blue ambient light entering from upper-left corner.",
+            "Deep dark background with soft moonlight casting a glow over a still, dark reflecting pool.",
+            "Vast deep space atmosphere, scattered distant stars at outer regions only, rich indigo-black void.",
+            "A quiet desert night, deep midnight blue sky, soft silhouette of dunes at the very bottom edge."
+        ]
+    },
+    "desert_glow": {
+        "base": (
+            "BACKGROUND PLATE for a premium sacred Islamic quote card. "
+            "Setting: A warm expansive environment with rich golden amber tones. "
+            "The center must be flooded with ethereal warm light, kept completely clear for text. "
+            "Timeless, vast, contemplative atmosphere. 1:1 square composition. Absolutely no text, no calligraphy."
+        ),
+        "variations": [
+            "Soft undulating sand ripples stretching to a vast open horizon line.",
+            "Low-angle golden hour sun casting long cinematic shadows across smooth basalt stones at the edges.",
+            "Harsh midday high-contrast sun, pure undisturbed sand sheets, glowing warmth.",
+            "Towering dune ridge silhouettes at the bottom, soft hazy dust-filtered light above."
+        ]
+    },
+    "luxury_editorial": {
+        "base": (
+            "BACKGROUND PLATE for a premium sacred Islamic quote card. "
+            "Setting: A minimalist, clean dark editorial environment. "
+            "The center must be perfectly calm, smooth, and quiet — the text stage. "
+            "Premium art-direction quality, sophisticated luxury feel. "
+            "1:1 square composition. Absolutely no text, no calligraphy, no letters."
+        ),
+        "variations": [
+            "Deep navy or obsidian surface with exquisite gold filigree ornament at the extreme corners.",
+            "Minimalist charcoal-black environment with a single restrained light source angled from one side.",
+            "Dark sophisticated marble stone surface with natural veins branching organically towards the edges.",
+            "Rich deep-colored velvet-like matte surface, soft-focus with deep color saturation, heavy vignette."
+        ]
+    }
+}
+
+def compose_scene_prompt(scene_key: str, custom_direction: str = "") -> str:
+    """Generates a scene prompt with internal variation and optional user direction."""
+    template = SCENE_PROMPT_TEMPLATES.get(scene_key, SCENE_PROMPT_TEMPLATES["sacred_script"])
+    base = template["base"]
+    variation = random.choice(template["variations"])
+    
+    prompt = f"{base} Variation: {variation}."
+    
+    if custom_direction:
+        safe_dir = sanitize_for_dalle(custom_direction)
+        if safe_dir:
+            prompt += f" Custom Refinement: {safe_dir}. (Ensure this refinement does not add any text or letters)."
+            
+    prompt += " FINAL MANDATE: NO TEXT. NO MESSAGE. ZERO WRITTEN CHARACTERS."
+    return prompt
+
 def compose_dalle_prompt(spec: VisualSpec, raw_prompt: str = "") -> str:
     v_data = VariationEngine.generate(spec.theme, raw_prompt)
     
@@ -672,12 +756,22 @@ def interpret_prompt(raw: str) -> VisualSpec:
     """
     p = raw.lower().strip()
 
-    # 1. Detect theme by keyword priority (highest priority wins)
-    theme = "custom"
-    for t_name, keywords, _ in sorted(_THEME_KEYWORDS, key=lambda x: -x[2]):
-        if any(kw in p for kw in keywords):
-            theme = t_name
-            break
+    # 0. Scene detection (highest priority — check before generic theme matching)
+    if any(k in p for k in ["arch", "archway", "corridor", "arch stage", "mosque interior", "sacred hall", "light stage"]):
+        theme = "arch_stage"
+    elif any(k in p for k in ["manuscript", "desk", "scholar study", "candlelit", "ink vessel", "scrolls"]):
+        theme = "manuscript"
+    elif any(k in p for k in ["luxury panel", "obsidian panel", "navy panel", "editorial panel", "dark panel"]):
+        theme = "luxury_panel"
+    elif any(k in p for k in ["editorial", "minimal sacred", "magazine", "minimal editorial"]):
+        theme = "editorial"
+    else:
+        # 1. Standard theme detection by keyword priority (highest priority wins)
+        theme = "custom"
+        for t_name, keywords, _ in sorted(_THEME_KEYWORDS, key=lambda x: -x[2]):
+            if any(kw in p for kw in keywords):
+                theme = t_name
+                break
 
     # 2. Get base palette from theme
     palette_entry = _PALETTES.get(theme, _PALETTES["custom"])

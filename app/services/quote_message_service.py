@@ -28,13 +28,32 @@ def build_quran_quote_message(ayah_record: Dict[str, Any], tone: str, intent: st
     """
     Safely generates framing text for the Quran quote card using the LLM, while
     locking the primary headline to the exact translation text.
+    Enforces strict source integrity and prevents verse drifting.
     """
     reference = ayah_record.get("reference") or ayah_record.get("verse_key")
     translation = ayah_record.get("translation_text") or ayah_record.get("text")
-    
-    if not reference or not translation:
-        logger.error("[QUOTE_MESSAGE] Quran verse resolution failed: missing ref or translation")
-        raise ValueError("Selected Quran verse is incomplete or invalid.")
+    arabic_text = ayah_record.get("arabic_text")
+
+    # [INTEGRITY CHECK] If Arabic or translation is missing, attempt auto-recovery
+    if not arabic_text or not translation:
+        logger.warning(f"[QUOTE_MESSAGE][QURAN_INTEGRITY] Missing text for {reference}. Attempting recovery...")
+        if reference:
+            from app.db import SessionLocal
+            from app.services.quran_service import get_verse_by_reference
+            from app.services.quran_serialization import normalize_quran_verse
+            
+            with SessionLocal() as db:
+                verse = get_verse_by_reference(db, reference)
+                if verse:
+                    norm = normalize_quran_verse(verse)
+                    translation = translation or norm.get("translation_text")
+                    arabic_text = arabic_text or norm.get("arabic_text")
+                    logger.info(f"[QUOTE_MESSAGE][QURAN_INTEGRITY] Recovery successful for {reference}.")
+
+    # [STRICT GATE] Block generation if integrity cannot be satisfied
+    if not reference or not translation or not arabic_text:
+        logger.error(f"[QUOTE_MESSAGE][QURAN_INTEGRITY][FAIL] Missing critical scripture data for: {reference}")
+        raise ValueError(f"Strict Source Integrity Violation: Cannot generate a Quran card without the exact Arabic text and translation for {reference or 'Unknown'}.")
 
     # Format eyebrow as "Qur'an {ref}"
     if not reference.lower().startswith("qur"):
@@ -56,10 +75,10 @@ def build_quran_quote_message(ayah_record: Dict[str, Any], tone: str, intent: st
         "eyebrow": framing.get("eyebrow", reference),
         "headline": translation,
         "supporting_text": framing.get("supporting_text", ""),
-        "arabic_text": ayah_record.get("arabic_text", "")
+        "arabic_text": arabic_text
     }
     
-    logger.info("[QUOTE_MESSAGE] Card message built successfully")
+    logger.info(f"[QUOTE_MESSAGE] Card message built successfully for {reference}")
     return message
 
 

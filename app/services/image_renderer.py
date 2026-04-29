@@ -1545,18 +1545,74 @@ PRESET_CONFIGS = {
         "glow": (200, 195, 215, 15),
         "atmosphere": "none",
     },
+
+    # ── PREMIUM SCENE-BASED PRESETS ─────────────────────────────────────────────
+    # These presets are designed text-stage-first: the composition centers around
+    # a deliberately calm, clear central region where the Arabic quote sits.
+
+    "arch_stage": {
+        # Grand symmetrical archway — warm amber corridor, open center stage
+        "base": (8, 5, 2),
+        "bg_start": (42, 22, 6), "bg_end": (8, 4, 1),
+        "pattern": "islamic", "pattern_col": (185, 142, 45, 18),
+        "vignette": 0.78,
+        "border": "gold_block", "border_w": 20,
+        "light_pos": "center", "light_col": (255, 200, 90), "light_r": 580,
+        "glow": (220, 175, 65, 70),
+        "atmosphere": "arch_veil",   # NEW: draws deep side curtains for text stage
+        "scene": True,
+    },
+    "manuscript": {
+        # Candlelit scholar's desk — warm parchment intimacy, quiet center
+        "base": (28, 18, 8),
+        "bg_start": (62, 38, 14), "bg_end": (22, 12, 4),
+        "pattern": "paper",
+        "vignette": 0.82,
+        "border": "corner_filigree",
+        "light_pos": (360, 300), "light_col": (255, 185, 80), "light_r": 340,
+        "glow": (230, 175, 70, 60),
+        "atmosphere": "parchment",
+        "scene": True,
+    },
+    "luxury_panel": {
+        # Deep navy/obsidian — ornate gold corners, dark editorial panel
+        "base": (4, 5, 18),
+        "bg_start": (10, 12, 42), "bg_end": (2, 2, 10),
+        "pattern": "none",
+        "vignette": 0.90,
+        "border": "gold_block", "border_w": 36,
+        "light_pos": "center", "light_col": (180, 162, 255), "light_r": 300,
+        "glow": (195, 170, 255, 55),
+        "atmosphere": "arch_veil",
+        "scene": True,
+    },
+    "editorial": {
+        # Minimal sacred editorial — pure, clean, restrained, premium magazine feel
+        "base": (6, 6, 8),
+        "bg_start": (15, 14, 18), "bg_end": (3, 3, 5),
+        "pattern": "none",
+        "vignette": 0.92,
+        "border": "none",
+        "light_pos": (220, 180), "light_col": (218, 200, 255), "light_r": 280,
+        "glow": (218, 200, 255, 30),
+        "atmosphere": "none",
+        "scene": True,
+    },
 }
 
 PRESET_TEXT = {
-    "quran":      [(212, 175, 55), (255, 255, 255), (190, 215, 192)],
-    "fajr":       [(138, 170, 248), (228, 238, 255), (168, 195, 240)],
-    "scholar":    [(88, 75, 55),   (28, 22, 16),    (95, 82, 62)],
-    "madinah":    [(215, 168, 62), (255, 242, 210), (202, 178, 132)],
-    "kaaba":      [(180, 148, 50), (255, 255, 255), (185, 185, 185)],
-    "laylulqadr": [(180, 145, 238), (238, 230, 255), (195, 175, 242)],
-    "midnight":   [(138, 172, 250), (255, 255, 255), (170, 190, 240)],
-    "desert":     [(255, 195, 75),  (255, 255, 255), (220, 200, 160)],
-    "minimal":    [(160, 160, 160), (255, 255, 255), (140, 140, 140)],
+    "quran":       [(212, 175, 55),  (255, 255, 255),  (190, 215, 192)],
+    "fajr":        [(138, 170, 248), (228, 238, 255),  (168, 195, 240)],
+    "scholar":     [(88, 75, 55),    (28, 22, 16),     (95, 82, 62)],
+    "madinah":     [(215, 168, 62),  (255, 242, 210),  (202, 178, 132)],
+    "kaaba":       [(180, 148, 50),  (255, 255, 255),  (185, 185, 185)],
+    "laylulqadr":  [(180, 145, 238), (238, 230, 255),  (195, 175, 242)],
+    "midnight_oasis": [(138, 172, 250), (255, 255, 255),  (170, 190, 240)],
+    "desert_glow": [(255, 195, 75),  (255, 255, 255),  (220, 200, 160)],
+    "minimal":     [(160, 160, 160), (255, 255, 255),  (140, 140, 140)],
+    # Scene presets — warm gold reference, cream quote, soft warm support
+    "sacred_script": [(222, 178, 58),  (255, 248, 228),  (215, 195, 158)],
+    "luxury_editorial": [(200, 175, 255), (245, 242, 255),  (190, 170, 235)],
 }
 
 CUSTOM_TEXT_DARK  = [(212, 175, 55), (255, 255, 255), (210, 210, 210)]
@@ -1639,6 +1695,11 @@ def render_minimal_quote_card(
     if mode == "custom" and (not visual_prompt or not visual_prompt.strip()):
         mode = "preset"; style = "quran"
 
+    # Scene mode: if style is a known scene preset, route to scene pipeline
+    _SCENE_KEYS = {"sacred_script", "midnight_oasis", "desert_glow", "luxury_editorial"}
+    if mode == "scene" or (style in _SCENE_KEYS and mode not in {"custom"}):
+        mode = "scene"
+
     if mode == "custom":
         if _VS_OK:
             vs_spec = vs_interpret(visual_prompt)
@@ -1656,6 +1717,23 @@ def render_minimal_quote_card(
                 bg = apply_vignette(bg, intensity=0.45)
             else:
                 bg = apply_vignette(bg, intensity=0.38)
+
+    if mode == "scene":
+        # SCENE MODE: text-stage-first composition with dynamic variation
+        scene_key = style if style in _SCENE_KEYS else "sacred_script"
+        
+        if engine in ("dalle", "gemini") and _VS_OK:
+            from app.services.visual_system import compose_scene_prompt
+            scene_prompt = compose_scene_prompt(scene_key, custom_direction=visual_prompt)
+            dalle_bg = generate_background(scene_prompt, target_size, cache_dir=output_dir, engine=engine, vs_spec=None)
+            if dalle_bg:
+                bg = dalle_bg
+                bg = apply_vignette(bg, intensity=0.42)
+        
+        if bg is None:
+            # PIL fallback: use the scene preset config
+            mode = "preset"
+            style = scene_key
 
     if mode == "preset":
         key = style if style in PRESET_CONFIGS else "quran"
@@ -1688,6 +1766,22 @@ def render_minimal_quote_card(
             cd = ImageDraw.Draw(celestial)
             cd.ellipse([W//2-300, H//2-300, W//2+300, H//2+300], fill=(160, 100, 255, 30))
             bg = Image.alpha_composite(bg.convert("RGBA"), celestial.filter(ImageFilter.GaussianBlur(140))).convert("RGB")
+        elif atm == "arch_veil":
+            # Scene-Based Arch Veil: deep soft side curtains that frame the center stage
+            # Left curtain — deep gradient from left edge toward center
+            arch = Image.new("RGBA", target_size, (0, 0, 0, 0))
+            ad = ImageDraw.Draw(arch)
+            curtain_w = int(W * 0.38)
+            for x in range(curtain_w):
+                fade = int(200 * (1 - (x / curtain_w)) ** 1.8)
+                ad.line([(x, 0), (x, H)], fill=(0, 0, 0, fade))
+            # Right curtain — mirror
+            for x in range(curtain_w):
+                rx = W - 1 - x
+                fade = int(200 * (1 - (x / curtain_w)) ** 1.8)
+                ad.line([(rx, 0), (rx, H)], fill=(0, 0, 0, fade))
+            arch = arch.filter(ImageFilter.GaussianBlur(32))
+            bg = Image.alpha_composite(bg.convert("RGBA"), arch).convert("RGB")
             
         v = cfg.get("vignette", 0)
         if v > 0: bg = apply_vignette(bg, intensity=v)
