@@ -10,6 +10,7 @@ from ..security.rbac import get_current_org_id
 from ..security.auth import require_user
 from ..schemas import IGAccountOut, AccountCreate, AccountUpdate
 import httpx
+from pydantic import BaseModel
 from datetime import datetime, timezone, timedelta
 
 router = APIRouter(prefix="/ig-accounts", tags=["ig-accounts"])
