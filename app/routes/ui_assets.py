@@ -203,6 +203,9 @@ STUDIO_SCRIPTS_JS = r"""
         setVal('studioCaption', '');
         setVal('finalMediaUrl', '');
         setVal('studioVisualPrompt', '');
+        // Clear scheduling fields
+        setVal('scheduleDate', '');
+        setVal('scheduleTime', '');
         
         hide('quranSearchResults');
         hide('selectedAyahBadge');
@@ -212,10 +215,16 @@ STUDIO_SCRIPTS_JS = r"""
         hide('captionResultArea');
         hide('cardActions');
         hide('outOfSyncBanner');
+        hide('shareCaptionPreview');
+        hide('shareSourceBadge');
+        hide('scheduleConfirmLine');
 
         const preview = document.getElementById('quoteCardPreview');
         if (preview) { preview.src = ''; preview.classList.add('hidden'); }
         
+        const previewEmpty = document.getElementById('sharePreviewEmpty');
+        if (previewEmpty) previewEmpty.classList.remove('hidden');
+
         if (typeof window.updateBuildButtonState === 'function') {
             window.updateBuildButtonState();
         }
@@ -823,49 +832,140 @@ STUDIO_SCRIPTS_JS = r"""
     };
 
     window.prepareShare = function() {
-        const caption = document.getElementById('studioCaption')?.value || "";
-        const account = document.getElementById('studioAccount')?.options[document.getElementById('studioAccount')?.selectedIndex]?.text || "No Account";
-        const timeVal = document.getElementById('studioSchedule')?.value;
-        const timeStr = timeVal ? new Date(timeVal).toLocaleString() : "Next Available Slot";
-        const previewImg = document.getElementById('finalPreviewImage');
-
-        const manifestC = document.getElementById('manifestCaption');
+        // ── Account display ─────────────────────────────────────────────────────
+        const accountSel = document.getElementById('studioAccount');
+        const accountText = accountSel
+            ? (accountSel.options[accountSel.selectedIndex]?.text || 'No Account')
+            : 'No Account';
         const manifestA = document.getElementById('manifestAccount');
-        const manifestT = document.getElementById('manifestTime');
-        
+        if (manifestA) manifestA.innerText = accountText;
+
+        // ── Caption preview ──────────────────────────────────────────────────────
+        const caption = document.getElementById('studioCaption')?.value || '';
+        const manifestC = document.getElementById('manifestCaption');
         if (manifestC) manifestC.innerText = caption;
-        if (manifestA) manifestA.innerText = account;
-        if (manifestT) manifestT.innerText = timeStr;
-        
+        const captionPreview = document.getElementById('shareCaptionPreview');
+        if (captionPreview) captionPreview.classList.toggle('hidden', !caption);
+
+        // ── Source reference badge ────────────────────────────────────────────────
+        const ctx = window.studioSourceContext;
+        const sourceBadge = document.getElementById('shareSourceBadge');
+        const sourceText  = document.getElementById('shareSourceText');
+        if (ctx && ctx.reference) {
+            if (sourceText) sourceText.innerText = ctx.reference;
+            if (sourceBadge) sourceBadge.classList.remove('hidden');
+        } else {
+            const topicVal = document.getElementById('studioTopic')?.value || '';
+            if (topicVal && sourceText) {
+                sourceText.innerText = topicVal;
+                if (sourceBadge) sourceBadge.classList.remove('hidden');
+            } else {
+                if (sourceBadge) sourceBadge.classList.add('hidden');
+            }
+        }
+
+        // ── Image preview ─────────────────────────────────────────────────────────
+        const previewImg = document.getElementById('finalPreviewImage');
+        const previewEmpty = document.getElementById('sharePreviewEmpty');
         if (currentQuoteCardUrl && previewImg) {
             previewImg.src = currentQuoteCardUrl;
+            if (previewEmpty) previewEmpty.classList.add('hidden');
+        } else {
+            if (previewEmpty) previewEmpty.classList.remove('hidden');
+        }
+
+        // ── Default date/time pickers ─────────────────────────────────────────────
+        // Default: tomorrow at 09:00 local time
+        const datePicker = document.getElementById('scheduleDate');
+        const timePicker = document.getElementById('scheduleTime');
+        if (datePicker && !datePicker.value) {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const yyyy = tomorrow.getFullYear();
+            const mm   = String(tomorrow.getMonth() + 1).padStart(2, '0');
+            const dd   = String(tomorrow.getDate()).padStart(2, '0');
+            datePicker.value = `${yyyy}-${mm}-${dd}`;
+        }
+        if (timePicker && !timePicker.value) {
+            timePicker.value = '09:00';
+        }
+
+        // ── Render confirmation line ──────────────────────────────────────────────
+        window.updateScheduleConfirmation();
+    };
+
+    window.updateScheduleConfirmation = function() {
+        const dateVal = document.getElementById('scheduleDate')?.value;
+        const timeVal = document.getElementById('scheduleTime')?.value;
+        const confirmLine = document.getElementById('scheduleConfirmLine');
+        const manifestT  = document.getElementById('manifestTime');
+
+        if (dateVal && timeVal) {
+            try {
+                const dt = new Date(`${dateVal}T${timeVal}`);
+                const formatted = dt.toLocaleString(undefined, {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                if (manifestT) manifestT.innerText = `Scheduled for: ${formatted}`;
+                if (confirmLine) {
+                    confirmLine.classList.remove('hidden');
+                    confirmLine.classList.add('flex');
+                }
+            } catch(e) {
+                if (confirmLine) confirmLine.classList.add('hidden');
+            }
+        } else {
+            if (confirmLine) confirmLine.classList.add('hidden');
         }
     };
 
     window.submitNewPost = async function(event) {
         if (event) event.preventDefault();
         const btn = document.getElementById('studioSubmitBtn');
-        const original = btn.innerText;
+        const original = btn.innerHTML;
 
         if (isQuoteCardOutOfDate && !confirm("Your quote card no longer matches your latest message. Share anyway?")) {
             return;
         }
 
-        btn.disabled = true;
-        btn.innerHTML = 'PREPARING... <span class="animate-pulse">✨</span>';
-
+        // ── Validate account ────────────────────────────────────────────────────
         const accountId = document.getElementById('studioAccount').value;
         if (!accountId) {
             alert("Please select a target account before scheduling.");
-            btn.innerText = original;
-            btn.disabled = false;
             return;
         }
-        
+
+        // ── Validate date/time ──────────────────────────────────────────────────
+        const dateVal = document.getElementById('scheduleDate')?.value;
+        const timeVal = document.getElementById('scheduleTime')?.value;
+        if (!dateVal || !timeVal) {
+            alert("Please choose a date and time for your reminder.");
+            return;
+        }
+
+        // Build scheduled_at as ISO 8601 with local TZ offset
+        let scheduledAt = null;
+        try {
+            const localDt = new Date(`${dateVal}T${timeVal}`);
+            if (isNaN(localDt.getTime())) throw new Error('Invalid date');
+            scheduledAt = localDt.toISOString(); // UTC ISO string
+        } catch(e) {
+            alert("Invalid date or time selected. Please try again.");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = 'SCHEDULING... <span class="animate-pulse">✨</span>';
+
         const topicVal = document.getElementById('studioTopic').value;
         const editedCaption = document.getElementById('studioCaption').value;
 
-        // ── Determine source type and metadata ──────────────────────────────────
+        // ── Determine source type and metadata ────────────────────────────────
         let srcType = 'manual';
         let srcReference = topicVal;
         let srcMetadata = null;
@@ -880,13 +980,8 @@ STUDIO_SCRIPTS_JS = r"""
             srcMetadata = window.selectedAyahMetadata;
         }
 
-        // If the user edited the caption, we should prioritize the edited text.
-        // If studioCaptionMessage is an object, we keep it but update the body or similar if needed.
-        // For simplicity, if edited, we send it as a plain string or wrap it.
         let finalCaptionMsg = studioCaptionMessage;
         if (editedCaption) {
-            // If we have a structured object but the text is different from what was rendered,
-            // the backend should probably just take the full string.
             finalCaptionMsg = editedCaption;
         }
 
@@ -901,7 +996,9 @@ STUDIO_SCRIPTS_JS = r"""
             caption_message: finalCaptionMsg,
             media_url: document.getElementById('finalMediaUrl')?.value || currentQuoteCardUrl,
             intent_type: document.getElementById('studioIntent').value,
-            visual_style: studioCreationMode === 'custom' ? 'custom' : document.getElementById('studioStyle').value
+            visual_style: studioCreationMode === 'custom' ? 'custom' : document.getElementById('studioStyle').value,
+            // ── Canonical scheduled datetime ──────────────────────────────────────
+            scheduled_at: scheduledAt,
         };
 
         try {
@@ -911,15 +1008,21 @@ STUDIO_SCRIPTS_JS = r"""
                 body: JSON.stringify(reqPayload)
             });
             if (res.ok) {
-                window.location.reload();
+                const savedPost = await res.json();
+                // Close modal and navigate to calendar so the post is visible immediately
+                window.closeNewPostModal();
+                // Brief success flash before redirect
+                btn.innerHTML = '✅ Scheduled! Redirecting...';
+                setTimeout(() => { window.location.href = '/app/calendar'; }, 900);
             } else {
                 const data = await res.json().catch(() => ({detail: 'System timeout'}));
                 alert('Creation Error: ' + (data.detail || 'Unknown error'));
+                btn.innerHTML = original;
+                btn.disabled = false;
             }
         } catch (e) {
             alert('Connection failure: ' + e);
-        } finally {
-            btn.innerText = original;
+            btn.innerHTML = original;
             btn.disabled = false;
         }
     }
@@ -2270,20 +2373,102 @@ STUDIO_COMPONENTS_HTML = """
 
               </div>
           </div>
-          <div id="studioSection4" class="studio-section hidden space-y-12">
-               <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                   <div class="w-full max-w-[320px] aspect-square bg-cream rounded-[3rem] border-8 border-brand/5 overflow-hidden relative shadow-2xl">
-                      <img id="finalPreviewImage" class="w-full h-full object-cover">
-                   </div>
-                   <div class="space-y-8 bg-brand/[0.02] p-10 rounded-[2.5rem] border border-brand/5 flex flex-col justify-between">
-                      <div class="space-y-6">
-                          <div id="manifestAccount" class="text-xs font-bold text-brand uppercase"></div>
-                          <div id="manifestTime" class="text-xs font-bold text-brand uppercase"></div>
-                          <p id="manifestCaption" class="text-[11px] text-text-muted font-medium italic line-clamp-6 leading-relaxed"></p>
-                      </div>
-                      <button type="submit" id="studioSubmitBtn" class="w-full py-6 bg-brand text-white rounded-3xl font-black text-[12px] uppercase tracking-[0.3em] shadow-2xl shadow-brand/20">Schedule Reminder</button>
-                   </div>
-               </div>
+          <div id="studioSection4" class="studio-section hidden space-y-10">
+            <!-- Phase Header -->
+            <div>
+              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 4</label>
+              <h4 class="text-3xl font-bold text-brand italic">Schedule The Share</h4>
+              <p class="text-xs text-text-muted mt-2 font-medium">Choose exactly when this reminder reaches your audience.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
+              <!-- Left: Post Preview -->
+              <div class="space-y-5">
+                <div class="text-[9px] font-black uppercase tracking-widest text-brand/30 ml-1">Reminder Preview</div>
+                <div class="w-full aspect-square bg-cream rounded-[3rem] border-4 border-brand/5 overflow-hidden relative shadow-2xl">
+                  <img id="finalPreviewImage" class="w-full h-full object-cover">
+                  <div id="sharePreviewEmpty" class="absolute inset-0 flex items-center justify-center flex-col gap-3 opacity-20">
+                    <svg class="w-10 h-10 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    <div class="text-[10px] font-black text-brand uppercase tracking-widest">Visual pending</div>
+                  </div>
+                </div>
+
+                <!-- Caption Snippet -->
+                <div id="shareCaptionPreview" class="hidden bg-white border border-brand/5 rounded-[2rem] p-6 shadow-sm">
+                  <div class="text-[8px] font-black uppercase tracking-widest text-brand/30 mb-3">Caption</div>
+                  <p id="manifestCaption" class="text-[11px] text-text-muted font-medium italic line-clamp-4 leading-relaxed"></p>
+                </div>
+              </div>
+
+              <!-- Right: Scheduling Panel -->
+              <div class="space-y-6 bg-white border border-brand/5 rounded-[2.5rem] p-8 shadow-sm">
+
+                <!-- Account Badge -->
+                <div class="flex items-center gap-4 p-5 bg-brand/[0.03] border border-brand/5 rounded-2xl">
+                  <div class="w-10 h-10 rounded-full bg-brand flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                  </div>
+                  <div>
+                    <div class="text-[8px] font-black uppercase tracking-widest text-brand/40">Posting to</div>
+                    <div id="manifestAccount" class="text-[13px] font-black text-brand tracking-tight mt-0.5">—</div>
+                  </div>
+                </div>
+
+                <!-- Source Badge -->
+                <div id="shareSourceBadge" class="hidden flex items-center gap-4 p-5 bg-accent/5 border border-accent/10 rounded-2xl">
+                  <div class="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
+                    <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="text-[8px] font-black uppercase tracking-widest text-accent/60">Source Reference</div>
+                    <div id="shareSourceText" class="text-[12px] font-black text-brand/80 mt-0.5 truncate">—</div>
+                  </div>
+                </div>
+
+                <!-- Divider -->
+                <div class="flex items-center gap-3">
+                  <div class="h-px flex-1 bg-brand/5"></div>
+                  <div class="text-[8px] font-black uppercase tracking-widest text-brand/20">Choose Schedule</div>
+                  <div class="h-px flex-1 bg-brand/5"></div>
+                </div>
+
+                <!-- Date Picker -->
+                <div class="space-y-2">
+                  <label for="scheduleDate" class="text-[10px] font-black text-brand uppercase tracking-widest ml-1 flex items-center gap-2">
+                    <svg class="w-3.5 h-3.5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+                    Date
+                  </label>
+                  <input type="date" id="scheduleDate" onchange="updateScheduleConfirmation()"
+                    class="w-full bg-cream/50 border border-brand/10 rounded-2xl px-6 py-4 text-sm font-black text-brand outline-none focus:border-brand/30 focus:ring-4 focus:ring-brand/5 transition-all shadow-inner">
+                </div>
+
+                <!-- Time Picker -->
+                <div class="space-y-2">
+                  <label for="scheduleTime" class="text-[10px] font-black text-brand uppercase tracking-widest ml-1 flex items-center gap-2">
+                    <svg class="w-3.5 h-3.5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+                    Time
+                  </label>
+                  <input type="time" id="scheduleTime" step="300" onchange="updateScheduleConfirmation()"
+                    class="w-full bg-cream/50 border border-brand/10 rounded-2xl px-6 py-4 text-sm font-black text-brand outline-none focus:border-brand/30 focus:ring-4 focus:ring-brand/5 transition-all shadow-inner">
+                  <p class="text-[8px] text-text-muted px-1 font-medium">All times are in your local timezone.</p>
+                </div>
+
+                <!-- Confirmation Line -->
+                <div id="scheduleConfirmLine" class="hidden items-center gap-3 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl">
+                  <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
+                  <div id="manifestTime" class="text-[11px] font-black text-emerald-700"></div>
+                </div>
+
+                <!-- CTA -->
+                <button type="submit" id="studioSubmitBtn"
+                  class="w-full py-6 bg-brand text-white rounded-3xl font-black text-[12px] uppercase tracking-[0.3em] shadow-2xl shadow-brand/20 hover:bg-brand-hover hover:scale-[1.005] transition-all flex items-center justify-center gap-3">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+                  Schedule Reminder
+                </button>
+
+                <button type="button" onclick="showDeleteConfirm()" class="w-full text-[9px] font-black uppercase tracking-widest text-rose-500/40 hover:text-rose-500 transition-colors text-center pt-1">Discard this piece of reminder</button>
+              </div>
+            </div>
           </div>
         </div>
       </form>

@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 import json
@@ -14,6 +15,27 @@ from app.services.visual_service import VisualRequest, generate_visual
 from app.services.caption_engine import generate_islamic_caption
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_scheduled_at(value: str | None) -> datetime | None:
+    """
+    Parse a scheduled_at ISO string into a UTC-aware datetime.
+    Accepts: ISO 8601 with or without timezone offset.
+    Returns None if value is falsy or unparseable.
+    """
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        # Ensure UTC
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        return dt
+    except Exception as exc:
+        logger.warning(f"[STUDIO] Could not parse scheduled_at='{value}': {exc}")
+        return None
 
 router = APIRouter(prefix="/api/studio", tags=["studio"])
 
@@ -193,10 +215,24 @@ def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = 
     else:
         source_foundation = None
 
+    # ── Scheduling ──────────────────────────────────────────────────────────────
+    # If the frontend provides a specific scheduled_at datetime, use it as the
+    # canonical scheduled_time and promote the post to "scheduled" status.
+    # This is the single source of truth for both the Studio and Planning calendar.
+    raw_scheduled_at = data.get("scheduled_at")
+    scheduled_time = _parse_scheduled_at(raw_scheduled_at)
+
+    # Determine final status
+    if scheduled_time:
+        final_status = "scheduled"
+    else:
+        final_status = data.get("status", "drafted")
+
     post = Post(
         org_id=org_id,
         ig_account_id=ig_account_id,
-        status=data.get("status", "drafted"),
+        status=final_status,
+        scheduled_time=scheduled_time,
         source_type=source_type,
         source_reference=source_reference,
         source_metadata=source_metadata,
@@ -218,6 +254,10 @@ def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = 
     db.commit()
     db.refresh(post)
 
+    logger.info(
+        f"[STUDIO] Post {post.id} created — status={post.status}, "
+        f"scheduled_time={post.scheduled_time}"
+    )
     return post
 
 
@@ -227,3 +267,45 @@ def studio_get_post(id: int, db: Session = Depends(get_db), org_id: int = Depend
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     return post
+
+
+@router.post("/schedule-post")
+def studio_schedule_post(
+    data: dict,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
+):
+    """
+    Schedule an existing draft post.
+    Accepts: { post_id: int, scheduled_at: str (ISO 8601) }
+    Sets Post.scheduled_time + Post.status = 'scheduled'.
+    This is the canonical scheduling action used by the Studio Share step.
+    """
+    post_id = data.get("post_id")
+    raw_scheduled_at = data.get("scheduled_at")
+
+    if not post_id:
+        raise HTTPException(status_code=400, detail="post_id required")
+    if not raw_scheduled_at:
+        raise HTTPException(status_code=400, detail="scheduled_at required")
+
+    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    scheduled_time = _parse_scheduled_at(raw_scheduled_at)
+    if not scheduled_time:
+        raise HTTPException(status_code=400, detail="Invalid scheduled_at format. Use ISO 8601.")
+
+    post.scheduled_time = scheduled_time
+    post.status = "scheduled"
+    db.commit()
+    db.refresh(post)
+
+    logger.info(f"[STUDIO] Post {post.id} scheduled for {post.scheduled_time}")
+    return {
+        "ok": True,
+        "post_id": post.id,
+        "status": post.status,
+        "scheduled_time": post.scheduled_time.isoformat(),
+    }
