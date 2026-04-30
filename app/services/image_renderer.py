@@ -2047,7 +2047,7 @@ def render_minimal_quote_card(
          print(f"❌ [RENDERER] CRITICAL SAVE FAILURE: File missing immediately after save() at {final_path}")
     
     from app.config import build_public_media_url
-    return build_public_media_url(filename)
+    return build_public_media_url(filename, local_path=final_path)
 def render_quote_card(background_local_path: Optional[str], quote: str,
                       reference: str, output_dir: str) -> str:
     """Legacy image-overlay render with procedural fallback."""
@@ -2116,5 +2116,5 @@ def render_quote_card(background_local_path: Optional[str], quote: str,
          print(f"❌ [RENDERER] CRITICAL SAVE FAILURE: File missing immediately after save() at {fp2}")
     
     from app.config import build_public_media_url
-    return build_public_media_url(fn)
+    return build_public_media_url(fn, local_path=fp2)
 

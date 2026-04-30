@@ -166,7 +166,7 @@ def _generate_background_only(request: VisualRequest) -> VisualResult:
             with open(file_path, "wb") as f:
                 f.write(resp.content)
             from app.config import build_public_media_url
-            public_url = build_public_media_url(filename)
+            public_url = build_public_media_url(filename, local_path=file_path)
             return VisualResult(
                 url=public_url,
                 theme=spec.theme,

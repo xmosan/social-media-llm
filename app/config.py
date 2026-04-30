@@ -119,23 +119,41 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-def build_public_media_url(filename: str) -> str:
-    """Standardized way to generate production-ready URLs for Instagram/Meta."""
+def build_public_media_url(filename: str, local_path: str | None = None) -> str:
+    """
+    Standardized way to generate production-ready URLs for Instagram/Meta.
+
+    If Cloudinary is configured and local_path is provided, the file is uploaded
+    to Cloudinary and its CDN URL is returned. This guarantees Instagram's crawler
+    can always reach the image.
+
+    If Cloudinary is not configured, falls back to the existing Railway public URL.
+    """
     import os
+
+    # 1. Try Cloudinary first (preferred for Instagram compatibility)
+    if local_path and os.path.exists(local_path):
+        try:
+            from app.services.cloudinary_service import upload_to_cloudinary
+            cdn_url = upload_to_cloudinary(local_path)
+            if cdn_url:
+                return cdn_url
+        except Exception as e:
+            print(f"⚠️ [CONFIG] Cloudinary upload failed, falling back to local URL: {e}")
+
+    # 2. Fallback: Railway / public domain URL
     base = settings.public_base_url.rstrip("/")
-    
-    # If running locally without ngrok, fallback to production domain to avoid instant 400 errors from Meta
-    # Meta will still fail the download gracefully if the file isn't pushed to production, but the API payload will be valid
+
     if not base or "localhost" in base or "127.0.0.1" in base:
         print(f"⚠️ [CONFIG] Building media URL with local/missing base: {base}")
         railway_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN", "app.sabeelstudio.com")
         base = f"https://{railway_domain}"
-        
+
     # Strip any leading slashes from filename
     filename = filename.lstrip("/")
-    
+
     # If filename is already a full URL, return it
     if filename.startswith("http"):
         return filename
-        
+
     return f"{base}/uploads/{filename}"
