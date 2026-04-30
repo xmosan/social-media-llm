@@ -710,7 +710,7 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
             """
             
             # Global account options for modals
-            account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in accs])
+            account_options = "".join([f'<option value="{a.id}" {"selected" if active_acc and a.id == active_acc.id else ""}>@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in accs])
         else:
             switcher_html = f"""
             <button onclick="window.location.href='/auth/instagram/login'" type="button" class="relative flex items-center gap-3 p-2 pr-4 bg-brand/[0.03] hover:bg-brand/[0.06] border border-brand/10 rounded-2xl transition-all group">
@@ -1176,7 +1176,8 @@ async def app_calendar_page(
     for week in month_days:
         for day in week:
             if day == 0:
-                calendar_html += '<div class="aspect-square bg-brand/[0.01] border border-brand/5 rounded-[2rem] opacity-20"></div>'
+                # Ghost cell for padding days
+                calendar_html += '<div class="min-h-[160px] bg-transparent border border-dashed border-brand/5 rounded-[2rem] opacity-40"></div>'
             else:
                 day_posts = post_map.get(day, [])
                 posts_html = ""
@@ -1188,60 +1189,93 @@ async def app_calendar_page(
                     elif any(x in cap for x in ["Hadith", "Prophet", "Sahih", "Bukhari", "Muslim"]): p_type = "HADITH"
                     elif "Story" in cap: p_type = "STORY"
                     
-                    # Status logic
-                    status_class = "bg-brand/5 text-brand"
-                    if dp.status == "published": status_class = "bg-emerald-50 text-emerald-600 border border-emerald-100/50"
-                    elif dp.status == "draft": status_class = "bg-amber-50 text-amber-600 border border-amber-100/50"
-                    else: status_class = "bg-brand/5 text-brand border border-brand/10"
+                    # Status logic (Stronger Visuals)
+                    if dp.status == "published": 
+                        status_badge = "bg-emerald-100 text-emerald-800"
+                        border_color = "border-l-emerald-500"
+                        display_status = "Shared"
+                    elif dp.status == "scheduled": 
+                        status_badge = "bg-brand text-white shadow-md shadow-brand/20"
+                        border_color = "border-l-brand"
+                        display_status = "Planned"
+                    elif dp.status == "failed":
+                        status_badge = "bg-rose-100 text-rose-800"
+                        border_color = "border-l-rose-500"
+                        display_status = "Failed"
+                    else: # draft
+                        status_badge = "bg-amber-100 text-amber-800"
+                        border_color = "border-l-amber-400"
+                        display_status = "Draft"
                     
                     # Preview (approx 8-12 words in 40-50 chars)
                     preview = (cap[:45] + "...") if len(cap) > 45 else (cap if cap else "Suggested Reminder")
-                    display_status = dp.status.capitalize()
-                    if dp.status == "published": display_status = "Shared"
-                    elif dp.status == "scheduled": display_status = "Planned"
-                    elif dp.status == "draft": display_status = "Reflection Draft"
                     
                     posts_html += f"""
-                    <div class="p-3 rounded-2xl border border-brand/5 bg-white/60 space-y-2 overflow-hidden group/post cursor-pointer hover:bg-white transition-all shadow-sm" 
+                    <div class="p-3.5 rounded-2xl bg-white border border-brand/5 border-l-[3px] {border_color} space-y-2.5 overflow-hidden group/post cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all shadow-sm" 
                          onclick="openEditPostModal('{dp.id}', {html.escape(json.dumps(dp.caption or 'Suggested Reminder'))}, '{dp.scheduled_time.isoformat()}')">
                         <div class="flex justify-between items-center mb-1">
-                            <span class="text-[7px] font-black uppercase tracking-[0.2em] text-accent/60 group-hover/post:text-accent transition-colors">{p_type}</span>
-                            <span class="px-1.5 py-0.5 rounded-lg {status_class} text-[6px] font-black uppercase tracking-widest">{display_status}</span>
+                            <span class="text-[7.5px] font-black uppercase tracking-[0.25em] text-text-muted group-hover/post:text-brand transition-colors">{p_type}</span>
+                            <span class="px-2 py-1 rounded-md {status_badge} text-[6px] font-black uppercase tracking-widest leading-none">{display_status}</span>
                         </div>
-                        <p class="text-[9px] font-bold text-brand/60 group-hover/post:text-brand leading-snug line-clamp-2 italic transition-colors">"{html.escape(preview)}"</p>
+                        <p class="text-[10px] font-bold text-brand leading-relaxed line-clamp-2 italic transition-colors">"{html.escape(preview)}"</p>
                     </div>
                     """
                 
                 is_today = (day == today.day and month == today.month and year == today.year)
-                today_cell_class = "border-brand/40 bg-brand/[0.03] shadow-inner" if is_today else "border-brand/5 hover:border-brand/10 bg-white"
+                has_posts = len(day_posts) > 0
+                
+                # Hierarchy styling
+                if is_today:
+                    cell_class = "border-brand bg-brand/[0.02] shadow-md ring-4 ring-brand/5"
+                    day_color = "text-brand"
+                elif has_posts:
+                    cell_class = "border-brand/10 bg-white shadow-sm hover:border-brand/30"
+                    day_color = "text-brand"
+                else:
+                    cell_class = "border-brand/5 border-dashed bg-transparent hover:bg-white hover:border-solid hover:border-brand/10 group/empty"
+                    day_color = "text-brand/30 group-hover/empty:text-brand/50"
+                
+                # Empty state content
+                empty_html = '<div class="flex-1 flex items-center justify-center opacity-0 group-hover/empty:opacity-[0.04] transition-opacity"><svg class="w-8 h-8 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6v6m0 0v6m0-6h6m-6 0H6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>'
                 
                 calendar_html += f"""
-                <div class="min-h-[160px] card border rounded-[2rem] p-4 flex flex-col gap-3 transition-all {today_cell_class}">
+                <div class="min-h-[160px] card border rounded-[2rem] p-4 flex flex-col gap-3 transition-all duration-300 {cell_class}">
                     <div class="flex justify-between items-center mb-1">
-                        <span class="text-xs font-black { 'text-brand' if is_today else 'text-brand/20' }">{day}</span>
-                        { '<span class="badge-premium !text-emerald-500 !opacity-100">Today</span>' if is_today else '' }
+                        <span class="text-sm font-black {day_color} transition-colors">{day}</span>
+                        { '<span class="px-2 py-1 bg-emerald-500 text-white rounded-lg text-[8px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20">Today</span>' if is_today else '' }
                     </div>
-                    <div class="flex flex-col gap-3">
-                        {posts_html or '<div class="py-8 flex flex-col items-center justify-center opacity-10"><div class="text-[8px] font-black tracking-[0.4em] uppercase">Empty</div></div>'}
+                    <div class="flex flex-col gap-3 flex-1">
+                        {posts_html or empty_html}
                     </div>
                 </div>
                 """
 
     # Map posts to a list of HTML snippets
     scheduled_posts_html = []
-    for p in [p for p in posts if p.status == "scheduled"][:5]:
+    # Upcoming reminders (from now onwards)
+    upcoming_posts = [p for p in posts if p.status == "scheduled" and p.scheduled_time and p.scheduled_time >= today]
+    upcoming_posts.sort(key=lambda x: x.scheduled_time)
+    
+    for p in upcoming_posts[:5]:
         caption = p.caption[:60] if p.caption else "Untitled Post"
         time_str = p.scheduled_time.strftime("%b %d, %H:%M")
         scheduled_posts_html.append(f"""
-            <div class="flex items-center justify-between p-5 bg-brand/[0.02] rounded-2xl border border-brand/5 text-[11px] font-bold text-brand hover:bg-white transition-all group">
-                <div class="flex items-center gap-4">
-                    <div class="w-2 h-2 rounded-full bg-brand group-hover:scale-125 transition-transform shrink-0"></div>
-                    <span class="opacity-80 group-hover:opacity-100 transition-opacity line-clamp-1">"{caption}..."</span>
+            <div class="flex items-center justify-between p-5 bg-white rounded-[1.5rem] border border-brand/10 shadow-sm hover:shadow-md hover:border-brand/30 transition-all duration-300 group">
+                <div class="flex items-center gap-5">
+                    <div class="w-10 h-10 rounded-xl bg-brand/5 flex items-center justify-center text-brand shrink-0 group-hover:scale-110 group-hover:bg-brand group-hover:text-white transition-all">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6v6m0 0v6m0-6h6m-6 0H6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[12px] font-bold text-brand line-clamp-1 italic">"{caption}..."</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[9px] font-black text-brand/40 uppercase tracking-[0.2em]">{time_str}</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="flex items-center gap-6">
-                    <div class="badge-premium !text-[8px]">{time_str}</div>
-                    <button onclick="deletePost('{p.id}', event)" class="p-2 text-rose-300 hover:text-rose-600 transition-colors">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+                <div class="flex items-center gap-3">
+                    <span class="hidden md:inline-flex px-3 py-1 bg-brand text-white rounded-lg text-[8px] font-black uppercase tracking-widest shadow-md shadow-brand/20">Planned</span>
+                    <button onclick="deletePost('{p.id}', event)" class="p-3 bg-rose-50 text-rose-400 rounded-xl hover:bg-rose-500 hover:text-white transition-colors" title="Remove">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
                     </button>
                 </div>
             </div>
@@ -1260,29 +1294,42 @@ async def app_calendar_page(
         """
 
     content = f"""
-    <div class="space-y-12">
-        <div class="flex justify-between items-end">
+    <div class="space-y-12 pb-20">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-brand/5 pb-8">
             <div>
-                <h1 class="heading-premium text-5xl">Planning</h1>
-                <p class="text-premium-muted mt-2">Content Foundation Scheduler</p>
+                <h1 class="heading-premium text-5xl tracking-tight">Calendar</h1>
+                <p class="text-premium-muted mt-3">Content Foundation Scheduler</p>
             </div>
-            <div class="flex gap-4">
-                <button onclick="openNewPostModal()" class="px-10 py-5 bg-brand text-white rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-2xl shadow-brand/20 hover:bg-brand-hover hover:scale-[1.02] transition-all flex items-center gap-3">
+            <div class="flex items-center gap-4">
+                <div class="hidden md:flex items-center gap-6 px-6 py-4 bg-white border border-brand/5 rounded-2xl shadow-sm">
+                    <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded bg-brand"></div><span class="text-[9px] font-bold uppercase tracking-widest text-text-muted">Planned</span></div>
+                    <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded bg-emerald-400"></div><span class="text-[9px] font-bold uppercase tracking-widest text-text-muted">Shared</span></div>
+                    <div class="flex items-center gap-2"><div class="w-2.5 h-2.5 rounded bg-amber-400"></div><span class="text-[9px] font-bold uppercase tracking-widest text-text-muted">Draft</span></div>
+                </div>
+                <button onclick="openNewPostModal()" class="px-8 py-5 bg-brand text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-xl shadow-brand/20 hover:bg-brand-hover hover:-translate-y-0.5 transition-all flex items-center gap-3">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
-                    Schedule Share
+                    New Share
                 </button>
             </div>
         </div>
         
-        <div class="grid grid-cols-7 gap-4">
+        <!-- Calendar Grid -->
+        <div class="grid grid-cols-7 gap-3 md:gap-4">
             {calendar_html}
         </div>
         
-        <div class="card p-12 bg-white border border-brand/5 text-center flex flex-col items-center justify-center space-y-10 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-64 h-64 bg-brand/[0.01] rounded-full -ml-32 -mt-32"></div>
-            <div class="badge-premium relative">Upcoming Reminders</div>
-            <div class="space-y-4 w-full max-w-2xl relative">
-                {scheduled_list_html}
+        <!-- Upcoming Reminders -->
+        <div class="mt-16 pt-8 border-t border-brand/5">
+            <div class="flex items-center gap-3 mb-8">
+                <div class="w-8 h-8 rounded-xl bg-brand flex items-center justify-center text-white shadow-md shadow-brand/20">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+                <h3 class="text-xl font-bold text-brand tracking-tight">Upcoming Plan</h3>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {scheduled_list_html if len(scheduled_posts_html) > 0 else f'<div class="col-span-full">{scheduled_list_html}</div>'}
             </div>
         </div>
     </div>

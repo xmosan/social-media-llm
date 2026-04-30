@@ -9,7 +9,7 @@ from ..models import IGAccount
 from ..security.rbac import get_current_org_id
 from ..security.auth import require_user
 from ..schemas import IGAccountOut, AccountCreate, AccountUpdate
-from pydantic import BaseModel
+import httpx
 from datetime import datetime, timezone, timedelta
 
 router = APIRouter(prefix="/ig-accounts", tags=["ig-accounts"])
@@ -298,6 +298,38 @@ async def connect_meta_account(
     db.refresh(acc)
     
     return acc
+
+@router.get("/{account_id}/health")
+async def check_account_health(
+    account_id: int,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
+):
+    """Verifies if the stored Meta access token is still valid."""
+    acc = db.query(IGAccount).filter(IGAccount.id == account_id, IGAccount.org_id == org_id).first()
+    if not acc:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    if not acc.access_token:
+        return {"healthy": False, "detail": "No token stored"}
+
+    from .instagram_auth import GRAPH_URL
+    async with httpx.AsyncClient() as client:
+        try:
+            # Simple check against /me
+            resp = await client.get(
+                f"{GRAPH_URL}/{acc.ig_user_id}", 
+                params={"fields": "id,username", "access_token": acc.access_token},
+                timeout=10
+            )
+            if resp.status_code == 200:
+                return {"healthy": True, "username": resp.json().get("username")}
+            
+            err_data = resp.json()
+            err_msg = err_data.get("error", {}).get("message", "Token rejected by Meta")
+            return {"healthy": False, "detail": err_msg}
+        except Exception as e:
+            return {"healthy": False, "detail": str(e)}
 
 @router.delete("/{account_id}")
 def delete_account(

@@ -119,24 +119,47 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
 
     # Step 1: create media container
     log_event("ig_media_create_start", ig_user_id=ig_user_id)
-    r1 = requests.post(
-        f"{GRAPH_URL}/{ig_user_id}/media",
-        data={
-            "image_url": media_url,
-            "caption": caption,
-            "access_token": access_token,
-        },
-        timeout=30,
-    )
-    j1 = r1.json()
-    if "id" not in j1:
-        error_obj = j1.get("error", {})
+    
+    # RETRY SHIELD: Meta's crawler sometimes fails to fetch immediately (especially in ephemeral/cloud environments)
+    # We attempt up to 2 times with a slight delay.
+    max_attempts = 2
+    last_j1 = {}
+    
+    for attempt in range(1, max_attempts + 1):
+        if attempt > 1:
+            import time
+            time.sleep(3) # Wait for crawler/DNS/filesystem stabilization
+            log_event("ig_media_create_retry", attempt=attempt)
+
+        r1 = requests.post(
+            f"{GRAPH_URL}/{ig_user_id}/media",
+            data={
+                "image_url": media_url,
+                "caption": caption,
+                "access_token": access_token,
+            },
+            timeout=30,
+        )
+        last_j1 = r1.json()
+        
+        if "id" in last_j1:
+            break
+            
+        # If we failed, check if it's a fetch error that warrants a retry
+        error_obj = last_j1.get("error", {})
+        error_msg = error_obj.get("message", "").lower()
+        if "could not fetch" not in error_msg and "fetch" not in error_msg:
+            # If it's a different error (e.g. token expired), don't bother retrying
+            break
+
+    if "id" not in last_j1:
+        error_obj = last_j1.get("error", {})
         log_event("ig_media_create_fail", ig_user_id=ig_user_id, meta_error_code=error_obj.get("code"), fbtrace_id=error_obj.get("fbtrace_id"))
         
         err_msg = "Instagram could not fetch the generated image. Please regenerate the visual and try again."
         
         # Log the raw JSON so developers can still see it in the logs
-        print(f"[IG_PUBLISH][MEDIA_FAIL] Meta JSON: {j1}")
+        print(f"[IG_PUBLISH][MEDIA_FAIL] Meta JSON: {last_j1}")
             
         return {"ok": False, "error": {"step": "media_create", "message": err_msg}}
 

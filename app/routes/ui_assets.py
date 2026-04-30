@@ -832,15 +832,41 @@ STUDIO_SCRIPTS_JS = r"""
     };
 
     window.prepareShare = function() {
-        // ── Account display ─────────────────────────────────────────────────────
         const accountSel = document.getElementById('studioAccount');
+        const accountId = accountSel ? accountSel.value : null;
         const accountText = accountSel
             ? (accountSel.options[accountSel.selectedIndex]?.text || 'No Account')
             : 'No Account';
+            
         const manifestA = document.getElementById('manifestAccount');
+        const statusEl = document.getElementById('manifestAccountStatus');
+            
         if (manifestA) manifestA.innerText = accountText;
+        
+        // --- Trigger Connectivity Check ---
+        if (accountId && statusEl) {
+            statusEl.innerHTML = '<span class="w-1 h-1 rounded-full bg-brand animate-pulse"></span> Verifying...';
+            statusEl.className = 'flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-brand/5 text-[7px] font-black uppercase tracking-widest text-brand/50';
+            
+            fetch(`/ig-accounts/${accountId}/health`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.healthy) {
+                        statusEl.innerHTML = '<span class="w-1 h-1 rounded-full bg-emerald-500"></span> Connected';
+                        statusEl.className = 'flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-[7px] font-black uppercase tracking-widest text-emerald-600';
+                    } else {
+                        statusEl.innerHTML = '<span class="w-1 h-1 rounded-full bg-rose-500"></span> Expired';
+                        statusEl.className = 'flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-50 text-[7px] font-black uppercase tracking-widest text-rose-600';
+                        console.warn("[Sabeel Studio] Account token health check failed:", data.detail);
+                    }
+                })
+                .catch(e => {
+                    statusEl.innerHTML = '<span class="w-1 h-1 rounded-full bg-amber-500"></span> Error';
+                    statusEl.className = 'flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 text-[7px] font-black uppercase tracking-widest text-amber-600';
+                });
+    }
 
-        // ── Caption preview ──────────────────────────────────────────────────────
+    // ── Caption preview ──────────────────────────────────────────────────────
         const caption = document.getElementById('studioCaption')?.value || '';
         const manifestC = document.getElementById('manifestCaption');
         if (manifestC) manifestC.innerText = caption;
@@ -2404,13 +2430,19 @@ STUDIO_COMPONENTS_HTML = """
               <div class="space-y-6 bg-white border border-brand/5 rounded-[2.5rem] p-8 shadow-sm">
 
                 <!-- Account Badge -->
-                <div class="flex items-center gap-4 p-5 bg-brand/[0.03] border border-brand/5 rounded-2xl">
-                  <div class="w-10 h-10 rounded-full bg-brand flex items-center justify-center shrink-0">
-                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                <div class="flex items-center gap-4 p-5 bg-brand/[0.03] border border-brand/5 rounded-2xl relative overflow-hidden">
+                  <div id="manifestAccountIcon" class="w-10 h-10 rounded-full bg-brand flex items-center justify-center shrink-0 border-2 border-white shadow-sm overflow-hidden">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
                   </div>
-                  <div>
-                    <div class="text-[8px] font-black uppercase tracking-widest text-brand/40">Posting to</div>
-                    <div id="manifestAccount" class="text-[13px] font-black text-brand tracking-tight mt-0.5">—</div>
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between">
+                        <div class="text-[8px] font-black uppercase tracking-widest text-brand/40">Target Account</div>
+                        <div id="manifestAccountStatus" class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-brand/5 text-[7px] font-black uppercase tracking-widest text-brand/30">
+                            <span class="w-1 h-1 rounded-full bg-current animate-pulse"></span>
+                            Checking...
+                        </div>
+                    </div>
+                    <div id="manifestAccount" class="text-[13px] font-black text-brand tracking-tight mt-0.5 truncate">—</div>
                   </div>
                 </div>
 
