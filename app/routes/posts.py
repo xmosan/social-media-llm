@@ -544,15 +544,67 @@ def publish_post(
     post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    if not post.caption or not post.media_url:
+    
+    print(f"[MANUAL_SHARE] publish requested post_id={post_id}")
+    log_event("manual_share_requested", post_id=post_id)
+
+    # --- PRE-VALIDATION BLOCK ---
+    if not post.caption:
+        print(f"[MANUAL_SHARE][VALIDATION_FAIL] post_id={post_id} reason=missing_caption")
+        post.status = "failed"
+        post.flags = {**(post.flags or {}), "reason": "missing_media_at_publish"}
+        db.commit()
+        raise HTTPException(status_code=422, detail="Publishing impossible: Caption is missing from the record.")
+    
+    if not post.media_url:
+        print(f"[MANUAL_SHARE][VALIDATION_FAIL] post_id={post_id} reason=missing_media_url")
         post.status = "failed"
         post.flags = {**(post.flags or {}), "reason": "missing_media_at_publish"}
         db.commit()
         raise HTTPException(status_code=422, detail="Publishing impossible: Visual asset is missing from the record.")
+    
+    # Validate media URL format
+    if not post.media_url.startswith("https://"):
+        print(f"[MANUAL_SHARE][VALIDATION_FAIL] post_id={post_id} reason=non_https_url url={post.media_url}")
+        raise HTTPException(status_code=422, detail="Publishing blocked: Media URL is not a valid public HTTPS URL. Please regenerate the visual.")
+
+    # Validate account connection
     acc = db.get(IGAccount, post.ig_account_id)
+    if not acc:
+        print(f"[MANUAL_SHARE][VALIDATION_FAIL] post_id={post_id} reason=account_not_found ig_account_id={post.ig_account_id}")
+        raise HTTPException(status_code=422, detail="Publishing blocked: Instagram account not found. Please reconnect your account.")
+    
+    if not acc.ig_user_id or not acc.access_token:
+        print(f"[MANUAL_SHARE][VALIDATION_FAIL] post_id={post_id} reason=account_not_fully_connected ig_account_id={post.ig_account_id}")
+        raise HTTPException(status_code=422, detail="Publishing blocked: Instagram account is not fully connected. Please re-authenticate in Settings.")
+
+    print(f"[MANUAL_SHARE] resolved media_url={post.media_url}")
+    print(f"[MANUAL_SHARE] using shared Instagram publish pipeline")
+
+    # --- LOCAL FILE EXISTENCE CHECK ---
+    # Check before hitting Instagram to avoid wasting API calls on missing assets
+    if "/uploads/" in post.media_url:
+        local_filename = post.media_url.split("/uploads/")[-1]
+        local_path = os.path.join(settings.uploads_dir, local_filename)
+        if not os.path.exists(local_path):
+            print(f"[MANUAL_SHARE][VALIDATION_FAIL] post_id={post_id} reason=file_not_on_disk path={local_path}")
+            # Attempt auto-recovery
+            print(f"[MANUAL_SHARE] Attempting auto-recovery for stale media on post_id={post_id}...")
+            from app.services.automation_runner import recover_stale_media
+            recovery_success = recover_stale_media(post, db)
+            if not recovery_success:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Publishing blocked: Image file is no longer accessible. This post was created before persistent media recovery was supported — please regenerate the visual."
+                )
+            print(f"[MANUAL_SHARE] Auto-recovery successful for post_id={post_id}. Proceeding with publish.")
+
+    # --- BUILD CAPTION ---
     caption_full = post.caption
     if post.hashtags:
         caption_full += "\n\n" + " ".join(post.hashtags)
+
+    # --- PUBLISH via shared hardened pipeline ---
     log_event("post_publish_start", post_id=post.id)
     res = publish_to_instagram(
         caption=caption_full, 
@@ -561,17 +613,43 @@ def publish_post(
         access_token=acc.access_token
     )
     
+    # --- AUTO-RECOVERY RETRY (matches automation runner logic) ---
+    if not res.get("ok"):
+        err_val = res.get("error")
+        is_stale = err_val in ["media_asset_stale", "MEDIA_STALE_OR_MISSING"]
+        if is_stale:
+            print(f"[MANUAL_SHARE] Stale media detected via publisher for post_id={post_id}. Triggering recovery...")
+            from app.services.automation_runner import recover_stale_media
+            recovery_success = recover_stale_media(post, db)
+            if recovery_success:
+                print(f"[MANUAL_SHARE] Recovery successful. Retrying publish for post_id={post_id}...")
+                res = publish_to_instagram(
+                    caption=caption_full,
+                    media_url=post.media_url,
+                    ig_user_id=acc.ig_user_id,
+                    access_token=acc.access_token
+                )
+            else:
+                print(f"[MANUAL_SHARE] Recovery failed for post_id={post_id}. Blocking publish.")
+
     if not res.get("ok"):
         post.status = "failed"
-        post.flags = {**(post.flags or {}), "publish_error": res.get("error")}
+        publish_err = res.get("error")
+        # Normalize error object (may be dict or string)
+        if isinstance(publish_err, dict):
+            publish_err = publish_err.get("message") or str(publish_err)
+        post.flags = {**(post.flags or {}), "publish_error": publish_err}
         db.commit()
-        log_event("post_publish_fail", post_id=post.id, error=res.get("error"))
-        raise HTTPException(status_code=502, detail=f"Publish failed: {res.get('error')}")
+        log_event("post_publish_fail", post_id=post.id, error=publish_err)
+        print(f"[MANUAL_SHARE][INSTAGRAM_FAIL] post_id={post_id} error={publish_err}")
+        raise HTTPException(status_code=502, detail=f"Publish failed: {publish_err}")
+    
     post.status = "published"
     post.published_time = _utcnow()
     db.commit()
     db.refresh(post)
-    log_event("post_publish_success", post_id=post.id, remote_id=res.get("id"))
+    log_event("post_publish_success", post_id=post.id, remote_id=res.get("remote_id"))
+    print(f"[MANUAL_SHARE][SUCCESS] post_id={post_id} published successfully")
     return post
 @router.get("/{post_id}/preflight-check")
 def check_media_integrity(

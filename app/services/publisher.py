@@ -163,7 +163,7 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
             
         return {"ok": False, "error": {"step": "media_create", "message": err_msg}}
 
-    creation_id = j1["id"]
+    creation_id = last_j1["id"]
     log_event("ig_media_create_success", ig_user_id=ig_user_id, creation_id=creation_id)
 
     log_event("ig_media_publish_start", ig_user_id=ig_user_id, creation_id=creation_id)
