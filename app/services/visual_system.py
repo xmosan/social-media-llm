@@ -691,6 +691,111 @@ SCENE_PROMPT_TEMPLATES = {
             "Dark sophisticated marble stone surface with natural veins branching organically towards the edges.",
             "Rich deep-colored velvet-like matte surface, soft-focus with deep color saturation, heavy vignette."
         ]
+    },
+
+    # ── Automation Style DNA Family Scenes ───────────────────────────────────
+    # One entry per Style DNA family. 4+ variations ensure a fresh background
+    # on every automated post, matching the Studio scene-variation behaviour.
+
+    "sacred_black": {
+        "base": (
+            "BACKGROUND PLATE for a premium sacred quote card. "
+            "Setting: Absolute darkness — deep matte black or obsidian, restrained and contemplative. "
+            "The center must be perfectly calm and quiet, held in near-darkness. "
+            "Minimal, sacred, deeply intentional. "
+            "1:1 square composition. Absolutely no text, no calligraphy, no letters."
+        ),
+        "variations": [
+            "Infinite black void with the faintest warm amber radial glow at the very center, edges pitch-dark.",
+            "Obsidian volcanic glass surface, subtle iridescent sheen catching a single off-center rim light.",
+            "Deep velvet black fabric softly draped, catching a very faint gold edge-light at upper corners only.",
+            "Smooth matte dark stone slab, barely visible fine grain texture, a ghost of silver light from above.",
+            "Geometric shadow-play on monolithic dark stone, single thin gold line traced at the lower edge."
+        ]
+    },
+    "emerald_forest": {
+        "base": (
+            "BACKGROUND PLATE for a premium sacred quote card. "
+            "Setting: A deep emerald forest environment, atmospheric and spiritually calm. "
+            "The center must be an open clearing of soft diffused light — the text stage. "
+            "Natural, serene, contemplative depth. "
+            "1:1 square composition. Absolutely no text, no calligraphy, no letters."
+        ),
+        "variations": [
+            "Looking upward through dense ancient canopy — emerald leaves framing a soft misty sky at the center.",
+            "Misty valley with distant tree silhouettes at the horizon, thick volumetric morning haze in the center.",
+            "Close foreground foliage extremely out of focus, center a blurred emerald-green atmospheric clearing.",
+            "Ancient mossy forest floor, soft dappled sunlight filtering down in rays at the extreme edges only.",
+            "Mystical twilight glow behind a dense treeline silhouette — cool silver-green ambient mood.",
+            "Heavy low-hanging forest mist, ethereal luminous firefly sparks drifting at the outer edges."
+        ]
+    },
+    "celestial_night": {
+        "base": (
+            "BACKGROUND PLATE for a premium sacred quote card. "
+            "Setting: A deep, peaceful night sky — stars, cosmic depth, serene infinite atmosphere. "
+            "The center must be calm and clear — a soft dark void for text. "
+            "Contemplative, vast, heavenly scale. "
+            "1:1 square composition. Absolutely no text, no calligraphy, no letters."
+        ),
+        "variations": [
+            "Vast deep indigo-black night sky, scattered soft stars only at outer regions, center a dark clearing.",
+            "Faint blue nebula dust wisps at the edges, minimalist single bright anchor star off-center top.",
+            "Silver moonlight descending from above, cool turquoise horizon glow at the very base edge.",
+            "Dense varied starfield at corners fading to pure dark void at center — infinite atmospheric depth.",
+            "Gossamer thin cloud wisps across a deep purple night sky, thick atmospheric optical haze, center clear.",
+            "Crisp vacuum clarity, sparse distant pinprick stars, dark gradient abyss, ethereal halo at upper center."
+        ]
+    },
+    "parchment_manuscript": {
+        "base": (
+            "BACKGROUND PLATE for a premium sacred quote card. "
+            "Setting: Aged parchment or manuscript surface — warm antique tones, timeless scholarly atmosphere. "
+            "The center must be a clean, softly lit manuscript window with minimal texture. "
+            "All detail, aging, and ornament pushed to the outer edges only. "
+            "1:1 square composition. Absolutely no text, no calligraphy, no letters."
+        ),
+        "variations": [
+            "Heavy distressed aged parchment, warm amber-ivory tones, cracked ancient edges, smooth center window.",
+            "Smooth refined parchment grain, subtle fibrous paper texture, faded directional sunbeam from upper-left.",
+            "Warm top-down light on antique manuscript surface, faint gold geometry hints at corners only.",
+            "Elegant faded border frame of minimal lines, center completely smooth warm ivory, soft vignetted edges.",
+            "Candlelit warm illumination on aged paper, soft amber center warmth, dark vignetted outer frame."
+        ]
+    },
+    "luxury_marble": {
+        "base": (
+            "BACKGROUND PLATE for a premium sacred quote card. "
+            "Setting: Dark charcoal or obsidian marble — sweeping natural stone veins, premium luxury surface. "
+            "The center must be smooth and calm — the text stage, free of veining. "
+            "Sophisticated, refined, dark editorial quality. "
+            "1:1 square composition. Absolutely no text, no calligraphy, no letters."
+        ),
+        "variations": [
+            "Sweeping organic marble veins of dark charcoal, center pooling to a smooth clean surface.",
+            "Cracked gold-fill veins branching from corners toward edges, center pure matte stone.",
+            "High polished specular obsidian marble, strong top-down spotlight, heavy gold flake deposits at edges.",
+            "Stratified stone layers of grey and platinum traces, wet-stone deep gloss surface, clean center.",
+            "Fractured chaotic gold veins at extreme corners only, soft matte honing at center, dark vignette.",
+            "Smooth liquid-stone pooling pattern, copper oxidization warmth at outer regions, soft ambient wash."
+        ]
+    },
+    "sacred_desert": {
+        "base": (
+            "BACKGROUND PLATE for a premium sacred quote card. "
+            "Setting: A vast, warm desert landscape — golden amber tones, timeless contemplative scale. "
+            "The center must be flooded with ethereal warm desert light, completely clear for text. "
+            "Expansive, ancient, meditative atmosphere. "
+            "1:1 square composition. Absolutely no text, no calligraphy, no letters."
+        ),
+        "variations": [
+            "Towering dune ridge silhouettes at the very bottom edge, soft hazy dust-filtered golden light above.",
+            "Vast open horizon line with fine wind-swept sand ripples at extreme edges, warm glowing center.",
+            "Low-angle golden hour sun, long cinematic shadows cast by scattered smooth basalt stones at corners only.",
+            "Cool blue hour desert twilight, deep amber-blue gradient sky, undisturbed sand sheets at base edge.",
+            "Ancient cracked desert floor at corners, mirage-like heat haze distance, center a pure warm glow.",
+            "Harsh midday high-contrast sun, pure undisturbed sand sheets, glowing warmth flooding the center."
+        ]
     }
 }
 

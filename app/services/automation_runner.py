@@ -24,6 +24,18 @@ FAMILY_TO_RENDER_STYLE: dict[str, str] = {
     "luxury_marble":        "kaaba",
     "sacred_desert":        "madinah",
 }
+
+# Maps Style DNA family → scene key in SCENE_PROMPT_TEMPLATES.
+# Scene mode generates a unique AI background per post (DALL-E / Gemini),
+# cycling through themed variations — identical to the Studio rendering pipeline.
+FAMILY_TO_SCENE_KEY: dict[str, str] = {
+    "sacred_black":         "sacred_black",
+    "emerald_forest":       "emerald_forest",
+    "celestial_night":      "celestial_night",
+    "parchment_manuscript": "parchment_manuscript",
+    "luxury_marble":        "luxury_marble",
+    "sacred_desert":        "sacred_desert",
+}
 from app.services.relevance_engine import validate_source_relevance
 from app.config import settings
 import pytz
@@ -677,20 +689,26 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                          tmp_bg_path = os.path.join(settings.uploads_dir, f"tmp_bg_{int(time.time())}.jpg")
                          with open(tmp_bg_path, "wb") as f: f.write(bg_res.content)
                 
-                # Map Style DNA family to renderer preset (unified with Studio style system)
-                _render_style = FAMILY_TO_RENDER_STYLE.get(
-                    style_dna_spec.family,
-                    automation.style_preset or "quran"
-                )
-                print(f"[STYLE_DNA] render_style resolved: {_render_style} (family={style_dna_spec.family})")
+                # Resolve render style + scene key from Style DNA family
+                _family = style_dna_spec.family if style_dna_spec.family else "sacred_black"
+                _render_style = FAMILY_TO_RENDER_STYLE.get(_family, automation.style_preset or "quran")
+                _scene_key    = FAMILY_TO_SCENE_KEY.get(_family, "sacred_black")
+                print(f"[STYLE_DNA] family={_family} → render_style={_render_style}, scene_key={_scene_key}")
 
-                # CALL PREMIUM RENDERER
+                # Determine mode:
+                # - If user set a custom visual_prompt via style DNA: use 'custom' (DALL-E freeform)
+                # - Otherwise: use 'scene' to get a themed, randomly-varied AI background
+                #   (same pipeline as Studio scheduled posts)
+                _has_custom_prompt = bool(style_dna_spec.visual_prompt and style_dna_spec.visual_prompt.strip())
+                _render_mode = "custom" if _has_custom_prompt else "scene"
+
+                # CALL PREMIUM RENDERER — scene mode picks a fresh variation every time
                 media_url = render_minimal_quote_card(
                     segments=card_segments,
                     output_dir=settings.uploads_dir,
-                    style=_render_style,
-                    visual_prompt=style_dna_spec.visual_prompt,
-                    mode="custom" if style_dna_spec.visual_prompt else "preset",
+                    style=_scene_key,          # scene key for scene mode; preset key for preset fallback
+                    visual_prompt=style_dna_spec.visual_prompt if _has_custom_prompt else None,
+                    mode=_render_mode,
                     text_style_prompt=style_dna_spec.glow_aura
                 )
                 
@@ -734,16 +752,15 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                     {"text": reference.upper(), "size": 36},
                     {"text": quote_text, "size": 72}
                 ]
-                _fallback_render_style = FAMILY_TO_RENDER_STYLE.get(
-                    style_dna_spec.family,
-                    automation.style_preset or "quran"
-                )
+                _fallback_family     = style_dna_spec.family if style_dna_spec.family else "sacred_black"
+                _fallback_scene_key  = FAMILY_TO_SCENE_KEY.get(_fallback_family, "sacred_black")
+                _fallback_has_prompt = bool(style_dna_spec.visual_prompt and style_dna_spec.visual_prompt.strip())
                 media_url = render_minimal_quote_card(
                     segments=card_segments,
                     output_dir=settings.uploads_dir,
-                    style=_fallback_render_style,
-                    visual_prompt=style_dna_spec.visual_prompt,
-                    mode="custom" if style_dna_spec.visual_prompt else "preset"
+                    style=_fallback_scene_key,
+                    visual_prompt=style_dna_spec.visual_prompt if _fallback_has_prompt else None,
+                    mode="custom" if _fallback_has_prompt else "scene"
                 )
             except Exception as e:
                 print(f"[AUTO] Forced fallback rendering failed: {e}")

@@ -1709,7 +1709,13 @@ def render_minimal_quote_card(
         mode = "preset"; style = "quran"
 
     # Scene mode: if style is a known scene preset, route to scene pipeline
-    _SCENE_KEYS = {"sacred_script", "midnight_oasis", "desert_glow", "luxury_editorial"}
+    _SCENE_KEYS = {
+        # Studio / scheduled-post scene presets
+        "sacred_script", "midnight_oasis", "desert_glow", "luxury_editorial",
+        # Automation Style DNA families — each has SCENE_PROMPT_TEMPLATES entry
+        "sacred_black", "emerald_forest", "celestial_night",
+        "parchment_manuscript", "luxury_marble", "sacred_desert",
+    }
     if mode == "scene" or (style in _SCENE_KEYS and mode not in {"custom"}):
         mode = "scene"
 
@@ -1762,9 +1768,18 @@ def render_minimal_quote_card(
                 # bg = apply_vignette(bg, intensity=0.42)
         
         if bg is None:
-            # PIL fallback: use the scene preset config
-            mode = "preset"
-            style = scene_key
+            # PIL fallback: map family-key → valid PRESET_CONFIGS preset
+            _FAMILY_TO_PRESET = {
+                "sacred_black":         "quran",
+                "emerald_forest":       "fajr",
+                "celestial_night":      "laylulqadr",
+                "parchment_manuscript": "scholar",
+                "luxury_marble":        "kaaba",
+                "sacred_desert":        "madinah",
+            }
+            mode  = "preset"
+            style = _FAMILY_TO_PRESET.get(scene_key, scene_key)
+            print(f"⚠️ [Scene Fallback] AI generation skipped, using PIL preset={style}")
 
     if mode == "preset":
         key = style if style in PRESET_CONFIGS else "quran"
