@@ -328,10 +328,30 @@ HTML = r"""<!doctype html>
                 
                 <!-- STEP 2: CONNECT IG -->
                 <section>
-                    <div class="flex items-center gap-3 mb-6">
-                        <span class="w-8 h-8 rounded-2xl bg-brand/5 text-brand flex items-center justify-center text-xs font-bold">02</span>
-                        <h3 class="text-[10px] font-bold text-brand uppercase tracking-[0.2em]">Connect Account</h3>
+                    <div class="flex items-center justify-between mb-6 relative">
+                        <div class="flex items-center gap-3">
+                            <span class="w-8 h-8 rounded-2xl bg-brand/5 text-brand flex items-center justify-center text-xs font-bold">02</span>
+                            <h3 class="text-[10px] font-bold text-brand uppercase tracking-[0.2em]">Connect Account</h3>
+                        </div>
+                        <button onclick="document.getElementById('igSettingsHelpPopover').classList.toggle('hidden')" class="w-6 h-6 rounded-full bg-brand/5 text-brand/60 hover:text-brand hover:bg-brand/10 flex items-center justify-center text-[10px] font-black transition-all focus:outline-none" title="Connection Requirements">?</button>
                     </div>
+
+                    <!-- Help Popover (Hidden by default) -->
+                    <div id="igSettingsHelpPopover" class="hidden text-left bg-brand/5 border border-brand/10 rounded-2xl p-5 mb-6 relative transition-all">
+                        <button onclick="document.getElementById('igSettingsHelpPopover').classList.add('hidden')" class="absolute top-3 right-3 text-brand/40 hover:text-brand transition-colors focus:outline-none">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                        
+                        <h4 class="text-[10px] font-bold text-brand uppercase tracking-widest mb-3">Before you connect:</h4>
+                        <ul class="text-[10px] text-brand/70 space-y-2 list-none p-0 m-0 font-medium leading-tight">
+                            <li class="flex items-start gap-2"><span class="text-accent shrink-0">→</span><span>Your Instagram must be a <strong>Business</strong> or <strong>Creator</strong> account.</span></li>
+                            <li class="flex items-start gap-2"><span class="text-accent shrink-0">→</span><span>It must be linked to a <strong>Facebook Page</strong>.</span></li>
+                            <li class="flex items-start gap-2"><span class="text-accent shrink-0">→</span><span>Grant <strong>all requested permissions</strong> in the Meta popup.</span></li>
+                            <li class="flex items-start gap-2"><span class="text-accent shrink-0">→</span><span>Select the correct page if you manage multiple.</span></li>
+                        </ul>
+                        <p class="text-[9px] text-brand/50 mt-3 italic border-t border-brand/5 pt-2">Note: Connection failures are usually due to incomplete Meta/Facebook setup, not Sabeel Studio.</p>
+                    </div>
+
                     <div class="space-y-6">
                         <p class="text-[10px] text-text-muted font-medium leading-relaxed italic">Link your Instagram Business account. You’ll be asked to log in through Instagram (via Meta).</p>
                         <button onclick="window.location.href='/auth/instagram/login'" class="w-full py-5 bg-brand text-white rounded-2xl font-bold text-[10px] uppercase tracking-widest shadow-2xl shadow-brand/20 hover:bg-brand-hover transition-all flex items-center justify-center gap-3">

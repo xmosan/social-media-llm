@@ -698,12 +698,28 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
                         {acc_list_items}
                     </div>
                     <div class="mt-4 pt-4 border-t border-brand/5">
-                        <button onclick="window.location.href='/auth/instagram/login'" class="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-brand/5 transition-all group">
-                            <div class="w-8 h-8 rounded-full bg-brand/5 flex items-center justify-center text-brand/40 group-hover:bg-brand/10 group-hover:text-brand transition-all">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-                            </div>
-                            <span class="text-[11px] font-black text-brand italic">Connect Another Platform</span>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="window.location.href='/auth/instagram/login'" class="flex-1 flex items-center gap-3 p-3 rounded-xl hover:bg-brand/5 transition-all group">
+                                <div class="w-8 h-8 rounded-full bg-brand/5 flex items-center justify-center text-brand/40 group-hover:bg-brand/10 group-hover:text-brand transition-all">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+                                </div>
+                                <span class="text-[11px] font-black text-brand italic">Connect Another</span>
+                            </button>
+                            <button onclick="event.stopPropagation(); document.getElementById('dropdownIgHelp').classList.toggle('hidden')" class="w-8 h-8 shrink-0 rounded-full bg-brand/5 text-brand/50 hover:text-brand hover:bg-brand/10 flex items-center justify-center text-[10px] font-black transition-all focus:outline-none" title="Connection Requirements">?</button>
+                        </div>
+                        
+                        <!-- Help Popover -->
+                        <div id="dropdownIgHelp" class="hidden mt-3 bg-brand/5 border border-brand/10 rounded-xl p-3.5 relative transition-all animate-in fade-in zoom-in-95 duration-200">
+                            <button onclick="event.stopPropagation(); document.getElementById('dropdownIgHelp').classList.add('hidden')" class="absolute top-2.5 right-2.5 text-brand/40 hover:text-brand transition-colors focus:outline-none">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                            <h4 class="text-[9px] font-bold text-brand uppercase tracking-widest mb-2 border-b border-brand/5 pb-2">Requirements</h4>
+                            <ul class="text-[9px] text-brand/70 space-y-1.5 list-none p-0 m-0 font-medium leading-tight">
+                                <li class="flex items-start gap-1.5"><span class="text-accent shrink-0">→</span><span>Need <strong>Business/Creator</strong> IG.</span></li>
+                                <li class="flex items-start gap-1.5"><span class="text-accent shrink-0">→</span><span>Must link a <strong>Facebook Page</strong>.</span></li>
+                                <li class="flex items-start gap-1.5"><span class="text-accent shrink-0">→</span><span>Grant <strong>all permissions</strong>.</span></li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -713,15 +729,31 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
             account_options = "".join([f'<option value="{a.id}" {"selected" if active_acc and a.id == active_acc.id else ""}>@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in accs])
         else:
             switcher_html = f"""
-            <button onclick="window.location.href='/auth/instagram/login'" type="button" class="relative flex items-center gap-3 p-2 pr-4 bg-brand/[0.03] hover:bg-brand/[0.06] border border-brand/10 rounded-2xl transition-all group">
-                <div class="w-9 h-9 rounded-full bg-brand/5 flex items-center justify-center text-brand/30 group-hover:text-brand transition-colors">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+            <div class="flex items-center gap-2 relative z-[9999]">
+                <button onclick="window.location.href='/auth/instagram/login'" type="button" class="relative flex items-center gap-3 p-2 pr-4 bg-brand/[0.03] hover:bg-brand/[0.06] border border-brand/10 rounded-2xl transition-all group">
+                    <div class="w-9 h-9 rounded-full bg-brand/5 flex items-center justify-center text-brand/30 group-hover:text-brand transition-colors">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
+                    </div>
+                    <div class="flex flex-col items-start pr-2">
+                        <span class="text-[10px] font-black text-brand tracking-tight">Connect Account</span>
+                        <span class="text-[8px] font-bold text-brand/30 uppercase tracking-widest">Setup Platform</span>
+                    </div>
+                </button>
+                <button onclick="document.getElementById('headerIgHelp').classList.toggle('hidden')" class="w-8 h-8 shrink-0 rounded-full bg-brand/5 text-brand/50 hover:text-brand hover:bg-brand/10 flex items-center justify-center text-[10px] font-black transition-all focus:outline-none" title="Connection Requirements">?</button>
+                
+                <!-- Help Popover -->
+                <div id="headerIgHelp" class="hidden absolute top-full right-0 mt-3 w-64 bg-white border border-brand/5 rounded-2xl shadow-2xl p-4 text-left animate-in fade-in zoom-in-95 duration-200">
+                    <button onclick="document.getElementById('headerIgHelp').classList.add('hidden')" class="absolute top-3 right-3 text-brand/40 hover:text-brand transition-colors focus:outline-none">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                    <h4 class="text-[10px] font-bold text-brand uppercase tracking-widest mb-2 border-b border-brand/5 pb-2">Connection Rules</h4>
+                    <ul class="text-[9px] text-brand/70 space-y-2 list-none p-0 m-0 font-medium leading-tight">
+                        <li class="flex items-start gap-1.5"><span class="text-accent shrink-0">→</span><span>Must be a <strong>Business</strong> or <strong>Creator</strong> IG account.</span></li>
+                        <li class="flex items-start gap-1.5"><span class="text-accent shrink-0">→</span><span>Must be linked to a <strong>Facebook Page</strong>.</span></li>
+                        <li class="flex items-start gap-1.5"><span class="text-accent shrink-0">→</span><span>Grant <strong>all requested permissions</strong> in the Meta popup.</span></li>
+                    </ul>
                 </div>
-                <div class="flex flex-col items-start pr-2">
-                    <span class="text-[10px] font-black text-brand tracking-tight">Connect Account</span>
-                    <span class="text-[8px] font-bold text-brand/30 uppercase tracking-widest">Setup Platform</span>
-                </div>
-            </button>
+            </div>
             """
             account_options = '<option value="">No accounts connected</option>'
 
