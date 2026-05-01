@@ -636,60 +636,65 @@ class VariationEngine:
 SCENE_PROMPT_TEMPLATES = {
     "sacred_script": {
         "base": (
-            "BACKGROUND PLATE for a premium sacred Islamic quote card. "
-            "Setting: A scholarly study or ancient architectural space. "
-            "The center MUST be a clear, calm, softly lit open space — the text stage. "
-            "No clutter or texture in the center zone. Cinematic 4K editorial quality. "
+            "BACKGROUND PLATE for a premium editorial quote card. "
+            "Setting: A photorealistic macro study of premium parchment, fine paper grain, or authentic manuscript textures. "
+            "The center MUST be a completely clean, calm, softly lit open space — the text stage. "
+            "No clutter or texture in the center zone. Photorealistic 4K studio photography, museum-quality curation, minimalist and elegant. "
+            "Believable lighting, no unnatural bloom or glowing objects. "
             "1:1 square composition. Absolutely no text, no calligraphy, no letters."
         ),
         "variations": [
-            "Ancient manuscripts and an ink vessel at the edges, warm golden candlelight.",
-            "Grand, symmetrical Islamic archway corridor interior, warm amber-gold light streaming from the far vanishing point.",
-            "Aged manuscript parchment surface, warm ivory-amber tones, naturally non-uniform surface with subtle grain.",
-            "Soft overhead diffuse wash on a deep textured stone floor, ancient geometric patterns at the extreme corners."
+            "Authentic aged manuscript paper surface, warm ivory tones, naturally non-uniform surface with subtle grain, professional top-down studio lighting.",
+            "Smooth refined parchment with very subtle natural fiber texture, clean and minimalist, soft directional light from upper-left.",
+            "Thick artisanal cotton paper macro shot, warm top-down lighting creating very subtle shadows on the deckled edges, center completely smooth.",
+            "Minimalist clean archival paper surface, elegant restraint, barely visible fine texture, soft vignetted outer edges."
         ]
     },
     "midnight_oasis": {
         "base": (
-            "BACKGROUND PLATE for a premium sacred Islamic quote card. "
-            "Setting: A nocturnal environment with deep atmospheric tones. "
+            "BACKGROUND PLATE for a premium editorial quote card. "
+            "Setting: Cinematic, architectural night photography with deep atmospheric tones and realistic shadows. "
             "The center must be perfectly calm and quiet — the text stage. "
-            "Cinematic and serene. 1:1 square composition. Absolutely no text, no calligraphy, no letters."
+            "Photorealistic 4K photography, premium materials and architectural restraint. "
+            "Believable lighting, no unnatural bloom or surreal glowing objects. "
+            "1:1 square composition. Absolutely no text, no calligraphy, no letters."
         ),
         "variations": [
-            "Moonlit courtyard scene bathed in cool silver-blue ambient light entering from upper-left corner.",
-            "Deep dark background with soft moonlight casting a glow over a still, dark reflecting pool.",
-            "Vast deep space atmosphere, scattered distant stars at outer regions only, rich indigo-black void.",
-            "A quiet desert night, deep midnight blue sky, soft silhouette of dunes at the very bottom edge."
+            "Photorealistic dark architectural courtyard at night, bathed in cool silver-blue moonlight entering naturally from upper-left corner.",
+            "Deep dark space with soft natural moonlight casting realistic shadows across a minimalist stone texture at the edges.",
+            "Crisp, believable astrophotography over a minimalist dark horizon, scattered distant stars at extreme outer edges only, center a pure dark void.",
+            "A quiet, realistic desert night, deep midnight blue sky gradient, subtle silhouette of real dunes at the very bottom edge."
         ]
     },
     "desert_glow": {
         "base": (
-            "BACKGROUND PLATE for a premium sacred Islamic quote card. "
-            "Setting: A warm expansive environment with rich golden amber tones. "
-            "The center must be flooded with ethereal warm light, kept completely clear for text. "
-            "Timeless, vast, contemplative atmosphere. 1:1 square composition. Absolutely no text, no calligraphy."
+            "BACKGROUND PLATE for a premium editorial quote card. "
+            "Setting: A high-end landscape editorial of a warm expansive desert environment. "
+            "The center must be flooded with natural warm daylight, kept completely clear for text. "
+            "Photorealistic 4K photography, real desert topography, natural golden hour lighting, believable atmospheric haze. "
+            "1:1 square composition. Absolutely no text, no calligraphy."
         ),
         "variations": [
-            "Soft undulating sand ripples stretching to a vast open horizon line.",
-            "Low-angle golden hour sun casting long cinematic shadows across smooth basalt stones at the edges.",
-            "Harsh midday high-contrast sun, pure undisturbed sand sheets, glowing warmth.",
-            "Towering dune ridge silhouettes at the bottom, soft hazy dust-filtered light above."
+            "Photorealistic soft undulating sand ripples stretching to a vast open horizon line, natural warm sunlight.",
+            "Low-angle golden hour sun casting long cinematic shadows across real smooth basalt stones at the extreme edges.",
+            "Realistic high-contrast midday sun, pure undisturbed sand sheets, authentic warm light.",
+            "Distant authentic dune ridge silhouettes at the bottom edge, soft natural dust-filtered sunlight above."
         ]
     },
     "luxury_editorial": {
         "base": (
-            "BACKGROUND PLATE for a premium sacred Islamic quote card. "
-            "Setting: A minimalist, clean dark editorial environment. "
+            "BACKGROUND PLATE for a premium editorial quote card. "
+            "Setting: A premium brand-campaign setup with sophisticated, realistic dark materials. "
             "The center must be perfectly calm, smooth, and quiet — the text stage. "
-            "Premium art-direction quality, sophisticated luxury feel. "
+            "Photorealistic 4K studio photography, premium materials (marble, obsidian) and architectural restraint. "
+            "Believable lighting, no unnatural bloom or surreal glowing objects. "
             "1:1 square composition. Absolutely no text, no calligraphy, no letters."
         ),
         "variations": [
-            "Deep navy or obsidian surface with exquisite gold filigree ornament at the extreme corners.",
-            "Minimalist charcoal-black environment with a single restrained light source angled from one side.",
-            "Dark sophisticated marble stone surface with natural veins branching organically towards the edges.",
-            "Rich deep-colored velvet-like matte surface, soft-focus with deep color saturation, heavy vignette."
+            "Deep navy or obsidian stone surface with exquisite realistic gold inlay ornament at the extreme corners.",
+            "Minimalist charcoal-black architectural environment with a single restrained studio key-light angled from one side.",
+            "Photorealistic dark marble stone slab with natural, subtle veins branching organically only at the extreme edges.",
+            "Rich deep-colored velvet fabric macro, soft-focus with authentic color saturation, natural textile drape, heavy vignette."
         ]
     },
 
@@ -699,102 +704,108 @@ SCENE_PROMPT_TEMPLATES = {
 
     "sacred_black": {
         "base": (
-            "BACKGROUND PLATE for a premium sacred quote card. "
-            "Setting: Absolute darkness — deep matte black or obsidian, restrained and contemplative. "
+            "BACKGROUND PLATE for a premium editorial quote card. "
+            "Setting: Extremely restrained macro fabric or stone photography. Absolute darkness — deep matte black or obsidian. "
             "The center must be perfectly calm and quiet, held in near-darkness. "
-            "Minimal, sacred, deeply intentional. "
+            "Photorealistic 4K photography, focus on tactile reality, minimalist and elegant. "
+            "Believable lighting, no unnatural bloom or surreal glowing objects. "
             "1:1 square composition. Absolutely no text, no calligraphy, no letters."
         ),
         "variations": [
-            "Infinite black void with the faintest warm amber radial glow at the very center, edges pitch-dark.",
-            "Obsidian volcanic glass surface, subtle iridescent sheen catching a single off-center rim light.",
-            "Deep velvet black fabric softly draped, catching a very faint gold edge-light at upper corners only.",
-            "Smooth matte dark stone slab, barely visible fine grain texture, a ghost of silver light from above.",
-            "Geometric shadow-play on monolithic dark stone, single thin gold line traced at the lower edge."
+            "Pure matte black void with the faintest warm ambient light catching subtle surface texture at the extreme edges.",
+            "Photorealistic obsidian volcanic glass slab, subtle sheen catching a single off-center authentic studio rim light.",
+            "Deep velvet black fabric softly draped, natural fabric physics, catching a very faint edge-light at upper corners only.",
+            "Smooth matte dark architectural stone slab, barely visible fine grain texture, realistic soft lighting from above.",
+            "Realistic geometric shadow-play on monolithic dark stone, single thin metallic line inlay at the lower edge."
         ]
     },
     "emerald_forest": {
         "base": (
-            "BACKGROUND PLATE for a premium sacred quote card. "
-            "Setting: A deep emerald forest environment, atmospheric and spiritually calm. "
-            "The center must be an open clearing of soft diffused light — the text stage. "
-            "Natural, serene, contemplative depth. "
+            "BACKGROUND PLATE for a premium editorial quote card. "
+            "Setting: Realistic nature photography of a deep emerald forest environment. "
+            "The center must be an open clearing of soft natural diffused light — the text stage. "
+            "Photorealistic 4K botanical detail, authentic woodland depth. "
+            "Believable lighting, no unnatural bloom, mystical fog, or surreal glowing objects. "
             "1:1 square composition. Absolutely no text, no calligraphy, no letters."
         ),
         "variations": [
-            "Looking upward through dense ancient canopy — emerald leaves framing a soft misty sky at the center.",
-            "Misty valley with distant tree silhouettes at the horizon, thick volumetric morning haze in the center.",
-            "Close foreground foliage extremely out of focus, center a blurred emerald-green atmospheric clearing.",
-            "Ancient mossy forest floor, soft dappled sunlight filtering down in rays at the extreme edges only.",
-            "Mystical twilight glow behind a dense treeline silhouette — cool silver-green ambient mood.",
-            "Heavy low-hanging forest mist, ethereal luminous firefly sparks drifting at the outer edges."
+            "Photorealistic upward view through dense authentic tree canopy — real leaves framing a soft misty natural sky at the center.",
+            "Realistic morning valley with distant tree silhouettes at the horizon, natural morning mist in the center.",
+            "Close macro foreground foliage extremely out of focus, center a blurred authentic emerald-green clearing.",
+            "Ancient mossy forest floor macro photography, soft natural dappled sunlight filtering down in rays at the extreme edges only.",
+            "Authentic twilight behind a dense treeline silhouette — cool natural ambient mood.",
+            "Heavy natural low-hanging forest mist, dense dark evergreen foliage framing the edges."
         ]
     },
     "celestial_night": {
         "base": (
-            "BACKGROUND PLATE for a premium sacred quote card. "
-            "Setting: A deep, peaceful night sky — stars, cosmic depth, serene infinite atmosphere. "
+            "BACKGROUND PLATE for a premium editorial quote card. "
+            "Setting: Crisp, believable astrophotography or high-end architectural night view. "
             "The center must be calm and clear — a soft dark void for text. "
-            "Contemplative, vast, heavenly scale. "
+            "Photorealistic 4K photography, realistic infinite depth. "
+            "Believable lighting, no unnatural nebula dust, glowing clouds, or optical haze. "
             "1:1 square composition. Absolutely no text, no calligraphy, no letters."
         ),
         "variations": [
-            "Vast deep indigo-black night sky, scattered soft stars only at outer regions, center a dark clearing.",
-            "Faint blue nebula dust wisps at the edges, minimalist single bright anchor star off-center top.",
-            "Silver moonlight descending from above, cool turquoise horizon glow at the very base edge.",
-            "Dense varied starfield at corners fading to pure dark void at center — infinite atmospheric depth.",
-            "Gossamer thin cloud wisps across a deep purple night sky, thick atmospheric optical haze, center clear.",
-            "Crisp vacuum clarity, sparse distant pinprick stars, dark gradient abyss, ethereal halo at upper center."
+            "Vast authentic deep indigo-black night sky, realistic scattered stars only at outer regions, center a dark clearing.",
+            "Clean night sky photography, minimalist single bright anchor star off-center top.",
+            "Realistic silver moonlight descending from above, cool natural horizon glow at the very base edge.",
+            "Authentic dense starfield at corners fading to pure dark void at center — photorealistic atmospheric depth.",
+            "Thin realistic cloud wisps across a deep purple night sky, clean atmospheric clarity, center clear.",
+            "Crisp vacuum clarity astrophotography, sparse distant pinprick stars, pure gradient abyss."
         ]
     },
     "parchment_manuscript": {
         "base": (
-            "BACKGROUND PLATE for a premium sacred quote card. "
-            "Setting: Aged parchment or manuscript surface — warm antique tones, timeless scholarly atmosphere. "
+            "BACKGROUND PLATE for a premium editorial quote card. "
+            "Setting: Photorealistic macro study of premium parchment or manuscript paper surface. "
             "The center must be a clean, softly lit manuscript window with minimal texture. "
-            "All detail, aging, and ornament pushed to the outer edges only. "
+            "Photorealistic 4K studio photography, premium archival materials, clean and elegant. "
+            "Believable lighting, no unnatural bloom or chaotic ancient edges. "
             "1:1 square composition. Absolutely no text, no calligraphy, no letters."
         ),
         "variations": [
-            "Heavy distressed aged parchment, warm amber-ivory tones, cracked ancient edges, smooth center window.",
-            "Smooth refined parchment grain, subtle fibrous paper texture, faded directional sunbeam from upper-left.",
-            "Warm top-down light on antique manuscript surface, faint gold geometry hints at corners only.",
-            "Elegant faded border frame of minimal lines, center completely smooth warm ivory, soft vignetted edges.",
-            "Candlelit warm illumination on aged paper, soft amber center warmth, dark vignetted outer frame."
+            "Premium aged parchment paper, warm amber-ivory tones, smooth center window, subtle authentic grain.",
+            "Smooth refined artisanal paper grain, subtle fibrous texture, natural directional sunlight from upper-left.",
+            "Warm top-down studio light on antique paper surface, very subtle and authentic blind deboss patterns at corners only.",
+            "Elegant clean border frame of minimal authentic lines, center completely smooth warm ivory, soft vignetted edges.",
+            "Warm natural illumination on archival paper, soft amber center warmth, clean dark vignetted outer frame."
         ]
     },
     "luxury_marble": {
         "base": (
-            "BACKGROUND PLATE for a premium sacred quote card. "
-            "Setting: Dark charcoal or obsidian marble — sweeping natural stone veins, premium luxury surface. "
+            "BACKGROUND PLATE for a premium editorial quote card. "
+            "Setting: Photorealistic architectural stone slab — dark charcoal or obsidian marble. "
             "The center must be smooth and calm — the text stage, free of veining. "
-            "Sophisticated, refined, dark editorial quality. "
+            "Photorealistic 4K studio photography, premium materials and architectural restraint. "
+            "Believable lighting, no unnatural bloom, glowing cracks, or surreal liquid-stone pooling. "
             "1:1 square composition. Absolutely no text, no calligraphy, no letters."
         ),
         "variations": [
-            "Sweeping organic marble veins of dark charcoal, center pooling to a smooth clean surface.",
-            "Cracked gold-fill veins branching from corners toward edges, center pure matte stone.",
-            "High polished specular obsidian marble, strong top-down spotlight, heavy gold flake deposits at edges.",
-            "Stratified stone layers of grey and platinum traces, wet-stone deep gloss surface, clean center.",
-            "Fractured chaotic gold veins at extreme corners only, soft matte honing at center, dark vignette.",
-            "Smooth liquid-stone pooling pattern, copper oxidization warmth at outer regions, soft ambient wash."
+            "Photorealistic sweeping organic marble veins of dark charcoal, center naturally clear of heavy veining.",
+            "Authentic stone slab with subtle gold inlay branching from corners toward edges, center pure matte stone.",
+            "High polished specular obsidian marble slab, strong top-down studio spotlight, natural mineral deposits at edges.",
+            "Authentic stratified stone layers of grey and platinum traces, clean architectural surface, clean center.",
+            "Realistic minimal veins at extreme corners only, soft matte honed finish at center, natural dark vignette.",
+            "Smooth dark monolithic stone surface, subtle natural oxidization warmth at outer regions, soft ambient wash."
         ]
     },
     "sacred_desert": {
         "base": (
-            "BACKGROUND PLATE for a premium sacred quote card. "
-            "Setting: A vast, warm desert landscape — golden amber tones, timeless contemplative scale. "
-            "The center must be flooded with ethereal warm desert light, completely clear for text. "
-            "Expansive, ancient, meditative atmosphere. "
+            "BACKGROUND PLATE for a premium editorial quote card. "
+            "Setting: A high-end landscape editorial of a vast, warm desert environment. "
+            "The center must be flooded with natural cinematic daylight, completely clear for text. "
+            "Photorealistic 4K photography, authentic sand textures, timeless scale. "
+            "Believable lighting, no unnatural bloom or surreal glowing artifacts. "
             "1:1 square composition. Absolutely no text, no calligraphy, no letters."
         ),
         "variations": [
-            "Towering dune ridge silhouettes at the very bottom edge, soft hazy dust-filtered golden light above.",
-            "Vast open horizon line with fine wind-swept sand ripples at extreme edges, warm glowing center.",
-            "Low-angle golden hour sun, long cinematic shadows cast by scattered smooth basalt stones at corners only.",
-            "Cool blue hour desert twilight, deep amber-blue gradient sky, undisturbed sand sheets at base edge.",
-            "Ancient cracked desert floor at corners, mirage-like heat haze distance, center a pure warm glow.",
-            "Harsh midday high-contrast sun, pure undisturbed sand sheets, glowing warmth flooding the center."
+            "Photorealistic towering dune ridge silhouettes at the very bottom edge, soft natural hazy golden light above.",
+            "Vast authentic open horizon line with fine wind-swept sand ripples at extreme edges, natural warm center.",
+            "Low-angle authentic golden hour sun, long cinematic shadows cast by scattered real basalt stones at corners only.",
+            "Cool blue hour desert twilight photography, deep amber-blue gradient sky, undisturbed sand sheets at base edge.",
+            "Realistic cracked dry earth at corners, natural heat haze distance, center a pure natural warm sky.",
+            "Harsh midday high-contrast natural sun, pure undisturbed sand sheets, bright authentic warmth flooding the center."
         ]
     },
 
@@ -802,104 +813,110 @@ SCENE_PROMPT_TEMPLATES = {
 
     "royal_velvet": {
         "base": (
-            "BACKGROUND PLATE for a premium sacred quote card. "
-            "Setting: Rich, deep-colored velvet or luxurious fabric surface — heavy color saturation, soft tactile depth. "
-            "The center must be a calm, softly-lit focal clearing free of texture. "
-            "Opulent, majestic, deeply colored. "
+            "BACKGROUND PLATE for a premium editorial quote card. "
+            "Setting: Photorealistic macro photography of rich, heavy textile drapes. "
+            "The center must be a calm, softly-lit focal clearing free of heavy folds. "
+            "Photorealistic 4K studio photography, authentic light absorption and drape physics. "
+            "Believable lighting, no unnatural bloom or surreal glowing objects. "
             "1:1 square composition. Absolutely no text, no calligraphy, no letters."
         ),
         "variations": [
-            "Cascading deep burgundy velvet fabric folds at edges, center a smooth rich pool of color.",
-            "Taut structured deep purple velvet panel, subtle golden rim highlights at corners only.",
-            "Soft undulating indigo-navy fabric waves, faint brushed directional grain, heavy vignette at edges.",
-            "Lush heavy velvet pile catching overhead diffuse wash, deep royal blue, smooth center clearing.",
-            "Crushed emerald velvet texture at outer frame, abstract macro pile detail, clean center zone.",
-            "Low-angle tactile illumination on deep wine-red fabric surface, shadow vignettes, center calm."
+            "Photorealistic cascading deep burgundy velvet fabric folds at edges, center a smooth rich flat surface.",
+            "Taut structured deep purple velvet upholstery panel, subtle authentic studio rim highlights at corners only.",
+            "Soft realistic undulating indigo-navy fabric waves, faint brushed directional grain, heavy vignette at edges.",
+            "Lush heavy velvet pile catching authentic overhead diffuse wash, deep royal blue, smooth center clearing.",
+            "Crushed emerald velvet macro photography at outer frame, authentic tactile pile detail, clean center zone.",
+            "Low-angle realistic studio illumination on deep wine-red fabric surface, natural shadow vignettes, center calm."
         ]
     },
     "midnight_ink": {
         "base": (
-            "BACKGROUND PLATE for a premium sacred quote card. "
-            "Setting: A deep navy or midnight blue editorial environment — sophisticated, precise, luxury magazine feel. "
+            "BACKGROUND PLATE for a premium editorial quote card. "
+            "Setting: High-contrast, moody architectural minimalism in deep navy or midnight blue. "
             "The center must be perfectly smooth and quiet — a dark serene surface for text. "
-            "Refined, intellectual, premium dark editorial. "
+            "Photorealistic 4K studio photography, matte premium dark surfaces, architectural restraint. "
+            "Believable lighting, no unnatural bloom or gossamer highlights. "
             "1:1 square composition. Absolutely no text, no calligraphy, no letters."
         ),
         "variations": [
-            "Deep navy ink atmosphere, faint tonal gradient from slightly lighter center to rich dark edges.",
-            "Midnight blue monolithic surface with barely visible fine grain, single restrained silver side-light.",
-            "Rich oceanic navy depth, very faint warm glow from above-center, no patterns, purely tonal depth.",
-            "Dark editorial charcoal-navy panel, cool horizontal rim light from one side, strong center calm.",
-            "Deep dignified navy surface, subtle iridescent micro-sheen, soft center spotlight, dark corners.",
-            "Layered dark blue-black tonal depth, gossamer thin silver edge highlight, minimalist absence of detail."
+            "Photorealistic deep navy atmosphere, faint natural tonal gradient from slightly lighter center to rich dark edges.",
+            "Midnight blue monolithic architectural surface with barely visible fine grain, single restrained realistic side-light.",
+            "Rich authentic navy depth, very faint natural ambient glow from above-center, purely tonal depth.",
+            "Dark editorial charcoal-navy matte panel, cool realistic horizontal rim light from one side, strong center calm.",
+            "Deep dignified navy surface, subtle authentic micro-sheen, soft center studio spotlight, dark corners.",
+            "Layered dark blue-black architectural tonal depth, crisp subtle edge highlight, minimalist absence of detail."
         ]
     },
     "dawn_horizon": {
         "base": (
-            "BACKGROUND PLATE for a premium sacred quote card. "
-            "Setting: A soft, hopeful dawn sky — warm golden and blush tones, serene atmospheric light. "
-            "The center must be filled with luminous dawn light, perfectly clear for text. "
-            "Hopeful, peaceful, tender awakening mood. "
+            "BACKGROUND PLATE for a premium editorial quote card. "
+            "Setting: Realistic early morning atmospheric photography of a soft dawn sky. "
+            "The center must be filled with natural dawn light, perfectly clear for text. "
+            "Photorealistic 4K photography, natural pre-dawn gradients. "
+            "Believable lighting, no unnatural volumetric haze or surreal glowing clouds. "
             "1:1 square composition. Absolutely no text, no calligraphy, no letters."
         ),
         "variations": [
-            "Delicate blush pink and gold gradient sky fading from warm top to cool bottom, center luminous dawn glow.",
-            "Soft amber-rose horizon line at the very base edge, above a vast clean warm sky, center flooded with light.",
-            "Thin gossamer cloud wisps at outer edges only, warm golden pre-dawn light flooding the center.",
-            "Layered pastel dawn sky — coral, gold, and pale blue banding at far edges, center a pure warm clearing.",
-            "Soft volumetric morning haze diffusing warm light across the entire frame, detail only at corners.",
-            "Early morning sky with the first hint of deep amber sun at the very base, pale luminous center above."
+            "Authentic delicate blush pink and gold gradient sky fading from warm top to cool bottom, center natural dawn glow.",
+            "Soft amber-rose realistic horizon line at the very base edge, above a vast clean sky, center flooded with natural light.",
+            "Thin realistic cloud wisps at outer edges only, warm golden pre-dawn sunlight flooding the center.",
+            "Layered authentic pastel dawn sky — coral, gold, and pale blue banding at far edges, center a pure clear sky.",
+            "Soft natural morning atmosphere diffusing warm light across the entire frame, detail only at corners.",
+            "Real early morning sky with the first hint of deep amber sun at the very base, pale natural center above."
         ]
     },
     "obsidian_stone": {
         "base": (
-            "BACKGROUND PLATE for a premium sacred quote card. "
-            "Setting: Volcanic obsidian or deep stone — near-perfect darkness, geometric and restrained. "
+            "BACKGROUND PLATE for a premium editorial quote card. "
+            "Setting: Authentic geological macro photography of volcanic obsidian or deep polished stone. "
             "The center must be held in deep, calm shadow with only the barest presence of light. "
-            "Stark, geological, deeply intentional. "
+            "Photorealistic 4K studio photography, realistic specular highlights on polished black stone. "
+            "Believable lighting, no unnatural bloom or internal blue-purple micro-glows. "
             "1:1 square composition. Absolutely no text, no calligraphy, no letters."
         ),
         "variations": [
-            "Monolithic obsidian slab presence, smooth liquid-like dark surface, extreme edge rim-light only.",
-            "Shattered geometric volcanic glass shards concentrated at the outer corners, center pure dark void.",
-            "Highly polished obsidian mirror surface, single dramatic specular highlight at one edge, deep center.",
-            "Raw fractured geological edges at extreme corners, matte volcanic sand texture, center calm darkness.",
-            "Subtle iridescent blue-purple internal glow at edges of dark stone, soft ambient shadow at center.",
-            "Abstract crystalline depth in obsidian, cool blue-purple internal micro-glow, near-lightless center."
+            "Photorealistic monolithic obsidian slab presence, smooth dark surface, extreme edge studio rim-light only.",
+            "Real fractured volcanic glass shards concentrated at the outer corners, center pure dark void.",
+            "Highly polished obsidian mirror surface, single realistic specular highlight at one edge, deep center.",
+            "Raw authentic geological edges at extreme corners, matte volcanic sand texture, center calm darkness.",
+            "Subtle natural sheen at edges of dark stone, soft realistic ambient shadow at center.",
+            "Authentic macro photography of dark crystalline depth in stone, near-lightless center."
         ]
     },
     "ocean_depth": {
         "base": (
-            "BACKGROUND PLATE for a premium sacred quote card. "
-            "Setting: Deep oceanic or teal underwater atmosphere — vast, meditative, infinite depth. "
+            "BACKGROUND PLATE for a premium editorial quote card. "
+            "Setting: Pristine, realistic underwater photography with natural light caustics and deep teal gradients. "
             "The center must be a calm, luminous aquatic clearing — the text stage. "
-            "Vast, contemplative, deep teal mood. "
+            "Photorealistic 4K photography, authentic oceanic depth. "
+            "Believable lighting, no unnatural bloom or surreal bioluminescent glow. "
             "1:1 square composition. Absolutely no text, no calligraphy, no letters."
         ),
         "variations": [
-            "Deep teal underwater atmosphere, soft diffused light rays descending from above, center calm and luminous.",
-            "Vast dark oceanic depth at edges, turquoise-teal light pool at center, infinite sense of scale.",
-            "Abstract underwater surface — rich blue-green tones, faint caustic light patterns at outer regions only.",
-            "Cool navy-to-teal gradient depth, single column of soft light descending into center clearing.",
-            "Dark deep ocean blue at corners, soft bioluminescent teal glow radiating from the center.",
-            "Serene teal-blue gradient, deep at edges, pale luminous center, minimalist aquatic calm."
+            "Photorealistic deep teal underwater atmosphere, soft natural diffused light rays descending from above, center calm.",
+            "Vast dark authentic oceanic depth at edges, turquoise-teal light pool at center, infinite sense of scale.",
+            "Realistic underwater surface — rich blue-green tones, faint natural caustic light patterns at outer regions only.",
+            "Cool navy-to-teal natural gradient depth, single column of realistic soft light descending into center clearing.",
+            "Dark deep ocean blue at corners, soft natural light radiating from the center.",
+            "Serene authentic teal-blue gradient, deep at edges, pale luminous center, minimalist aquatic calm."
         ]
     },
     "warm_copper": {
         "base": (
-            "BACKGROUND PLATE for a premium sacred quote card. "
-            "Setting: Burnished copper, bronze, or warm metallic surface — rich warm tones, artisanal luxury. "
+            "BACKGROUND PLATE for a premium editorial quote card. "
+            "Setting: Photorealistic macro photography of hammered or brushed metal surfaces — copper or bronze. "
             "The center must be a calm, warmly lit metallic clearing — smooth and inviting. "
-            "Warm, burnished, timeless artisanal quality. "
+            "Photorealistic 4K studio photography, authentic patina and studio lighting. "
+            "Believable lighting, no unnatural bloom or surreal liquid bronze pooling. "
             "1:1 square composition. Absolutely no text, no calligraphy, no letters."
         ),
         "variations": [
-            "Burnished warm copper surface, soft overhead diffuse wash, fine metallic grain at edges, smooth center.",
-            "Aged bronze patina at outer corners — green-gold oxidization, warm amber burnished center clearing.",
-            "Hammered copper texture at extreme edges, warm directional light catching subtle facets, calm center.",
-            "Smooth liquid bronze pooling pattern, warm amber-gold light reflecting from a single side source.",
-            "Antique copper surface with deep warm shadows at corners, single overhead warm spotlight at center.",
-            "Rich gold-copper gradient surface, deep bronze at edges, warm burnished amber glow at center."
+            "Photorealistic burnished warm copper surface, soft overhead studio wash, fine metallic grain at edges, smooth center.",
+            "Authentic aged bronze patina at outer corners — natural green-gold oxidization, warm amber burnished center clearing.",
+            "Real hammered copper texture at extreme edges, warm directional light catching subtle facets, calm center.",
+            "Smooth solid bronze surface, warm amber-gold light reflecting from a single realistic side source.",
+            "Authentic antique copper surface with deep warm shadows at corners, single overhead warm studio spotlight at center.",
+            "Rich photorealistic gold-copper gradient surface, deep bronze at edges, warm burnished amber glow at center."
         ]
     }
 }
