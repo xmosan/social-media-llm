@@ -294,24 +294,42 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         if not automation or not automation.enabled:
             return None
         
-        # 1. Topic Pool Rotation Logic
-        pool = automation.topic_pool or []
-        topic_base = automation.topic_prompt
+        # 1. Intelligent Topic Pool Rotation (rotation_engine)
+        from app.services.rotation_engine import pick_topic, pick_style, record_topic_used
         
-        post_count = db.query(Post).filter(Post.automation_id == automation.id).count()
-        if pool:
-            topic_base = pool[post_count % len(pool)]
-            log_event("automation_topic_selected", automation_id=automation.id, topic=topic_base, index=post_count % len(pool))
+        pool = automation.topic_pool or []
+        avoid_days = getattr(automation, "avoid_repeat_days", 30) or 30
 
-        # 2. Pillar Rotation Logic
+        if pool:
+            topic_base = pick_topic(
+                topic_pool=pool,
+                automation_id=automation.id,
+                db=db,
+                avoid_days=avoid_days,
+            )
+        else:
+            topic_base = automation.topic_prompt
+
+        log_event("automation_topic_selected", automation_id=automation.id, topic=topic_base,
+                  pool_size=len(pool), avoid_days=avoid_days)
+        print(f"[ROTATION] Selected topic: '{topic_base}' (pool size={len(pool)}, avoid_days={avoid_days})")
+
+        # 2. Pillar Rotation Logic (kept for backwards compat)
         pillars = automation.pillars or []
         if pillars:
-            selected_pillar = pillars[post_count % len(pillars)]
-            # If topic exists, use it as grounding context, otherwise use pillar as main topic
+            import random as _rnd
+            # Exclude most recently used pillar if multiple exist
+            last_pillar = (automation.flags or {}).get("last_pillar")
+            pillar_candidates = [p for p in pillars if p != last_pillar] or pillars
+            selected_pillar = _rnd.choice(pillar_candidates)
             topic_base = f"{selected_pillar}: {topic_base}" if topic_base else selected_pillar
-            log_event("automation_pillar_selected", automation_id=automation.id, pillar=selected_pillar, index=post_count % len(pillars))
+            # Persist last pillar to flags
+            _flags = dict(automation.flags or {})
+            _flags["last_pillar"] = selected_pillar
+            automation.flags = _flags
+            log_event("automation_pillar_selected", automation_id=automation.id, pillar=selected_pillar)
 
-        # PHASE 2: Load Style DNA System
+        # 3. Load Style DNA with intelligent back-to-back prevention
         from app.services.automation_service import get_automation_style_dna
         style_dna_spec = get_automation_style_dna(db, automation)
 
@@ -865,7 +883,20 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         automation.last_run_at = datetime.now(dt_timezone.utc)
         automation.last_post_id = new_post.id
         automation.last_error = None
-        
+
+        # Record topic + style usage for the no-repeat rotation engine
+        try:
+            used_style_id = (automation.flags or {}).get("last_style_id")
+            record_topic_used(
+                automation_id=automation.id,
+                topic=topic_base,
+                style_id=used_style_id,
+                db=db,
+            )
+            log_event("rotation_recorded", automation_id=automation.id, topic=topic_base, style_id=used_style_id)
+        except Exception as rec_err:
+            print(f"[ROTATION] record_topic_used failed (non-fatal): {rec_err}")
+
         db.commit()
         db.refresh(new_post)
         return new_post

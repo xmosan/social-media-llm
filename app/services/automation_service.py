@@ -198,24 +198,29 @@ def get_automation_style_dna(db: Session, automation: TopicAutomation) -> StyleD
     Resolves the StyleDNA for a given automation.
 
     Phase 1: Maps the legacy `style_preset` string to a system preset.
-    Phase 2: Will load from the `style_dna` table using `automation.style_dna_id` or `automation.style_dna_pool`.
+    Phase 2: Loads from the `style_dna` table using `automation.style_dna_pool`
+             with intelligent back-to-back prevention via rotation_engine.pick_style().
 
     Returns a StyleDNASpec (always — uses 'islamic_reminder' as fallback).
     """
     from app.models import StyleDNA, Post
-    
-    selected_dna_id = getattr(automation, "style_dna_id", None)
+    from app.services.rotation_engine import pick_style
+
     pool = getattr(automation, "style_dna_pool", []) or []
-    
-    # Pool Rotation Logic
-    if pool:
-        post_count = db.query(Post).filter(Post.automation_id == automation.id).count()
-        selected_dna_id = pool[post_count % len(pool)]
-        logger.info(f"[STYLE_DNA] Pool rotation: selected index {post_count % len(pool)} (ID: {selected_dna_id}) from pool {pool}")
+    last_style_id = (getattr(automation, "flags", {}) or {}).get("last_style_id")
+
+    # Intelligent pick: avoid back-to-back same style
+    selected_dna_id = pick_style(pool, last_style_id=last_style_id)
+
+    if not selected_dna_id:
+        # No pool — fall back to single style_dna_id if set
+        selected_dna_id = getattr(automation, "style_dna_id", None)
 
     if getattr(automation, "automation_version", 1) >= 2 and selected_dna_id:
         db_obj = db.get(StyleDNA, selected_dna_id)
         if db_obj:
+            logger.info(f"[STYLE_DNA] Selected: '{db_obj.name}' (id={selected_dna_id}, "
+                        f"last={last_style_id}, pool={pool})")
             return StyleDNASpec(
                 family=db_obj.family,
                 atmosphere=db_obj.atmosphere,

@@ -1108,6 +1108,49 @@ STUDIO_SCRIPTS_JS = r"""
             console.error('[Sabeel Studio] Failed to load style DNA presets: ', e);
         }
     }
+    window._renderTopicChips = function() {
+        const pool = window.currentAutoTopicPool || [];
+        const chipContainer = document.getElementById('autoV2TopicChips');
+        if (!chipContainer) return;
+        if (pool.length === 0) {
+            chipContainer.innerHTML = '<p class="text-[8px] text-text-muted italic px-1 font-medium">No topics added yet. Type a topic above and press Enter or +.</p>';
+        } else {
+            chipContainer.innerHTML = pool.map((t, i) => `
+                <span class="px-3 py-1.5 bg-brand/10 border border-brand/20 rounded-full text-[9px] font-bold text-brand uppercase tracking-widest flex items-center gap-2 animate-in zoom-in duration-200">
+                    <span class="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0"></span>
+                    <span>${t}</span>
+                    <button type="button" onclick="removeTopicChip(${i})" class="w-3.5 h-3.5 rounded-full bg-brand/20 hover:bg-rose-500 hover:text-white flex items-center justify-center text-brand transition-all flex-shrink-0" title="Remove">
+                        <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </span>
+            `).join('');
+        }
+    };
+
+    window.addTopicChip = function() {
+        const input = document.getElementById('autoV2TopicInput');
+        if (!input) return;
+        const raw = input.value.trim();
+        if (!raw) return;
+        // Support comma-separated batch add
+        const newTopics = raw.split(',').map(t => t.trim()).filter(t => t.length > 0);
+        const pool = window.currentAutoTopicPool || [];
+        newTopics.forEach(t => {
+            if (!pool.includes(t)) pool.push(t);
+        });
+        window.currentAutoTopicPool = pool;
+        input.value = '';
+        window._renderTopicChips();
+        window.updateAutoV2Summary();
+    };
+
+    window.removeTopicChip = function(index) {
+        const pool = window.currentAutoTopicPool || [];
+        pool.splice(index, 1);
+        window.currentAutoTopicPool = pool;
+        window._renderTopicChips();
+        window.updateAutoV2Summary();
+    };
 
     window.updateAutoV2VisualPreview = function(dnaId) {
         const swatches = {
@@ -1129,33 +1172,20 @@ STUDIO_SCRIPTS_JS = r"""
     };
 
     window.updateAutoV2Summary = function() {
-        const topicRaw = document.querySelector('textarea[name="topic_prompt"]')?.value || '';
-        
-        // Topic Pool Parsing
-        const topics = topicRaw.split(',').map(t => t.trim()).filter(t => t.length > 0);
-        const uniqueTopics = [...new Set(topics)];
-        window.currentAutoTopicPool = uniqueTopics;
+        // Topic pool is now managed by addTopicChip/removeTopicChip
+        // window.currentAutoTopicPool is the source of truth
+        const uniqueTopics = window.currentAutoTopicPool || [];
 
-        // Render Chips
-        const chipContainer = document.getElementById('autoV2TopicChips');
-        if (chipContainer) {
-            if (uniqueTopics.length > 0) {
-                chipContainer.innerHTML = uniqueTopics.map(t => `
-                    <span class="px-3 py-1 bg-brand/10 border border-brand/20 rounded-full text-[9px] font-bold text-brand uppercase tracking-widest flex items-center gap-2 animate-in zoom-in duration-200">
-                        <span class="w-1.5 h-1.5 rounded-full bg-accent"></span>
-                        ${t}
-                    </span>
-                `).join('');
-            } else {
-                chipContainer.innerHTML = '<p class="text-[8px] text-text-muted italic px-1 font-medium">Enter multiple topics separated by commas...</p>';
-            }
-        }
+        // Sync hidden topic_prompt field (for backend compat)
+        const hiddenInput = document.getElementById('autoV2TopicPromptHidden');
+        if (hiddenInput) hiddenInput.value = uniqueTopics.join(', ');
 
         const cadence = document.getElementById('autoV2CadenceInput')?.value || 'daily';
         const mode = document.getElementById('autoV2ApprovalModeInput')?.value || 'needs_manual_approve';
         const timeInput = document.querySelector('input[name="post_time_local"]')?.value || '09:00';
         const postsPerDay = document.querySelector('input[name="posts_per_day"]')?.value || 1;
         const spacing = document.querySelector('input[name="post_spacing_hours"]')?.value || 4;
+        const avoid_days = 30; // Global constant for no-repeat window
         
         let dnaLabel = 'Atmospheric';
         if (window.currentAutoStylePool && window.currentAutoStylePool.length > 0) {
@@ -1165,6 +1195,19 @@ STUDIO_SCRIPTS_JS = r"""
             });
             dnaLabel = labels.join(' + ');
         }
+
+        // ── Rotation behaviour row ──────────────────────────────────────────
+        const topicCount = uniqueTopics.length;
+        const styleCount = (window.currentAutoStylePool || []).length;
+        const combinations = Math.max(topicCount, 1) * Math.max(styleCount, 1);
+        const rotationLine = topicCount > 1 || styleCount > 1
+            ? `${topicCount} topic${topicCount !== 1 ? 's' : ''} × ${Math.max(styleCount, 1)} style${styleCount !== 1 ? 's' : ''} = <strong>${combinations}</strong> unique combinations`
+            : 'Single topic stream';
+        const noRepeatLine = `No-repeat window: <strong>${avoid_days || 30} days</strong>`;
+
+        // ── Style counter badge ─────────────────────────────────────────────
+        const styleCounterEl = document.getElementById('autoV2StyleCounter');
+        if (styleCounterEl) styleCounterEl.textContent = `${styleCount}/3 selected`;
 
         const summaryEl = document.getElementById('autoV2BehaviorSummary');
         if (summaryEl) {
@@ -1203,6 +1246,10 @@ STUDIO_SCRIPTS_JS = r"""
                         <div class="flex flex-col">
                             <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Volume & Spacing</span>
                             <span class="text-[11px] font-black text-brand mt-1">${postsPerDay} post${postsPerDay > 1 ? 's' : ''}/${cadence === 'daily' ? 'day' : 'week'} (${spacing}h buffer)</span>
+                        </div>
+                        <div class="flex flex-col col-span-full border-t border-brand/5 pt-2">
+                            <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Rotation Behaviour</span>
+                            <span class="text-[10px] font-bold text-brand mt-1">${rotationLine} &nbsp;·&nbsp; ${noRepeatLine}</span>
                         </div>
                         <div class="flex flex-col col-span-full pt-1">
                             <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Approval Protocol</span>
@@ -1293,6 +1340,8 @@ STUDIO_SCRIPTS_JS = r"""
                     form.dataset.editId = "";
                     form.reset();
                     window.currentAutoStylePool = [];
+                    window.currentAutoTopicPool = [];
+                    window._renderTopicChips();
                 }
                 window.updateAutoV2Summary();
             } catch (e) {
@@ -1564,6 +1613,17 @@ STUDIO_SCRIPTS_JS = r"""
 
         modal.classList.remove('hidden');
         modal.style.display = 'flex';
+        
+        // Restore Topic Pool chips
+        let savedTopicPool = [];
+        if (data.topic_pool && data.topic_pool.length > 0) {
+            savedTopicPool = data.topic_pool;
+        } else if (data.topic_prompt) {
+            // Fallback: parse comma-separated topic_prompt for older automations
+            savedTopicPool = data.topic_prompt.split(',').map(t => t.trim()).filter(t => t);
+        }
+        window.currentAutoTopicPool = savedTopicPool;
+        window._renderTopicChips();
         
         // Final Summary Update
         setTimeout(() => { window.updateAutoV2Summary(); }, 200);
@@ -2529,10 +2589,21 @@ STUDIO_COMPONENTS_HTML = """
                     <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Plan Name</label>
                     <input type="text" name="name" required oninput="updateAutoV2Summary()" placeholder="e.g. Daily Friday Sunnah" class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30">
                 </div>
-                <div class="space-y-2">
-                    <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Core Topic / Guidance</label>
-                    <textarea name="topic_prompt" required oninput="updateAutoV2Summary()" placeholder="e.g. Sabr, Gratitude, Daily Prayers..." class="w-full bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-medium text-brand min-h-[100px] outline-none focus:border-brand/30"></textarea>
-                    <div id="autoV2TopicChips" class="flex flex-wrap gap-2 mt-2"></div>
+                <div class="space-y-3">
+                    <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Topic Pool</label>
+                    <p class="text-[8px] text-text-muted px-1 font-medium mb-1">Add multiple topics. The engine picks one each cycle, avoiding repeats for 30 days.</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="autoV2TopicInput" placeholder="e.g. Sabr, Prayers, Gratitude..." class="flex-1 bg-brand/5 border border-brand/10 rounded-xl px-4 py-3 text-sm font-bold text-brand outline-none focus:border-brand/30" onkeydown="if(event.key==='Enter'){event.preventDefault();addTopicChip();}"
+                        >
+                        <button type="button" onclick="addTopicChip()" class="px-4 py-3 bg-brand text-white rounded-xl text-sm font-black hover:bg-brand-hover transition-all flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                        </button>
+                    </div>
+                    <!-- Hidden input keeps backward compat for topic_prompt field -->
+                    <input type="hidden" name="topic_prompt" id="autoV2TopicPromptHidden">
+                    <div id="autoV2TopicChips" class="flex flex-wrap gap-2 mt-2 min-h-[32px]">
+                        <p class="text-[8px] text-text-muted italic px-1 font-medium">No topics added yet. Type a topic above and press Enter or +.</p>
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-4 col-span-full">
