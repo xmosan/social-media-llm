@@ -683,7 +683,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 if is_quran:
                     # [INTEGRITY CHECK] If Arabic is missing from payload, attempt auto-recovery
                     arabic_text = primary_item.arabic_text or ""
-                    
+
                     if not arabic_text:
                         print(f"⚠️ [AUTO_QURAN] Missing Arabic text for {reference}. Attempting recovery...")
                         if reference:
@@ -702,11 +702,35 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                         db.commit()
                         return None
 
+                    # ── Studio-parity: generate thematic eyebrow + supporting reflection ──
+                    # Studio's build_quran_quote_message calls generate_card_framing_from_source
+                    # (GPT-4o) to produce a contextual eyebrow (e.g. "DIVINE MERCY") and a
+                    # 1-2 sentence reflection at the bottom of the card. We replicate that here.
+                    try:
+                        from app.services.llm import generate_card_framing_from_source
+                        _tone_for_framing = automation.tone or "calm"
+                        _intent_for_framing = getattr(automation, "intent_type", None) or "wisdom"
+                        framing = generate_card_framing_from_source(
+                            source_text=quote_text,
+                            intent=_intent_for_framing,
+                            tone=_tone_for_framing,
+                            custom_prompt="",
+                            source_type="quran",
+                            reference=reference,
+                        )
+                        _eyebrow = framing.get("eyebrow") or reference
+                        _supporting = framing.get("supporting_text") or ""
+                        print(f"📝 [AUTO_QURAN] Card framing generated: eyebrow='{_eyebrow[:40]}'")
+                    except Exception as _frame_err:
+                        print(f"⚠️ [AUTO_QURAN] Card framing failed (non-fatal), using reference as eyebrow: {_frame_err}")
+                        _eyebrow = reference
+                        _supporting = ""
+
                     card_message = {
-                        "eyebrow":          reference,
+                        "eyebrow":          _eyebrow,
                         "arabic_text":      arabic_text,
                         "headline":         quote_text,
-                        "supporting_text":  "",
+                        "supporting_text":  _supporting,
                     }
                 elif is_hadith:
                     was_excerpted = len(quote_text) < len(uncleaned_text) * 0.9 if uncleaned_text else False
@@ -716,11 +740,32 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                     narrator_val = ""
                     if hasattr(primary_item, "meta") and isinstance(getattr(primary_item, "meta", None), dict):
                         narrator_val = primary_item.meta.get("narrator", "")
+                    # ── Studio-parity: generate thematic eyebrow + supporting reflection ──
+                    try:
+                        from app.services.llm import generate_card_framing_from_source
+                        _h_tone = automation.tone or "calm"
+                        _h_intent = getattr(automation, "intent_type", None) or "wisdom"
+                        _h_framing = generate_card_framing_from_source(
+                            source_text=quote_text,
+                            intent=_h_intent,
+                            tone=_h_tone,
+                            custom_prompt="",
+                            source_type="hadith",
+                            reference=reference,
+                        )
+                        _h_eyebrow = _h_framing.get("eyebrow") or reference
+                        # Narrator always takes precedence in supporting_text; framing used as fallback
+                        _h_supporting = f"Narrated {narrator_val}" if narrator_val else (_h_framing.get("supporting_text") or "")
+                        print(f"📝 [HADITH_AUTOMATION] Card framing generated: eyebrow='{_h_eyebrow[:40]}'")
+                    except Exception as _hf_err:
+                        print(f"⚠️ [HADITH_AUTOMATION] Card framing failed (non-fatal): {_hf_err}")
+                        _h_eyebrow = reference
+                        _h_supporting = f"Narrated {narrator_val}" if narrator_val else ""
                     card_message = {
-                        "eyebrow":              reference,
+                        "eyebrow":              _h_eyebrow,
                         "arabic_text":          primary_item.arabic_text or "",
                         "headline":             quote_text,
-                        "supporting_text":      f"Narrated {narrator_val}" if narrator_val else "",
+                        "supporting_text":      _h_supporting,
                         "was_excerpted":        was_excerpted,
                         "hadith_narrator":      narrator_val or None,
                         "hadith_collection":    getattr(primary_item, "collection", ""),
@@ -791,15 +836,21 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 _fallback_family    = style_dna_spec.family if style_dna_spec.family else "sacred_black"
                 _fallback_scene_key = FAMILY_TO_SCENE_KEY.get(_fallback_family, "sacred_black")
                 _fallback_has_prompt = bool(style_dna_spec.visual_prompt and style_dna_spec.visual_prompt.strip())
+                # Carry Arabic through to fallback so it never silently drops to English-only
+                _fallback_arabic = (primary_item.arabic_text or "") if primary_item else ""
                 _fallback_card_msg = {
-                    "eyebrow":   reference,
-                    "headline":  quote_text,
-                    "supporting_text": "",
+                    "eyebrow":          reference,
+                    "arabic_text":      _fallback_arabic,
+                    "headline":         quote_text,
+                    "supporting_text":  "",
                 }
                 media_url = generate_quote_card(
                     style=_fallback_scene_key,
                     visual_prompt=style_dna_spec.visual_prompt if _fallback_has_prompt else None,
                     mode="custom" if _fallback_has_prompt else "scene",
+                    readability_priority=True,
+                    engine="dalle",
+                    glossy=False,
                     card_message=_fallback_card_msg,
                 )
             except Exception as e:

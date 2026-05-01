@@ -233,7 +233,7 @@ def generate_topic_caption(
     
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",  # Upgraded from gpt-3.5-turbo to match quran/hadith caption services quality
             messages=[
                 {"role": "system", "content": system_msg},
                 {"role": "user", "content": prompt}
