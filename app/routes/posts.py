@@ -120,7 +120,9 @@ def intake_post(
             if res.status_code == 200:
                 with open(local_path, "wb") as f:
                     f.write(res.content)
-                public_url = f"{settings.public_base_url.rstrip('/')}/uploads/{filename}"
+                from app.config import build_public_media_url
+                public_url = build_public_media_url(filename, local_path=local_path)
+                print(f"[INTAKE] AI image saved. media_url={public_url}")
             else:
                 raise Exception(f"Failed to download AI image, status: {res.status_code}")
         except Exception as e:
@@ -137,7 +139,9 @@ def intake_post(
         try:
             with open(local_path, "wb") as f:
                 shutil.copyfileobj(image.file, f)
-            public_url = f"{settings.public_base_url.rstrip('/')}/uploads/{filename}"
+            from app.config import build_public_media_url
+            public_url = build_public_media_url(filename, local_path=local_path)
+            print(f"[INTAKE] Upload saved. media_url={public_url}")
         except Exception as e:
             print(f"FAILED FILE SAVE: {e}")
             raise HTTPException(status_code=500, detail="Critical error: Could not save uploaded file. Check disk space/permissions.")
@@ -579,25 +583,83 @@ def publish_post(
         raise HTTPException(status_code=422, detail="Publishing blocked: Instagram account is not fully connected. Please re-authenticate in Settings.")
 
     print(f"[MANUAL_SHARE] resolved media_url={post.media_url}")
-    print(f"[MANUAL_SHARE] using shared Instagram publish pipeline")
+    print(f"[MANUAL_SHARE] media source field=post.media_url")
 
-    # --- LOCAL FILE EXISTENCE CHECK ---
-    # Check before hitting Instagram to avoid wasting API calls on missing assets
+    # --- JUST-IN-TIME CDN UPLOAD ---
+    # If the stored URL is a Railway-local /uploads/ URL, Instagram cannot fetch it.
+    # We re-upload the local file to Cloudinary on-the-fly to get a stable public CDN URL.
+    # This repairs ALL existing posts regardless of when they were created.
+    canonical_media_url = post.media_url
     if "/uploads/" in post.media_url:
         local_filename = post.media_url.split("/uploads/")[-1]
         local_path = os.path.join(settings.uploads_dir, local_filename)
-        if not os.path.exists(local_path):
+        print(f"[MANUAL_SHARE] local file path={local_path} exists={os.path.exists(local_path)}")
+
+        if os.path.exists(local_path):
+            # File is on disk — attempt CDN upload
+            try:
+                from app.services.cloudinary_service import upload_to_cloudinary, is_cloudinary_configured
+                if is_cloudinary_configured():
+                    cdn_url = upload_to_cloudinary(local_path)
+                    if cdn_url:
+                        canonical_media_url = cdn_url
+                        # Persist the CDN URL so future shares don't need re-upload
+                        post.media_url = cdn_url
+                        db.commit()
+                        print(f"[MANUAL_SHARE] canonical_media_url={canonical_media_url} (Cloudinary CDN)")
+                    else:
+                        print(f"[MANUAL_SHARE][VALIDATION_FAIL] post_id={post_id} Cloudinary upload returned None")
+                        raise HTTPException(status_code=422, detail="Publishing blocked: Could not upload image to CDN. Please try again.")
+                else:
+                    # Cloudinary not configured — warn but proceed (will likely fail at Instagram)
+                    print(f"[MANUAL_SHARE] WARNING: Cloudinary not configured. Instagram may reject Railway-local URL.")
+                    canonical_media_url = post.media_url
+            except HTTPException:
+                raise
+            except Exception as cdn_err:
+                print(f"[MANUAL_SHARE][VALIDATION_FAIL] CDN upload error: {cdn_err}")
+                raise HTTPException(status_code=422, detail=f"Publishing blocked: CDN upload failed — {cdn_err}")
+        else:
+            # File is NOT on disk — attempt quote-card recovery
             print(f"[MANUAL_SHARE][VALIDATION_FAIL] post_id={post_id} reason=file_not_on_disk path={local_path}")
-            # Attempt auto-recovery
             print(f"[MANUAL_SHARE] Attempting auto-recovery for stale media on post_id={post_id}...")
             from app.services.automation_runner import recover_stale_media
             recovery_success = recover_stale_media(post, db)
-            if not recovery_success:
+            if recovery_success:
+                # recover_stale_media renders a new card and updates post.media_url
+                # Now try CDN upload of the newly rendered card
+                try:
+                    from app.services.cloudinary_service import upload_to_cloudinary, is_cloudinary_configured
+                    if is_cloudinary_configured() and "/uploads/" in post.media_url:
+                        recovered_filename = post.media_url.split("/uploads/")[-1]
+                        recovered_path = os.path.join(settings.uploads_dir, recovered_filename)
+                        if os.path.exists(recovered_path):
+                            cdn_url = upload_to_cloudinary(recovered_path)
+                            if cdn_url:
+                                canonical_media_url = cdn_url
+                                post.media_url = cdn_url
+                                db.commit()
+                                print(f"[MANUAL_SHARE] Recovery + CDN upload successful: {cdn_url}")
+                            else:
+                                canonical_media_url = post.media_url
+                        else:
+                            canonical_media_url = post.media_url
+                    else:
+                        canonical_media_url = post.media_url
+                except Exception as e:
+                    print(f"[MANUAL_SHARE] Post-recovery CDN upload failed: {e}")
+                    canonical_media_url = post.media_url
+                print(f"[MANUAL_SHARE] Auto-recovery successful for post_id={post_id}. canonical_media_url={canonical_media_url}")
+            else:
                 raise HTTPException(
                     status_code=422,
-                    detail="Publishing blocked: Image file is no longer accessible. This post was created before persistent media recovery was supported — please regenerate the visual."
+                    detail="Publishing blocked: Image file is no longer accessible and could not be recovered. Please regenerate the visual."
                 )
-            print(f"[MANUAL_SHARE] Auto-recovery successful for post_id={post_id}. Proceeding with publish.")
+    else:
+        # Already a CDN or external URL — use as-is
+        print(f"[MANUAL_SHARE] canonical_media_url={canonical_media_url} (external/CDN, no re-upload needed)")
+
+    print(f"[MANUAL_SHARE] using shared Instagram publish pipeline")
 
     # --- BUILD CAPTION ---
     caption_full = post.caption
@@ -608,7 +670,7 @@ def publish_post(
     log_event("post_publish_start", post_id=post.id)
     res = publish_to_instagram(
         caption=caption_full, 
-        media_url=post.media_url,
+        media_url=canonical_media_url,
         ig_user_id=acc.ig_user_id,
         access_token=acc.access_token
     )
