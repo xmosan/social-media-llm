@@ -618,7 +618,8 @@ def simulate_growth_plan(
 
         # 3. Generate Caption
         item_ref = getattr(primary_item, "reference", getattr(primary_item, "title", "Quran"))
-        is_verified_quran = "quran" in (getattr(primary_item, "provider", "") or "").lower() and not fallback_mode
+        _prov = getattr(primary_item, "provider", "") or getattr(primary_item, "item_type", "") or ""
+        is_verified_quran = "quran" in _prov.lower() and not fallback_mode
         
         context_payload = {
             "mode": "grounded_library",
@@ -629,13 +630,27 @@ def simulate_growth_plan(
             }
         }
         
-        llm_res = generate_topic_caption(
-            topic=topic,
-            style=style.family if hasattr(style, "family") else "sacred_black",
-            tone="medium",
-            language=language,
-            extra_context=context_payload
-        )
+        if is_verified_quran:
+            from app.services.quran_caption_service import generate_ai_caption_from_quran
+            quran_payload = {
+                "reference": item_ref,
+                "arabic_text": primary_item.arabic_text or "",
+                "translation_text": primary_item.text,
+            }
+            try:
+                caption = generate_ai_caption_from_quran(quran_payload, style="reflective")
+                llm_res = {"caption": caption, "hashtags": ["#Quran", "#IslamicReminder"]}
+            except Exception as e:
+                logger.error(f"Quran caption preview failed: {e}")
+                llm_res = {"caption": f"{item_ref}\n\n{primary_item.text}", "hashtags": []}
+        else:
+            llm_res = generate_topic_caption(
+                topic=topic,
+                style=style.family if hasattr(style, "family") else "sacred_black",
+                tone="medium",
+                language=language,
+                extra_context=context_payload
+            )
 
         # 4. Generate Visual (Only for Sample 1 to stay fast)
         visual_url = None
@@ -647,7 +662,7 @@ def simulate_growth_plan(
                 
                 segments = [{"text": reference, "size": 36}]
                 # Dual language for Quran
-                is_quran = "quran" in (getattr(primary_item, "provider", "") or "").lower() and not fallback_mode
+                is_quran = "quran" in (getattr(primary_item, "provider", "") or getattr(primary_item, "item_type", "") or "").lower() and not fallback_mode
                 if is_quran and primary_item.arabic_text:
                     segments.append({"text": primary_item.arabic_text, "size": 60, "is_arabic": True})
                     segments.append({"text": quote_text, "size": 52})
