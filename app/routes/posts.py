@@ -4,6 +4,7 @@
 import os, shutil
 from datetime import datetime, timezone, timedelta
 import pytz
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Request, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
