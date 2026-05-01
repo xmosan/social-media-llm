@@ -14,6 +14,16 @@ from app.services.library_retrieval import retrieve_relevant_chunks
 from app.services.prebuilt_loader import load_prebuilt_packs
 from app.services.image_card import create_quote_card
 from app.services.image_renderer import render_quote_card, render_minimal_quote_card
+
+# Maps Style DNA family string → renderer style preset (shared with Studio/scheduled-post system)
+FAMILY_TO_RENDER_STYLE: dict[str, str] = {
+    "sacred_black":         "quran",
+    "emerald_forest":       "fajr",
+    "celestial_night":      "laylulqadr",
+    "parchment_manuscript": "scholar",
+    "luxury_marble":        "kaaba",
+    "sacred_desert":        "madinah",
+}
 from app.services.relevance_engine import validate_source_relevance
 from app.config import settings
 import pytz
@@ -667,14 +677,21 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                          tmp_bg_path = os.path.join(settings.uploads_dir, f"tmp_bg_{int(time.time())}.jpg")
                          with open(tmp_bg_path, "wb") as f: f.write(bg_res.content)
                 
+                # Map Style DNA family to renderer preset (unified with Studio style system)
+                _render_style = FAMILY_TO_RENDER_STYLE.get(
+                    style_dna_spec.family,
+                    automation.style_preset or "quran"
+                )
+                print(f"[STYLE_DNA] render_style resolved: {_render_style} (family={style_dna_spec.family})")
+
                 # CALL PREMIUM RENDERER
                 media_url = render_minimal_quote_card(
                     segments=card_segments,
                     output_dir=settings.uploads_dir,
-                    style=automation.style_preset or "quran",
+                    style=_render_style,
                     visual_prompt=style_dna_spec.visual_prompt,
                     mode="custom" if style_dna_spec.visual_prompt else "preset",
-                    text_style_prompt=style_dna_spec.glow_aura # reuse aura context for text style bias
+                    text_style_prompt=style_dna_spec.glow_aura
                 )
                 
                 if tmp_bg_path and os.path.exists(tmp_bg_path): os.remove(tmp_bg_path)
@@ -717,10 +734,14 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                     {"text": reference.upper(), "size": 36},
                     {"text": quote_text, "size": 72}
                 ]
+                _fallback_render_style = FAMILY_TO_RENDER_STYLE.get(
+                    style_dna_spec.family,
+                    automation.style_preset or "quran"
+                )
                 media_url = render_minimal_quote_card(
                     segments=card_segments,
                     output_dir=settings.uploads_dir,
-                    style=automation.style_preset or "quran",
+                    style=_fallback_render_style,
                     visual_prompt=style_dna_spec.visual_prompt,
                     mode="custom" if style_dna_spec.visual_prompt else "preset"
                 )

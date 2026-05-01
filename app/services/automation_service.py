@@ -237,10 +237,32 @@ def get_automation_style_dna(db: Session, automation: TopicAutomation) -> StyleD
     )
 
 
+# Maps Style DNA family string → renderer style param (unifies with Studio render system)
+FAMILY_TO_RENDER_STYLE: dict[str, str] = {
+    "sacred_black":         "quran",
+    "emerald_forest":       "fajr",
+    "celestial_night":      "laylulqadr",
+    "parchment_manuscript": "scholar",
+    "luxury_marble":        "kaaba",
+    "sacred_desert":        "madinah",
+}
+
+# Maps family → Studio scene key (for frontend preview swatch display)
+FAMILY_TO_SCENE_KEY: dict[str, str] = {
+    "sacred_black":         "sacred_script",
+    "emerald_forest":       "midnight_oasis",
+    "celestial_night":      "midnight_oasis",
+    "parchment_manuscript": "sacred_script",
+    "luxury_marble":        "luxury_editorial",
+    "sacred_desert":        "desert_glow",
+}
+
+
 def list_system_presets(db: Session = None) -> list[dict]:
     """
-    Returns all system Style DNA presets.
-    Phase 2: Reads from DB.
+    Returns all system Style DNA presets with stable IDs.
+    Phase 2: Reads from DB (integer IDs).
+    Fallback: Uses string keys as IDs so the frontend never receives id=null.
     """
     if db:
         from app.models import StyleDNA
@@ -248,26 +270,31 @@ def list_system_presets(db: Session = None) -> list[dict]:
         if presets:
             return [
                 {
-                    "id": p.id,
+                    "id": p.id,           # Integer — always set after seeding
                     "key": p.name.lower().replace(" ", "_"),
                     "label": p.name,
                     "family": p.family,
                     "atmosphere": p.atmosphere,
                     "ornament_level": p.ornament_level,
                     "tone_style": p.tone_style,
+                    "render_style": FAMILY_TO_RENDER_STYLE.get(p.family, "quran"),
+                    "scene_key": FAMILY_TO_SCENE_KEY.get(p.family, "sacred_script"),
                 } for p in presets
             ]
 
-    # Fallback to in-memory if DB not supplied/seeded
+    # Safe fallback: use string key as id — frontend parseInt("islamic_reminder") = NaN-safe
+    # because we switch the frontend to use data-dna-key instead of parseInt for string keys
     return [
         {
-            "id": None,
+            "id": key,            # String key — safe, predictable, unique
             "key": key,
             "label": key.replace("_", " ").title(),
             "family": spec.family,
             "atmosphere": spec.atmosphere,
             "ornament_level": spec.ornament_level,
             "tone_style": spec.tone_style,
+            "render_style": FAMILY_TO_RENDER_STYLE.get(spec.family, "quran"),
+            "scene_key": FAMILY_TO_SCENE_KEY.get(spec.family, "sacred_script"),
         }
         for key, spec in SYSTEM_STYLE_DNA_PRESETS.items()
     ]

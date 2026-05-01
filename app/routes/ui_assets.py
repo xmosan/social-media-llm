@@ -1088,21 +1088,45 @@ STUDIO_SCRIPTS_JS = r"""
             const res = await fetch('/automations/meta/style-presets');
             const data = await res.json();
             v2DnaPresets = data.presets || [];
-            
+
+            // Family → orb color for visual identity (mirrors Studio scene cards)
+            const FAMILY_ORBS = {
+                'sacred_black':         'from-slate-900/80 to-brand/20',
+                'emerald_forest':       'from-emerald-900/70 to-emerald-600/20',
+                'celestial_night':      'from-indigo-950/80 to-blue-400/20',
+                'parchment_manuscript': 'from-amber-100/80 to-orange-200/30',
+                'luxury_marble':        'from-slate-800/80 to-slate-400/20',
+                'sacred_desert':        'from-amber-700/60 to-amber-300/20',
+            };
+            const ORB_DOTS = {
+                'sacred_black':         'bg-amber-400/40',
+                'emerald_forest':       'bg-emerald-400/40',
+                'celestial_night':      'bg-blue-400/40',
+                'parchment_manuscript': 'bg-brand/30',
+                'luxury_marble':        'bg-slate-400/40',
+                'sacred_desert':        'bg-amber-400/40',
+            };
+
             const container = document.getElementById('autoV2StyleDNAContainer');
             if (container) {
-                container.innerHTML = v2DnaPresets.map(p => `
-                    <div onclick="selectV2StyleDna('${p.id || ''}', this)" class="auto-style-card cursor-pointer bg-cream/30 border border-brand/5 rounded-2xl p-4 hover:border-brand/30 hover:shadow-lg transition-all flex flex-col">
-                        <div class="text-[10px] uppercase font-black tracking-widest text-brand mb-2">${p.label}</div>
-                        <div class="text-[9px] text-text-muted font-bold leading-tight">Visual: <span class="italic text-brand/70">${p.atmosphere}</span></div>
-                        <div class="text-[9px] text-text-muted font-bold leading-tight mt-1">Tone: <span class="italic text-brand/70">${p.tone_style}</span></div>
+                container.innerHTML = v2DnaPresets.map(p => {
+                    const orbGrad = FAMILY_ORBS[p.family] || 'from-brand/20 to-brand/5';
+                    const orbDot  = ORB_DOTS[p.family] || 'bg-brand/20';
+                    const dnaId   = p.id;   // string key OR integer — both safe as data-attr
+                    return `
+                    <div data-dna-id="${dnaId}" data-dna-key="${p.key}" data-dna-family="${p.family}"
+                         onclick="selectV2StyleDna(this)"
+                         class="auto-style-card cursor-pointer bg-cream/30 border border-brand/5 rounded-2xl p-4 hover:border-brand/30 hover:shadow-lg transition-all duration-200 flex flex-col items-center text-center group">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br ${orbGrad} flex items-center justify-center mb-3 shadow-inner group-hover:scale-110 transition-transform duration-200">
+                            <div class="w-3 h-3 rounded-full ${orbDot} animate-pulse"></div>
+                        </div>
+                        <div class="text-[10px] uppercase font-black tracking-widest text-brand mb-1">${p.label}</div>
+                        <div class="text-[8px] text-text-muted font-bold leading-tight italic">${p.atmosphere}</div>
+                        <div class="text-[8px] text-text-muted/70 font-bold leading-tight mt-0.5">${p.tone_style}</div>
                     </div>
-                `).join('');
-                if (v2DnaPresets.length > 0 && !document.getElementById('autoV2StyleDNAInput').value) {
-                    setTimeout(() => {
-                        if (container.children[0]) selectV2StyleDna(v2DnaPresets[0].id || '', container.children[0]);
-                    }, 50);
-                }
+                    `;
+                }).join('');
+                // Do NOT auto-select on load — force intentional user choice
             }
         } catch (e) {
             console.error('[Sabeel Studio] Failed to load style DNA presets: ', e);
@@ -1153,20 +1177,40 @@ STUDIO_SCRIPTS_JS = r"""
     };
 
     window.updateAutoV2VisualPreview = function(dnaId) {
-        const swatches = {
-            'dark_sacred': { name: 'Dark Sacred', color: 'bg-[#0F172A]', secondary: 'border-amber-400/50', atmosphere: 'Sacred & Deep' },
-            'emerald_calm': { name: 'Emerald Calm', color: 'bg-emerald-900', secondary: 'border-emerald-400/30', atmosphere: 'Peaceful & Soft' },
-            'celestial_night': { name: 'Celestial Night', color: 'bg-indigo-950', secondary: 'border-blue-400/40', atmosphere: 'Deep & Celestial' },
-            'warm_parchment': { name: 'Warm Parchment', color: 'bg-orange-50', secondary: 'border-brand/10', atmosphere: 'Classic & Scholarly' }
+        // Look up the preset from the loaded presets array — covers both integer and string IDs
+        const preset = v2DnaPresets.find(p => String(p.id) === String(dnaId));
+
+        // Family → swatch color mapping
+        const FAMILY_SWATCHES = {
+            'sacred_black':         { bg: 'bg-slate-900',    border: 'border-amber-400/50',   dot: 'bg-amber-400/60' },
+            'emerald_forest':       { bg: 'bg-emerald-900',  border: 'border-emerald-400/40', dot: 'bg-emerald-400/60' },
+            'celestial_night':      { bg: 'bg-indigo-950',   border: 'border-blue-400/40',    dot: 'bg-blue-400/60' },
+            'parchment_manuscript': { bg: 'bg-orange-50',    border: 'border-brand/20',       dot: 'bg-brand/40' },
+            'luxury_marble':        { bg: 'bg-slate-700',    border: 'border-slate-400/40',   dot: 'bg-slate-300/60' },
+            'sacred_desert':        { bg: 'bg-amber-800',    border: 'border-amber-300/50',   dot: 'bg-amber-300/60' },
         };
-        const active = swatches[dnaId] || swatches['dark_sacred'];
-        const swatchEl = document.getElementById('visualStyleSwatch');
-        const nameEl = document.getElementById('visualStyleName');
+
+        const family  = preset?.family || 'sacred_black';
+        const label   = preset?.label  || 'Dark Sacred';
+        const atmos   = preset?.atmosphere || '';
+        const swatch  = FAMILY_SWATCHES[family] || FAMILY_SWATCHES['sacred_black'];
+
+        const swatchEl    = document.getElementById('visualStyleSwatch');
+        const nameEl      = document.getElementById('visualStyleName');
+        const atmosEl     = document.getElementById('visualStyleAtmos');
         const previewBlock = document.getElementById('autoV2VisualPreview');
-        
+
         if (swatchEl && nameEl) {
-            swatchEl.className = `w-16 h-16 rounded-xl shadow-inner border-2 ${active.color} ${active.secondary}`;
-            nameEl.innerText = active.name;
+            swatchEl.className = `w-14 h-14 rounded-xl shadow-inner border-2 ${swatch.bg} ${swatch.border} flex items-center justify-center`;
+            swatchEl.innerHTML = `<div class="w-4 h-4 rounded-full ${swatch.dot} animate-pulse"></div>`;
+            nameEl.innerText = label;
+            if (atmosEl) atmosEl.innerText = atmos;
+
+            // Show pool count alongside preview
+            const poolCount = (window.currentAutoStylePool || []).length;
+            const countEl = document.getElementById('visualStylePoolCount');
+            if (countEl) countEl.textContent = poolCount > 1 ? `Previewing 1 of ${poolCount} selected` : '';
+
             previewBlock.classList.remove('hidden');
         }
     };
@@ -1263,46 +1307,56 @@ STUDIO_SCRIPTS_JS = r"""
         }
     };
 
-    window.selectV2StyleDna = function(id, el) {
-        const dnaId = parseInt(id, 10);
+    window.selectV2StyleDna = function(el) {
+        // Read the stable data attribute — never parseInt a potentially-null id
+        const dnaId = el.dataset.dnaId;
+        if (!dnaId) { console.warn('[Sabeel Studio] selectV2StyleDna: missing data-dna-id on card'); return; }
+
         const pool = window.currentAutoStylePool || [];
         const index = pool.indexOf(dnaId);
 
         if (index > -1) {
-            // Remove if already present
+            // Deselect
             pool.splice(index, 1);
         } else {
-            // Add if limit not reached
-            if (pool.length < 3) {
-                pool.push(dnaId);
-            } else {
-                alert("Reminder: You can select up to 3 visual directions to maintain consistency.");
+            if (pool.length >= 3) {
+                // Graceful block: shake the card, no alert
+                el.classList.add('auto-style-shake');
+                setTimeout(() => el.classList.remove('auto-style-shake'), 500);
+                const countEl = document.getElementById('autoV2StyleCounter');
+                if (countEl) {
+                    countEl.textContent = '3/3 — max reached';
+                    countEl.classList.add('text-rose-500');
+                    setTimeout(() => { countEl.classList.remove('text-rose-500'); window.updateAutoV2Summary(); }, 1500);
+                }
                 return;
             }
+            pool.push(dnaId);
         }
         window.currentAutoStylePool = pool;
 
-        // Backward compatibility: style_dna_id is the first one in the pool
+        // Sync hidden input (compat: first id in pool)
         const input = document.getElementById('autoV2StyleDNAInput');
-        if(input) input.value = pool.length > 0 ? pool[0] : "";
+        if (input) input.value = pool.length > 0 ? pool[0] : '';
 
-        // Update UI
+        // Update card active states using data-dna-id matching (no onclick string parsing)
         const container = document.getElementById('autoV2StyleDNAContainer');
         if (container) {
             container.querySelectorAll('.auto-style-card').forEach(c => {
-                const cardIdAttr = c.getAttribute('onclick');
-                const isSelected = pool.some(pid => cardIdAttr.includes(`'${pid}'`) || cardIdAttr.includes(`${pid}`));
-                
-                if (isSelected) {
-                    c.classList.add('ring-2', 'ring-brand', 'bg-brand/5', 'shadow-xl');
+                if (pool.includes(c.dataset.dnaId)) {
+                    c.classList.add('active');
                 } else {
-                    c.classList.remove('ring-2', 'ring-brand', 'bg-brand/5', 'shadow-xl');
+                    c.classList.remove('active');
                 }
             });
         }
-        
+
+        // Update preview to show the last selected style
         if (pool.length > 0) {
             window.updateAutoV2VisualPreview(pool[pool.length - 1]);
+        } else {
+            const previewBlock = document.getElementById('autoV2VisualPreview');
+            if (previewBlock) previewBlock.classList.add('hidden');
         }
         window.updateAutoV2Summary();
     };
@@ -1562,25 +1616,23 @@ STUDIO_SCRIPTS_JS = r"""
         
         if (data.style_dna_id || (data.style_dna_pool && data.style_dna_pool.length > 0)) {
             const input = document.getElementById('autoV2StyleDNAInput');
-            const pool = data.style_dna_pool || (data.style_dna_id ? [data.style_dna_id] : []);
+            // Normalise pool to strings for data-attr comparison
+            const pool = (data.style_dna_pool || (data.style_dna_id ? [data.style_dna_id] : []))
+                          .map(id => String(id));
             window.currentAutoStylePool = pool;
-            
-            if(input) input.value = pool.length > 0 ? pool[0] : "";
+            if (input) input.value = pool.length > 0 ? pool[0] : '';
             
             setTimeout(() => {
                 const container = document.getElementById('autoV2StyleDNAContainer');
-                if(container) {
-                    const cards = container.querySelectorAll('.auto-style-card');
-                    const cardsArr = Array.from(cards);
-                    
-                    pool.forEach(pid => {
-                        const targetCard = cardsArr.find(c => c.getAttribute('onclick')?.includes(`'${pid}'`) || c.getAttribute('onclick')?.includes(`${pid}`));
-                        if(targetCard) {
-                            targetCard.classList.add('ring-2', 'ring-brand', 'bg-brand/5', 'shadow-xl');
+                if (container) {
+                    container.querySelectorAll('.auto-style-card').forEach(c => {
+                        if (pool.includes(String(c.dataset.dnaId))) {
+                            c.classList.add('active');
+                        } else {
+                            c.classList.remove('active');
                         }
                     });
-                    
-                    if (pool.length > 0) window.updateAutoV2VisualPreview(pool[pool.length-1]);
+                    if (pool.length > 0) window.updateAutoV2VisualPreview(pool[pool.length - 1]);
                 }
             }, 150);
         }
@@ -2690,10 +2742,11 @@ STUDIO_COMPONENTS_HTML = """
                     
                     <div id="autoV2VisualPreview" class="hidden rounded-2xl overflow-hidden border border-brand/5 bg-cream/50 p-4">
                          <div class="flex items-center gap-4">
-                              <div id="visualStyleSwatch" class="w-16 h-16 rounded-xl shadow-inner border border-white/20"></div>
-                              <div class="flex-1">
-                                   <div id="visualStyleName" class="text-[11px] font-black text-brand uppercase tracking-widest">Dark Sacred</div>
-                                   <div id="visualStyleDesc" class="text-[9px] text-text-muted font-medium italic mt-1">Aesthetic direction based on selected Style DNA.</div>
+                              <div id="visualStyleSwatch" class="w-14 h-14 rounded-xl shadow-inner border-2 border-white/20 flex items-center justify-center flex-shrink-0"></div>
+                              <div class="flex-1 min-w-0">
+                                   <div id="visualStyleName" class="text-[11px] font-black text-brand uppercase tracking-widest truncate"></div>
+                                   <div id="visualStyleAtmos" class="text-[9px] text-text-muted font-bold italic mt-0.5"></div>
+                                   <div id="visualStylePoolCount" class="text-[8px] text-accent font-black uppercase tracking-wider mt-1"></div>
                               </div>
                          </div>
                     </div>
@@ -2799,6 +2852,25 @@ APP_LAYOUT_HTML = """<!doctype html>
       transform: scale(1.02);
     }}
     .intent-card.active span, .tone-card.active span, .style-card.active span {{ color: white !important; }}
+
+    /* Automation Style Cards — unified with Studio active pattern */
+    .auto-style-card.active {{
+      background: var(--brand) !important;
+      border-color: var(--brand) !important;
+      box-shadow: 0 10px 25px rgba(15, 61, 46, 0.18);
+      transform: scale(1.03);
+    }}
+    .auto-style-card.active div, .auto-style-card.active span {{
+      color: white !important;
+      opacity: 1 !important;
+    }}
+    /* Max-selection shake feedback */
+    @keyframes auto-style-shake {{
+      0%, 100% {{ transform: translateX(0); }}
+      20%, 60% {{ transform: translateX(-4px); }}
+      40%, 80% {{ transform: translateX(4px); }}
+    }}
+    .auto-style-shake {{ animation: auto-style-shake 0.4s ease-in-out; }}
     
     /* Utility Overrides for Brand */
     .bg-brand-premium {{ background-color: var(--brand) !important; }}
