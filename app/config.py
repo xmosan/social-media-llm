@@ -9,6 +9,7 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = False
+        extra = "ignore"
 
     database_url: str = Field(default="sqlite:///./saas.db", env="DATABASE_URL")
     timezone: str = Field(default="America/Detroit", env="TIMEZONE")
@@ -76,9 +77,9 @@ class Settings(BaseSettings):
     google_redirect_uri: str | None = Field(default=None, env="GOOGLE_REDIRECT_URI")
 
     # Meta (Facebook) OAuth
-    fb_app_id: str | None = Field(default=None, env="META_APP_ID")
-    fb_app_secret: str | None = Field(default=None, env="META_APP_SECRET")
-    fb_redirect_uri: str | None = Field(default=None, env="META_REDIRECT_URI")
+    fb_app_id: str | None = Field(default=None, validation_alias="META_APP_ID")
+    fb_app_secret: str | None = Field(default=None, validation_alias="META_APP_SECRET")
+    fb_redirect_uri: str | None = Field(default=None, validation_alias="META_REDIRECT_URI")
 
     # Backups & Reliability
     backup_storage_type: str = Field(default="local", env="BACKUP_STORAGE_TYPE")
