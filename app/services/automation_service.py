@@ -386,13 +386,16 @@ def simulate_growth_plan(
     db: Session, 
     org_id: int, 
     topic_pool: list[str], 
-    style_dna_ids: list[int], 
+    style_dna_ids: list,       # May be int (seeded DB) or str (fallback key)
     language: str = "english",
     count: int = 2
 ) -> list[dict]:
     """
     Simulation Engine for Growth Plan V2.
     Generates realistic post previews including grounded sources, captions, and real visuals.
+
+    Style resolution: style_dna_ids may contain integer DB IDs (when DB is seeded)
+    or string keys like "islamic_reminder" (in-memory fallback path). Both are handled.
     """
     import random
     from app.services.library_retrieval import retrieve_relevant_chunks
@@ -405,17 +408,61 @@ def simulate_growth_plan(
 
     results = []
     
-    # 1. Resolve Style DNA objects
+    # 1. Resolve Style DNA objects — supports both int IDs and string keys
     from app.models import StyleDNA
+    from types import SimpleNamespace
+
     styles = []
     for sid in style_dna_ids:
-        s = db.get(StyleDNA, sid)
-        if s: styles.append(s)
+        resolved = None
+        # Try integer DB lookup first
+        try:
+            int_id = int(sid)
+            resolved = db.get(StyleDNA, int_id)
+        except (ValueError, TypeError):
+            pass
+
+        # Fallback: match by string key against system presets
+        if not resolved:
+            preset_key = str(sid)
+            spec = SYSTEM_STYLE_DNA_PRESETS.get(preset_key)
+            if spec:
+                # Wrap in a StyleDNA-like namespace so downstream code works identically
+                resolved = SimpleNamespace(
+                    id=preset_key,
+                    name=preset_key.replace("_", " ").title(),
+                    family=spec.family,
+                    atmosphere=spec.atmosphere,
+                    tone_style=spec.tone_style,
+                    visual_prompt=getattr(spec, "visual_prompt", None),
+                    variation_pool=getattr(spec, "variation_pool", []),
+                )
+                logger.info(f"[SIMULATE] Resolved string key '{preset_key}' → family={spec.family}")
+
+        if resolved:
+            styles.append(resolved)
+        else:
+            logger.warning(f"[SIMULATE] Could not resolve style id={sid!r} — skipping")
     
-    # Fallback to defaults if no styles found
+    # Fallback only if the user sent NO valid styles at all
     if not styles:
-        default_dna = get_automation_style_dna(db, TopicAutomation(style_preset="islamic_reminder"))
-        styles = [default_dna]
+        logger.warning("[SIMULATE] No styles resolved — using default islamic_reminder")
+        default_spec = SYSTEM_STYLE_DNA_PRESETS.get("islamic_reminder")
+        styles = [SimpleNamespace(
+            id="islamic_reminder",
+            name="Dark Sacred",
+            family=default_spec.family,
+            atmosphere=default_spec.atmosphere,
+            tone_style=default_spec.tone_style,
+            visual_prompt=None,
+            variation_pool=[],
+        )]
+
+    logger.info(f"[SIMULATE] Resolved {len(styles)} style(s): {[s.name for s in styles]}")
+
+    # Shuffle styles to ensure variety across samples
+    import random as _rnd
+    _rnd.shuffle(styles)
 
     for i in range(min(count, 5)): # Limit to 5 samples
         topic = topic_pool[i % len(topic_pool)] if topic_pool else "Daily Reminder"

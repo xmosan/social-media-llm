@@ -1408,6 +1408,7 @@ async def app_automations_page(
             "id": a.id,
             "name": a.name,
             "topic_prompt": a.topic_prompt,
+            "topic_pool": a.topic_pool or [],
             "library_topic_slug": a.library_topic_slug,
             "content_seed_mode": a.content_seed_mode,
             "content_seed_text": a.content_seed_text,
@@ -1417,11 +1418,12 @@ async def app_automations_page(
             "content_provider_scope": a.content_provider_scope,
             "pillars": a.pillars,
             "cadence": a.cadence,
-            "custom_days": a.custom_days,
+            "custom_days": a.custom_days or [],
             "source_mode": a.source_mode,
             "tone_style": a.tone_style,
             "verification_mode": a.verification_mode,
             "style_dna_id": a.style_dna_id,
+            "style_dna_pool": a.style_dna_pool or [],
             "approval_mode": a.approval_mode,
             "ig_account_id": a.ig_account_id
         }), quote=True)

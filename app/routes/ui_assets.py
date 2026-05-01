@@ -1229,8 +1229,9 @@ STUDIO_SCRIPTS_JS = r"""
         const timeInput = document.querySelector('input[name="post_time_local"]')?.value || '09:00';
         const postsPerDay = document.querySelector('input[name="posts_per_day"]')?.value || 1;
         const spacing = document.querySelector('input[name="post_spacing_hours"]')?.value || 4;
-        const avoid_days = 30; // Global constant for no-repeat window
-        
+        const avoid_days = 30;
+        const weekdays = window.currentAutoWeekdays || [];
+
         let dnaLabel = 'Atmospheric';
         if (window.currentAutoStylePool && window.currentAutoStylePool.length > 0) {
             const labels = window.currentAutoStylePool.map(id => {
@@ -1291,6 +1292,11 @@ STUDIO_SCRIPTS_JS = r"""
                             <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Volume & Spacing</span>
                             <span class="text-[11px] font-black text-brand mt-1">${postsPerDay} post${postsPerDay > 1 ? 's' : ''}/${cadence === 'daily' ? 'day' : 'week'} (${spacing}h buffer)</span>
                         </div>
+                        ${ cadence === 'weekly' ? `
+                        <div class="flex flex-col col-span-full">
+                            <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Active Days</span>
+                            <span class="text-[11px] font-black text-brand mt-1">${weekdays.length > 0 ? weekdays.join(', ') : 'No days selected yet'}</span>
+                        </div>` : '' }
                         <div class="flex flex-col col-span-full border-t border-brand/5 pt-2">
                             <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Rotation Behaviour</span>
                             <span class="text-[10px] font-bold text-brand mt-1">${rotationLine} &nbsp;·&nbsp; ${noRepeatLine}</span>
@@ -1378,6 +1384,32 @@ STUDIO_SCRIPTS_JS = r"""
             c.classList.remove('ring-2', 'ring-brand', 'shadow-xl');
         });
         if(el) el.classList.add('ring-2', 'ring-brand', 'shadow-xl');
+
+        // Show weekday picker only for weekly cadence
+        const weekdaySection = document.getElementById('autoV2WeekdaySection');
+        if (weekdaySection) {
+            if (mode === 'weekly') {
+                weekdaySection.classList.remove('hidden');
+            } else {
+                weekdaySection.classList.add('hidden');
+                // Clear weekday selections for daily (not required)
+                window.currentAutoWeekdays = [];
+                document.querySelectorAll('.weekday-pill').forEach(p => p.classList.remove('active'));
+            }
+        }
+        window.updateAutoV2Summary();
+    };
+
+    window.toggleWeekday = function(day, el) {
+        window.currentAutoWeekdays = window.currentAutoWeekdays || [];
+        const idx = window.currentAutoWeekdays.indexOf(day);
+        if (idx > -1) {
+            window.currentAutoWeekdays.splice(idx, 1);
+            el.classList.remove('active');
+        } else {
+            window.currentAutoWeekdays.push(day);
+            el.classList.add('active');
+        }
         window.updateAutoV2Summary();
     };
 
@@ -1395,7 +1427,13 @@ STUDIO_SCRIPTS_JS = r"""
                     form.reset();
                     window.currentAutoStylePool = [];
                     window.currentAutoTopicPool = [];
+                    window.currentAutoWeekdays = [];
                     window._renderTopicChips();
+                    // Reset weekday pills
+                    document.querySelectorAll('.weekday-pill').forEach(p => p.classList.remove('active'));
+                    // Hide weekday section (default cadence is daily)
+                    const wds = document.getElementById('autoV2WeekdaySection');
+                    if (wds) wds.classList.add('hidden');
                 }
                 window.updateAutoV2Summary();
             } catch (e) {
@@ -1555,8 +1593,10 @@ STUDIO_SCRIPTS_JS = r"""
             style_dna_id: form.style_dna_id.value ? parseInt(form.style_dna_id.value) : null,
             style_dna_pool: window.currentAutoStylePool || [],
             automation_version: 2,
-            approval_mode: document.getElementById('autoV2ApprovalModeInput') ? document.getElementById('autoV2ApprovalModeInput').value : 'auto_approve',
-            cadence: document.getElementById('autoV2CadenceInput') ? document.getElementById('autoV2CadenceInput').value : 'daily',
+            approval_mode: document.getElementById('autoV2ApprovalModeInput')?.value || 'auto_approve',
+            cadence: document.getElementById('autoV2CadenceInput')?.value || 'daily',
+            frequency: document.getElementById('autoV2CadenceInput')?.value === 'weekly' ? 'custom' : 'daily',
+            custom_days: window.currentAutoWeekdays || [],
             post_time_local: form.post_time_local.value,
             posts_per_day: form.posts_per_day ? parseInt(form.posts_per_day.value) : 1,
             post_spacing_hours: form.post_spacing_hours ? parseInt(form.post_spacing_hours.value) : 4
@@ -1659,6 +1699,19 @@ STUDIO_SCRIPTS_JS = r"""
                     selectCadenceMode('weekly', cards[1]);
                 } else {
                     selectCadenceMode('daily', cards[0]);
+                }
+
+                // Restore weekday selections for weekly cadence
+                const savedDays = data.custom_days || [];
+                window.currentAutoWeekdays = [...savedDays];
+                if (savedDays.length > 0 && data.cadence === 'weekly') {
+                    const weekdaySection = document.getElementById('autoV2WeekdaySection');
+                    if (weekdaySection) weekdaySection.classList.remove('hidden');
+                    document.querySelectorAll('.weekday-pill').forEach(pill => {
+                        if (savedDays.includes(pill.textContent.trim())) {
+                            pill.classList.add('active');
+                        }
+                    });
                 }
             }, 100);
         }
@@ -2676,8 +2729,26 @@ STUDIO_COMPONENTS_HTML = """
                             </div>
                             <div onclick="selectCadenceMode('weekly', this)" class="cadence-card cursor-pointer bg-cream border border-brand/5 rounded-2xl p-6 hover:border-brand/30 transition-all flex flex-col relative overflow-hidden">
                                 <div class="text-[11px] uppercase font-black tracking-widest text-brand mb-2">Weekly Stream</div>
-                                <div class="text-[10px] text-text-muted font-bold leading-relaxed pr-6">A slower, deliberate schedule processing one instance per week.</div>
+                                <div class="text-[10px] text-text-muted font-bold leading-relaxed pr-6">A slower, deliberate schedule. You choose exactly which days it runs.</div>
                             </div>
+                        </div>
+
+                        <!-- Weekday Selector — visible only when weekly is selected -->
+                        <div id="autoV2WeekdaySection" class="hidden space-y-3 pt-2">
+                            <label class="text-[9px] font-black text-brand/60 uppercase tracking-widest ml-1 flex items-center gap-2">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                                Active Days
+                            </label>
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button" onclick="toggleWeekday('Mon', this)" class="weekday-pill px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border border-brand/10 bg-brand/[0.03] text-brand/50 hover:border-brand/30 hover:text-brand transition-all">Mon</button>
+                                <button type="button" onclick="toggleWeekday('Tue', this)" class="weekday-pill px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border border-brand/10 bg-brand/[0.03] text-brand/50 hover:border-brand/30 hover:text-brand transition-all">Tue</button>
+                                <button type="button" onclick="toggleWeekday('Wed', this)" class="weekday-pill px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border border-brand/10 bg-brand/[0.03] text-brand/50 hover:border-brand/30 hover:text-brand transition-all">Wed</button>
+                                <button type="button" onclick="toggleWeekday('Thu', this)" class="weekday-pill px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border border-brand/10 bg-brand/[0.03] text-brand/50 hover:border-brand/30 hover:text-brand transition-all">Thu</button>
+                                <button type="button" onclick="toggleWeekday('Fri', this)" class="weekday-pill px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border border-brand/10 bg-brand/[0.03] text-brand/50 hover:border-brand/30 hover:text-brand transition-all">Fri</button>
+                                <button type="button" onclick="toggleWeekday('Sat', this)" class="weekday-pill px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border border-brand/10 bg-brand/[0.03] text-brand/50 hover:border-brand/30 hover:text-brand transition-all">Sat</button>
+                                <button type="button" onclick="toggleWeekday('Sun', this)" class="weekday-pill px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border border-brand/10 bg-brand/[0.03] text-brand/50 hover:border-brand/30 hover:text-brand transition-all">Sun</button>
+                            </div>
+                            <p class="text-[8px] text-text-muted px-1 font-medium">Select one or more days. The engine will only run on those days.</p>
                         </div>
                     </div>
                     <div class="space-y-4">
@@ -2871,6 +2942,15 @@ APP_LAYOUT_HTML = """<!doctype html>
       40%, 80% {{ transform: translateX(4px); }}
     }}
     .auto-style-shake {{ animation: auto-style-shake 0.4s ease-in-out; }}
+
+    /* Weekday pill active state */
+    .weekday-pill.active {{
+      background: var(--brand) !important;
+      border-color: var(--brand) !important;
+      color: white !important;
+      box-shadow: 0 4px 12px rgba(15, 61, 46, 0.15);
+      transform: scale(1.05);
+    }}
     
     /* Utility Overrides for Brand */
     .bg-brand-premium {{ background-color: var(--brand) !important; }}
