@@ -3042,11 +3042,35 @@ GET_STARTED_CARD_HTML = """<div id="gettingStartedCard" class="card shadow-2xl s
 </div>"""
 
 CONNECT_INSTAGRAM_MODAL_HTML = """<div id="connectInstagramModal" class="fixed inset-0 bg-brand/10 backdrop-blur-xl z-[200] flex items-center justify-center p-6 hidden">
-  <div class="glass max-w-md w-full rounded-[2.5rem] p-8 md:p-10 bg-white shadow-2xl">
+  <div class="glass max-w-md w-full rounded-[2.5rem] p-8 md:p-10 bg-white shadow-2xl relative overflow-hidden">
     <div class="text-center space-y-6">
-      <h3 class="text-2xl font-bold text-brand tracking-tighter">Meta Connection</h3>
-      <button onclick="window.location.href='/auth/instagram/login'" class="w-full py-4 bg-brand rounded-2xl font-bold text-xs uppercase tracking-widest text-white">Continue to Secure Login</button>
-      <button onclick="closeConnectInstagramModal()" class="w-full py-4 bg-white border border-brand/10 rounded-2xl font-bold text-xs uppercase tracking-widest text-text-muted">Maybe Later</button>
+      
+      <!-- Header with Help Icon -->
+      <div class="relative flex items-center justify-center gap-2">
+        <h3 class="text-2xl font-bold text-brand tracking-tighter">Meta Connection</h3>
+        <button onclick="document.getElementById('igHelpPopover').classList.toggle('hidden')" class="w-6 h-6 rounded-full bg-brand/5 text-brand/60 hover:text-brand hover:bg-brand/10 flex items-center justify-center text-[10px] font-black transition-all focus:outline-none" title="Connection Requirements">?</button>
+      </div>
+
+      <!-- Help Popover (Hidden by default) -->
+      <div id="igHelpPopover" class="hidden text-left bg-brand/5 border border-brand/10 rounded-2xl p-5 relative transition-all">
+          <button onclick="document.getElementById('igHelpPopover').classList.add('hidden')" class="absolute top-3 right-3 text-brand/40 hover:text-brand transition-colors focus:outline-none">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+          
+          <h4 class="text-xs font-bold text-brand uppercase tracking-widest mb-3">Before you connect, make sure:</h4>
+          <ul class="text-[11px] text-brand/70 space-y-2.5 list-none p-0 m-0 font-medium">
+            <li class="flex items-start gap-2"><svg class="w-3.5 h-3.5 text-accent mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg><span>Your Instagram is a <strong>Business</strong> or <strong>Creator</strong> account.</span></li>
+            <li class="flex items-start gap-2"><svg class="w-3.5 h-3.5 text-accent mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg><span>It is fully linked to a <strong>Facebook Page</strong>.</span></li>
+            <li class="flex items-start gap-2"><svg class="w-3.5 h-3.5 text-accent mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg><span>You grant <strong>all requested permissions</strong> during the Meta login step.</span></li>
+            <li class="flex items-start gap-2"><svg class="w-3.5 h-3.5 text-accent mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg><span>If you have multiple pages, explicitly select the correct one.</span></li>
+          </ul>
+          <div class="mt-4 pt-3 border-t border-brand/5">
+            <p class="text-[10px] text-brand/50 leading-relaxed font-medium">Note: If connection fails, the issue is usually an incomplete setup inside your Facebook Page or Instagram app settings, not Sabeel Studio.</p>
+          </div>
+      </div>
+
+      <button onclick="window.location.href='/auth/instagram/login'" class="w-full py-4 bg-brand rounded-2xl font-bold text-xs uppercase tracking-widest text-white hover:bg-brand-hover hover:scale-[1.02] transition-all shadow-xl shadow-brand/20">Continue to Secure Login</button>
+      <button onclick="closeConnectInstagramModal()" class="w-full py-4 bg-white border border-brand/10 rounded-2xl font-bold text-xs uppercase tracking-widest text-brand/60 hover:text-brand hover:bg-brand/5 transition-all">Maybe Later</button>
     </div>
   </div>
 </div>"""
