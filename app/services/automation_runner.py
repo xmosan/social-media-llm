@@ -681,9 +681,30 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 # Build card_message in the same schema as build_quran/hadith_quote_message
                 # so image_card.py handles Arabic reshaping + ZONE_SIZES + is_arabic flags correctly
                 if is_quran:
+                    # [INTEGRITY CHECK] If Arabic is missing from payload, attempt auto-recovery
+                    arabic_text = primary_item.arabic_text or ""
+                    
+                    if not arabic_text:
+                        print(f"⚠️ [AUTO_QURAN] Missing Arabic text for {reference}. Attempting recovery...")
+                        if reference:
+                            from app.services.quran_service import get_verse_by_reference
+                            from app.services.quran_serialization import normalize_quran_verse
+                            verse = get_verse_by_reference(db, reference)
+                            if verse:
+                                norm = normalize_quran_verse(verse)
+                                arabic_text = norm.get("arabic_text") or ""
+                                print(f"✅ [AUTO_QURAN] Recovery successful for {reference}: arabic resolved={bool(arabic_text)}")
+
+                    # [STRICT GATE] Block generation if integrity cannot be satisfied
+                    if not arabic_text:
+                        print(f"❌ [AUTO_QURAN][FAIL] missing Arabic for render: {reference}")
+                        automation.last_error = f"Source Integrity Violation: Cannot generate Quran card without Arabic text for {reference}"
+                        db.commit()
+                        return None
+
                     card_message = {
                         "eyebrow":          reference,
-                        "arabic_text":      primary_item.arabic_text or "",
+                        "arabic_text":      arabic_text,
                         "headline":         quote_text,
                         "supporting_text":  "",
                     }
