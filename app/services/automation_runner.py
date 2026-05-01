@@ -656,89 +656,80 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                     image_mode="ai_nature_photo", topic=topic, automation_id=automation.id
                 )
             
-            # 2. Render Premium Quote Card
+            # 2. Build structured card_message — IDENTICAL structure to Studio/image_card.py
             try:
-                # 1. Reference (Top Zone)
-                card_segments = [
-                    {"text": reference.upper(), "size": 36}
-                ]
-                
-                # 2. Arabic (Middle Zone) - Prominent if exists
-                is_quran = "quran" in (primary_item.provider if primary_item else "").lower() and not fallback_mode
+                from app.services.image_card import generate_quote_card
+
+                is_quran  = "quran"  in (primary_item.provider if primary_item else "").lower() and not fallback_mode
                 is_hadith = primary_item and primary_item.type == "hadith" and not fallback_mode
-                
-                if is_quran and primary_item.arabic_text:
-                    card_segments.append({"text": primary_item.arabic_text, "size": 60, "is_arabic": True})
-                    # Use smaller English quote if Arabic exists to avoid overcrowding
-                    card_segments.append({"text": quote_text, "size": 52})
+
+                # Build card_message in the same schema as build_quran/hadith_quote_message
+                # so image_card.py handles Arabic reshaping + ZONE_SIZES + is_arabic flags correctly
+                if is_quran:
+                    card_message = {
+                        "eyebrow":          reference,
+                        "arabic_text":      primary_item.arabic_text or "",
+                        "headline":         quote_text,
+                        "supporting_text":  "",
+                    }
                 elif is_hadith:
-                    # Same logic as build_hadith_quote_message
-                    if primary_item.arabic_text:
-                        card_segments.append({"text": primary_item.arabic_text, "size": 60, "is_arabic": True})
-                    
-                    # Detect if we excerpted the hadith heavily
                     was_excerpted = len(quote_text) < len(uncleaned_text) * 0.9 if uncleaned_text else False
-                    headline_size = 54 if was_excerpted else 60
-                    if not primary_item.arabic_text:
-                         headline_size = 72 # larger if no arabic
-                         
-                    card_segments.append({"text": quote_text, "size": headline_size})
-                    
-                    # Log excerpt status
                     if was_excerpted:
                         print(f"✂️ [HADITH_AUTOMATION] excerpted (original={len(uncleaned_text)}, card={len(quote_text)})")
                         log_event("hadith_automation_excerpted", automation_id=automation.id, reference=reference)
+                    narrator_val = ""
+                    if hasattr(primary_item, "meta") and isinstance(getattr(primary_item, "meta", None), dict):
+                        narrator_val = primary_item.meta.get("narrator", "")
+                    card_message = {
+                        "eyebrow":              reference,
+                        "arabic_text":          primary_item.arabic_text or "",
+                        "headline":             quote_text,
+                        "supporting_text":      f"Narrated {narrator_val}" if narrator_val else "",
+                        "was_excerpted":        was_excerpted,
+                        "hadith_narrator":      narrator_val or None,
+                        "hadith_collection":    getattr(primary_item, "collection", ""),
+                    }
                 else:
-                    # Standard Single-Language Layout
-                    card_segments.append({"text": quote_text, "size": 72})
-                
-                print(f"📡 [v9.0] Rendering premium {'Dual-Language ' if is_quran else ''}card for {reference}")
-                
-                # Download bg if exists, otherwise render_minimal_quote_card will use preset/AI
-                tmp_bg_path = None
-                if bg_url:
-                     import requests, time
-                     bg_res = requests.get(bg_url, timeout=30)
-                     if bg_res.status_code == 200:
-                         tmp_bg_path = os.path.join(settings.uploads_dir, f"tmp_bg_{int(time.time())}.jpg")
-                         with open(tmp_bg_path, "wb") as f: f.write(bg_res.content)
-                
-                # Resolve render style + scene key from Style DNA family
-                _family = style_dna_spec.family if style_dna_spec.family else "sacred_black"
-                _render_style = FAMILY_TO_RENDER_STYLE.get(_family, automation.style_preset or "quran")
-                _scene_key    = FAMILY_TO_SCENE_KEY.get(_family, "sacred_black")
-                print(f"[STYLE_DNA] family={_family} → render_style={_render_style}, scene_key={_scene_key}")
+                    card_message = {
+                        "eyebrow":          reference,
+                        "arabic_text":      "",
+                        "headline":         quote_text,
+                        "supporting_text":  "",
+                    }
 
-                # Determine mode:
-                # - If user set a custom visual_prompt via style DNA: use 'custom' (DALL-E freeform)
-                # - Otherwise: use 'scene' to get a themed, randomly-varied AI background
-                #   (same pipeline as Studio scheduled posts)
-                _has_custom_prompt = bool(style_dna_spec.visual_prompt and style_dna_spec.visual_prompt.strip())
-                _render_mode = "custom" if _has_custom_prompt else "scene"
+                # Resolve scene key from Style DNA family
+                _family     = style_dna_spec.family if style_dna_spec.family else "sacred_black"
+                _scene_key  = FAMILY_TO_SCENE_KEY.get(_family, "sacred_black")
+                _has_prompt = bool(style_dna_spec.visual_prompt and style_dna_spec.visual_prompt.strip())
+                _render_mode = "custom" if _has_prompt else "scene"
 
-                # CALL PREMIUM RENDERER — scene mode picks a fresh variation every time
-                media_url = render_minimal_quote_card(
-                    segments=card_segments,
-                    output_dir=settings.uploads_dir,
-                    style=_scene_key,          # scene key for scene mode; preset key for preset fallback
-                    visual_prompt=style_dna_spec.visual_prompt if _has_custom_prompt else None,
+                print(f"📡 [v9.0] Routing via generate_quote_card — family={_family}, scene={_scene_key}, mode={_render_mode}, arabic={bool(card_message.get('arabic_text'))}")
+
+                # CALL generate_quote_card — same function Studio/scheduled posts use.
+                # This ensures: Arabic reshaping, ZONE_SIZES, is_arabic flags, scene variation all match.
+                media_url = generate_quote_card(
+                    style=_scene_key,
+                    visual_prompt=style_dna_spec.visual_prompt if _has_prompt else None,
                     mode=_render_mode,
-                    text_style_prompt=style_dna_spec.glow_aura
+                    text_style_prompt=style_dna_spec.glow_aura or "",
+                    readability_priority=True,
+                    experimental_mode=False,
+                    engine="dalle",
+                    glossy=False,
+                    card_message=card_message,
                 )
-                
-                if tmp_bg_path and os.path.exists(tmp_bg_path): os.remove(tmp_bg_path)
-                
-                # Check for source mismatch in caption (v2 Guardrail)
+
+                # Source mismatch guardrail
                 reference_clean = reference.replace("Qur'an", "").replace("Quran", "").strip()
                 if reference_clean.lower() not in caption.lower() and ":" in reference:
-                    print(f"❌ [POST_SOURCE_MISMATCH] BLOCKING: reference {reference} not found in caption.")
-                    automation.last_error = f"Source mismatch detected: Card={reference}, Caption source missing."
+                    print(f"❌ [POST_SOURCE_MISMATCH] reference {reference} not in caption")
+                    automation.last_error = f"Source mismatch: Card={reference}, Caption source missing."
                     db.commit()
                     return None
-                    # We don't block here yet, but we log it.
 
             except Exception as e:
                 print(f"[AUTO] Premium Quote card rendering failed: {e}")
+                import traceback; traceback.print_exc()
                 log_event("automation_media_error", automation_id=automation.id, error=str(e))
         else:
             try:
@@ -756,25 +747,24 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             except Exception as e:
                 print(f"[AUTO] Media resolution error: {e}")
 
-        # FALLBACK: If all primary modes failed, force a high-quality Quote Card generation
+        # FALLBACK: If all primary modes failed, force a high-quality Quote Card via same pipeline
         if not media_url:
             print(f"[AUTO] Forced fallback to quote_card for automation {automation.id}")
-            
-            # Call Premium Renderer as fallback
             try:
-                card_segments = [
-                    {"text": reference.upper(), "size": 36},
-                    {"text": quote_text, "size": 72}
-                ]
-                _fallback_family     = style_dna_spec.family if style_dna_spec.family else "sacred_black"
-                _fallback_scene_key  = FAMILY_TO_SCENE_KEY.get(_fallback_family, "sacred_black")
+                from app.services.image_card import generate_quote_card
+                _fallback_family    = style_dna_spec.family if style_dna_spec.family else "sacred_black"
+                _fallback_scene_key = FAMILY_TO_SCENE_KEY.get(_fallback_family, "sacred_black")
                 _fallback_has_prompt = bool(style_dna_spec.visual_prompt and style_dna_spec.visual_prompt.strip())
-                media_url = render_minimal_quote_card(
-                    segments=card_segments,
-                    output_dir=settings.uploads_dir,
+                _fallback_card_msg = {
+                    "eyebrow":   reference,
+                    "headline":  quote_text,
+                    "supporting_text": "",
+                }
+                media_url = generate_quote_card(
                     style=_fallback_scene_key,
                     visual_prompt=style_dna_spec.visual_prompt if _fallback_has_prompt else None,
-                    mode="custom" if _fallback_has_prompt else "scene"
+                    mode="custom" if _fallback_has_prompt else "scene",
+                    card_message=_fallback_card_msg,
                 )
             except Exception as e:
                 print(f"[AUTO] Forced fallback rendering failed: {e}")
