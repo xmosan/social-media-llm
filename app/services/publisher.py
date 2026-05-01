@@ -131,16 +131,24 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
             time.sleep(3) # Wait for crawler/DNS/filesystem stabilization
             log_event("ig_media_create_retry", attempt=attempt)
 
-        r1 = requests.post(
-            f"{GRAPH_URL}/{ig_user_id}/media",
-            data={
-                "image_url": media_url,
-                "caption": caption,
-                "access_token": access_token,
-            },
-            timeout=30,
-        )
-        last_j1 = r1.json()
+        try:
+            r1 = requests.post(
+                f"{GRAPH_URL}/{ig_user_id}/media",
+                data={
+                    "image_url": media_url,
+                    "caption": caption,
+                    "access_token": access_token,
+                },
+                timeout=30,
+            )
+            try:
+                last_j1 = r1.json()
+            except Exception:
+                print(f"❌ [IG_PUBLISH] Non-JSON response from Meta (Step 1): {r1.text[:200]}")
+                return {"ok": False, "error": f"Meta Step 1 fail: Status {r1.status_code}"}
+        except Exception as e:
+            print(f"❌ [IG_PUBLISH] Connection error during Step 1: {e}")
+            return {"ok": False, "error": f"Connection error: {str(e)}"}
         
         if "id" in last_j1:
             break
@@ -169,16 +177,23 @@ def publish_to_instagram(*, caption: str, media_url: str, ig_user_id: str, acces
     log_event("ig_media_publish_start", ig_user_id=ig_user_id, creation_id=creation_id)
     # Step 2: publish container
     for attempt in range(10):
-        r2 = requests.post(
-            f"{GRAPH_URL}/{ig_user_id}/media_publish",
-            data={
-                "creation_id": creation_id,
-                "access_token": access_token,
-            },
-            timeout=30,
-        )
-
-        j2 = r2.json()
+        try:
+            r2 = requests.post(
+                f"{GRAPH_URL}/{ig_user_id}/media_publish",
+                data={
+                    "creation_id": creation_id,
+                    "access_token": access_token,
+                },
+                timeout=30,
+            )
+            try:
+                j2 = r2.json()
+            except Exception:
+                print(f"❌ [IG_PUBLISH] Non-JSON response from Meta (Step 2): {r2.text[:200]}")
+                return {"ok": False, "error": f"Meta Step 2 fail: Status {r2.status_code}"}
+        except Exception as e:
+            print(f"❌ [IG_PUBLISH] Connection error during Step 2: {e}")
+            return {"ok": False, "error": f"Connection error: {str(e)}"}
 
         # Success
         if r2.status_code < 400 and "id" in j2:

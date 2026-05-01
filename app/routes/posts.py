@@ -447,6 +447,7 @@ def regenerate_caption(
     post.alt_text = draft["alt_text"]
     
     # Re-run policy check
+    from app.services.automation_service import keyword_flags
     flags = keyword_flags(post.caption)
     post.flags = flags
     if flags.get("needs_review"):
@@ -455,6 +456,29 @@ def regenerate_caption(
     db.commit()
     db.refresh(post)
     return post
+
+class RefineBody(BaseModel):
+    style: str
+    current_caption: str
+
+@router.post("/{post_id}/refine")
+def refine_post(
+    post_id: int,
+    payload: RefineBody,
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id),
+):
+    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
+    from app.services.llm import refine_caption
+    try:
+        refined = refine_caption(payload.current_caption, payload.style)
+        return {"caption": refined}
+    except Exception as e:
+        print(f"❌ [REFINE_FAIL] {e}")
+        raise HTTPException(status_code=500, detail=f"Refinement failed: {str(e)}")
 @router.post("/{post_id}/regenerate-image", response_model=PostOut)
 def regenerate_image(
     post_id: int,
@@ -661,10 +685,14 @@ def publish_post(
 
     print(f"[MANUAL_SHARE] using shared Instagram publish pipeline")
 
-    # --- BUILD CAPTION ---
-    caption_full = post.caption
+    # PRE-PUBLISH MODIFICATIONS (Captions & Tags)
+    caption_full = post.caption or ""
     if post.hashtags:
-        caption_full += "\n\n" + " ".join(post.hashtags)
+        # Robustly handle list or string hashtags
+        if isinstance(post.hashtags, list):
+            caption_full += "\n\n" + " ".join(post.hashtags)
+        elif isinstance(post.hashtags, str):
+            caption_full += "\n\n" + post.hashtags
 
     # --- PUBLISH via shared hardened pipeline ---
     log_event("post_publish_start", post_id=post.id)

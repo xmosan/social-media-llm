@@ -199,12 +199,7 @@ app.add_middleware(ComingSoonMiddleware)
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal Server Error"}
-    )
+# NO OP - Removing first duplicate handler to clean up.
 
 @app.get("/api/debug-automations")
 def api_debug_automations(db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
@@ -577,8 +572,17 @@ def on_startup():
     log_startup(f"STARTUP: OpenAI Key present: {bool(settings.openai_api_key)}")
     log_startup("STARTUP: Readiness check complete.")
 
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    # If it's a specific HTTP error or validation error, let FastAPI's default handlers deal with it
+    if isinstance(exc, (HTTPException, StarletteHTTPException, RequestValidationError)):
+        raise exc
+    
+    # Otherwise, it's a true unexpected error
+    logger.error(f"UNEXPECTED ERROR: {exc}", exc_info=True)
     log_startup(f"GLOBAL ERROR: {exc}")
     return JSONResponse(
         status_code=500,
