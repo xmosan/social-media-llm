@@ -1715,6 +1715,9 @@ def render_minimal_quote_card(
         # Automation Style DNA families — each has SCENE_PROMPT_TEMPLATES entry
         "sacred_black", "emerald_forest", "celestial_night",
         "parchment_manuscript", "luxury_marble", "sacred_desert",
+        # New extended families
+        "royal_velvet", "midnight_ink", "dawn_horizon",
+        "obsidian_stone", "ocean_depth", "warm_copper",
     }
     if mode == "scene" or (style in _SCENE_KEYS and mode not in {"custom"}):
         mode = "scene"
@@ -1776,6 +1779,13 @@ def render_minimal_quote_card(
                 "parchment_manuscript": "scholar",
                 "luxury_marble":        "kaaba",
                 "sacred_desert":        "madinah",
+                # New extended families
+                "royal_velvet":         "midnight",
+                "midnight_ink":         "kaaba",
+                "dawn_horizon":         "madinah",
+                "obsidian_stone":       "quran",
+                "ocean_depth":          "fajr",
+                "warm_copper":          "desert",
             }
             mode  = "preset"
             style = _FAMILY_TO_PRESET.get(scene_key, scene_key)

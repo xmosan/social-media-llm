@@ -120,6 +120,57 @@ SYSTEM_STYLE_DNA_PRESETS: dict[str, StyleDNASpec] = {
         variation_pool=["scene_type", "detail", "lighting"],
         locked_traits={},
     ),
+
+    # ── New Extended Families ─────────────────────────────────────────────────
+
+    "royal_velvet": StyleDNASpec(
+        family="royal_velvet",
+        atmosphere="majestic",
+        ornament_level="corner",
+        tone_style="emotional",
+        variation_pool=["scene_type", "pile", "lighting"],
+        locked_traits={"mood": "majestic"},
+    ),
+    "midnight_ink": StyleDNASpec(
+        family="midnight_ink",
+        atmosphere="deep blue editorial, luxury magazine",
+        ornament_level="minimal",
+        tone_style="direct",
+        variation_pool=["scene_type", "lighting", "texture"],
+        locked_traits={},
+    ),
+    "dawn_horizon": StyleDNASpec(
+        family="dawn_horizon",
+        atmosphere="hopeful, soft golden light",
+        ornament_level="none",
+        tone_style="soft",
+        variation_pool=["lighting", "sky_type", "haze"],
+        locked_traits={"mood": "peaceful"},
+    ),
+    "obsidian_stone": StyleDNASpec(
+        family="obsidian_stone",
+        atmosphere="stark, geometric, volcanic",
+        ornament_level="none",
+        tone_style="deep",
+        variation_pool=["scene_type", "texture", "lighting"],
+        locked_traits={},
+    ),
+    "ocean_depth": StyleDNASpec(
+        family="ocean_depth",
+        atmosphere="vast, deep teal, meditative",
+        ornament_level="none",
+        tone_style="soft",
+        variation_pool=["depth", "light_rays", "tone"],
+        locked_traits={"mood": "contemplative"},
+    ),
+    "warm_copper": StyleDNASpec(
+        family="warm_copper",
+        atmosphere="burnished bronze, warm metallic luxury",
+        ornament_level="corner",
+        tone_style="emotional",
+        variation_pool=["patina", "lighting", "texture"],
+        locked_traits={},
+    ),
 }
 
 
@@ -245,6 +296,13 @@ FAMILY_TO_RENDER_STYLE: dict[str, str] = {
     "parchment_manuscript": "scholar",
     "luxury_marble":        "kaaba",
     "sacred_desert":        "madinah",
+    # New extended families
+    "royal_velvet":         "midnight",
+    "midnight_ink":         "kaaba",
+    "dawn_horizon":         "madinah",
+    "obsidian_stone":       "quran",
+    "ocean_depth":          "fajr",
+    "warm_copper":          "desert",
 }
 
 # Maps family → Studio scene key (for frontend preview swatch display)
@@ -255,6 +313,13 @@ FAMILY_TO_SCENE_KEY: dict[str, str] = {
     "parchment_manuscript": "sacred_script",
     "luxury_marble":        "luxury_editorial",
     "sacred_desert":        "desert_glow",
+    # New extended families
+    "royal_velvet":         "royal_velvet",
+    "midnight_ink":         "midnight_ink",
+    "dawn_horizon":         "dawn_horizon",
+    "obsidian_stone":       "obsidian_stone",
+    "ocean_depth":          "ocean_depth",
+    "warm_copper":          "warm_copper",
 }
 
 
@@ -313,7 +378,14 @@ def seed_style_dna(db: Session) -> None:
         "nature_reflection": "Emerald Calm",
         "celestial": "Celestial Night",
         "luxury_quote": "Luxury Marble",
-        "desert_hikma": "Sacred Desert"
+        "desert_hikma": "Sacred Desert",
+        # New extended families
+        "royal_velvet": "Royal Velvet",
+        "midnight_ink": "Midnight Ink",
+        "dawn_horizon": "Dawn Horizon",
+        "obsidian_stone": "Obsidian Stone",
+        "ocean_depth": "Ocean Depth",
+        "warm_copper": "Warm Copper",
     }
     
     for key, spec in SYSTEM_STYLE_DNA_PRESETS.items():

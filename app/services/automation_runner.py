@@ -23,6 +23,13 @@ FAMILY_TO_RENDER_STYLE: dict[str, str] = {
     "parchment_manuscript": "scholar",
     "luxury_marble":        "kaaba",
     "sacred_desert":        "madinah",
+    # New extended families
+    "royal_velvet":         "midnight",
+    "midnight_ink":         "kaaba",
+    "dawn_horizon":         "madinah",
+    "obsidian_stone":       "quran",
+    "ocean_depth":          "fajr",
+    "warm_copper":          "desert",
 }
 
 # Maps Style DNA family → scene key in SCENE_PROMPT_TEMPLATES.
@@ -35,6 +42,13 @@ FAMILY_TO_SCENE_KEY: dict[str, str] = {
     "parchment_manuscript": "parchment_manuscript",
     "luxury_marble":        "luxury_marble",
     "sacred_desert":        "sacred_desert",
+    # New extended families
+    "royal_velvet":         "royal_velvet",
+    "midnight_ink":         "midnight_ink",
+    "dawn_horizon":         "dawn_horizon",
+    "obsidian_stone":       "obsidian_stone",
+    "ocean_depth":          "ocean_depth",
+    "warm_copper":          "warm_copper",
 }
 from app.services.relevance_engine import validate_source_relevance
 from app.config import settings

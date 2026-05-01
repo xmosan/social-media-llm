@@ -1097,6 +1097,13 @@ STUDIO_SCRIPTS_JS = r"""
                 'parchment_manuscript': 'from-amber-100/80 to-orange-200/30',
                 'luxury_marble':        'from-slate-800/80 to-slate-400/20',
                 'sacred_desert':        'from-amber-700/60 to-amber-300/20',
+                // New extended families
+                'royal_velvet':         'from-purple-900/80 to-purple-500/20',
+                'midnight_ink':         'from-blue-950/90 to-blue-800/20',
+                'dawn_horizon':         'from-rose-200/60 to-amber-300/30',
+                'obsidian_stone':       'from-gray-950/90 to-purple-900/20',
+                'ocean_depth':          'from-teal-900/80 to-cyan-600/20',
+                'warm_copper':          'from-amber-800/70 to-orange-400/20',
             };
             const ORB_DOTS = {
                 'sacred_black':         'bg-amber-400/40',
@@ -1105,6 +1112,13 @@ STUDIO_SCRIPTS_JS = r"""
                 'parchment_manuscript': 'bg-brand/30',
                 'luxury_marble':        'bg-slate-400/40',
                 'sacred_desert':        'bg-amber-400/40',
+                // New extended families
+                'royal_velvet':         'bg-purple-400/50',
+                'midnight_ink':         'bg-blue-300/40',
+                'dawn_horizon':         'bg-rose-300/50',
+                'obsidian_stone':       'bg-purple-400/30',
+                'ocean_depth':          'bg-teal-400/50',
+                'warm_copper':          'bg-orange-400/50',
             };
 
             const container = document.getElementById('autoV2StyleDNAContainer');
@@ -1188,6 +1202,13 @@ STUDIO_SCRIPTS_JS = r"""
             'parchment_manuscript': { bg: 'bg-orange-50',    border: 'border-brand/20',       dot: 'bg-brand/40' },
             'luxury_marble':        { bg: 'bg-slate-700',    border: 'border-slate-400/40',   dot: 'bg-slate-300/60' },
             'sacred_desert':        { bg: 'bg-amber-800',    border: 'border-amber-300/50',   dot: 'bg-amber-300/60' },
+            // New extended families
+            'royal_velvet':         { bg: 'bg-purple-900',   border: 'border-purple-400/50',  dot: 'bg-purple-400/60' },
+            'midnight_ink':         { bg: 'bg-blue-950',     border: 'border-blue-300/40',    dot: 'bg-blue-300/60' },
+            'dawn_horizon':         { bg: 'bg-rose-100',     border: 'border-rose-300/50',    dot: 'bg-amber-400/60' },
+            'obsidian_stone':       { bg: 'bg-gray-950',     border: 'border-purple-400/30',  dot: 'bg-purple-300/50' },
+            'ocean_depth':          { bg: 'bg-teal-900',     border: 'border-teal-400/50',    dot: 'bg-teal-400/60' },
+            'warm_copper':          { bg: 'bg-amber-700',    border: 'border-orange-300/50',  dot: 'bg-orange-300/60' },
         };
 
         const family  = preset?.family || 'sacred_black';

@@ -796,6 +796,111 @@ SCENE_PROMPT_TEMPLATES = {
             "Ancient cracked desert floor at corners, mirage-like heat haze distance, center a pure warm glow.",
             "Harsh midday high-contrast sun, pure undisturbed sand sheets, glowing warmth flooding the center."
         ]
+    },
+
+    # ── New Extended Family Scene Templates ───────────────────────────────────
+
+    "royal_velvet": {
+        "base": (
+            "BACKGROUND PLATE for a premium sacred quote card. "
+            "Setting: Rich, deep-colored velvet or luxurious fabric surface — heavy color saturation, soft tactile depth. "
+            "The center must be a calm, softly-lit focal clearing free of texture. "
+            "Opulent, majestic, deeply colored. "
+            "1:1 square composition. Absolutely no text, no calligraphy, no letters."
+        ),
+        "variations": [
+            "Cascading deep burgundy velvet fabric folds at edges, center a smooth rich pool of color.",
+            "Taut structured deep purple velvet panel, subtle golden rim highlights at corners only.",
+            "Soft undulating indigo-navy fabric waves, faint brushed directional grain, heavy vignette at edges.",
+            "Lush heavy velvet pile catching overhead diffuse wash, deep royal blue, smooth center clearing.",
+            "Crushed emerald velvet texture at outer frame, abstract macro pile detail, clean center zone.",
+            "Low-angle tactile illumination on deep wine-red fabric surface, shadow vignettes, center calm."
+        ]
+    },
+    "midnight_ink": {
+        "base": (
+            "BACKGROUND PLATE for a premium sacred quote card. "
+            "Setting: A deep navy or midnight blue editorial environment — sophisticated, precise, luxury magazine feel. "
+            "The center must be perfectly smooth and quiet — a dark serene surface for text. "
+            "Refined, intellectual, premium dark editorial. "
+            "1:1 square composition. Absolutely no text, no calligraphy, no letters."
+        ),
+        "variations": [
+            "Deep navy ink atmosphere, faint tonal gradient from slightly lighter center to rich dark edges.",
+            "Midnight blue monolithic surface with barely visible fine grain, single restrained silver side-light.",
+            "Rich oceanic navy depth, very faint warm glow from above-center, no patterns, purely tonal depth.",
+            "Dark editorial charcoal-navy panel, cool horizontal rim light from one side, strong center calm.",
+            "Deep dignified navy surface, subtle iridescent micro-sheen, soft center spotlight, dark corners.",
+            "Layered dark blue-black tonal depth, gossamer thin silver edge highlight, minimalist absence of detail."
+        ]
+    },
+    "dawn_horizon": {
+        "base": (
+            "BACKGROUND PLATE for a premium sacred quote card. "
+            "Setting: A soft, hopeful dawn sky — warm golden and blush tones, serene atmospheric light. "
+            "The center must be filled with luminous dawn light, perfectly clear for text. "
+            "Hopeful, peaceful, tender awakening mood. "
+            "1:1 square composition. Absolutely no text, no calligraphy, no letters."
+        ),
+        "variations": [
+            "Delicate blush pink and gold gradient sky fading from warm top to cool bottom, center luminous dawn glow.",
+            "Soft amber-rose horizon line at the very base edge, above a vast clean warm sky, center flooded with light.",
+            "Thin gossamer cloud wisps at outer edges only, warm golden pre-dawn light flooding the center.",
+            "Layered pastel dawn sky — coral, gold, and pale blue banding at far edges, center a pure warm clearing.",
+            "Soft volumetric morning haze diffusing warm light across the entire frame, detail only at corners.",
+            "Early morning sky with the first hint of deep amber sun at the very base, pale luminous center above."
+        ]
+    },
+    "obsidian_stone": {
+        "base": (
+            "BACKGROUND PLATE for a premium sacred quote card. "
+            "Setting: Volcanic obsidian or deep stone — near-perfect darkness, geometric and restrained. "
+            "The center must be held in deep, calm shadow with only the barest presence of light. "
+            "Stark, geological, deeply intentional. "
+            "1:1 square composition. Absolutely no text, no calligraphy, no letters."
+        ),
+        "variations": [
+            "Monolithic obsidian slab presence, smooth liquid-like dark surface, extreme edge rim-light only.",
+            "Shattered geometric volcanic glass shards concentrated at the outer corners, center pure dark void.",
+            "Highly polished obsidian mirror surface, single dramatic specular highlight at one edge, deep center.",
+            "Raw fractured geological edges at extreme corners, matte volcanic sand texture, center calm darkness.",
+            "Subtle iridescent blue-purple internal glow at edges of dark stone, soft ambient shadow at center.",
+            "Abstract crystalline depth in obsidian, cool blue-purple internal micro-glow, near-lightless center."
+        ]
+    },
+    "ocean_depth": {
+        "base": (
+            "BACKGROUND PLATE for a premium sacred quote card. "
+            "Setting: Deep oceanic or teal underwater atmosphere — vast, meditative, infinite depth. "
+            "The center must be a calm, luminous aquatic clearing — the text stage. "
+            "Vast, contemplative, deep teal mood. "
+            "1:1 square composition. Absolutely no text, no calligraphy, no letters."
+        ),
+        "variations": [
+            "Deep teal underwater atmosphere, soft diffused light rays descending from above, center calm and luminous.",
+            "Vast dark oceanic depth at edges, turquoise-teal light pool at center, infinite sense of scale.",
+            "Abstract underwater surface — rich blue-green tones, faint caustic light patterns at outer regions only.",
+            "Cool navy-to-teal gradient depth, single column of soft light descending into center clearing.",
+            "Dark deep ocean blue at corners, soft bioluminescent teal glow radiating from the center.",
+            "Serene teal-blue gradient, deep at edges, pale luminous center, minimalist aquatic calm."
+        ]
+    },
+    "warm_copper": {
+        "base": (
+            "BACKGROUND PLATE for a premium sacred quote card. "
+            "Setting: Burnished copper, bronze, or warm metallic surface — rich warm tones, artisanal luxury. "
+            "The center must be a calm, warmly lit metallic clearing — smooth and inviting. "
+            "Warm, burnished, timeless artisanal quality. "
+            "1:1 square composition. Absolutely no text, no calligraphy, no letters."
+        ),
+        "variations": [
+            "Burnished warm copper surface, soft overhead diffuse wash, fine metallic grain at edges, smooth center.",
+            "Aged bronze patina at outer corners — green-gold oxidization, warm amber burnished center clearing.",
+            "Hammered copper texture at extreme edges, warm directional light catching subtle facets, calm center.",
+            "Smooth liquid bronze pooling pattern, warm amber-gold light reflecting from a single side source.",
+            "Antique copper surface with deep warm shadows at corners, single overhead warm spotlight at center.",
+            "Rich gold-copper gradient surface, deep bronze at edges, warm burnished amber glow at center."
+        ]
     }
 }
 
