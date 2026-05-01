@@ -18,21 +18,22 @@ Arabic: {arabic_text}
 Translation: {translation_text}
 
 STRICT RULES:
-1. MAX 50 WORDS TOTAL for your reflection.
-2. DO NOT change the translation text provided above. Use it exactly.
+1. MAX 50 WORDS TOTAL for your reflection (Lines 3-4 only).
+2. DO NOT change the Arabic or translation text provided above. Use them exactly.
 3. NO hashtags, emojis, or bold text.
 4. NO "spiritual jargon" or AI poetic filler.
 5. NO mentions of "AI", "LLM", or "models".
 
 OUTPUT STRUCTURE (STRICT):
 Line 1: {reference}
-Line 2: {translation_text}
-Line 3: A deep realization connecting this verse to life + an impactful closing takeaway (2 short sentences).
+Line 2: {arabic_text}
+Line 3: {translation_text}
+Line 4: A deep realization connecting this verse to life + an impactful closing takeaway (2 short sentences).
 
 TONE: {tone_hint}
 
 TASK:
-Craft the caption based on the provided verse. Only output the final 3-line structured caption.
+Craft the caption based on the provided verse. Only output the final 4-line structured caption.
 """
 
 def generate_ai_caption_from_quran(item_or_payload: any, style: str = "reflective") -> str:
@@ -89,8 +90,21 @@ def generate_ai_caption_from_quran(item_or_payload: any, style: str = "reflectiv
         content = content.replace("**", "").replace("_", "")
         raw_lines = [l.strip() for l in content.split("\n") if l.strip()]
         
-        # Ensure 3-line structure
-        if len(raw_lines) >= 3:
+        # If AI did not include Arabic (e.g. older prompt fallback), inject it manually
+        # Check if line 2 looks like Arabic (contains Arabic unicode block chars)
+        import unicodedata
+        def _is_arabic(s: str) -> bool:
+            return any(unicodedata.name(c, '').startswith('ARABIC') for c in s if c.strip())
+
+        if arabic_text and len(raw_lines) >= 3 and not _is_arabic(raw_lines[1] if len(raw_lines) > 1 else ''):
+            # Manually build: reference, arabic, translation, reflection
+            # raw_lines[0] = reference, raw_lines[1] = translation, raw_lines[2] = reflection
+            return "\n\n".join([raw_lines[0], arabic_text, raw_lines[1], raw_lines[2]])
+        
+        # Ensure at least 4-line structure (reference + arabic + translation + reflection)
+        if len(raw_lines) >= 4:
+            return "\n\n".join(raw_lines[:4])
+        elif len(raw_lines) >= 3:
             return "\n\n".join(raw_lines[:3])
         return content # Fallback 
         

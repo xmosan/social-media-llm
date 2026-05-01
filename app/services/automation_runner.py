@@ -604,6 +604,21 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 
                 result = {"caption": caption, "hashtags": hashtags, "alt_text": alt_text}
                 print(f"✅ [HADITH_AUTOMATION] routed to strict generate_hadith_caption service")
+            elif primary_item and "quran" in (primary_item.provider or "").lower() and not fallback_mode:
+                # ── QURAN: use the SAME caption service as Studio/scheduled posts ──────────
+                # This ensures Arabic + English appear in the post text, matching scheduled post behavior.
+                from app.services.quran_caption_service import generate_ai_caption_from_quran
+                tone_style = automation.tone or "reflective"
+                quran_payload = {
+                    "reference": final_reference,
+                    "arabic_text": primary_item.arabic_text or "",
+                    "translation_text": primary_item.text or uncleaned_text,
+                }
+                caption = generate_ai_caption_from_quran(quran_payload, style=tone_style)
+                hashtags = automation.hashtag_set or ["#Quran", "#IslamicReminder", "#DailyReminder"]
+                alt_text = f"Quranic verse: {quote_text_cleaned}"
+                result = {"caption": caption, "hashtags": hashtags, "alt_text": alt_text}
+                print(f"✅ [QURAN_AUTOMATION] routed to generate_ai_caption_from_quran (bilingual: arabic+english)")
             else:
                 result = generate_topic_caption(
                     topic=topic,
@@ -615,9 +630,9 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                     creativity_level=getattr(automation, "creativity_level", 3),
                     extra_context=context_payload
                 )
-            caption = result.get("caption", "").strip()
-            hashtags = result.get("hashtags", [])
-            alt_text = result.get("alt_text", "")
+            caption = result.get("caption", "").strip() if isinstance(result, dict) else (result or "").strip()
+            hashtags = result.get("hashtags", []) if isinstance(result, dict) else []
+            alt_text = result.get("alt_text", "") if isinstance(result, dict) else ""
         except Exception as e:
             print(f"[AUTO] LLM Generation failed: {e}")
             automation.last_error = f"LLM Generation failed: {str(e)}"
