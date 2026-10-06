@@ -66,7 +66,7 @@ STUDIO_SCRIPTS_JS = r"""
     let currentQuoteCardUrl = null;
     let isQuoteCardOutOfDate = false;
     let studioCreationMode = 'preset'; 
-    let studioEngine       = 'dalle';  
+    let studioEngine       = 'openai';
     let studioGlossy       = false;    
     let selectedAyahId     = null;
     let selectedHadithId   = null;
@@ -185,7 +185,7 @@ STUDIO_SCRIPTS_JS = r"""
         currentQuoteCardUrl = null;
         isQuoteCardOutOfDate = false;
         studioCreationMode = 'preset';
-        studioEngine = 'dalle';
+        studioEngine = 'openai';
         studioGlossy = false;
         selectedAyahId = null;
         selectedHadithId = null;
@@ -631,8 +631,9 @@ STUDIO_SCRIPTS_JS = r"""
                 alert('Visual generation failed: ' + (data.error || 'Unknown error'));
             }
         } catch (e) {
-            console.error(e);
+            alert('Sabeel Vision could not finish generating the image. Please try again.');
         } finally {
+            if (loader) loader.classList.add('hidden');
             btn.disabled = false;
             btn.innerText = 'Craft your visual through Sabeel Vision';
         }
@@ -2477,9 +2478,7 @@ STUDIO_COMPONENTS_HTML = """
                         <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Sabeel Vision</label>
                         <!-- Provider chips hidden to maintain proprietary feel; internal mapping preserved -->
                         <div class="flex flex-wrap gap-2 hidden">
-                            <div onclick="setStudioEngine('dalle', this)" class="engine-chip active px-4 py-2 bg-brand/5 border border-brand/5 rounded-full cursor-pointer text-[8px] font-black uppercase tracking-widest transition-all">DALL-E 3</div>
-                            <div onclick="setStudioEngine('midjourney', this)" class="engine-chip px-4 py-2 bg-brand/5 border border-brand/5 rounded-full cursor-pointer text-[8px] font-black uppercase tracking-widest transition-all">Midjourney v6</div>
-                            <div onclick="setStudioEngine('flux', this)" class="engine-chip px-4 py-2 bg-brand/5 border border-brand/5 rounded-full cursor-pointer text-[8px] font-black uppercase tracking-widest transition-all">Flux.1 [dev]</div>
+                            <div onclick="setStudioEngine('openai', this)" class="engine-chip active px-4 py-2 bg-brand/5 border border-brand/5 rounded-full cursor-pointer text-[8px] font-black uppercase tracking-widest transition-all">Sabeel Vision</div>
                         </div>
                     </div>
 

@@ -69,6 +69,34 @@ class Settings(BaseSettings):
     openai_api_key: str | None = Field(default=None, env="OPENAI_API_KEY")
     gemini_api_key: str | None = Field(default=None)
 
+    # Sabeel Vision: explicit, replaceable models; legacy engine labels are aliases.
+    openai_image_model: str = "gpt-image-2.5-sunburst"
+    openai_image_fallback_model: str = "gpt-image-2.5-flare"
+    openai_image_quality: str = "medium"
+    image_generation_timeout_seconds: int = Field(default=120, ge=10, le=180)
+
+    @field_validator("openai_image_model", "openai_image_fallback_model")
+    @classmethod
+    def validate_image_model(cls, value: str) -> str:
+        value = value.strip()
+        if value and not value.startswith("gpt-image-"):
+            raise ValueError("Image models must use the supported GPT Image API")
+        return value
+
+    @field_validator("openai_image_quality")
+    @classmethod
+    def validate_image_quality(cls, value: str) -> str:
+        if value not in {"low", "medium", "high"}:
+            raise ValueError("OPENAI_IMAGE_QUALITY must be low, medium or high")
+        return value
+
+    @field_validator("openai_image_model")
+    @classmethod
+    def require_primary_image_model(cls, value: str) -> str:
+        if not value:
+            raise ValueError("OPENAI_IMAGE_MODEL is required")
+        return value
+
     # Auth & security
     # One explicitly configured key signs both login tokens and OAuth sessions.
     secret_key: str = Field(

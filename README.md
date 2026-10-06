@@ -2,6 +2,21 @@
 
 > **NOTICE**: This repository contains proprietary software owned by Mohammed Hassan. It is shared strictly for academic grading purposes. Unauthorized copying, modification, distribution, or use is prohibited.
 
+## Sabeel Vision model configuration
+
+Production image generation uses OpenAI only. All Studio, automation, and legacy image paths use the shared adapter in `app/services/image_provider.py`; historical `dalle` and `gemini` engine values resolve to that same service. The UI presents Sabeel Vision. Google is available only in the explicit comparison script, not as a production fallback.
+
+| Variable | Default |
+| --- | --- |
+| `OPENAI_IMAGE_MODEL` | `gpt-image-2.5-sunburst` |
+| `OPENAI_IMAGE_FALLBACK_MODEL` | `gpt-image-2.5-flare` (empty disables fallback) |
+| `OPENAI_IMAGE_QUALITY` | `medium` (`low`, `medium`, or `high`) |
+| `IMAGE_GENERATION_TIMEOUT_SECONDS` | `120` per provider attempt |
+
+Keep `OPENAI_API_KEY` in the deployment secret store. Responses are decoded from image bytes, then rendered and uploaded through the existing media pipeline. Source text remains separate from generation. Model and quality are included in the background cache identity, and the actual model is logged without credentials or prompts. Fallback occurs once only for explicit HTTP 404, 429, or 503 responses; content refusals, authentication failures, and uncertain timeouts do not trigger another paid request. A provider-wide outage can still affect both OpenAI models.
+
+Before changing defaults, run the bounded comparison script with an output directory outside the repository. It prints a dry-run plan unless `--live` is present. Use `--models sunburst flare` for OpenAI only; `--env-file` names a private existing credential file, never a committed file. It records attempts before calling the provider to prevent accidental paid retries after interruption. Generated files and per-request timing/usage are local evaluation artifacts, not repository content. Confirm model access, inspect actual cards, and check provider retirement notices before deploying a replacement.
+
 ## Disaster Recovery Plan
 
 Recovery requires a verified backup and an explicit cutover. Startup retries the configured PostgreSQL connection three times, then fails. It does not switch to `SECONDARY_DATABASE_URL`, fall back to SQLite, or create/repair the schema. `SECONDARY_DATABASE_URL`, `ENV_BACKUP_KEY`, and `PRIMARY_REGION` are legacy configuration fields; they do not implement automatic failover or environment snapshots.

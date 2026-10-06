@@ -417,21 +417,29 @@ def generate_caption_from_content_item(
     }
 
 def generate_ai_image(prompt_text: str) -> str | None:
-    """Generates an image using DALL-E 3 based on the prompt."""
-    client = get_client()
+    """Preserve the legacy URL contract using current GPT Image bytes and Cloudinary."""
+    from pathlib import Path
+    from uuid import uuid4
+    from app.services.image_provider import generate_configured_image, ImageGenerationError
+    from app.services.cloudinary_service import upload_to_cloudinary
+    prompt = (f"A professional, premium background representing this concept: {prompt_text[:24000]}. "
+              "NO text, letters, words, calligraphy or symbols. Natural lighting, believable materials, "
+              "restrained composition and clear space for typography added separately.")
     try:
-        print(f"[LLM] Requesting DALL-E 3 image for concept: {prompt_text[:50]}...")
-        response = client.images.generate(
-            model="dall-e-3",
-            prompt=f"A professional, premium, and minimalistic image representing this concept: {prompt_text[:500]}. NO text, NO letters, NO words, NO calligraphy. The image should be text-free, artistic, and suitable for social media. Ensure cinematic lighting and a serene atmosphere.",
-            size="1024x1024",
-            quality="standard",
-            n=1,
-        )
-        return response.data[0].url
-    except Exception as e:
-        print(f"[LLM] Error generating AI image: {e}")
+        result = generate_configured_image(prompt)
+        directory = Path(settings.uploads_dir)
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f"vision_{uuid4().hex}.jpg"
+        result.image.save(path, format="JPEG", quality=95)
+        # Never hand publishing callers an ephemeral provider or Railway URL.
+        url = upload_to_cloudinary(str(path))
+        if not url:
+            raise ImageGenerationError("media_upload_failed")
+        return url
+    except ImageGenerationError as exc:
+        print(f"[VISION] Image generation failed: {exc.code}")
         return None
+
 
 def refine_caption(text: str, refinement_type: str) -> str:
     """Refines an existing caption based on a specific goal."""
