@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from test_security import ROOT
+from test_security import ROOT, DatabaseCase
 from app.config import settings, Settings
 from app.services import backups
 import app.db as isolated_db
@@ -206,3 +206,42 @@ class BackupChecks(unittest.TestCase):
         self.assertEqual([len(batch) for batch in batches], [1000, 1000, 1])
         deleted = {item["Key"] for batch in batches for item in batch}
         self.assertTrue(all(obj["Key"] not in deleted for obj in objects[:14]))
+
+
+class AdminHealthChecks(DatabaseCase):
+    def test_health_get_performs_only_reads_and_does_not_validate_backups(self):
+        from app.api.routes.admin_panel import get_system_health
+        from app.models import Post, WaitlistEntry
+        from sqlalchemy import event
+        Post.__table__.create(self.engine)
+        self.db.add(WaitlistEntry(email="healthcheck@sabeel.test", name="Existing fixture"))
+        self.db.commit()
+        statements = []
+        event.listen(self.engine, "before_cursor_execute", lambda conn, cursor, sql, params, context, many: statements.append(sql))
+        with patch.object(settings, "backup_storage_type", "local"):
+            result = get_system_health(self.db, None)
+        self.assertTrue(statements)
+        self.assertTrue(all(sql.lstrip().upper().startswith("SELECT") for sql in statements))
+        self.assertEqual(self.db.query(WaitlistEntry).one().name, "Existing fixture")
+        self.assertEqual(result["write_test"], "not_run")
+        self.assertFalse(result["backup_verified"])
+        self.assertEqual(result["backup_status"], "not_configured")
+
+    def test_configured_backup_is_distinct_from_verified_recovery(self):
+        from app.api.routes.admin_panel import get_system_health
+        from app.models import Post
+        Post.__table__.create(self.engine)
+        with patch.object(settings, "backup_storage_type", "s3"), patch.object(settings, "s3_access_key", "fixture"), patch.object(settings, "s3_secret_key", "fixture"), patch.object(settings, "s3_bucket_name", "fixture"):
+            result = get_system_health(self.db, None)
+        self.assertEqual(result["backup_status"], "configured")
+        self.assertFalse(result["backup_verified"])
+
+    def test_health_failure_returns_503_without_connection_details(self):
+        from app.api.routes.admin_panel import get_system_health
+        from unittest.mock import MagicMock
+        db = MagicMock()
+        db.query.side_effect = RuntimeError("private connection fixture")
+        response = get_system_health(db, None)
+        self.assertEqual(response.status_code, 503)
+        self.assertNotIn(b"private", response.body)
+        db.commit.assert_not_called()

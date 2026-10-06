@@ -478,17 +478,17 @@
           dbText.textContent = '❌ Error';
         }
 
-        if(data.status === 'healthy') {
-          writeIcon.className = 'status-icon bg-green-500';
-          writeText.textContent = '✅ Passed';
-          backupIcon.className = 'status-icon bg-green-500';
-          backupText.textContent = '✅ Validated';
-        } else {
-          writeIcon.className = 'status-icon bg-red-500';
-          writeText.textContent = '❌ Failed';
-        }
+        writeIcon.className = 'status-icon bg-gray-500';
+        writeText.textContent = 'Not run — read-only check';
+        backupIcon.className = 'status-icon bg-yellow-500';
+        backupText.textContent = data.backup_status === 'configured'
+          ? 'Configured — restore unverified'
+          : data.backup_status === 'not_configured'
+            ? 'Durable storage not configured' : 'Not verified';
 
-        if(!silent) alert("Production Verification Complete: System is " + data.status.toUpperCase());
+        if(!silent) alert(data.database === 'connected'
+          ? "Database check complete. Backup recovery has not been verified by this check."
+          : "Database check failed. Check the service logs.");
         
       } catch(e) { console.error(e); }
       
@@ -500,25 +500,33 @@
 
     async function triggerBackup() {
       const btn = document.getElementById('btn-run-backup');
+      if (btn.disabled) return;
       btn.disabled = true;
-      btn.textContent = "Generating Matrix Export...";
+      btn.textContent = "Creating backup...";
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 360000);
       
       try {
-        const res = await fetch('/admin/backup-db');
+        const res = await fetch('/admin/backup-db', {method: 'POST', signal: controller.signal});
+        const data = await res.json();
         if(res.ok) {
-          alert("✅ Success: Portable PostgreSQL backup created and verified. System status is now READY for sync.");
+          alert(data.durable
+            ? "Backup uploaded and its size verified. A restore check is still required before database maintenance."
+            : (data.warning || "Backup created locally. Configure durable storage before relying on it for recovery."));
           runSystemCheck(true);
         } else {
-          const err = await res.json();
-          alert("❌ Backup Error: " + (err.detail || "Unknown error"));
+          alert("❌ Backup Error: " + (data.detail || "Unknown error"));
         }
       } catch(e) {
         console.error(e);
-        alert("❌ Failed to reach backup gateway.");
+        alert(e.name === 'AbortError'
+          ? "Backup request timed out. Check its status before retrying."
+          : "❌ Failed to reach backup gateway.");
+      } finally {
+        clearTimeout(timeout);
+        btn.disabled = false;
+        btn.textContent = "Trigger Portable Backup";
       }
-      
-      btn.disabled = false;
-      btn.textContent = "Trigger Portable Backup";
     }
 
     async function fetchDiagnostics() {
