@@ -312,25 +312,27 @@ async def check_account_health(
         raise HTTPException(status_code=404, detail="Account not found")
     
     if not acc.access_token:
-        return {"healthy": False, "detail": "No token stored"}
+        return {"healthy": False, "status": "disconnected", "detail": "Reconnect this Instagram account."}
 
-    from .instagram_auth import GRAPH_URL
+    # Check the same Graph API version used by the publishing service.
+    from app.services.publisher import GRAPH_URL
     async with httpx.AsyncClient() as client:
         try:
-            # Simple check against /me
             resp = await client.get(
                 f"{GRAPH_URL}/{acc.ig_user_id}", 
-                params={"fields": "id,username", "access_token": acc.access_token},
-                timeout=10
+                params={"fields": "id,username"},
+                headers={"Authorization": "Bearer " + acc.access_token},
+                timeout=10, follow_redirects=False,
             )
-            if resp.status_code == 200:
-                return {"healthy": True, "username": resp.json().get("username")}
-            
-            err_data = resp.json()
-            err_msg = err_data.get("error", {}).get("message", "Token rejected by Meta")
-            return {"healthy": False, "detail": err_msg}
-        except Exception as e:
-            return {"healthy": False, "detail": str(e)}
+            data = resp.json()
+        except (httpx.RequestError, ValueError):
+            return {"healthy": False, "status": "unavailable", "detail": "Account check is temporarily unavailable."}
+        if (resp.status_code == 200 and isinstance(data, dict)
+                and str(data.get("id")) == str(acc.ig_user_id) and data.get("username")):
+            return {"healthy": True, "status": "connected", "username": data["username"]}
+        if resp.status_code in {400, 401, 403}:
+            return {"healthy": False, "status": "needs_attention", "detail": "Meta could not verify this account. Check its connection and permissions."}
+        return {"healthy": False, "status": "unavailable", "detail": "Account check is temporarily unavailable."}
 
 @router.delete("/{account_id}")
 def delete_account(

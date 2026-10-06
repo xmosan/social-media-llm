@@ -850,19 +850,22 @@ STUDIO_SCRIPTS_JS = r"""
             statusEl.className = 'flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-brand/5 text-[7px] font-black uppercase tracking-widest text-brand/50';
             
             fetch(`/ig-accounts/${accountId}/health`)
-                .then(r => r.json())
+                .then(r => {
+                    if (!r.ok) throw new Error('Account check unavailable');
+                    return r.json();
+                })
                 .then(data => {
                     if (data.healthy) {
                         statusEl.innerHTML = '<span class="w-1 h-1 rounded-full bg-emerald-500"></span> Connected';
                         statusEl.className = 'flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-[7px] font-black uppercase tracking-widest text-emerald-600';
                     } else {
-                        statusEl.innerHTML = '<span class="w-1 h-1 rounded-full bg-rose-500"></span> Expired';
-                        statusEl.className = 'flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-rose-50 text-[7px] font-black uppercase tracking-widest text-rose-600';
-                        console.warn("[Sabeel Studio] Account token health check failed:", data.detail);
+                        const label = data.status === 'unavailable' ? 'Check unavailable' : (data.status === 'disconnected' ? 'Reconnect' : 'Needs attention');
+                        statusEl.innerHTML = '<span class="w-1 h-1 rounded-full bg-amber-500"></span> ' + label;
+                        statusEl.className = 'flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 text-[7px] font-black uppercase tracking-widest text-amber-600';
                     }
                 })
                 .catch(e => {
-                    statusEl.innerHTML = '<span class="w-1 h-1 rounded-full bg-amber-500"></span> Error';
+                    statusEl.innerHTML = '<span class="w-1 h-1 rounded-full bg-amber-500"></span> Check unavailable';
                     statusEl.className = 'flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 text-[7px] font-black uppercase tracking-widest text-amber-600';
                 });
     }
