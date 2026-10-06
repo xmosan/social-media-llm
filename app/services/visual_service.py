@@ -52,7 +52,7 @@ class VisualRequest:
     # Generation config
     style: str = "quran"          # quran | fajr | scholar | custom
     mode: str = "preset"          # preset | custom
-    engine: str = "dalle"         # dalle
+    engine: str = "openai"        # Historical dalle/gemini labels remain compatible.
     glossy: bool = False
     readability_priority: bool = True
     experimental_mode: bool = False
@@ -99,8 +99,10 @@ def generate_visual(request: VisualRequest) -> VisualResult:
         else:
             return _generate_background_only(request)
     except Exception as e:
-        logger.error(f"[VisualService] Generation failed: {e}", exc_info=True)
-        return VisualResult(url="", error=str(e))
+        from app.services.image_provider import ImageGenerationError
+        logger.error("[VisualService] Generation failed (%s)", type(e).__name__)
+        error = str(e) if isinstance(e, ImageGenerationError) else "Sabeel Vision could not finish this image. Please try again."
+        return VisualResult(url="", error=error)
 
 
 def _generate_quote_card(request: VisualRequest) -> VisualResult:
@@ -111,6 +113,7 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
 
     effective_prompt = request.custom_prompt or request.theme
     effective_mode = "custom" if request.custom_prompt else request.mode
+    generation_metadata = {}
 
     url = generate_quote_card(
         style=request.style,
@@ -122,6 +125,7 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
         engine=request.engine,
         glossy=request.glossy,
         card_message=request.card_message,
+        render_metadata=generation_metadata,
     )
 
     prompt_hash = _hash_prompt(effective_prompt or request.theme)
@@ -129,7 +133,7 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
         url=url or "",
         theme=request.theme,
         prompt_hash=prompt_hash,
-        generated_by="dalle",
+        generated_by=generation_metadata.get("image_model", "pil_renderer"),
         error=None if url else "generate_quote_card returned empty URL",
     )
 
@@ -141,8 +145,6 @@ def _generate_background_only(request: VisualRequest) -> VisualResult:
     """
     from app.services.visual_system import interpret_prompt, compose_dalle_prompt
     from app.services.llm import generate_ai_image
-    from app.config import settings
-    import requests as req_lib
 
     raw = request.custom_prompt or request.theme
     spec = interpret_prompt(raw)
@@ -154,31 +156,11 @@ def _generate_background_only(request: VisualRequest) -> VisualResult:
     generated_url = generate_ai_image(dalle_prompt)
     if not generated_url:
         return VisualResult(url="", theme=spec.theme, prompt_hash=prompt_hash,
-                            error="DALL-E returned no URL")
+                            error="Sabeel Vision could not generate this background")
 
-    # Download and save locally for a stable public URL
-    import time
-    filename = f"vis_{prompt_hash[:12]}_{int(time.time())}.jpg"
-    file_path = os.path.join(settings.uploads_dir, filename)
-    try:
-        resp = req_lib.get(generated_url, timeout=30)
-        if resp.status_code == 200:
-            with open(file_path, "wb") as f:
-                f.write(resp.content)
-            from app.config import build_public_media_url
-            public_url = build_public_media_url(filename, local_path=file_path)
-            return VisualResult(
-                url=public_url,
-                theme=spec.theme,
-                prompt_hash=prompt_hash,
-                generated_by="dalle",
-            )
-        else:
-            return VisualResult(url="", theme=spec.theme, prompt_hash=prompt_hash,
-                                error=f"Download failed: HTTP {resp.status_code}")
-    except Exception as e:
-        return VisualResult(url="", theme=spec.theme, prompt_hash=prompt_hash,
-                            error=f"Save failed: {e}")
+    # The shared image service already stores a real JPEG on Cloudinary.
+    return VisualResult(url=generated_url, theme=spec.theme, prompt_hash=prompt_hash,
+                        generated_by="openai")
 
 
 def get_available_themes() -> list[dict]:

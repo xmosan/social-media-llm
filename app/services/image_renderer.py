@@ -22,10 +22,7 @@ from typing import Optional
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from openai import OpenAI
 from app.config import settings
-from google import genai
-from google.genai import types
-import base64
-import io as _io
+from app.services.image_provider import generate_configured_image, configured_image_cache_key
 
 try:
     import arabic_reshaper
@@ -70,7 +67,7 @@ def get_openai_client() -> Optional[OpenAI]:
     return OpenAI(api_key=settings.openai_api_key)
 
 # ── Arabic Support ────────────────────────────────────────────────────────────
-ARABIC_FONT_PATH = "assets/fonts/Amiri-Regular.ttf"
+ARABIC_FONT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "assets", "fonts", "Amiri-Regular.ttf")
 
 def is_arabic_text(text: str) -> bool:
     """Detects if a string contains Arabic characters, including core, supplement, extended, and presentation forms."""
@@ -148,13 +145,16 @@ def draw_radial_halo(image: Image.Image, center: tuple, radius: int, color: tupl
         return image
         
     w, h = image.size
-    halo_mask = Image.new("L", (radius * 2, radius * 2), 0)
+    # Blur on the full canvas. A cropped halo tile leaves a visible rectangular
+    # seam because its blurred edge still has nonzero opacity when pasted.
+    halo_mask = Image.new("L", (w, h), 0)
     draw = ImageDraw.Draw(halo_mask)
     
     # Draw radial gradient via multiple concentric circles or a single blurred ellipse
     # A blurred ellipse is much smoother for cinematic effects
-    draw.ellipse((0, 0, radius * 2, radius * 2), fill=255)
-    halo_mask = halo_mask.filter(ImageFilter.GaussianBlur(radius // 2.5))
+    cx, cy = center
+    draw.ellipse((cx - radius, cy - radius, cx + radius, cy + radius), fill=255)
+    halo_mask = halo_mask.filter(ImageFilter.GaussianBlur(radius / 2.5))
     
     # Apply requested alpha/opacity
     halo_mask = Image.eval(halo_mask, lambda x: int(x * (opacity / 255.0)))
@@ -164,8 +164,7 @@ def draw_radial_halo(image: Image.Image, center: tuple, radius: int, color: tupl
     
     # Paste the blurred halo at the center
     # center is (cx, cy)
-    cx, cy = center
-    halo_layer.paste(halo_color, (int(cx - radius), int(cy - radius)), halo_mask)
+    halo_layer.paste(halo_color, (0, 0), halo_mask)
     
     if SHOW_READABILITY_MASKS:
         # Debug: Magenta border for mask visualization
@@ -229,13 +228,6 @@ def draw_bottom_gradient_band(image: Image.Image, color: tuple, alpha: int, heig
         draw_debug.rectangle((0, start_y, w, h), outline=(0, 255, 0, 180), width=2)
         
     return Image.alpha_composite(image.convert("RGBA"), band_layer).convert("RGB")
-
-def get_gemini_client():
-    if not settings.gemini_api_key:
-        return None
-    # Using the modern GenAI Python SDK
-    return genai.Client(api_key=settings.gemini_api_key)
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DIMENSION EXTRACTORS
@@ -353,6 +345,8 @@ def fit_text_to_zone(
     # return logical (un-reversed) lines to the final render loop.
     meas_text = text
     if is_arabic:
+        if not _ARABIC_OK or not os.path.isfile(ARABIC_FONT_PATH):
+            raise ValueError("Arabic font and shaping support are required to render source text")
         font_path = ARABIC_FONT_PATH
         # Apply transformation for correct measurement only
         meas_text = reshape_arabic(text)
@@ -379,7 +373,9 @@ def fit_text_to_zone(
         iterations += 1
         try:
             fnt = ImageFont.truetype(font_path, curr_size)
-        except:
+        except OSError:
+            if is_arabic:
+                raise ValueError("The Arabic source font could not be loaded") from None
             fnt = ImageFont.load_default()
             
         # 1. Wrap
@@ -812,188 +808,50 @@ def generate_background(
     target_size: tuple = (1080, 1080),
     cache_dir: Optional[str] = None,
     engine: str = "dalle",
-    vs_spec = None
+    vs_spec=None,
+    render_metadata: dict = None,
 ) -> Optional[Image.Image]:
-    """
-    Unified entry point for background generation.
-    Checks cache first, then switches between DALL-E and Gemini.
-    """
-    # 1. Attempt Cache Load (Semantic Match)
+    """Shared Sabeel Vision background path for Studio and automations."""
+    if engine not in {"dalle", "openai", "gemini"}:
+        raise ValueError("The selected visual engine is unavailable. Use Sabeel Vision.")
+    cache_key = configured_image_cache_key()
     if cache_dir and vs_spec and vs_load_cache:
-        img = vs_load_cache(vs_spec, cache_dir, engine=engine)
-        if img: return img
+        cached = vs_load_cache(vs_spec, cache_dir, engine=cache_key)
+        if cached is not None:
+            if render_metadata is not None:
+                render_metadata.update(image_provider="openai", image_model=settings.openai_image_model,
+                                       image_quality=settings.openai_image_quality, image_cached=True)
+            return cached.resize(target_size, Image.Resampling.LANCZOS)
 
-    # 2. Generate Fresh if Cache Miss
-    if engine == "gemini":
-        img = generate_background_gemini(
-            visual_prompt, target_size, cache_dir, vs_spec=vs_spec)
-        if img:
-            return img
-        
-        # 3. RECOVERY MODE: If Gemini fails, don't show green—try DALL-E
-        print("🔄 [Gemini] Generation failed — attempting DALL-E Recovery...")
-        # We fall through to the DALL-E logic below
-    
-    # Default: DALL-E
-    client = get_openai_client()
-    if not client:
-        print("📌 [DALL-E] No OpenAI key — PIL fallback")
-        return None
-
-    dalle_prompt = vs_compose(vs_spec, raw_prompt=visual_prompt) if vs_spec and vs_compose else _build_bg_prompt(visual_prompt)
-    print(f"\n🎨 [DALL-E] Generating background plate...")
-    
-    response = client.images.generate(
-        model="dall-e-3",
-        prompt=dalle_prompt,
-        size="1024x1024",
-        quality="standard",
-        n=1,
-    )
-    img_url = response.data[0].url
-    import requests
-    img_data = requests.get(img_url).content
-    img = Image.open(_io.BytesIO(img_data)).convert("RGB")
-    
-    if img.size != target_size:
-        img = img.resize(target_size, Image.LANCZOS)
-        
-    print("✅ [DALL-E] Background plate ready")
-    
-    if cache_dir and vs_spec and vs_save_cache:
-            vs_save_cache(img, vs_spec, cache_dir, engine="dalle")
-        
-    return img
+    # Scene prompts are already composed; do not reinterpret them as abstract textures.
+    prompt = vs_compose(vs_spec, raw_prompt=visual_prompt) if vs_spec and vs_compose else visual_prompt
+    prompt += " Background only. No text, letters, calligraphy, symbols or logos. Leave clear space for separately rendered typography."
+    result = generate_configured_image(prompt, engine=engine)
+    image = result.image.resize(target_size, Image.Resampling.LANCZOS)
+    if render_metadata is not None:
+        render_metadata.update(image_provider=result.provider, image_model=result.model,
+                               image_quality=settings.openai_image_quality, image_cached=False)
+    # A fallback result must not masquerade as the selected primary in its cache.
+    if cache_dir and vs_spec and vs_save_cache and result.model == settings.openai_image_model:
+        vs_save_cache(image, vs_spec, cache_dir, engine=cache_key)
+    return image
 
 
-def generate_background_gemini(
-    visual_prompt: str,
-    target_size: tuple = (1080, 1080),
-    cache_dir: Optional[str] = None,
-    vs_spec = None
-) -> Optional[Image.Image]:
-    """
-    Gemini (Imagen 3) implementation for background plate generation.
-    """
-    client = get_gemini_client()
-    if not client:
-        print("📌 [Gemini] No Google API key — falling back")
-        return None
-
-    # Compose the stricter Gemini prompt
-    if vs_spec and vs_compose_gemini:
-        prompt = vs_compose_gemini(vs_spec, raw_prompt=visual_prompt)
-    else:
-        prompt = f"A professional background plate: {visual_prompt}. No text, no calligraphy."
-
-    models_to_try = [
-        'imagen-4.0-generate-001',
-        'imagen-4.0-fast-generate-001'
-    ]
-
-    last_err = None
-    for model_name in models_to_try:
-        print(f"\n💎 [Gemini] Crafting background (model={model_name})...")
-        try:
-            response = client.models.generate_images(
-                model=model_name,
-                prompt=prompt,
-                config=types.GenerateImagesConfig(
-                    number_of_images=1,
-                    aspect_ratio='1:1',
-                    output_mime_type='image/jpeg'
-                )
-            )
-            
-            if not response.generated_images:
-                print(f"⚠️  [Gemini] No images returned for {model_name}")
-                continue
-                
-            img_raw = response.generated_images[0].image.image_bytes
-            img = Image.open(_io.BytesIO(img_raw)).convert("RGB")
-            
-            if img.size != target_size:
-                img = img.resize(target_size, Image.LANCZOS)
-                
-            print(f"✅ [Gemini] {model_name} generated successfully")
-            
-            if cache_dir and vs_spec and vs_save_cache:
-                vs_save_cache(img, vs_spec, cache_dir, engine="gemini")
-                
-            return img
-
-        except Exception as e:
-            last_err = e
-            print(f"❌ [Gemini] {model_name} failed: {e}")
-            continue
-
-    print(f"💀 [Gemini] Exhausted all models. Final error: {last_err}")
-    return None
+def generate_background_gemini(visual_prompt: str, target_size: tuple = (1080, 1080),
+                               cache_dir: Optional[str] = None, vs_spec=None) -> Optional[Image.Image]:
+    """Compatibility alias: production generation now uses OpenAI only."""
+    return generate_background(visual_prompt, target_size, cache_dir, engine="openai", vs_spec=vs_spec)
 
 
-def generate_dalle_background(
-    visual_prompt: str,
-    target_size: tuple = (1080, 1080),
-    cache_dir: Optional[str] = None,
-    dalle_prompt_override: Optional[str] = None,
-) -> Optional[Image.Image]:
-    """
-    Three-tier background generation for custom mode:
-
-    Tier 1 — File cache    : Same prompt → instant load, zero DALL-E cost.
-    Tier 2 — PIL fast-path : Simple single-theme prompts → rich PIL rendering.
-    Tier 3 — DALL-E 3      : Complex/unique prompts → photo-realistic bg plate.
-
-    The DALL-E prompt is pre-processed by _build_bg_prompt() to:
-    - Frame the output explicitly as a background plate (NOT a finished card)
-    - Expand vague material keywords to richer visual descriptors
-    - Add composition guidance (clear uncluttered center)
-    - Apply five-clause constraint preventing any Arabic/text from appearing
-
-    Returns an RGB PIL Image at target_size, or None on total failure.
-    """
-    # ── Tier 1: (Removed - handled by caller vs_load_cache for variation awareness) ──
-
-    # ── Tier 2: PIL fast-path ─────────────────────────────────────────────────
+def generate_dalle_background(visual_prompt: str, target_size: tuple = (1080, 1080),
+                              cache_dir: Optional[str] = None,
+                              dalle_prompt_override: Optional[str] = None) -> Optional[Image.Image]:
+    """Legacy entry point using the current shared image API."""
     if _is_fast_path(visual_prompt):
-        print(f"⚡ [BG] Fast-path PIL for: '{visual_prompt[:55]}'")
-        return None   # signals caller to use PIL pipeline (already implemented)
-
-    # ── Tier 3: DALL-E 3 ─────────────────────────────────────────────────────
-    client = get_openai_client()
-    if not client:
-        print("📌 [DALL-E] No OpenAI key — PIL fallback")
         return None
-
-    dalle_prompt = dalle_prompt_override or _build_bg_prompt(visual_prompt)
-    print(f"\n🎨 [DALL-E] Generating background plate...")
-    print(f"   User: '{visual_prompt[:70]}'")
-    print(f"   Sent: {dalle_prompt[:110]}...")
-
-    try:
-        response = client.images.generate(
-            model="dall-e-3",
-            prompt=dalle_prompt,
-            size="1024x1024",
-            quality="standard",
-            n=1,
-        )
-        img_url = response.data[0].url
-        with urllib.request.urlopen(img_url, timeout=38) as resp:
-            img_data = resp.read()
-        img = Image.open(_io.BytesIO(img_data)).convert("RGB")
-        if img.size != target_size:
-            img = img.resize(target_size, Image.LANCZOS)
-        print("✅ [DALL-E] Background plate ready")
-
-        # Save to cache for next time
-        if cache_dir:
-            _save_bg_cache(img, visual_prompt, cache_dir)
-
-        return img
-    except Exception as e:
-        print(f"⚠️  [DALL-E] Failed ({type(e).__name__}: {e}) — PIL fallback")
-        return None
+    prompt = dalle_prompt_override or _build_bg_prompt(visual_prompt)
+    result = generate_configured_image(prompt)
+    return result.image.resize(target_size, Image.Resampling.LANCZOS)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1742,7 +1600,7 @@ def render_minimal_quote_card(
     if mode == "custom":
         if _VS_OK:
             vs_spec = vs_interpret(visual_prompt)
-            dalle_bg = generate_background(visual_prompt, target_size, cache_dir=None if render_metadata is not None else output_dir, engine=engine, vs_spec=vs_spec)
+            dalle_bg = generate_background(visual_prompt, target_size, cache_dir=None if render_metadata is not None else output_dir, engine=engine, vs_spec=vs_spec, render_metadata=render_metadata)
         
         if dalle_bg is None:
             raise ValueError("Sabeel Vision could not generate the requested background")
@@ -1763,10 +1621,10 @@ def render_minimal_quote_card(
         # SCENE MODE: text-stage-first composition with dynamic variation
         scene_key = style if style in _SCENE_KEYS else "sacred_script"
         
-        if engine in ("dalle", "gemini") and _VS_OK:
+        if engine in ("dalle", "openai", "gemini") and _VS_OK:
             from app.services.visual_system import compose_scene_prompt
             scene_prompt = compose_scene_prompt(scene_key, custom_direction=visual_prompt, history=visual_history, metadata=render_metadata)
-            dalle_bg = generate_background(scene_prompt, target_size, cache_dir=output_dir, engine=engine, vs_spec=None)
+            dalle_bg = generate_background(scene_prompt, target_size, cache_dir=output_dir, engine=engine, vs_spec=None, render_metadata=render_metadata)
             if dalle_bg:
                 bg = dalle_bg
                 # bg = apply_vignette(bg, intensity=0.42)
