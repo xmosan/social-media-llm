@@ -35,7 +35,9 @@ def generate_quote_card(
     experimental_mode: bool = False,
     engine: str = "dalle",
     glossy: bool = False,
-    card_message: dict = None
+    card_message: dict = None,
+    visual_history: dict = None,
+    render_metadata: dict = None
 ) -> str:
     """
     Parses an Islamic caption and renders a premium quote card.
@@ -148,7 +150,9 @@ def generate_quote_card(
         readability_priority=readability_priority,
         experimental_mode=experimental_mode,
         engine=engine,
-        glossy=glossy
+        glossy=glossy,
+        visual_history=visual_history,
+        render_metadata=render_metadata
     )
     return url
 

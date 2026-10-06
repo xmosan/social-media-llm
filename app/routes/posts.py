@@ -2,6 +2,7 @@
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
 import os, shutil
+from uuid import uuid4
 from datetime import datetime, timezone, timedelta
 import pytz
 from pydantic import BaseModel
@@ -10,21 +11,34 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from ..db import get_db
 from ..config import settings
-from ..models import Post, IGAccount, TopicAutomation, MediaAsset, ContentItem
+from ..models import Post, IGAccount, TopicAutomation, MediaAsset, ContentItem, User
 from ..services.image_renderer import render_quote_card
 from ..schemas import PostOut, ApproveIn, GenerateOut, PostUpdate
 from ..services.llm import generate_draft, generate_ai_image
 import requests
 from ..services.policy import keyword_flags
-from ..services.publisher import publish_to_instagram
+from ..services.post_service import publish_post as publish_saved_post, get_mutable_post, prepare_scheduled_post
+from ..services.source_grounding import resolve_selected_source, resolve_saved_source, saved_source_type, validate_source_card, validate_source_edit
+from ..services.source_caption import compose_source_caption
 from ..services.automation_runner import resolve_media_url
 from ..security.rbac import get_current_org_id
+from ..security.ownership import require_account, require_content_item, require_media
+from ..security.auth import get_current_user
 from ..logging_setup import log_event
 router = APIRouter(prefix="/posts", tags=["posts"])
 def _utcnow():
     return datetime.now(timezone.utc)
 def _ensure_uploads_dir():
     os.makedirs(settings.uploads_dir, exist_ok=True)
+
+def _source_caption(db, post, user, tone="calm"):
+    if saved_source_type(post) not in {"quran", "hadith"}:
+        return None
+    try:
+        source = resolve_saved_source(db, post, user.id if user else None)
+        return compose_source_caption(source, saved_source_type(post), tone)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
 def get_next_daily_time(daily_post_time: str, account_timezone: str) -> datetime:
     """Calculate the next occurrence of daily_post_time in the given timezone."""
     tz = pytz.timezone(account_timezone)
@@ -68,6 +82,7 @@ def intake_post(
     caption_message: str | None = Form(None),
 
     org_id: int = Depends(get_current_org_id),
+    user: User | None = Depends(get_current_user),
 ):
     # Parse library_item_id
     lib_id = None
@@ -75,7 +90,7 @@ def intake_post(
         try:
             lib_id = int(library_item_id)
         except ValueError:
-            pass
+            raise HTTPException(status_code=422, detail="Invalid library item ID")
 
     # Parse structured messages
     import json
@@ -94,10 +109,26 @@ def intake_post(
             pass
 
     print(f"DEBUG: Intake attempt - Account={ig_account_id}, AI={use_ai_image}, File={image.filename if image else 'None'}")
+    acc = require_account(db, org_id, ig_account_id, active=True)
+    asset = None
+    if visual_mode == "media_library":
+        if lib_id is None:
+            raise HTTPException(status_code=422, detail="Select a media asset")
+        asset = require_media(db, org_id, lib_id)
+    elif lib_id is not None:
+        require_content_item(db, org_id, lib_id, user_id=user.id if user else None)
+    source_metadata = None
+    if source_type in {"quran", "hadith"} or source_foundation in {"quran", "hadith"}:
+        kind = source_type if source_type in {"quran", "hadith"} else source_foundation
+        try:
+            source_metadata = resolve_selected_source(db, org_id, kind, {"reference": source_reference}, user.id if user else None)
+            validate_source_card(parsed_card_msg, source_metadata, kind)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error))
+        source_text = source_metadata["translation_text"]
+        source_reference = source_metadata["reference"]
+        source_foundation = kind
     _ensure_uploads_dir()
-    acc = db.query(IGAccount).filter(IGAccount.id == ig_account_id, IGAccount.org_id == org_id).first()
-    if not acc:
-        raise HTTPException(status_code=403, detail="IG Account not found or not in your workspace")
     
     if not acc.access_token or not acc.ig_user_id:
          raise HTTPException(status_code=400, detail="Incomplete IG Account connection. Please reconnect your account.")
@@ -135,7 +166,8 @@ def intake_post(
         if image.content_type not in ("image/png", "image/jpeg", "image/jpg", "image/webp"):
             raise HTTPException(status_code=400, detail=f"File type '{image.content_type}' is not supported. Use PNG, JPG, or WEBP.")
         
-        filename = f"{int(_utcnow().timestamp())}_{image.filename}"
+        extension = {"image/png": ".png", "image/webp": ".webp"}.get(image.content_type, ".jpg")
+        filename = f"upload_{uuid4().hex}{extension}"
         local_path = os.path.join(settings.uploads_dir, filename)
         try:
             with open(local_path, "wb") as f:
@@ -149,26 +181,12 @@ def intake_post(
     
     # 3. Handle Media
     elif visual_mode == "media_library" and lib_id:
-        asset = db.query(MediaAsset).filter(MediaAsset.id == lib_id).first()
-        if asset:
-             public_url = asset.url
+        public_url = asset.url
 
     else:
         # Allow text-only initial intake or fallback if nothing else matched
         print("[INTAKE] No specific media resolve path hit.")
         pass
-    # Enhanced: Handle Quran Source Metadata Traceability
-    source_metadata = None
-    if source_type == "quran" and source_reference:
-        from app.services.quran_service import build_quran_quote_payload
-        try:
-            payload = build_quran_quote_payload(source_reference, db)
-            source_metadata = payload.get("source_metadata")
-            # Ensure foundation is set
-            source_foundation = "quran"
-        except Exception as e:
-            print(f"⚠️ [INTAKE] Failed to fetch Quran metadata for {source_reference}: {e}")
-
     post = Post(
         org_id=org_id,
         ig_account_id=ig_account_id,
@@ -182,7 +200,8 @@ def intake_post(
         media_url=public_url,
         visual_mode=visual_mode,
         visual_prompt=visual_prompt,
-        library_item_id=lib_id,
+        library_item_id=lib_id if visual_mode != "media_library" else None,
+        media_asset_id=asset.id if asset else None,
         
         card_message=parsed_card_msg,
         caption_message=parsed_caption_msg,
@@ -223,7 +242,7 @@ async def preview_render(
         try:
             lib_id = int(library_item_id)
         except ValueError:
-            pass
+            raise HTTPException(status_code=422, detail="Invalid library item ID")
 
     """
     Generates a temporary quote card preview without creating a database entry.
@@ -258,7 +277,7 @@ async def preview_render(
         # For now, if no specific ID, we try to find the latest media asset or a default
         asset = None
         if lib_id:
-            asset = db.query(MediaAsset).filter(MediaAsset.id == lib_id).first()
+            asset = require_media(db, org_id, lib_id)
         
         if not asset:
             asset = db.query(MediaAsset).filter(MediaAsset.org_id == org_id).order_by(MediaAsset.created_at.desc()).first()
@@ -302,12 +321,11 @@ def generate_for_post(
     post_id: int, 
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id),
+    user: User | None = Depends(get_current_user),
 ):
-    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-    
-    draft = generate_draft(
+    post = get_mutable_post(db, post_id, org_id)
+    grounded_caption = _source_caption(db, post, user)
+    draft = {"caption": grounded_caption, "hashtags": post.hashtags or [], "alt_text": post.alt_text or ""} if grounded_caption is not None else generate_draft(
         source_text=post.source_text or "",
         intent=post.intent_type,
         audience=post.target_audience,
@@ -324,7 +342,8 @@ def generate_for_post(
     post.caption = draft["caption"]
     post.hashtags = draft["hashtags"]
     post.alt_text = draft["alt_text"]
-    post.flags = flags
+    post.caption_message = {"caption": post.caption}
+    post.flags = {**(post.flags or {}), **flags}
     post.status = "needs_review" if flags.get("needs_review") else "drafted"
     db.commit()
     log_event("post_generate", post_id=post.id, status=post.status)
@@ -413,15 +432,53 @@ def update_post(
     payload: PostUpdate,
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id),
+    user: User | None = Depends(get_current_user),
 ):
-    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
+    post = get_mutable_post(db, post_id, org_id)
     
     data = payload.dict(exclude_unset=True)
+    try:
+        validate_source_edit(post, data)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
+    if "status" in data and data["status"] not in {"drafted", "needs_review", "scheduled", "approved"}:
+        raise HTTPException(status_code=422, detail="This status is controlled by the publishing service")
+    if "flags" in data:
+        incoming = dict(data["flags"] or {})
+        protected = {"publication", "relevance_check", "automation_error", "rotation_topic", "rotation_style_id", "rotation_pillar", "rotation_used_at", "scheduled_occurrence"}
+        for key in protected:
+            incoming.pop(key, None)
+            if key in (post.flags or {}):
+                incoming[key] = post.flags[key]
+        data["flags"] = incoming
+    if "caption" in data:
+        data["caption_message"] = {"caption": data["caption"] or ""}
+    elif "caption_message" in data:
+        message = data["caption_message"] or {}
+        caption = message.get("caption")
+        if caption is None:
+            parts = [message.get(key) for key in ("hook", "body", "cta") if message.get(key)]
+            if any(not isinstance(part, str) for part in parts):
+                raise HTTPException(status_code=422, detail="Caption fields must contain text")
+            caption = "\n\n".join(parts)
+        if not isinstance(caption, str):
+            raise HTTPException(status_code=422, detail="Caption must contain text")
+        data["caption"] = caption
+    if data.get("media_asset_id") is not None:
+        asset = require_media(db, org_id, data["media_asset_id"])
+        data["media_url"] = asset.url
+    if data.get("library_item_id") is not None:
+        require_content_item(db, org_id, data["library_item_id"], user_id=user.id if user else None)
     for k, v in data.items():
         setattr(post, k, v)
-    
+    if post.status in {"scheduled", "approved"}:
+        try:
+            prepare_scheduled_post(db, post)
+            if post.status == "scheduled" and not post.scheduled_time:
+                raise HTTPException(status_code=422, detail="A scheduled time is required")
+        except HTTPException:
+            db.rollback()
+            raise
     db.commit()
     db.refresh(post)
     return post
@@ -433,24 +490,24 @@ def regenerate_caption(
     instructions: str | None = None,
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id),
+    user: User | None = Depends(get_current_user),
 ):
-    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
+    post = get_mutable_post(db, post_id, org_id)
     
     prompt = post.source_text or ""
     if instructions:
         prompt += f"\n\nAdditional Instructions: {instructions}"
     
-    draft = generate_draft(prompt)
+    grounded_caption = _source_caption(db, post, user, instructions or "calm")
+    draft = {"caption": grounded_caption, "hashtags": post.hashtags or [], "alt_text": post.alt_text or ""} if grounded_caption is not None else generate_draft(prompt)
     post.caption = draft["caption"]
+    post.caption_message = {"caption": post.caption}
     post.hashtags = draft["hashtags"]
     post.alt_text = draft["alt_text"]
     
     # Re-run policy check
-    from app.services.automation_service import keyword_flags
     flags = keyword_flags(post.caption)
-    post.flags = flags
+    post.flags = {**(post.flags or {}), **flags}
     if flags.get("needs_review"):
         post.status = "needs_review"
     
@@ -468,11 +525,12 @@ def refine_post(
     payload: RefineBody,
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id),
+    user: User | None = Depends(get_current_user),
 ):
-    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-    
+    post = get_mutable_post(db, post_id, org_id)
+    grounded_caption = _source_caption(db, post, user, payload.style)
+    if grounded_caption is not None:
+        return {"caption": grounded_caption}
     from app.services.llm import refine_caption
     try:
         refined = refine_caption(payload.current_caption, payload.style)
@@ -487,9 +545,7 @@ def regenerate_image(
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id),
 ):
-    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
+    post = get_mutable_post(db, post_id, org_id)
     
     mode = image_mode or "ai_nature_photo"
     
@@ -516,12 +572,13 @@ def attach_media(
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id),
 ):
-    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
+    post = get_mutable_post(db, post_id, org_id)
     
     _ensure_uploads_dir()
-    filename = f"manual_{int(_utcnow().timestamp())}_{image.filename}"
+    if image.content_type not in {"image/png", "image/jpeg", "image/jpg", "image/webp"}:
+        raise HTTPException(status_code=400, detail="Use a PNG, JPG, or WEBP image")
+    extension = {"image/png": ".png", "image/webp": ".webp"}.get(image.content_type, ".jpg")
+    filename = f"manual_{uuid4().hex}{extension}"
     local_path = os.path.join(settings.uploads_dir, filename)
     with open(local_path, "wb") as f:
         shutil.copyfileobj(image.file, f)
@@ -538,9 +595,8 @@ def approve_post(
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id),
 ):
-    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
+    post = get_mutable_post(db, post_id, org_id)
+    acc = require_account(db, org_id, post.ig_account_id, active=True)
     flags = post.flags or {}
     if flags.get("needs_review") and not payload.approve_anyway:
         raise HTTPException(
@@ -552,12 +608,12 @@ def approve_post(
         post.flags = {**(post.flags or {}), "reason": "missing_content"}
         db.commit()
         raise HTTPException(status_code=422, detail="Approval denied: Missing caption or visual assets.")
+    prepare_scheduled_post(db, post)
     # Set scheduled time
     if payload.scheduled_time:
         post.scheduled_time = payload.scheduled_time
     else:
         # Auto-calculate based on account's post time
-        acc = db.get(IGAccount, post.ig_account_id)
         post.scheduled_time = get_next_daily_time(acc.daily_post_time, acc.timezone)
     post.status = "scheduled"
     db.commit()
@@ -570,178 +626,11 @@ def publish_post(
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id),
 ):
-    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-    
-    print(f"[MANUAL_SHARE] publish requested post_id={post_id}")
-    log_event("manual_share_requested", post_id=post_id)
+    result = publish_saved_post(db, post_id, org_id)
+    if not result.ok:
+        raise HTTPException(status_code=result.status_code, detail=result.error)
+    return result.post
 
-    # --- PRE-VALIDATION BLOCK ---
-    if not post.caption:
-        print(f"[MANUAL_SHARE][VALIDATION_FAIL] post_id={post_id} reason=missing_caption")
-        post.status = "failed"
-        post.flags = {**(post.flags or {}), "reason": "missing_media_at_publish"}
-        db.commit()
-        raise HTTPException(status_code=422, detail="Publishing impossible: Caption is missing from the record.")
-    
-    if not post.media_url:
-        print(f"[MANUAL_SHARE][VALIDATION_FAIL] post_id={post_id} reason=missing_media_url")
-        post.status = "failed"
-        post.flags = {**(post.flags or {}), "reason": "missing_media_at_publish"}
-        db.commit()
-        raise HTTPException(status_code=422, detail="Publishing impossible: Visual asset is missing from the record.")
-    
-    # Validate media URL format
-    if not post.media_url.startswith("https://"):
-        print(f"[MANUAL_SHARE][VALIDATION_FAIL] post_id={post_id} reason=non_https_url url={post.media_url}")
-        raise HTTPException(status_code=422, detail="Publishing blocked: Media URL is not a valid public HTTPS URL. Please regenerate the visual.")
-
-    # Validate account connection
-    acc = db.get(IGAccount, post.ig_account_id)
-    if not acc:
-        print(f"[MANUAL_SHARE][VALIDATION_FAIL] post_id={post_id} reason=account_not_found ig_account_id={post.ig_account_id}")
-        raise HTTPException(status_code=422, detail="Publishing blocked: Instagram account not found. Please reconnect your account.")
-    
-    if not acc.ig_user_id or not acc.access_token:
-        print(f"[MANUAL_SHARE][VALIDATION_FAIL] post_id={post_id} reason=account_not_fully_connected ig_account_id={post.ig_account_id}")
-        raise HTTPException(status_code=422, detail="Publishing blocked: Instagram account is not fully connected. Please re-authenticate in Settings.")
-
-    print(f"[MANUAL_SHARE] resolved media_url={post.media_url}")
-    print(f"[MANUAL_SHARE] media source field=post.media_url")
-
-    # --- JUST-IN-TIME CDN UPLOAD ---
-    # If the stored URL is a Railway-local /uploads/ URL, Instagram cannot fetch it.
-    # We re-upload the local file to Cloudinary on-the-fly to get a stable public CDN URL.
-    # This repairs ALL existing posts regardless of when they were created.
-    canonical_media_url = post.media_url
-    if "/uploads/" in post.media_url:
-        local_filename = post.media_url.split("/uploads/")[-1]
-        local_path = os.path.join(settings.uploads_dir, local_filename)
-        print(f"[MANUAL_SHARE] local file path={local_path} exists={os.path.exists(local_path)}")
-
-        if os.path.exists(local_path):
-            # File is on disk — attempt CDN upload
-            try:
-                from app.services.cloudinary_service import upload_to_cloudinary, is_cloudinary_configured
-                if is_cloudinary_configured():
-                    cdn_url = upload_to_cloudinary(local_path)
-                    if cdn_url:
-                        canonical_media_url = cdn_url
-                        # Persist the CDN URL so future shares don't need re-upload
-                        post.media_url = cdn_url
-                        db.commit()
-                        print(f"[MANUAL_SHARE] canonical_media_url={canonical_media_url} (Cloudinary CDN)")
-                    else:
-                        print(f"[MANUAL_SHARE][VALIDATION_FAIL] post_id={post_id} Cloudinary upload returned None")
-                        raise HTTPException(status_code=422, detail="Publishing blocked: Could not upload image to CDN. Please try again.")
-                else:
-                    # Cloudinary not configured — warn but proceed (will likely fail at Instagram)
-                    print(f"[MANUAL_SHARE] WARNING: Cloudinary not configured. Instagram may reject Railway-local URL.")
-                    canonical_media_url = post.media_url
-            except HTTPException:
-                raise
-            except Exception as cdn_err:
-                print(f"[MANUAL_SHARE][VALIDATION_FAIL] CDN upload error: {cdn_err}")
-                raise HTTPException(status_code=422, detail=f"Publishing blocked: CDN upload failed — {cdn_err}")
-        else:
-            # File is NOT on disk — attempt quote-card recovery
-            print(f"[MANUAL_SHARE][VALIDATION_FAIL] post_id={post_id} reason=file_not_on_disk path={local_path}")
-            print(f"[MANUAL_SHARE] Attempting auto-recovery for stale media on post_id={post_id}...")
-            from app.services.automation_runner import recover_stale_media
-            recovery_success = recover_stale_media(post, db)
-            if recovery_success:
-                # recover_stale_media renders a new card and updates post.media_url
-                # Now try CDN upload of the newly rendered card
-                try:
-                    from app.services.cloudinary_service import upload_to_cloudinary, is_cloudinary_configured
-                    if is_cloudinary_configured() and "/uploads/" in post.media_url:
-                        recovered_filename = post.media_url.split("/uploads/")[-1]
-                        recovered_path = os.path.join(settings.uploads_dir, recovered_filename)
-                        if os.path.exists(recovered_path):
-                            cdn_url = upload_to_cloudinary(recovered_path)
-                            if cdn_url:
-                                canonical_media_url = cdn_url
-                                post.media_url = cdn_url
-                                db.commit()
-                                print(f"[MANUAL_SHARE] Recovery + CDN upload successful: {cdn_url}")
-                            else:
-                                canonical_media_url = post.media_url
-                        else:
-                            canonical_media_url = post.media_url
-                    else:
-                        canonical_media_url = post.media_url
-                except Exception as e:
-                    print(f"[MANUAL_SHARE] Post-recovery CDN upload failed: {e}")
-                    canonical_media_url = post.media_url
-                print(f"[MANUAL_SHARE] Auto-recovery successful for post_id={post_id}. canonical_media_url={canonical_media_url}")
-            else:
-                raise HTTPException(
-                    status_code=422,
-                    detail="Publishing blocked: Image file is no longer accessible and could not be recovered. Please regenerate the visual."
-                )
-    else:
-        # Already a CDN or external URL — use as-is
-        print(f"[MANUAL_SHARE] canonical_media_url={canonical_media_url} (external/CDN, no re-upload needed)")
-
-    print(f"[MANUAL_SHARE] using shared Instagram publish pipeline")
-
-    # PRE-PUBLISH MODIFICATIONS (Captions & Tags)
-    caption_full = post.caption or ""
-    if post.hashtags:
-        # Robustly handle list or string hashtags
-        if isinstance(post.hashtags, list):
-            caption_full += "\n\n" + " ".join(post.hashtags)
-        elif isinstance(post.hashtags, str):
-            caption_full += "\n\n" + post.hashtags
-
-    # --- PUBLISH via shared hardened pipeline ---
-    log_event("post_publish_start", post_id=post.id)
-    res = publish_to_instagram(
-        caption=caption_full, 
-        media_url=canonical_media_url,
-        ig_user_id=acc.ig_user_id,
-        access_token=acc.access_token
-    )
-    
-    # --- AUTO-RECOVERY RETRY (matches automation runner logic) ---
-    if not res.get("ok"):
-        err_val = res.get("error")
-        is_stale = err_val in ["media_asset_stale", "MEDIA_STALE_OR_MISSING"]
-        if is_stale:
-            print(f"[MANUAL_SHARE] Stale media detected via publisher for post_id={post_id}. Triggering recovery...")
-            from app.services.automation_runner import recover_stale_media
-            recovery_success = recover_stale_media(post, db)
-            if recovery_success:
-                print(f"[MANUAL_SHARE] Recovery successful. Retrying publish for post_id={post_id}...")
-                res = publish_to_instagram(
-                    caption=caption_full,
-                    media_url=post.media_url,
-                    ig_user_id=acc.ig_user_id,
-                    access_token=acc.access_token
-                )
-            else:
-                print(f"[MANUAL_SHARE] Recovery failed for post_id={post_id}. Blocking publish.")
-
-    if not res.get("ok"):
-        post.status = "failed"
-        publish_err = res.get("error")
-        # Normalize error object (may be dict or string)
-        if isinstance(publish_err, dict):
-            publish_err = publish_err.get("message") or str(publish_err)
-        post.flags = {**(post.flags or {}), "publish_error": publish_err}
-        db.commit()
-        log_event("post_publish_fail", post_id=post.id, error=publish_err)
-        print(f"[MANUAL_SHARE][INSTAGRAM_FAIL] post_id={post_id} error={publish_err}")
-        raise HTTPException(status_code=502, detail=f"Publish failed: {publish_err}")
-    
-    post.status = "published"
-    post.published_time = _utcnow()
-    db.commit()
-    db.refresh(post)
-    log_event("post_publish_success", post_id=post.id, remote_id=res.get("remote_id"))
-    print(f"[MANUAL_SHARE][SUCCESS] post_id={post_id} published successfully")
-    return post
 @router.get("/{post_id}/preflight-check")
 def check_media_integrity(
     post_id: int,
@@ -769,6 +658,15 @@ def check_media_integrity(
     
     return {"stale": False, "url": post.media_url}
 
+
+@router.post("/{post_id}/reconcile-publication", response_model=PostOut)
+def reconcile_post_publication(post_id: int, db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
+    from app.services.post_service import reconcile_publication
+    result = reconcile_publication(db, post_id, org_id)
+    if not result.ok:
+        raise HTTPException(status_code=result.status_code, detail=result.error)
+    return result.post
+
 @router.post("/{post_id}/recover")
 def recover_post_media(
     post_id: int,
@@ -776,9 +674,7 @@ def recover_post_media(
     org_id: int = Depends(get_current_org_id)
 ):
     """Triggers visual regeneration if the asset is stale."""
-    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
+    post = get_mutable_post(db, post_id, org_id)
     
     from app.services.automation_runner import recover_stale_media
     success = recover_stale_media(post, db)
@@ -797,7 +693,7 @@ def delete_post(
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id),
 ):
-    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
+    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).populate_existing().with_for_update().first()
     if not post:
         # Debug helper: check if it exists at all to differentiate between "missing" and "permission denied"
         exists = db.query(Post).filter(Post.id == post_id).first()
@@ -806,6 +702,9 @@ def delete_post(
             raise HTTPException(status_code=403, detail="Forbidden: This post belongs to a different organization.")
         raise HTTPException(status_code=404, detail="Post not found")
     
+    if post.status in {"publishing", "publish_unknown"}:
+        raise HTTPException(status_code=409, detail="Reconcile the publishing attempt before deleting this post")
+
     try:
         # 1. Manual Cleanup of linked records that might block deletion
         from app.models import ContentUsage

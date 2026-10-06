@@ -5,9 +5,12 @@ import logging
 from typing import Any
 from datetime import datetime, timezone as dt_timezone, timedelta
 from sqlalchemy.orm import Session
+from sqlalchemy import text
+from fastapi import HTTPException
 from app.models import TopicAutomation, Post, IGAccount, ContentUsage, MediaAsset, ContentItem
 from app.services.llm import generate_topic_caption, generate_caption_from_content_item, generate_ai_image, generate_topic_variations
-from app.services.publisher import publish_to_instagram
+from app.services.post_service import publish_post as publish_saved_post, prepare_scheduled_post
+from app.security.ownership import require_account, require_media, validate_automation_links
 from app.services.content_library import pick_content_item
 from app.services.image_card import create_quote_card
 from app.services.library_retrieval import retrieve_relevant_chunks
@@ -70,50 +73,9 @@ def get_lock_for_automation(automation_id: int):
         return _automation_locks[automation_id]
 
 def compute_next_run_time(ig_account: IGAccount, automation: TopicAutomation) -> datetime:
-    """
-    Determines next UTC time for the automation.
-    """
-    tz_str = automation.timezone or ig_account.timezone or "UTC"
-    time_str = automation.post_time_local or ig_account.daily_post_time or "09:00"
-    frequency = getattr(automation, "frequency", "daily")
-    custom_days = getattr(automation, "custom_days", []) or []
-    
-    tz = pytz.timezone(tz_str)
-    now_tz = datetime.now(tz)
-    
-    hour, minute = map(int, time_str.split(":"))
-    scheduled_today = now_tz.replace(hour=hour, minute=minute, second=0, microsecond=0)
-    
-    # 3x Weekly: Mon, Wed, Fri
-    # Weekly: Fri
-    # Custom: Use list
-    target_days = []
-    if frequency == "daily":
-        target_days = [0,1,2,3,4,5,6]
-    elif frequency == "3x_weekly":
-        target_days = [0,2,4] # Mon, Wed, Fri
-    elif frequency == "weekly":
-        target_days = [4] # Fri
-    elif frequency == "custom":
-        day_map = {"Mon": 0, "Tue": 1, "Wed": 2, "Thu": 3, "Fri": 4, "Sat": 5, "Sun": 6}
-        target_days = [day_map[d] for d in custom_days if d in day_map]
-    
-    if not target_days: target_days = [0,1,2,3,4,5,6] # Fallback to daily
+    from app.services.automation_schedule import next_automation_time
+    return next_automation_time(ig_account, automation)
 
-    # Find next available day
-    found_next = False
-    for i in range(8):
-        check_day = scheduled_today + timedelta(days=i)
-        if check_day.weekday() in target_days:
-            if check_day > now_tz:
-                scheduled_next = check_day
-                found_next = True
-                break
-    
-    if not found_next:
-        scheduled_next = scheduled_today + timedelta(days=1)
-        
-    return scheduled_next.astimezone(pytz.UTC)
 
 def pick_media_url(db: Session, org_id: int, ig_account_id: int, automation: Any) -> str | None:
     """
@@ -137,8 +99,7 @@ def pick_media_url(db: Session, org_id: int, ig_account_id: int, automation: Any
         if isinstance(automation, str): return None
         
         if automation.media_asset_id:
-            asset = db.get(MediaAsset, automation.media_asset_id)
-            if asset: return asset.url
+            return require_media(db, org_id, automation.media_asset_id).url
             
         if automation.media_tag_query:
             query = db.query(MediaAsset).filter(MediaAsset.org_id == org_id)
@@ -152,33 +113,12 @@ def pick_media_url(db: Session, org_id: int, ig_account_id: int, automation: Any
             if matching:
                 import random
                 asset = random.choice(matching)
-                return asset.url
+                return require_media(db, org_id, asset.id).url
     return None
 
 def clean_translation_for_card(text: str) -> str:
-    """
-    Cleans up translator artifacts like [brackets] for a more premium visual card look.
-    Removes the brackets but keeps the inner text if it feels like part of the flow.
-    Also removes footnote digits (e.g. "verily. 1") that clutter the card.
-    """
-    import re
-    if not text: return ""
-    # 1. Remove brackets but keep the content inside them
-    cleaned = re.sub(r'\[(.*?)\]', r'\1', text)
-    # 2. Remove footnote digits at the end of sentences (e.g., ". 1" or "word. 12")
-    # This matches a digit that appears at the end of a string or after a period/space
-    cleaned = re.sub(r'(?<=\.)\s*\d+\b', '', cleaned)
-    cleaned = re.sub(r'\s+\d+\s*$', '', cleaned)
-    
-    # 3. Remove digit artifacts like "Iblees;1" or explicit footnotes like " (1) "
-    cleaned = re.sub(r';\d+', '', cleaned)
-    cleaned = re.sub(r'\(\s*\d+\s*\)', '', cleaned)
-    
-    # 4. Remove stray punctuation at the start or loose artifacts
-    cleaned = cleaned.strip()
-    
-    # 5. Collapse whitespace
-    return " ".join(cleaned.split())
+    """Preserve source wording, translator brackets, and numeric annotations."""
+    return text or ""
 
 
 def clean_hadith_for_card(text: str, max_chars: int = 350) -> str:
@@ -235,6 +175,7 @@ def resolve_media_url(
     One-stop shop for finding or generating a media URL.
     Handles library, reuse, and AI generation.
     """
+    require_account(db, org_id, ig_account_id, active=True)
     # 1. Reuse logic
     if image_mode == "reuse_last_upload":
         last_post = (
@@ -251,8 +192,7 @@ def resolve_media_url(
     # 2. Library logic
     if image_mode in ["use_library_image", "library_fixed", "library_tag"]:
         if media_asset_id:
-            asset = db.get(MediaAsset, media_asset_id)
-            if asset: return asset.url
+            return require_media(db, org_id, media_asset_id).url
             
         if media_tag_query:
             query = db.query(MediaAsset).filter(MediaAsset.org_id == org_id)
@@ -266,7 +206,7 @@ def resolve_media_url(
             if matching:
                 import random
                 asset = random.choice(matching)
-                return asset.url
+                return require_media(db, org_id, asset.id).url
         return None
 
     # 3. AI Generation logic
@@ -316,7 +256,7 @@ def resolve_media_url(
                 
     return None
 
-def run_automation_once(db: Session, automation_id: int, force_publish: bool = False) -> Post | None:
+def run_automation_once(db: Session, automation_id: int, force_publish: bool = False, scheduled_for: datetime | None = None) -> Post | None:
     """
     Core engine to run one automation cycle using the decoupled Content Provider architecture.
     """
@@ -329,9 +269,35 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         automation = db.query(TopicAutomation).filter(TopicAutomation.id == automation_id).first()
         if not automation or not automation.enabled:
             return None
+        # Keep selection, generation and saving in one transaction. PostgreSQL
+        # releases this automation lock when that transaction commits/rolls back.
+        # Independent plans must not lose their occurrence while another runs.
+        if db.get_bind().dialect.name == "postgresql":
+            locked_account_id = automation.ig_account_id
+            acquired = db.execute(text("SELECT pg_try_advisory_xact_lock(:namespace, :automation)"),
+                                  {"namespace": 731204, "automation": automation.id}).scalar()
+            if not acquired:
+                log_event("automation_run_busy", automation_id=automation_id)
+                return None
+            db.refresh(automation)
+            if not automation.enabled or automation.ig_account_id != locked_account_id:
+                return None
+        elif os.getenv("SABEEL_ISOLATED_SECURITY_TESTS") != "1":
+            raise RuntimeError("Automation coordination requires PostgreSQL")
+        occurrence = scheduled_for.astimezone(dt_timezone.utc).isoformat() if scheduled_for else None
+        if occurrence:
+            prior = db.query(Post).filter(Post.automation_id == automation.id,
+                                          Post.flags["scheduled_occurrence"].as_string() == occurrence).first()
+            if prior is not None:
+                return prior
+        validate_automation_links(db, automation.org_id, {
+            field: getattr(automation, field) for field in (
+                "ig_account_id", "media_asset_id", "content_profile_id", "style_dna_id", "style_dna_pool"
+            )
+        })
         
         # 1. Intelligent Topic Pool Rotation (rotation_engine)
-        from app.services.rotation_engine import pick_topic, pick_style, record_topic_used
+        from app.services.rotation_engine import pick_topic, record_topic_used, latest_rotation
         
         pool = automation.topic_pool or []
         avoid_days = getattr(automation, "avoid_repeat_days", 30) or 30
@@ -350,19 +316,17 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                   pool_size=len(pool), avoid_days=avoid_days)
         print(f"[ROTATION] Selected topic: '{topic_base}' (pool size={len(pool)}, avoid_days={avoid_days})")
 
+        rotation_topic = topic_base
+        selected_pillar = None
         # 2. Pillar Rotation Logic (kept for backwards compat)
         pillars = automation.pillars or []
         if pillars:
             import random as _rnd
             # Exclude most recently used pillar if multiple exist
-            last_pillar = (automation.flags or {}).get("last_pillar")
+            last_pillar = latest_rotation(automation.id, db).get("rotation_pillar")
             pillar_candidates = [p for p in pillars if p != last_pillar] or pillars
             selected_pillar = _rnd.choice(pillar_candidates)
             topic_base = f"{selected_pillar}: {topic_base}" if topic_base else selected_pillar
-            # Persist last pillar to flags
-            _flags = dict(automation.flags or {})
-            _flags["last_pillar"] = selected_pillar
-            automation.flags = _flags
             log_event("automation_pillar_selected", automation_id=automation.id, pillar=selected_pillar)
 
         # 3. Load Style DNA with intelligent back-to-back prevention
@@ -418,7 +382,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 if needed <= 0: break
                 
                 try:
-                    items = provider.get_content(db, automation.org_id, search_query, limit=needed)
+                    items = provider.get_content(db, automation.org_id, search_query, limit=needed, automation_id=automation.id)
                     pooled_items.extend(items)
                     if items:
                         log_event("provider_content_sourced", 
@@ -432,7 +396,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         # Apply Hadith feature flag gate (Phase 1)
         if not getattr(settings, "hadith_in_automations_enabled", False):
             before_count = len(pooled_items)
-            pooled_items = [i for i in pooled_items if getattr(i, "provider", "") != "hadith"]
+            pooled_items = [i for i in pooled_items if getattr(i, "type", "") != "hadith"]
             if len(pooled_items) < before_count:
                 print(f"[HADITH] Phase 1 gate: filtered {before_count - len(pooled_items)} Hadith items from automation pool")
                 
@@ -448,21 +412,10 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             
             if audit["accepted"]:
                 # QUALITY GATE FIX: Ensure Arabic exists for Quran posts
-                is_quran = "quran" in (candidate.provider or "").lower()
-                if is_quran and (not candidate.arabic_text or len(candidate.arabic_text) < 10):
-                    print(f"📡 [QURAN_ARABIC] fetching Arabic for confirmed Quran candidate: {candidate.reference}")
-                    try:
-                        from app.services.quran_service import get_verse_by_reference
-                        item = get_verse_by_reference(db, candidate.reference)
-                        if item and item.arabic_text:
-                            candidate.arabic_text = item.arabic_text
-                            print(f"📡 [QURAN_ARABIC] loaded")
-                        else:
-                            print(f"⚠️ [QURAN_ARABIC] fetch failed for {candidate.reference}. Rejecting.")
-                            continue
-                    except Exception as e:
-                        print(f"⚠️ [QURAN_ARABIC] fetch error: {e}")
-                        continue
+                is_quran = candidate.type == "quran"
+                if is_quran and not candidate.arabic_text:
+                    # Never borrow Arabic from a different translation/source record.
+                    continue
 
                 primary_item = candidate
                 log_event("quran_relevance_passed", automation_id=automation.id, reference=candidate.reference, reason=audit["reason"])
@@ -471,12 +424,30 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 log_event("quran_relevance_rejected", automation_id=automation.id, reference=candidate.reference, reason=audit["reason"])
 
         if not primary_item:
-            # FALLBACK: No highly relevant verse found -> Switch to Reflection Mode
-            fallback_mode = True
-            log_event("automation_relevance_fallback", automation_id=automation.id, topic=topic_base)
-            print(f"⚠️ [RELEVANCE] No high-confidence match found for '{topic_base}'. Falling back to Reflection Mode.")
-            # Use the first item anyway if it's not empty, but mark as reflection
-            primary_item = pooled_items[0] if pooled_items else None
+            automation.last_error = "No relevant, complete source passed validation."
+            db.commit()
+            return None
+
+        source_payload = {
+            **(primary_item.meta or {}), "reference": primary_item.reference,
+            "translation_text": primary_item.text, "text": primary_item.text, "arabic_text": primary_item.arabic_text,
+        }
+        if primary_item.type in {"quran", "hadith"}:
+            from app.services.source_grounding import resolve_selected_source
+            if primary_item.type == "quran":
+                source_payload["id"] = primary_item.original_id
+            try:
+                source_payload = resolve_selected_source(db, automation.org_id, primary_item.type, source_payload)
+            except (ValueError, HTTPException) as error:
+                automation.last_error = "Selected source could not be verified: " + str(error)
+                db.commit()
+                return None
+            primary_item.reference = source_payload["reference"]
+            primary_item.text = source_payload["translation_text"]
+            primary_item.arabic_text = source_payload.get("arabic_text")
+
+        # Only the selected source may feed generation and usage history.
+        pooled_items = [primary_item]
 
         # [SAFETY] Guardrail: Abort if exactly 0 items found
         if not primary_item:
@@ -486,7 +457,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             return None
 
         # QUALITY GATE FIX: Re-check Arabic for Quran posts again to be absolutely sure
-        if not fallback_mode and "quran" in (primary_item.provider or "").lower():
+        if not fallback_mode and primary_item.type == "quran":
             if not primary_item.arabic_text:
                 print(f"❌ [QUALITY_GATE] BLOCKING: Arabic missing for confirmed Quran post {primary_item.reference}.")
                 automation.last_error = f"Arabic source missing for {primary_item.reference}. Re-run needed."
@@ -550,7 +521,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             "language": automation.language or "english",
             "mode": "grounded_library",  # FORCE GROUNDING
             "snippet": {
-                "item_type": "quran" if "quran" in (primary_item.provider if primary_item else "").lower() else "reference",
+                "item_type": "quran" if (primary_item is not None and primary_item.type == "quran") else "reference",
                 "text": uncleaned_text,
                 "reference": final_reference
             },
@@ -596,15 +567,16 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 payload = {
                     "reference": final_reference,
                     "translation_text": primary_item.text,
-                    "narrator": narrator_val
+                    "narrator": narrator_val,
+                    "arabic_text": primary_item.arabic_text,
                 }
-                caption = generate_hadith_caption(payload, tone=automation.tone or "calm")
+                caption = generate_hadith_caption(source_payload, tone=automation.tone or "calm")
                 hashtags = automation.hashtag_set or ["#Hadith", "#PropheticWisdom", "#IslamicReminder"]
                 alt_text = f"Hadith quote: {quote_text_cleaned}"
                 
                 result = {"caption": caption, "hashtags": hashtags, "alt_text": alt_text}
                 print(f"✅ [HADITH_AUTOMATION] routed to strict generate_hadith_caption service")
-            elif primary_item and "quran" in (primary_item.provider or "").lower() and not fallback_mode:
+            elif primary_item and primary_item.type == "quran" and not fallback_mode:
                 # ── QURAN: use the SAME caption service as Studio/scheduled posts ──────────
                 # This ensures Arabic + English appear in the post text, matching scheduled post behavior.
                 from app.services.quran_caption_service import generate_ai_caption_from_quran
@@ -651,6 +623,10 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         concepts = primary_item.topic_tags[0] if primary_item and primary_item.topic_tags else None
         
         # Use early-defined ingredients
+        from app.services.rotation_engine import visual_history
+        generation_metadata = {}
+        prior_visuals = visual_history(db, automation.id)
+        card_message = None
         quote_text = quote_text_cleaned
         reference = final_reference
         
@@ -659,124 +635,16 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         # SPECIAL: Quote Card Mode (v9.0 Premium Upgrade)
         if automation.image_mode == "quote_card":
             
-            # 1. Resolve Background
-            bg_url = resolve_media_url(
-                db=db, org_id=automation.org_id, ig_account_id=automation.ig_account_id,
-                image_mode="use_library_image", media_asset_id=automation.media_asset_id,
-                media_tag_query=automation.media_tag_query
-            )
-            if not bg_url:
-                bg_url = resolve_media_url(
-                    db=db, org_id=automation.org_id, ig_account_id=automation.ig_account_id,
-                    image_mode="ai_nature_photo", topic=topic, automation_id=automation.id
-                )
-            
+            bg_url = None
             # 2. Build structured card_message — IDENTICAL structure to Studio/image_card.py
             try:
                 from app.services.image_card import generate_quote_card
 
-                is_quran  = "quran"  in (primary_item.provider if primary_item else "").lower() and not fallback_mode
-                is_hadith = primary_item and primary_item.type == "hadith" and not fallback_mode
-
-                # Build card_message in the same schema as build_quran/hadith_quote_message
-                # so image_card.py handles Arabic reshaping + ZONE_SIZES + is_arabic flags correctly
-                if is_quran:
-                    # [INTEGRITY CHECK] If Arabic is missing from payload, attempt auto-recovery
-                    arabic_text = primary_item.arabic_text or ""
-
-                    if not arabic_text:
-                        print(f"⚠️ [AUTO_QURAN] Missing Arabic text for {reference}. Attempting recovery...")
-                        if reference:
-                            from app.services.quran_service import get_verse_by_reference
-                            from app.services.quran_serialization import normalize_quran_verse
-                            verse = get_verse_by_reference(db, reference)
-                            if verse:
-                                norm = normalize_quran_verse(verse)
-                                arabic_text = norm.get("arabic_text") or ""
-                                print(f"✅ [AUTO_QURAN] Recovery successful for {reference}: arabic resolved={bool(arabic_text)}")
-
-                    # [STRICT GATE] Block generation if integrity cannot be satisfied
-                    if not arabic_text:
-                        print(f"❌ [AUTO_QURAN][FAIL] missing Arabic for render: {reference}")
-                        automation.last_error = f"Source Integrity Violation: Cannot generate Quran card without Arabic text for {reference}"
-                        db.commit()
-                        return None
-
-                    # ── Studio-parity: generate thematic eyebrow + supporting reflection ──
-                    # Studio's build_quran_quote_message calls generate_card_framing_from_source
-                    # (GPT-4o) to produce a contextual eyebrow (e.g. "DIVINE MERCY") and a
-                    # 1-2 sentence reflection at the bottom of the card. We replicate that here.
-                    try:
-                        from app.services.llm import generate_card_framing_from_source
-                        _tone_for_framing = automation.tone or "calm"
-                        _intent_for_framing = getattr(automation, "intent_type", None) or "wisdom"
-                        framing = generate_card_framing_from_source(
-                            source_text=quote_text,
-                            intent=_intent_for_framing,
-                            tone=_tone_for_framing,
-                            custom_prompt="",
-                            source_type="quran",
-                            reference=reference,
-                        )
-                        _eyebrow = framing.get("eyebrow") or reference
-                        _supporting = framing.get("supporting_text") or ""
-                        print(f"📝 [AUTO_QURAN] Card framing generated: eyebrow='{_eyebrow[:40]}'")
-                    except Exception as _frame_err:
-                        print(f"⚠️ [AUTO_QURAN] Card framing failed (non-fatal), using reference as eyebrow: {_frame_err}")
-                        _eyebrow = reference
-                        _supporting = ""
-
-                    card_message = {
-                        "eyebrow":          _eyebrow,
-                        "arabic_text":      arabic_text,
-                        "headline":         quote_text,
-                        "supporting_text":  _supporting,
-                    }
-                elif is_hadith:
-                    was_excerpted = len(quote_text) < len(uncleaned_text) * 0.9 if uncleaned_text else False
-                    if was_excerpted:
-                        print(f"✂️ [HADITH_AUTOMATION] excerpted (original={len(uncleaned_text)}, card={len(quote_text)})")
-                        log_event("hadith_automation_excerpted", automation_id=automation.id, reference=reference)
-                    narrator_val = ""
-                    if hasattr(primary_item, "meta") and isinstance(getattr(primary_item, "meta", None), dict):
-                        narrator_val = primary_item.meta.get("narrator", "")
-                    # ── Studio-parity: generate thematic eyebrow + supporting reflection ──
-                    try:
-                        from app.services.llm import generate_card_framing_from_source
-                        _h_tone = automation.tone or "calm"
-                        _h_intent = getattr(automation, "intent_type", None) or "wisdom"
-                        _h_framing = generate_card_framing_from_source(
-                            source_text=quote_text,
-                            intent=_h_intent,
-                            tone=_h_tone,
-                            custom_prompt="",
-                            source_type="hadith",
-                            reference=reference,
-                        )
-                        _h_eyebrow = _h_framing.get("eyebrow") or reference
-                        # Narrator always takes precedence in supporting_text; framing used as fallback
-                        _h_supporting = f"Narrated {narrator_val}" if narrator_val else (_h_framing.get("supporting_text") or "")
-                        print(f"📝 [HADITH_AUTOMATION] Card framing generated: eyebrow='{_h_eyebrow[:40]}'")
-                    except Exception as _hf_err:
-                        print(f"⚠️ [HADITH_AUTOMATION] Card framing failed (non-fatal): {_hf_err}")
-                        _h_eyebrow = reference
-                        _h_supporting = f"Narrated {narrator_val}" if narrator_val else ""
-                    card_message = {
-                        "eyebrow":              _h_eyebrow,
-                        "arabic_text":          primary_item.arabic_text or "",
-                        "headline":             quote_text,
-                        "supporting_text":      _h_supporting,
-                        "was_excerpted":        was_excerpted,
-                        "hadith_narrator":      narrator_val or None,
-                        "hadith_collection":    getattr(primary_item, "collection", ""),
-                    }
-                else:
-                    card_message = {
-                        "eyebrow":          reference,
-                        "arabic_text":      "",
-                        "headline":         quote_text,
-                        "supporting_text":  "",
-                    }
+                from app.services.quote_message_service import build_quote_card_message
+                card_message = build_quote_card_message(
+                    primary_item.type, source_payload,
+                    automation.tone or "calm", getattr(automation, "intent_type", None) or "wisdom",
+                )
 
                 # Resolve scene key from Style DNA family
                 _family     = style_dna_spec.family if style_dna_spec.family else "sacred_black"
@@ -798,6 +666,8 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                     engine="dalle",
                     glossy=False,
                     card_message=card_message,
+                    visual_history=prior_visuals,
+                    render_metadata=generation_metadata,
                 )
 
                 # Source mismatch guardrail
@@ -828,42 +698,12 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             except Exception as e:
                 print(f"[AUTO] Media resolution error: {e}")
 
-        # FALLBACK: If all primary modes failed, force a high-quality Quote Card via same pipeline
-        if not media_url:
-            print(f"[AUTO] Forced fallback to quote_card for automation {automation.id}")
-            try:
-                from app.services.image_card import generate_quote_card
-                _fallback_family    = style_dna_spec.family if style_dna_spec.family else "sacred_black"
-                _fallback_scene_key = FAMILY_TO_SCENE_KEY.get(_fallback_family, "sacred_black")
-                _fallback_has_prompt = bool(style_dna_spec.visual_prompt and style_dna_spec.visual_prompt.strip())
-                # Carry Arabic through to fallback so it never silently drops to English-only
-                _fallback_arabic = (primary_item.arabic_text or "") if primary_item else ""
-                _fallback_card_msg = {
-                    "eyebrow":          reference,
-                    "arabic_text":      _fallback_arabic,
-                    "headline":         quote_text,
-                    "supporting_text":  "",
-                }
-                media_url = generate_quote_card(
-                    style=_fallback_scene_key,
-                    visual_prompt=style_dna_spec.visual_prompt if _fallback_has_prompt else None,
-                    mode="custom" if _fallback_has_prompt else "scene",
-                    readability_priority=True,
-                    engine="dalle",
-                    glossy=False,
-                    card_message=_fallback_card_msg,
-                )
-            except Exception as e:
-                print(f"[AUTO] Forced fallback rendering failed: {e}")
-
         # 4. Create Post
         status = "scheduled"
         if automation.approval_mode == "needs_manual_approve":
             status = "drafted"
             
-        source_text = f"AUTO: {automation.name} | topic={topic}"
-        if primary_item:
-            source_text += f" | provider={primary_item.provider} | ref={primary_item.original_id}"
+        source_text = primary_item.text
 
         new_post = Post(
             org_id=automation.org_id,
@@ -875,14 +715,28 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             used_content_item_ids=[it.original_id for it in pooled_items if it.original_id],
             status=status,
             source_type="automation",
+            visual_mode=automation.image_mode,
+            source_foundation=primary_item.type if primary_item.type in {"quran", "hadith"} else None,
+            source_reference=final_reference,
             source_text=source_text,
+            card_message=card_message,
+            caption_message={"caption": caption},
             media_url=media_url,
             caption=caption,
             hashtags=hashtags,
             alt_text=alt_text,
-            scheduled_time=compute_next_run_time(db.get(IGAccount, automation.ig_account_id), automation) if status == "scheduled" else None,
+            scheduled_time=(scheduled_for or compute_next_run_time(db.get(IGAccount, automation.ig_account_id), automation)) if status == "scheduled" else None,
             # RECOVERY RECIPE: Store ingredients for just-in-time regeneration
             source_metadata={
+                **source_payload,
+                "visual_generation": generation_metadata,
+                "reference": final_reference,
+                "translation_text": primary_item.text,
+                "arabic_text": primary_item.arabic_text,
+                "provider": primary_item.provider,
+                "source_type": primary_item.type,
+                "original_id": primary_item.original_id,
+                "metadata": dict(primary_item.meta or {}),
                 "recovery_recipe": {
                     "quote_text": quote_text,
                     "reference": final_reference,
@@ -893,7 +747,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 "is_fallback_reflection": fallback_mode,
                 "relevance_audit": relevance_results.get(primary_item.original_id) if primary_item else None
             },
-            flags={"relevance_check": "fallback" if fallback_mode else "passed"}
+            flags={"relevance_check": "fallback" if fallback_mode else "passed", "scheduled_occurrence": occurrence}
         )
         
         # 5. Guardrail & Validation
@@ -918,7 +772,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             print(f"[AUTO] FAILED GUARDRAIL: {detail_reason}")
             log_event("automation_guardrail_failed", automation_id=automation.id, reason=detail_reason)
             new_post.status = "failed"
-            new_post.flags = {"automation_error": f"LLM returned invalid/filler caption: {caption}", "reason": reason, "detail_reason": detail_reason}
+            new_post.flags = {**(new_post.flags or {}), "automation_error": f"LLM returned invalid/filler caption: {caption}", "reason": reason, "detail_reason": detail_reason}
             automation.last_error = f"Guardrail check failed: {detail_reason}"
             db.add(new_post)
             db.commit()
@@ -926,7 +780,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
 
         if not media_url:
             new_post.status = "failed"
-            new_post.flags = {"automation_error": "media_url is missing/generation failed"}
+            new_post.flags = {**(new_post.flags or {}), "automation_error": "media_url is missing/generation failed"}
             automation.last_error = "Media generation failed or asset missing"
             db.add(new_post)
             db.commit()
@@ -935,6 +789,8 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         db.add(new_post)
         db.flush() 
         
+        record_topic_used(new_post, rotation_topic, style_dna_spec.style_id, selected_pillar)
+
         # 6. Track Usage (Updated for decoupled items)
         for it in pooled_items:
             if it.original_id and it.original_id.isdigit():
@@ -955,76 +811,39 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                     db_item.use_count += 1
                     db_item.last_used_at = datetime.now(dt_timezone.utc)
 
+        from app.services.rotation_engine import repetition_issues
+        repeats = repetition_issues(db, new_post)
+        if repeats:
+            new_post.status = "needs_review"
+            new_post.flags = {**new_post.flags, "repetition_issues": repeats}
+            automation.last_error = "Repeated content requires review: " + ", ".join(repeats)
+
         # 7. Immediate Publishing if configured OR forced
-        should_publish = force_publish or (automation.posting_mode == "publish_now" and automation.approval_mode == "auto_approve")
+        should_publish = not repeats and (force_publish or (automation.posting_mode == "publish_now" and automation.approval_mode == "auto_approve"))
+        schedule_error = None
+        if new_post.status == "scheduled" and not should_publish:
+            try:
+                prepare_scheduled_post(db, new_post)
+            except HTTPException as error:
+                schedule_error = error.detail
+                new_post.status = "needs_review"
+                new_post.last_error = str(error.detail)
+                automation.last_error = str(error.detail)
         
         if should_publish:
             log_event("automation_publish_attempt", automation_id=automation.id, post_id=new_post.id, forced=force_publish)
-            acc = db.get(IGAccount, automation.ig_account_id)
-            
-            if force_publish:
-                print(f"🚀 [SHARE_NOW] Triggered for automation_id={automation.id}")
-
-            print(f"📡 [IG_PUBLISH] Starting for post_id={new_post.id}")
-            print(f"🔍 [MEDIA_PREFLIGHT] Checking integrity of {new_post.media_url}")
-
-            pub_res = publish_to_instagram(
-                caption=f"{new_post.caption}\n\n" + " ".join(new_post.hashtags or []),
-                media_url=new_post.media_url,
-                ig_user_id=acc.ig_user_id,
-                access_token=acc.access_token
-            )
-            
-            # --- AUTO-RECOVERY RETRY LOOP ---
-            if not pub_res.get("ok") and pub_res.get("error") in ["media_asset_stale", "MEDIA_STALE_OR_MISSING"]:
-                print(f"🔄 [MEDIA_RECOVERY] Stale media detected. Attempting automatic regeneration...")
-                recovery_success = recover_stale_media(new_post, db)
-                
-                if recovery_success:
-                    print(f"✅ [MEDIA_RECOVERY] Regeneration successful. Retrying publish...")
-                    print(f"🔍 [MEDIA_PREFLIGHT] Retry check for {new_post.media_url}")
-                    pub_res = publish_to_instagram(
-                        caption=f"{new_post.caption}\n\n" + " ".join(new_post.hashtags or []),
-                        media_url=new_post.media_url,
-                        ig_user_id=acc.ig_user_id,
-                        access_token=acc.access_token
-                    )
-                else:
-                    print(f"❌ [MEDIA_RECOVERY] Regeneration failed. Blocking publish.")
-
-            if pub_res.get("ok"):
-                print(f"✨ [IG_PUBLISH] Success! Post shared to Instagram.")
-                new_post.status = "published"
-                new_post.published_time = datetime.now(dt_timezone.utc)
-            else:
-                new_post.status = "failed"
-                publish_err = pub_res.get("error")
-                
-                if publish_err in ["media_asset_stale", "MEDIA_STALE_OR_MISSING"]:
-                    publish_err = "Media asset wiped from ephemeral storage (stale). Please regenerate manually."
-                elif isinstance(publish_err, dict):
-                    publish_err = publish_err.get("message") or str(publish_err)
-                
-                new_post.flags = {**new_post.flags, "publish_error": publish_err}
-                automation.last_error = f"Publish failed: {publish_err}"
-                print(f"❌ [IG_PUBLISH] Failed: {publish_err}")
+            db.commit()  # The shared publisher operates on a saved post identity.
+            outcome = publish_saved_post(db, new_post.id, automation.org_id)
+            if not outcome.ok:
+                automation.last_error = outcome.error
+                if outcome.status_code in {403, 422}:
+                    new_post.status = "failed"
+                    new_post.flags = {**(new_post.flags or {}), "publish_error": outcome.error}
 
         automation.last_run_at = datetime.now(dt_timezone.utc)
         automation.last_post_id = new_post.id
-        automation.last_error = None
-
-        # Record topic + style usage for the no-repeat rotation engine
-        try:
-            used_style_id = (automation.flags or {}).get("last_style_id")
-            record_topic_used(
-                automation_id=automation.id,
-                topic=topic_base,
-                style_id=used_style_id,
-                db=db,
-            )
-            log_event("rotation_recorded", automation_id=automation.id, topic=topic_base, style_id=used_style_id)
-        except Exception as rec_err:
-            print(f"[ROTATION] record_topic_used failed (non-fatal): {rec_err}")
+        if not repeats and not schedule_error and (not should_publish or outcome.ok):
+            automation.last_error = None
 
         db.commit()
         db.refresh(new_post)
@@ -1035,6 +854,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         log_event("automation_run_exception", automation_id=automation_id, error=str(e), traceback=traceback.format_exc(limit=3))
         print(f"[AUTO] ERROR in runner for automation_id={automation_id}: {repr(e)}")
         logger.error(f"Automation {automation_id} failed: {e}")
+        db.rollback()
         # Re-fetch automation inside the exception to ensure we can set last_error
         try:
             auto = db.query(TopicAutomation).get(automation_id)
@@ -1045,6 +865,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             pass
         return None
     finally:
+        db.rollback()  # Release an uncommitted selection lock on early exits.
         lock.release()
 
 def recover_stale_media(post: Post, db: Session) -> bool:

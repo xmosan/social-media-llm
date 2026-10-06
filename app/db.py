@@ -4,7 +4,8 @@
 import os
 import time
 import logging
-from sqlalchemy import create_engine, text, event
+from sqlalchemy import create_engine, text, event, inspect
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 logger = logging.getLogger(__name__)
@@ -19,21 +20,18 @@ except ImportError:
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 def _create_engine_with_retries(db_url: str):
-    if not db_url or "postgresql" not in db_url and "postgres" not in db_url:
-        logger.error("CRITICAL: DATABASE_URL is missing or does not point to a PostgreSQL instance.")
-        # We allow it to fail here, but the app will crash on startup check.
-        raise ValueError("This project has moved fully to PostgreSQL. sqlite is no longer supported for production.")
-
-    # Driver fixes
-    if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
-    if db_url.startswith("postgresql://") and "+psycopg" not in db_url:
-        # Defaulting to psycopg (preferred for PG 16+)
-        db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    try:
+        url = make_url(db_url or "")
+    except Exception:
+        raise ValueError("DATABASE_URL must be a valid PostgreSQL URL") from None
+    if url.get_backend_name() not in {"postgres", "postgresql"}:
+        raise ValueError("PostgreSQL is required; no database fallback is supported")
+    url = url.set(drivername="postgresql+psycopg")
 
     # Production-grade pooling
     engine = create_engine(
-        db_url,
+        url,
+        hide_parameters=True,
         pool_size=15,
         max_overflow=25,
         pool_recycle=3600,
@@ -50,19 +48,16 @@ def _create_engine_with_retries(db_url: str):
             return engine
         except Exception as e:
             if attempt < retries - 1:
-                logger.warning(f"Database connection failed. Retrying in {backoff}s... ({e})")
+                logger.warning("Database connection failed. Retrying in %ss (%s)", backoff, type(e).__name__)
                 time.sleep(backoff)
                 backoff *= 2
             else:
-                logger.error(f"Failed all DB connection attempts for {db_url}.")
-                raise e
+                engine.dispose()
+                raise RuntimeError("PostgreSQL connection failed after three attempts") from None
 
 # Initialize the global engine
 try:
     if not DATABASE_URL:
-        # DIAGNOSTIC DUMP: Help user identify why env var is missing
-        env_keys = list(os.environ.keys())
-        logger.error(f"FATAL: DATABASE_URL is missing in environment. Visible keys: {env_keys}")
         
         # STEP 1: DATABASE CONNECTION VALIDATION
         raise RuntimeError(
@@ -74,12 +69,26 @@ try:
     print("✅ Connected to PostgreSQL Matrix")
     # Log for production monitoring
     logger.info("[DB] Connected to PostgreSQL Matrix")
-except Exception as e:
-    logger.critical(f"DATABASE INITIALIZATION FAILED: {e}")
-    # In a full Postgres move, we don't have a secondary fallback anymore.
-    raise e
+except Exception:
+    logger.critical("DATABASE INITIALIZATION FAILED; check PostgreSQL configuration and connectivity")
+    raise
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def validate_database_schema():
+    """Read-only startup check; never create or alter production tables."""
+    from app.models import Base
+    inspector = inspect(engine)
+    existing = set(inspector.get_table_names())
+    missing = []
+    for table in Base.metadata.sorted_tables:
+        if table.name not in existing:
+            missing.append(table.name)
+            continue
+        columns = {column["name"] for column in inspector.get_columns(table.name)}
+        missing.extend(f"{table.name}.{column.name}" for column in table.columns if column.name not in columns)
+    if missing:
+        raise RuntimeError("Database schema requires a reviewed migration: " + ", ".join(missing))
 
 def sync_database_schema(log_func=None):
     """

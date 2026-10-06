@@ -45,6 +45,11 @@ def generate_caption_from_source(
     Generates a social media caption (Hook, Body, CTA, Hashtags) decoupled from card text.
     """
     logger.info(f"[CAPTION] Generating caption for {source_type}")
+
+    if source_type in {"quran", "hadith"}:
+        from app.services.source_caption import compose_source_caption
+        caption = compose_source_caption(source_payload, source_type, tone)
+        return {"hook": "", "body": caption, "cta": "", "hashtags": []}
     
     reference = source_payload.get("reference") or source_payload.get("source_reference") or "N/A"
     source_text = source_payload.get("translation_text") or source_payload.get("text") or "N/A"

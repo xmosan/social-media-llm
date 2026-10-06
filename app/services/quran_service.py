@@ -66,6 +66,10 @@ def parse_quran_reference(ref: str) -> tuple[int, int]:
     Accept only formats like: "70:5", "2:286", "112:1"
     Returns (surah, ayah)
     """
+    import re
+    legacy = re.fullmatch(r"Surah\s+(\d+),?\s+Verse\s+(\d+)", ref.strip(), re.IGNORECASE)
+    if legacy:
+        ref = ":".join(legacy.groups())
     ref = normalize_reference_input(ref)
     
     if ":" not in ref:

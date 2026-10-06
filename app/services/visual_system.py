@@ -921,21 +921,28 @@ SCENE_PROMPT_TEMPLATES = {
     }
 }
 
-def compose_scene_prompt(scene_key: str, custom_direction: str = "") -> str:
-    """Generates a scene prompt with internal variation and optional user direction."""
+def compose_scene_prompt(scene_key: str, custom_direction: str = "", history=None, metadata=None) -> str:
+    """Choose a scene variation using durable caller-supplied history when present."""
+    import hashlib
     template = SCENE_PROMPT_TEMPLATES.get(scene_key, SCENE_PROMPT_TEMPLATES["sacred_script"])
-    base = template["base"]
-    variation = random.choice(template["variations"])
-    
-    prompt = f"{base} Variation: {variation}."
-    
-    if custom_direction:
-        safe_dir = sanitize_for_dalle(custom_direction)
+    safe_dir = sanitize_for_dalle(custom_direction) if custom_direction else ""
+    candidates = []
+    for variation in template["variations"]:
+        prompt = f"{template['base']} Variation: {variation}."
         if safe_dir:
             prompt += f" Custom Refinement: {safe_dir}. (Ensure this refinement does not add any text or letters)."
-            
-    prompt += " FINAL MANDATE: NO TEXT. NO MESSAGE. ZERO WRITTEN CHARACTERS."
-    return prompt
+        prompt += " FINAL MANDATE: NO TEXT. NO MESSAGE. ZERO WRITTEN CHARACTERS."
+        candidates.append((prompt, hashlib.sha256(prompt.encode()).hexdigest()))
+    history = history or {}
+    unused = [candidate for candidate in candidates if candidate[1] not in history]
+    exhausted = not unused
+    chosen = random.choice(unused) if unused else min(candidates, key=lambda candidate: history[candidate[1]])
+    if exhausted:
+        print("[VISUAL_ROTATION] Scene variations exhausted; selected least recently used direction")
+    if metadata is not None:
+        metadata.update(prompt_signature=chosen[1], variation_exhausted=exhausted, family=scene_key)
+    return chosen[0]
+
 
 def compose_dalle_prompt(spec: VisualSpec, raw_prompt: str = "") -> str:
     v_data = VariationEngine.generate(spec.theme, raw_prompt)

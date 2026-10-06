@@ -9,10 +9,8 @@ Provides no-repeat rotation logic for automation topic and style pools.
 Used by automation_runner.py and automation_service.py.
 
 Key design decisions:
-- Zero schema migrations: state is stored in existing ContentUsage.meta (JSON column)
-  and TopicAutomation.flags (JSON column).
-- Graceful degradation: if usage records are missing or DB fails, falls back to
-  random selection so automation never silently fails.
+- Rotation is stored with each generated post in the existing Post.flags column.
+- Database failures stop selection rather than ignoring saved usage history.
 - Works for both single-topic automations (pool=[topic_prompt]) and multi-topic.
 """
 
@@ -31,9 +29,91 @@ logger = logging.getLogger(__name__)
 # CONSTANTS
 # ─────────────────────────────────────────────────────────────────────────────
 
-_META_TOPIC_KEY = "rotation_topic"        # key inside ContentUsage.meta
-_META_STYLE_KEY = "rotation_style_id"     # key inside ContentUsage.meta
-_META_PAIR_KEY  = "rotation_pair"         # key inside ContentUsage.meta
+_META_TOPIC_KEY = "rotation_topic"        # key inside Post.flags
+_META_STYLE_KEY = "rotation_style_id"     # key inside Post.flags
+_META_PAIR_KEY  = "rotation_pair"         # key inside Post.flags
+
+
+def normalized_text(value):
+    return " ".join((value or "").split()).casefold()
+
+
+def source_identity(item):
+    """Compare canonical verse/narration identity, not a translation row ID."""
+    if item.item_type == "quran":
+        from app.services.quran_serialization import normalize_quran_verse
+        verse = normalize_quran_verse(item)
+        return "quran:" + verse["verse_key"]
+    meta = item.meta or {}
+    if item.item_type == "hadith" and meta.get("collection_key") and meta.get("hadith_number"):
+        return f"hadith:{meta['collection_key']}:{meta['hadith_number']}"
+    return f"library:{item.id}"
+
+
+def rank_source_items(items, db, automation_id, avoid_days=30):
+    """Rank the complete matching library pool before limiting provider results."""
+    from app.models import ContentUsage, ContentItem
+    if not automation_id:
+        return items
+    rows = db.query(ContentUsage, ContentItem).join(ContentItem, ContentUsage.content_item_id == ContentItem.id).filter(ContentUsage.automation_id == automation_id).all()
+    last_used = {}
+    for usage, item in rows:
+        try:
+            key = source_identity(item)
+        except ValueError:
+            continue
+        used_at = usage.used_at.replace(tzinfo=timezone.utc) if usage.used_at.tzinfo is None else usage.used_at
+        last_used[key] = max(last_used.get(key, used_at), used_at)
+    random.shuffle(items)
+    valid = []
+    for item in items:
+        try:
+            valid.append((item, source_identity(item)))
+        except ValueError:
+            continue
+    cutoff = datetime.now(timezone.utc) - timedelta(days=avoid_days)
+    oldest = datetime.min.replace(tzinfo=timezone.utc)
+    valid.sort(key=lambda pair: last_used.get(pair[1], oldest))
+    if valid and all(last_used.get(key, oldest) >= cutoff for _, key in valid):
+        logger.info("Source pool exhausted for automation %s; using least recently used valid candidates", automation_id)
+    return [item for item, _ in valid]
+
+
+def recent_posts(db, automation_id):
+    from app.models import Post
+    return db.query(Post).filter(Post.automation_id == automation_id,
+                                Post.created_at >= datetime.now(timezone.utc) - timedelta(days=30)).all()
+
+
+def repetition_issues(db, post):
+    if not post.automation_id:
+        return []
+    issues = set()
+    visual = (post.source_metadata or {}).get("visual_generation") or {}
+    for previous in recent_posts(db, post.automation_id):
+        if previous.id == post.id:
+            continue
+        if post.caption and normalized_text(previous.caption) == normalized_text(post.caption):
+            issues.add("duplicate_caption")
+        reflection = (post.card_message or {}).get("supporting_text")
+        if reflection and normalized_text((previous.card_message or {}).get("supporting_text")) == normalized_text(reflection):
+            issues.add("duplicate_reflection")
+        if post.visual_mode not in {"reuse_last_upload", "use_library_image", "library_fixed", "library_tag", "media_library", "upload", "gallery"}:
+            old_visual = (previous.source_metadata or {}).get("visual_generation") or {}
+            if (visual.get("background_sha256") and visual["background_sha256"] == old_visual.get("background_sha256")) or (post.media_url and post.media_url == previous.media_url):
+                issues.add("duplicate_visual")
+    return sorted(issues)
+
+
+def visual_history(db, automation_id):
+    history = {}
+    for post in recent_posts(db, automation_id):
+        metadata = (post.source_metadata or {}).get("visual_generation") or {}
+        signature = metadata.get("prompt_signature")
+        if signature:
+            at = post.created_at.isoformat()
+            history[signature] = max(history.get(signature, at), at)
+    return history
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -81,7 +161,7 @@ def pick_topic(
         last_used_at: dict[str, datetime] = {}
 
         for u in usages:
-            topic_val = u.get(_META_TOPIC_KEY)
+            topic_val = normalized_text(u.get(_META_TOPIC_KEY))
             used_at_str = u.get("used_at")
             if not topic_val or not used_at_str:
                 continue
@@ -98,7 +178,7 @@ def pick_topic(
                 recently_used.add(topic_val)
 
         # Candidates: not used within the avoid window
-        candidates = [t for t in topic_pool if t not in recently_used]
+        candidates = [t for t in topic_pool if normalized_text(t) not in recently_used]
 
         if candidates:
             chosen = random.choice(candidates)
@@ -109,7 +189,7 @@ def pick_topic(
         # All topics are within the window — pick the least recently used
         pool_sorted = sorted(
             topic_pool,
-            key=lambda t: last_used_at.get(t, datetime.min.replace(tzinfo=timezone.utc))
+            key=lambda t: last_used_at.get(normalized_text(t), datetime.min.replace(tzinfo=timezone.utc))
         )
         chosen = pool_sorted[0]
         logger.info(f"[ROTATION] automation_id={automation_id} topic={chosen!r} "
@@ -117,8 +197,8 @@ def pick_topic(
         return chosen
 
     except Exception as e:
-        logger.warning(f"[ROTATION] pick_topic failed gracefully: {e}")
-        return random.choice(topic_pool)
+        logger.error("[ROTATION] Could not read usage history")
+        raise
 
 
 def pick_style(
@@ -156,84 +236,22 @@ def pick_style(
     return chosen
 
 
-def record_topic_used(
-    automation_id: int,
-    topic: str,
-    style_id: Optional[int],
-    db: Session,
-) -> None:
-    """
-    Record a topic (and optional style) usage in ContentUsage.meta.
-    This powers the no-repeat window for the next run.
-
-    Also updates TopicAutomation.flags["last_style_id"] so the next call to
-    pick_style() can avoid the current style.
-
-    Args:
-        automation_id: ID of the automation.
-        topic:         Topic string that was used this run.
-        style_id:      StyleDNA ID used this run (may be None).
-        db:            SQLAlchemy session.
-    """
-    try:
-        from app.models import ContentUsage, TopicAutomation
-        now = datetime.now(timezone.utc)
-
-        usage = ContentUsage(
-            automation_id=automation_id,
-            content_item_id=None,      # not a content item
-            status="rotation_record",
-            used_at=now,
-            meta={
-                _META_TOPIC_KEY: topic,
-                _META_STYLE_KEY: style_id,
-                _META_PAIR_KEY: f"{topic}|{style_id}",
-                "used_at": now.isoformat(),
-                "record_type": "rotation",
-            },
-        )
-        db.add(usage)
-
-        # Persist last_style_id into automation.flags for next run
-        if style_id is not None:
-            auto = db.get(TopicAutomation, automation_id)
-            if auto:
-                flags = dict(auto.flags or {})
-                flags["last_style_id"] = style_id
-                auto.flags = flags
-
-        db.flush()  # Don't commit here — caller controls the transaction
-        logger.info(f"[ROTATION] Recorded usage: automation_id={automation_id} "
-                    f"topic={topic!r} style_id={style_id}")
-
-    except Exception as e:
-        logger.warning(f"[ROTATION] record_topic_used failed gracefully: {e}")
+def record_topic_used(post, topic: str, style_id: Optional[int], pillar=None) -> None:
+    """Persist rotation alongside the generated post in the caller's transaction."""
+    post.flags = {**(post.flags or {}),
+                  _META_TOPIC_KEY: topic, _META_STYLE_KEY: style_id,
+                  "rotation_pillar": pillar,
+                  "rotation_used_at": datetime.now(timezone.utc).isoformat()}
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# INTERNAL HELPERS
-# ─────────────────────────────────────────────────────────────────────────────
+def latest_rotation(automation_id: int, db: Session) -> dict:
+    from app.models import Post
+    posts = db.query(Post).filter(Post.automation_id == automation_id).order_by(Post.created_at.desc(), Post.id.desc()).all()
+    return next((dict(post.flags) for post in posts if (post.flags or {}).get(_META_TOPIC_KEY)), {})
+
 
 def _load_topic_usages(automation_id: int, db: Session) -> list[dict]:
-    """
-    Load rotation usage records for an automation from ContentUsage.
-    Returns a list of meta dicts, most recent first.
-    """
-    try:
-        from app.models import ContentUsage
-        from sqlalchemy import select, desc
-
-        stmt = (
-            select(ContentUsage)
-            .where(
-                ContentUsage.automation_id == automation_id,
-                ContentUsage.status == "rotation_record",
-            )
-            .order_by(desc(ContentUsage.used_at))
-            .limit(200)   # Enough for 30-day window at 3× daily
-        )
-        rows = db.execute(stmt).scalars().all()
-        return [row.meta for row in rows if row.meta]
-    except Exception as e:
-        logger.warning(f"[ROTATION] _load_topic_usages failed: {e}")
-        return []
+    from app.models import Post
+    posts = db.query(Post).filter(Post.automation_id == automation_id).order_by(Post.created_at.desc()).all()
+    return [{**post.flags, "used_at": post.flags.get("rotation_used_at") or post.created_at.isoformat()}
+            for post in posts if (post.flags or {}).get(_META_TOPIC_KEY)]

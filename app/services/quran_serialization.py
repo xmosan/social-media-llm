@@ -147,7 +147,7 @@ def normalize_quran_verse(item: Any) -> Dict[str, Any]:
         # It's already a dict
         item_id = item.get("id")
         raw_meta = item.get("meta") or {}
-        raw_title = item.get("title") or ""
+        raw_title = item.get("title") or item.get("reference") or item.get("verse_key") or ""
         arabic_text = item.get("arabic") or item.get("arabic_text") or ""
         translation_text = item.get("text") or item.get("translation_text") or ""
         topics = item.get("topics") or []
@@ -169,26 +169,24 @@ def normalize_quran_verse(item: Any) -> Dict[str, Any]:
                 surah_num = int(m.group(1))
                 ayah_num = int(m.group(2))
 
-    # Strict fallback: DO NOT default to 1:1 if we found nothing. 
-    # Use 0:0 to signify a parsing failure so we don't report incorrect references.
-    surah_num = int(surah_num) if surah_num else 0
-    ayah_num = int(ayah_num) if ayah_num else 0
+    # Missing or invalid location is an error, never a synthetic 0:0 reference.
+    try:
+        surah_num, ayah_num = int(surah_num), int(ayah_num)
+    except (TypeError, ValueError):
+        raise ValueError("Quran source record is missing valid surah/ayah metadata")
+    surah_info = SURAH_MAP.get(surah_num)
+    if surah_info is None or not 1 <= ayah_num <= surah_info["verses"]:
+        raise ValueError("Quran source record has an invalid surah/ayah reference")
+    if not translation_text or not translation_text.strip():
+        raise ValueError("Quran source record is missing its translation")
+    # Preserve Arabic exactly, including any Basmala supplied by the record.
 
-    # 3. Enrich Surah names from map
-    surah_info = SURAH_MAP.get(surah_num, {"en": "Unknown Surah", "ar": ""})
-    
-    # 3.5 CLEANING: Strip the Basmala prefix if present (except for Al-Fatihah 1:1)
-    # Standard Basmala string in many datasets: بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ
-    basmala = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ"
-    if surah_num != 1 and arabic_text.startswith(basmala):
-        arabic_text = arabic_text[len(basmala):].strip()
-    
     # 4. Final Construction
     verse_key = f"{surah_num}:{ayah_num}"
     reference = f"Qur'an {verse_key}"
     
-    trans_id = raw_meta.get("translation_id", "131")
-    translator = "Sahih International" if str(trans_id) == "131" else f"Translator {trans_id}"
+    trans_id = raw_meta.get("translation_id")
+    translator = raw_meta.get("translator") or raw_meta.get("translation_name")
 
     normalized = {
         "id": item_id,
@@ -202,11 +200,8 @@ def normalize_quran_verse(item: Any) -> Dict[str, Any]:
         "arabic_text": arabic_text,
         "translation_text": translation_text,
         "translator": translator,
+        "translation_id": trans_id,
         "topics": topics
     }
     
-    if not normalized["translation_text"]:
-        normalized["translation_text"] = "[Translation not available]"
-        logger.warning(f"⚠️ Quran normalization: missing translation for {reference}")
-
     return normalized

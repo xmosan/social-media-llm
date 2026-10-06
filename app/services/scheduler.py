@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Mohammed Hassan. All rights reserved.
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Callable
 import pytz
 
@@ -11,15 +11,24 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import Post, IGAccount, TopicAutomation
-from app.services.publisher import publish_to_instagram
+from app.services.post_service import publish_post
 from app.services.automation_runner import run_automation_once
+from app.services.automation_schedule import automation_triggers
 from app.services.backups import backup_postgres_database
+from app.security.ownership import require_account
+from fastapi import HTTPException
 
-def run_automation_job(db_factory: Callable[[], Session], automation_id: int):
+def run_automation_job(db_factory: Callable[[], Session], automation_id: int, trigger=None):
     """Execution wrapper for background automation jobs."""
     db = db_factory()
     try:
-        run_automation_once(db, automation_id)
+        occurrence = None
+        if trigger is not None:
+            now = datetime.now(timezone.utc)
+            occurrence = trigger.get_next_fire_time(None, now - timedelta(seconds=300))
+            if occurrence is None or occurrence > now:
+                return
+        run_automation_once(db, automation_id, scheduled_for=occurrence)
     finally:
         db.close()
 
@@ -41,25 +50,22 @@ def sync_automation_jobs(sched: BackgroundScheduler, db_factory: Callable[[], Se
     try:
         enabled_autos = db.query(TopicAutomation).filter(TopicAutomation.enabled == True).all()
         for auto in enabled_autos:
-            acc = db.query(IGAccount).get(auto.ig_account_id)
-            if not acc: continue
-            
-            time_str = auto.post_time_local or acc.daily_post_time or "09:00"
-            tz_str = auto.timezone or acc.timezone or "UTC"
             try:
-                base_hour, minute = map(int, time_str.split(":"))
-                posts_per_day = getattr(auto, 'posts_per_day', 1)
-                spacing = getattr(auto, 'post_spacing_hours', 4)
-                
-                for i in range(posts_per_day):
-                    post_hour = (base_hour + (i * spacing)) % 24
+                acc = require_account(db, auto.org_id, auto.ig_account_id, active=True)
+            except HTTPException:
+                continue
+            
+            try:
+                for i, trigger in enumerate(automation_triggers(acc, auto)):
                     sched.add_job(
                         run_automation_job,
-                        trigger=CronTrigger(hour=post_hour, minute=minute, timezone=tz_str),
-                        args=[db_factory, auto.id],
+                        trigger=trigger,
+                        args=[db_factory, auto.id, trigger],
                         id=f"auto_{auto.id}_{i}",
                         replace_existing=True,
-                        max_instances=1
+                        max_instances=1,
+                        coalesce=True,
+                        misfire_grace_time=300,
                     )
             except Exception as e:
                 print(f"FAILED TO SCHEDULE AUTO {auto.id}: {e}")
@@ -88,45 +94,18 @@ def publish_due_posts(db_factory: Callable[[], Session]) -> int:
 
         published = 0
         for post in posts:
-            acc = db.get(IGAccount, post.ig_account_id)
-            if not acc or not acc.active:
-                continue
-
-            # PROACTIVE SHIELD: Stale Scavenger check
-            # If the media is local (/uploads/) and physically missing, fail the post early
-            if post.media_url and "/uploads/" in post.media_url:
-                import os
-                from app.config import settings
-                filename = post.media_url.split("/uploads/")[-1]
-                local_path = os.path.join(settings.uploads_dir, filename)
-                if not os.path.exists(local_path):
-                    print(f"⚠️ [SCAVENGER] Purging stale post {post.id} (file {filename} missing from disk).")
+            try:
+                result = publish_post(db, post.id, post.org_id)
+                if result.ok:
+                    published += 1
+                elif result.status_code in {403, 422}:
+                    # A validation failure needs user action; do not retry it every minute.
                     post.status = "failed"
-                    post.flags = {**(post.flags or {}), "publish_error": "Media wiped from ephemeral storage after restart (stale scavenger)."}
+                    post.flags = {**(post.flags or {}), "publish_error": result.error}
                     db.commit()
-                    continue
+            except Exception:
+                db.rollback()  # The committed publish claim remains for reconciliation.
 
-            caption_full = post.caption or ""
-            if post.hashtags:
-                caption_full += "\n\n" + " ".join(post.hashtags)
-
-            result = publish_to_instagram(
-                caption=caption_full, 
-                media_url=post.media_url,
-                ig_user_id=acc.ig_user_id,
-                access_token=acc.access_token
-            )
-
-            if isinstance(result, dict) and result.get("ok"):
-                post.status = "published"
-                post.published_time = datetime.now(timezone.utc)
-                db.commit()
-                published += 1
-            else:
-                post.status = "failed"
-                error_info = result.get("error") if isinstance(result, dict) else str(result)
-                post.flags = {**(post.flags or {}), "publish_error": error_info}
-                db.commit()
 
         return published
     finally:

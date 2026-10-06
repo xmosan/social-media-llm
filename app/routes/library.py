@@ -665,12 +665,12 @@ def get_hadith_by_reference(
             status_code=422,
             detail="Hadith source data is incomplete. Please choose another Hadith."
         )
+    return item
 
-@router.get("/hadith/test-public")
+@router.get("/hadith/test-public", dependencies=[Depends(require_superadmin)])
 def test_hadith_public():
     """
-    TEMPORARY: Public test endpoint to verify sunnah.now connectivity.
-    Will be removed after verification.
+    Administrator-only diagnostic to verify sunnah.now connectivity.
     """
     from app.services.hadith_service import get_hadith_by_reference
     item = get_hadith_by_reference(collection_key="bukhari", hadith_number=1)

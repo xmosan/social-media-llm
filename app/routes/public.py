@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import ContactMessage, User, TopicAutomation
 from app.security.auth import get_current_user
+from app.security.rbac import require_superadmin
 from typing import Optional
 from fastapi.templating import Jinja2Templates
 import os
@@ -1057,11 +1058,10 @@ def register_page(error: Optional[str] = None):
         html = html.replace('<h2 class="text-xl font-bold">Start Automating</h2>', error_banner + '<h2 class="text-xl font-bold">Start Automating</h2>')
     return html
 
-@router.get("/admin", response_class=HTMLResponse)
+@router.get("/admin", response_class=HTMLResponse, dependencies=[Depends(require_superadmin)])
 async def get_admin_dashboard(request: Request):
     """
     Serves the Waitlist Admin Dashboard.
-    Note: Place for Depends(get_current_user) in the future for security.
     """
     return templates.TemplateResponse("admin.html", {"request": request})
 
@@ -1074,7 +1074,7 @@ def contact_page():
     return CONTACT_HTML
 
 
-@router.get("/api/auth-debug")
+@router.get("/api/auth-debug", dependencies=[Depends(require_superadmin)])
 def api_auth_debug(db: Session = Depends(get_db)):
     from app.models import User, Org
     from app.config import settings
@@ -1118,7 +1118,7 @@ def api_auth_debug(db: Session = Depends(get_db)):
         }
     }
 
-@router.get("/api/debug-automations")
+@router.get("/api/debug-automations", dependencies=[Depends(require_superadmin)])
 def api_debug_automations(db: Session = Depends(get_db)):
     autos = db.query(TopicAutomation).all()
     return [{"id": a.id, "name": a.name, "topic": a.topic_prompt, "last_error": a.last_error} for a in autos]

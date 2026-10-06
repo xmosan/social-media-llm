@@ -2,6 +2,7 @@
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
 import os, shutil
+from uuid import uuid4
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -10,6 +11,7 @@ from ..config import settings
 from ..models import MediaAsset
 from ..schemas import MediaAssetOut, MediaAssetCreate
 from ..security.rbac import get_current_org_id
+from ..security.ownership import require_account
 from datetime import datetime, timezone
 
 router = APIRouter(prefix="/media-assets", tags=["media"])
@@ -48,9 +50,14 @@ def upload_media_asset(
     org_id: int = Depends(get_current_org_id),
 ):
     import json
+    if ig_account_id is not None:
+        require_account(db, org_id, ig_account_id)
+    if image.content_type not in {"image/png", "image/jpeg", "image/jpg", "image/webp"}:
+        raise HTTPException(status_code=400, detail="Use a PNG, JPG, or WEBP image")
     _ensure_uploads_dir()
     
-    filename = f"lib_{int(_utcnow().timestamp())}_{image.filename}"
+    extension = {"image/png": ".png", "image/webp": ".webp"}.get(image.content_type, ".jpg")
+    filename = f"lib_{uuid4().hex}{extension}"
     local_path = os.path.join(settings.uploads_dir, filename)
 
     with open(local_path, "wb") as f:

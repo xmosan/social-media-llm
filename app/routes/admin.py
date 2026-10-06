@@ -2468,7 +2468,10 @@ def trigger_manual_backup(
     user: User = Depends(require_superadmin)
 ):
     from ..services.backups import backup_postgres_database
-    return backup_postgres_database()
+    result = backup_postgres_database()
+    if result["status"] != "success":
+        raise HTTPException(status_code=503, detail=result["detail"])
+    return result
 
 @router.get("/config/export")
 def export_safe_config(
