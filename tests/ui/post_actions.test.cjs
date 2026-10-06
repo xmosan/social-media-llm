@@ -7,16 +7,25 @@ const vm = require('node:vm');
 const source = fs.readFileSync(path.join(__dirname, '../../app/routes/ui_assets.py'), 'utf8');
 const actions = source.slice(source.indexOf('    let postEditInFlight = false;'), source.indexOf('    window.refinePostAI ='));
 const calendar = source.slice(source.indexOf('    window.syncCalendarTimezone ='), source.indexOf('    window.showStudioConfirm ='));
+const openModal = source.slice(source.indexOf('    window.openEditPostModal ='), source.indexOf('    window.closeEditPostModal ='));
 
 function fixture(fetch) {
   const elements = {editPostId: {value: '1523'}, editPostCaption: {value: 'Reviewed fixture caption'},
     savePostBtn: {disabled: false}, postNowBtn: {disabled: false, innerText: 'SHARE NOW'}};
+  for (const id of ['editPostModal', 'editPostTitle', 'editPostDescription', 'editPostEnhancements', 'editPostDiscard', 'deleteConfirmActions', 'editPostActions']) elements[id] = {};
+  for (const element of Object.values(elements)) {
+    const classes = new Set();
+    element.style = {};
+    element.classList = {add: name => classes.add(name), remove: name => classes.delete(name),
+      contains: name => classes.has(name), toggle: (name, on) => on ? classes.add(name) : classes.delete(name)};
+  }
   const calls = [], alerts = [];
   let reloads = 0;
   const context = {document: {getElementById: id => elements[id]}, alert: msg => alerts.push(msg),
     window: {closeEditPostModal() {}, location: {reload() {reloads++;}}},
     fetch: async (...args) => {calls.push(args); return fetch(...args);}};
   vm.runInNewContext(actions, context);
+  vm.runInNewContext(openModal, context);
   return {context, elements, calls, alerts, reloads: () => reloads};
 }
 const response = (ok, detail) => ({ok, json: async () => ({detail})});
@@ -39,9 +48,38 @@ test('Rejected save, non-JSON error, and network failure never publish stale con
     assert.equal(f.calls.length, 1);
     assert.equal(f.reloads(), 0);
     assert.equal(f.alerts.length, 1);
+    assert.doesNotMatch(f.alerts[0], /Connection error/);
     assert.equal(f.elements.postNowBtn.disabled, false);
     assert.equal(f.elements.savePostBtn.disabled, false);
   }
+});
+
+test('Published and unresolved posts open read-only with no mutation actions', async () => {
+  for (const status of ['published', 'publishing', 'publish_unknown']) {
+    const f = fixture(async () => response(true));
+    f.context.window.openEditPostModal('1523', 'Saved caption', '', status);
+    assert.equal(f.elements.editPostCaption.readOnly, true);
+    for (const id of ['savePostBtn', 'postNowBtn', 'editPostEnhancements', 'editPostDiscard']) {
+      assert.equal(f.elements[id].classList.contains('hidden'), true);
+    }
+    assert.equal(f.elements.postNowBtn.disabled, true);
+    await f.context.window.savePostEdit();
+    await f.context.window.publishPostNow();
+    assert.equal(f.calls.length, 0);
+    assert.equal(f.elements.editPostTitle.textContent, status === 'published' ? 'Published Post' : 'Publication Pending');
+  }
+});
+
+test('Opening an editable post clears a previous post read-only state', async () => {
+  const f = fixture(async () => response(true));
+  f.context.window.openEditPostModal('1', 'Published fixture', '', 'published');
+  f.context.window.openEditPostModal('2', 'Scheduled fixture', '', 'scheduled');
+  assert.equal(f.elements.editPostCaption.readOnly, false);
+  assert.equal(f.elements.editPostCaption.value, 'Scheduled fixture');
+  assert.equal(f.elements.postNowBtn.disabled, false);
+  assert.equal(f.elements.postNowBtn.classList.contains('hidden'), false);
+  await f.context.window.savePostEdit();
+  assert.equal(f.calls[0][0], '/posts/2');
 });
 
 test('An empty edited caption cannot publish the previously saved caption', async () => {

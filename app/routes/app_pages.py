@@ -1268,7 +1268,7 @@ async def app_calendar_page(
 
                     posts_html += f"""
                     <div class="p-4 rounded-[1.25rem] bg-white border border-brand/5 border-l-[4px] {border_color} flex flex-col gap-1 overflow-hidden group/post cursor-pointer hover:shadow-md hover:-translate-y-1 hover:border-brand/10 transition-all shadow-sm" 
-                         onclick="openEditPostModal('{dp.id}', {html.escape(json.dumps(dp.caption or 'Suggested Reminder'))}, '{sched_time_str}')">
+                         onclick="openEditPostModal('{dp.id}', {html.escape(json.dumps(dp.caption or 'Suggested Reminder'))}, '{sched_time_str}', {html.escape(json.dumps(dp.status))})">
                         <div class="flex justify-between items-start mb-1">
                             {time_display}
                             <span class="px-2 py-1 rounded-md {status_badge} text-[7px] font-black uppercase tracking-[0.2em] leading-none ml-auto">{display_status}</span>
@@ -1318,7 +1318,7 @@ async def app_calendar_page(
         time_str = display_times[p.id].strftime("%b %d, %I:%M %p").lstrip("0").replace(" 0", " ")
         sched_time_str = p.scheduled_time.isoformat() if p.scheduled_time else ""
         scheduled_posts_html.append(f"""
-            <div class="flex items-start gap-4 p-4 bg-brand/[0.01] rounded-2xl border border-transparent hover:bg-white hover:shadow-sm hover:border-brand/10 transition-all duration-300 group cursor-pointer" onclick="openEditPostModal('{p.id}', {html.escape(json.dumps(p.caption or 'Suggested Reminder'))}, '{sched_time_str}')">
+            <div class="flex items-start gap-4 p-4 bg-brand/[0.01] rounded-2xl border border-transparent hover:bg-white hover:shadow-sm hover:border-brand/10 transition-all duration-300 group cursor-pointer" onclick="openEditPostModal('{p.id}', {html.escape(json.dumps(p.caption or 'Suggested Reminder'))}, '{sched_time_str}', {html.escape(json.dumps(p.status))})">
                 <div class="w-2 h-2 mt-2 rounded-full bg-brand shrink-0 group-hover:scale-125 transition-transform shadow-sm shadow-brand/30"></div>
                 <div class="flex flex-col gap-1.5 min-w-0">
                     <div class="text-[9px] font-black text-brand/40 uppercase tracking-[0.2em]">{time_str}</div>

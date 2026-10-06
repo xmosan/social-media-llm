@@ -1923,15 +1923,30 @@ STUDIO_SCRIPTS_JS = r"""
         }
     };
 
-    window.openEditPostModal = function(id, caption, time) {
+    window.openEditPostModal = function(id, caption, time, status = 'drafted') {
+        if (postEditInFlight) return;
         const modal = document.getElementById('editPostModal');
         if (!modal) {
             alert("Refine feature is being optimized. Please use the Studio to create new reminders.");
             return;
         }
         document.getElementById('editPostId').value = id;
+        postEditReadOnly = ['published', 'publishing', 'publish_unknown'].includes(status);
         const captionEl = document.getElementById('editPostCaption');
-        if (captionEl) captionEl.value = caption || '';
+        if (captionEl) { captionEl.value = caption || ''; captionEl.readOnly = postEditReadOnly; }
+        const title = document.getElementById('editPostTitle');
+        const description = document.getElementById('editPostDescription');
+        if (title) title.textContent = status === 'published' ? 'Published Post' : (postEditReadOnly ? 'Publication Pending' : 'Improve Your Message');
+        if (description) description.textContent = status === 'published'
+            ? 'This post has already been shared. Editing and sharing it again are disabled.'
+            : (status === 'publishing' ? 'Publishing is in progress. Please wait.'
+            : (status === 'publish_unknown' ? 'Instagram has not confirmed the outcome. Check Instagram before retrying.' : 'Polish your message before it goes live'));
+        for (const id of ['savePostBtn', 'postNowBtn', 'editPostEnhancements', 'editPostDiscard']) {
+            document.getElementById(id)?.classList.toggle('hidden', postEditReadOnly);
+        }
+        document.getElementById('deleteConfirmActions')?.classList.add('hidden');
+        document.getElementById('editPostActions')?.classList.remove('hidden');
+        setPostEditBusy(false);
         modal.classList.remove('hidden');
         modal.style.display = 'flex';
     };
@@ -1961,16 +1976,17 @@ STUDIO_SCRIPTS_JS = r"""
     };
 
     let postEditInFlight = false;
+    let postEditReadOnly = false;
     function setPostEditBusy(busy) {
         postEditInFlight = busy;
         for (const id of ['savePostBtn', 'postNowBtn']) {
             const button = document.getElementById(id);
-            if (button) button.disabled = busy;
+            if (button) button.disabled = busy || postEditReadOnly;
         }
     }
 
     window.savePostEdit = async function() {
-        if (postEditInFlight) return;
+        if (postEditInFlight || postEditReadOnly) return;
         const id = document.getElementById('editPostId')?.value;
         const caption = document.getElementById('editPostCaption')?.value;
         if (!id || !caption) return;
@@ -1996,7 +2012,7 @@ STUDIO_SCRIPTS_JS = r"""
     };
 
     window.publishPostNow = async function() {
-        if (postEditInFlight) return;
+        if (postEditInFlight || postEditReadOnly) return;
         const id = document.getElementById('editPostId')?.value;
         const caption = document.getElementById('editPostCaption')?.value;
         if (!id || !caption?.trim()) {
@@ -2028,7 +2044,7 @@ STUDIO_SCRIPTS_JS = r"""
                 alert('Publish failed: ' + (data.detail || 'Unknown error'));
             }
         } catch (e) {
-            alert('Connection error: ' + e.message);
+            alert('Could not share: ' + e.message);
         } finally {
             setPostEditBusy(false);
             if (btn) { btn.disabled = false; btn.innerText = original; }
@@ -2036,6 +2052,7 @@ STUDIO_SCRIPTS_JS = r"""
     };
 
     window.refinePostAI = async function(style) {
+        if (postEditReadOnly || postEditInFlight) return;
         const id = document.getElementById('editPostId')?.value;
         const captionEl = document.getElementById('editPostCaption');
         if (!id || !captionEl) return;
@@ -2062,6 +2079,7 @@ STUDIO_SCRIPTS_JS = r"""
     };
 
     window.showDeleteConfirm = function() {
+        if (postEditReadOnly) return;
         const actions = document.getElementById('editPostActions');
         const confirm = document.getElementById('deleteConfirmActions');
         if (actions) actions.classList.add('hidden');
@@ -2148,8 +2166,8 @@ STUDIO_COMPONENTS_HTML = """
   <div class="glass max-w-2xl w-full p-8 md:p-12 rounded-[3rem] border border-brand/10 shadow-2xl space-y-8 bg-white max-h-[90vh] overflow-y-auto">
     <div class="flex justify-between items-start">
         <div>
-            <h2 class="text-3xl font-bold text-brand tracking-tight">Improve Your <span class="text-accent">Message</span></h2>
-            <p class="text-[10px] font-bold text-text-muted uppercase tracking-[0.2em] mt-1">Polish your message before it goes live</p>
+            <h2 id="editPostTitle" class="text-3xl font-bold text-brand tracking-tight">Improve Your <span class="text-accent">Message</span></h2>
+            <p id="editPostDescription" class="text-[10px] font-bold text-text-muted uppercase tracking-[0.2em] mt-1">Polish your message before it goes live</p>
         </div>
         <button onclick="closeEditPostModal()" class="w-10 h-10 rounded-2xl bg-brand/5 flex items-center justify-center text-text-muted hover:bg-brand/10 hover:text-brand transition-all">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
@@ -2165,7 +2183,7 @@ STUDIO_COMPONENTS_HTML = """
         </div>
 
         <!-- AI Assist Toolbar -->
-        <div class="space-y-3">
+        <div id="editPostEnhancements" class="space-y-3">
             <label class="text-[9px] font-bold uppercase tracking-[0.2em] text-text-muted ml-1 italic">AI Enhancements</label>
             <div class="flex flex-wrap gap-2">
                 <button onclick="refinePostAI('emotional')" class="refine-ai-btn px-4 py-2.5 bg-brand/5 border border-brand/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-brand hover:bg-brand hover:text-white transition-all transition-colors flex items-center gap-2">
@@ -2206,7 +2224,7 @@ STUDIO_COMPONENTS_HTML = """
             </div>
         </div>
         
-        <div class="flex justify-center pt-2">
+        <div id="editPostDiscard" class="flex justify-center pt-2">
             <button onclick="showDeleteConfirm()" class="text-[9px] font-black uppercase tracking-widest text-rose-500/50 hover:text-rose-500 transition-colors">Discard this piece of reminder</button>
         </div>
     </div>

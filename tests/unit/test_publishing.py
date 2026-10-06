@@ -81,6 +81,17 @@ class PublishingTests(DatabaseCase):
         self.assertEqual(self.client.post("/api/studio/schedule-post", json={"post_id": 1, "scheduled_at": "2030-01-01T10:00:00Z"}).status_code, 409)
         self.assertEqual(self.client.delete("/posts/1").status_code, 409)
 
+    def test_blocked_edits_explain_the_actual_publication_state(self):
+        for status, message in [("published", "already been published"),
+                                ("publishing", "still in progress"),
+                                ("publish_unknown", "not confirmed the outcome")]:
+            self.db.get(Post, 1).status = status
+            self.db.commit()
+            result = self.client.patch("/posts/1", json={"caption": "Must not save"})
+            self.assertEqual(result.status_code, 409)
+            self.assertIn(message, result.json()["detail"])
+            self.assertEqual(self.db.get(Post, 1).caption, "Saved caption")
+
     def test_exception_after_claim_remains_unresolved(self):
         with patch.object(publisher, "publish_to_instagram", side_effect=RuntimeError("Synthetic failure")):
             result = post_service.publish_post(self.db, 1, 1)
