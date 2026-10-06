@@ -80,6 +80,16 @@ STUDIO_SCRIPTS_JS = r"""
     const show = (id) => { const el = document.getElementById(id); if(el) el.classList.remove('hidden'); };
 
     // ── Function Registry (Exported to window early) ───────────────────────────
+
+    window.syncCalendarTimezone = function() {
+        if (window.location.pathname !== '/app/calendar') return false;
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+        const url = new URL(window.location.href);
+        if (url.searchParams.get('tz') === tz) return false;
+        url.searchParams.set('tz', tz);
+        window.location.replace(url.toString());
+        return true;
+    };
     
     window.showStudioConfirm = function(title, message, onConfirm) {
         const modal = document.getElementById('globalConfirmModal');
@@ -1058,6 +1068,7 @@ STUDIO_SCRIPTS_JS = r"""
     }
 
     window.addEventListener('load', () => {
+        if (window.syncCalendarTimezone()) return;
         const pending = sessionStorage.getItem('sabeel_pending_quote_item');
         if (pending) {
             try {
@@ -1949,10 +1960,21 @@ STUDIO_SCRIPTS_JS = r"""
         }
     };
 
+    let postEditInFlight = false;
+    function setPostEditBusy(busy) {
+        postEditInFlight = busy;
+        for (const id of ['savePostBtn', 'postNowBtn']) {
+            const button = document.getElementById(id);
+            if (button) button.disabled = busy;
+        }
+    }
+
     window.savePostEdit = async function() {
+        if (postEditInFlight) return;
         const id = document.getElementById('editPostId')?.value;
         const caption = document.getElementById('editPostCaption')?.value;
         if (!id || !caption) return;
+        setPostEditBusy(true);
         try {
             const res = await fetch(`/posts/${id}`, {
                 method: 'PATCH',
@@ -1968,24 +1990,33 @@ STUDIO_SCRIPTS_JS = r"""
             }
         } catch (e) {
             alert('Connection error: ' + e.message);
+        } finally {
+            setPostEditBusy(false);
         }
     };
 
     window.publishPostNow = async function() {
+        if (postEditInFlight) return;
         const id = document.getElementById('editPostId')?.value;
-        if (!id) return;
+        const caption = document.getElementById('editPostCaption')?.value;
+        if (!id || !caption?.trim()) {
+            alert('A caption is required before sharing.');
+            return;
+        }
         const btn = document.getElementById('postNowBtn');
         const original = btn ? btn.innerText : '';
+        setPostEditBusy(true);
         if (btn) { btn.disabled = true; btn.innerText = 'SHARING...'; }
         try {
             // First save any edits
-            const caption = document.getElementById('editPostCaption')?.value;
-            if (caption) {
-                await fetch(`/posts/${id}`, {
-                    method: 'PATCH',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ caption })
-                });
+            const saveRes = await fetch(`/posts/${id}`, {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ caption })
+            });
+            if (!saveRes.ok) {
+                const data = await saveRes.json().catch(() => ({}));
+                throw new Error('Caption was not saved: ' + (data.detail || 'Please try again.'));
             }
             // Then publish
             const res = await fetch(`/posts/${id}/publish`, { method: 'POST' });
@@ -1999,6 +2030,7 @@ STUDIO_SCRIPTS_JS = r"""
         } catch (e) {
             alert('Connection error: ' + e.message);
         } finally {
+            setPostEditBusy(false);
             if (btn) { btn.disabled = false; btn.innerText = original; }
         }
     };
