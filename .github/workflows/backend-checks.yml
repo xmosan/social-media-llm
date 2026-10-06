@@ -24,6 +24,8 @@ jobs:
           persist-credentials: false
       - name: Build the production image
         run: docker build --tag sabeel-backend:ci .
+      - name: Test browser save and publish safeguards
+        run: node --test tests/ui/*.test.cjs
       - name: Check installed runtime dependencies
         run: docker run --rm --network none --entrypoint python sabeel-backend:ci -m pip check
       - name: Run isolated backend checks in the production image

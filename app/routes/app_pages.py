@@ -17,6 +17,7 @@ import json
 import html
 import calendar
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 router = APIRouter()
 
@@ -1148,11 +1149,25 @@ async def app_select_account_page(
     """Renders the clean account selection page after OAuth discovery."""
     return HTMLResponse(content=SELECT_ACCOUNT_HTML)
 
+def _calendar_post_time(post, display_tz):
+    value = post.published_time if post.status == "published" and post.published_time else (post.scheduled_time or post.published_time)
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(display_tz)
+
+
 @router.get("/app/calendar", response_class=HTMLResponse)
 async def app_calendar_page(
     user: User = Depends(require_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    tz: str = "UTC",
 ):
+    try:
+        display_tz = ZoneInfo(tz)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise HTTPException(status_code=422, detail="Invalid calendar timezone") from None
     # REMOVED FORCED ONBOARDING REDIRECT
     org = db.query(Org).filter(Org.id == user.active_org_id).first()
     
@@ -1162,7 +1177,7 @@ async def app_calendar_page(
 
     admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""
     
-    today = datetime.now(timezone.utc)
+    today = datetime.now(display_tz)
     year = today.year
     month = today.month
     
@@ -1171,15 +1186,15 @@ async def app_calendar_page(
     month_days = cal.monthdayscalendar(year, month)
     
     # Range for query
-    month_start = datetime(year, month, 1)
+    month_start = datetime(year, month, 1, tzinfo=display_tz)
     if month == 12:
-        month_end = datetime(year + 1, 1, 1)
+        month_end = datetime(year + 1, 1, 1, tzinfo=display_tz)
     else:
-        month_end = datetime(year, month + 1, 1)
+        month_end = datetime(year, month + 1, 1, tzinfo=display_tz)
 
-    # Use a wider range to avoid TZ boundary issues
-    query_start = month_start - timedelta(days=1)
-    query_end = month_end + timedelta(days=1)
+    # Query UTC instants for this local calendar month, including DST changes.
+    query_start = month_start.astimezone(timezone.utc)
+    query_end = month_end.astimezone(timezone.utc)
         
     # Filter by Active Account
     posts = db.query(Post).filter(
@@ -1193,9 +1208,10 @@ async def app_calendar_page(
     
     # Map posts to days
     post_map = {}
+    display_times = {p.id: _calendar_post_time(p, display_tz) for p in posts}
     for p in posts:
-        dt = p.scheduled_time or p.published_time
-        if not dt: continue
+        dt = display_times[p.id]
+        if not dt or (dt.year, dt.month) != (year, month): continue
         day = dt.day
         if day not in post_map: post_map[day] = []
         post_map[day].append(p)
@@ -1244,7 +1260,7 @@ async def app_calendar_page(
                     
                     time_display = ""
                     if dp.status == "scheduled" and dp.scheduled_time:
-                        t_str = dp.scheduled_time.strftime("%I:%M %p").lstrip("0").lower()
+                        t_str = display_times[dp.id].strftime("%I:%M %p").lstrip("0").lower()
                         time_display = f'<div class="text-[8px] font-black text-brand/40 uppercase tracking-widest mb-1.5 flex items-center gap-1.5"><svg class="w-3 h-3 text-brand/30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>{t_str}</div>'
                     
                     # Ensure scheduled_time string is safe for JS
@@ -1294,12 +1310,12 @@ async def app_calendar_page(
     # Map posts to a list of HTML snippets
     scheduled_posts_html = []
     # Upcoming reminders (from now onwards)
-    upcoming_posts = [p for p in posts if p.status == "scheduled" and p.scheduled_time and p.scheduled_time >= today]
-    upcoming_posts.sort(key=lambda x: x.scheduled_time)
+    upcoming_posts = [p for p in posts if p.status == "scheduled" and display_times[p.id] and display_times[p.id] >= today]
+    upcoming_posts.sort(key=lambda x: display_times[x.id])
     
     for p in upcoming_posts[:7]:
         caption = p.caption[:60] if p.caption else "Untitled Post"
-        time_str = p.scheduled_time.strftime("%b %d, %I:%M %p").lstrip("0").replace(" 0", " ")
+        time_str = display_times[p.id].strftime("%b %d, %I:%M %p").lstrip("0").replace(" 0", " ")
         sched_time_str = p.scheduled_time.isoformat() if p.scheduled_time else ""
         scheduled_posts_html.append(f"""
             <div class="flex items-start gap-4 p-4 bg-brand/[0.01] rounded-2xl border border-transparent hover:bg-white hover:shadow-sm hover:border-brand/10 transition-all duration-300 group cursor-pointer" onclick="openEditPostModal('{p.id}', {html.escape(json.dumps(p.caption or 'Suggested Reminder'))}, '{sched_time_str}')">
@@ -1330,6 +1346,7 @@ async def app_calendar_page(
             <div>
                 <h1 class="heading-premium text-4xl tracking-tight">Content Planner</h1>
                 <p class="text-premium-muted mt-2 text-sm">Organize and schedule your upcoming guidance</p>
+                <p class="text-premium-muted mt-1 text-xs">Times shown in {html.escape(tz)}</p>
             </div>
             <div class="flex items-center gap-4">
                 <div class="hidden md:flex items-center gap-6 px-5 py-3 bg-white border border-brand/5 rounded-2xl shadow-sm">
