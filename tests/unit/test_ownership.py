@@ -3,7 +3,9 @@
 import importlib.util
 from pathlib import Path
 import tempfile
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
+
+import httpx
 
 from test_security import DatabaseCase
 from fastapi import FastAPI, HTTPException
@@ -14,7 +16,7 @@ from sqlalchemy.ext.compiler import compiles
 from app.config import settings
 from app.db import get_db
 from app.models import ContentItem, ContentProfile, ContentSource, IGAccount, MediaAsset, Org, Post, StyleDNA, TopicAutomation
-from app.routes import automations, media, posts, studio
+from app.routes import automations, ig_accounts, media, posts, studio
 from app.security.auth import get_current_user
 from app.security.rbac import get_current_org_id
 from app.security.ownership import require_content_item, validate_automation_links
@@ -67,10 +69,56 @@ class OwnershipTests(DatabaseCase):
         self.app.dependency_overrides[get_db] = lambda: self.db
         self.app.dependency_overrides[get_current_org_id] = lambda: 1
         self.app.dependency_overrides[get_current_user] = lambda: None
-        for router in (studio.router, posts.router, media.router, automations.router):
+        for router in (studio.router, posts.router, media.router, automations.router, ig_accounts.router):
             self.app.include_router(router)
         self.client = TestClient(self.app)
         self.addCleanup(self.client.close)
+
+    def test_account_health_uses_publisher_api_and_header_auth(self):
+        from app.services.publisher import GRAPH_URL
+        response = httpx.Response(200, json={"id": "fixture-1", "username": "fixture"})
+        with patch.object(httpx.AsyncClient, "get", AsyncMock(return_value=response)) as check:
+            result = self.client.get("/ig-accounts/1/health")
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json(), {"healthy": True, "status": "connected", "username": "fixture"})
+        check.assert_awaited_once_with(f"{GRAPH_URL}/fixture-1", params={"fields": "id,username"},
+                                      headers={"Authorization": "Bearer fake-test-token"}, timeout=10, follow_redirects=False)
+
+    def test_account_health_rejects_foreign_or_missing_accounts_before_network(self):
+        with patch.object(httpx.AsyncClient, "get", AsyncMock()) as check:
+            for id_ in (2, 999):
+                self.assertEqual(self.client.get(f"/ig-accounts/{id_}/health").status_code, 404)
+            check.assert_not_awaited()
+
+    def test_account_health_missing_token_is_disconnected(self):
+        self.db.get(IGAccount, 1).access_token = ""
+        self.db.commit()
+        with patch.object(httpx.AsyncClient, "get", AsyncMock()) as check:
+            result = self.client.get("/ig-accounts/1/health")
+            check.assert_not_awaited()
+        self.assertFalse(result.json()["healthy"])
+        self.assertEqual(result.json()["status"], "disconnected")
+
+    def test_account_health_provider_rejection_does_not_expose_response_or_claim_expiry(self):
+        response = httpx.Response(400, json={"error": {"message": "private provider body fake-test-token"}})
+        with patch.object(httpx.AsyncClient, "get", AsyncMock(return_value=response)):
+            result = self.client.get("/ig-accounts/1/health")
+        self.assertEqual(result.json()["status"], "needs_attention")
+        self.assertNotIn("private provider body", result.text)
+        self.assertNotIn("fake-test-token", result.text)
+        self.assertNotIn("expired", result.text.lower())
+
+    def test_account_health_outage_malformed_or_wrong_account_is_not_connected(self):
+        for response in (httpx.Response(503, json={}), httpx.Response(200, text="not JSON"),
+                         httpx.Response(200, json=[]), httpx.Response(200, json={"id": "other", "username": "fixture"})):
+            with patch.object(httpx.AsyncClient, "get", AsyncMock(return_value=response)):
+                result = self.client.get("/ig-accounts/1/health")
+            self.assertFalse(result.json()["healthy"])
+            self.assertEqual(result.json()["status"], "unavailable")
+        with patch.object(httpx.AsyncClient, "get", AsyncMock(side_effect=httpx.ConnectError("fake-test-token"))):
+            result = self.client.get("/ig-accounts/1/health")
+        self.assertEqual(result.json()["status"], "unavailable")
+        self.assertNotIn("fake-test-token", result.text)
 
     def test_studio_rejects_foreign_inactive_and_invalid_accounts(self):
         for account, status in [(2, 403), (3, 422), (999, 403), ("bad", 422)]:
