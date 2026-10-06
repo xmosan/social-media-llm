@@ -7,7 +7,8 @@ from typing import List
 from app.db import get_db
 from app.models import TopicAutomation, IGAccount, Post
 from app.schemas import TopicAutomationOut, TopicAutomationCreate, TopicAutomationUpdate, PostOut
-from app.security.rbac import get_current_org_id
+from app.security.rbac import get_current_org_id, require_superadmin
+from app.security.ownership import require_account, validate_automation_links
 from app.services.scheduler import reload_automation_jobs
 from app.services.llm import generate_topic_caption
 
@@ -49,10 +50,7 @@ def create_automation(
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id)
 ):
-    # Verify account ownership
-    acc = db.query(IGAccount).filter(IGAccount.id == data.ig_account_id, IGAccount.org_id == org_id).first()
-    if not acc:
-        raise HTTPException(status_code=403, detail="IG Account not found in your organization")
+    validate_automation_links(db, org_id, data.model_dump())
     
     # Filter out fields that don't exist in the model
     model_data = data.dict()
@@ -63,6 +61,11 @@ def create_automation(
         org_id=org_id,
         **filtered_data
     )
+    from app.services.automation_schedule import automation_triggers
+    try:
+        automation_triggers(require_account(db, org_id, new_auto.ig_account_id, active=True), new_auto)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
     db.add(new_auto)
     db.commit()
     db.refresh(new_auto)
@@ -159,7 +162,7 @@ def simulate_v2_growth_plan(
         print(f"❌ [SIMULATION_ERROR] {e}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/run-scheduler-now")
+@router.post("/run-scheduler-now", dependencies=[Depends(require_superadmin)])
 def run_scheduler_now(
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id)
@@ -194,8 +197,18 @@ def update_automation(
         raise HTTPException(status_code=404, detail="Automation not found")
     
     update_data = data.dict(exclude_unset=True)
+    validate_automation_links(db, org_id, update_data)
+    if update_data.get("enabled"):
+        require_account(db, org_id, auto.ig_account_id, active=True)
     valid_cols = [c.key for c in TopicAutomation.__table__.columns]
-    
+    if update_data.get("enabled") or set(update_data).intersection({"frequency", "custom_days", "post_time_local", "timezone", "posts_per_day", "post_spacing_hours"}):
+        from types import SimpleNamespace
+        from app.services.automation_schedule import automation_triggers
+        proposed = SimpleNamespace(**{**{key: getattr(auto, key) for key in valid_cols}, **update_data})
+        try:
+            automation_triggers(require_account(db, org_id, proposed.ig_account_id, active=True), proposed)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error))
     for k, v in update_data.items():
         if k in valid_cols:
             setattr(auto, k, v)

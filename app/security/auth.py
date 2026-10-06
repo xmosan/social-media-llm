@@ -2,17 +2,20 @@
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
 import hashlib
-from typing import Annotated
+import hmac
 from datetime import datetime, timedelta, timezone as dt_timezone
 import jwt
 import bcrypt
-from fastapi import Request, HTTPException, Depends, Header, Cookie, status
+from fastapi import Request, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 from app.db import get_db
-from app.models import User, ApiKey, OrgMember
+from app.models import User, ApiKey
 from app.config import settings
 
 ALGORITHM = "HS256"
+# Hash of the public default API key used by the retired startup bootstrap.
+# Reject it even if an old database row or environment setting still contains it.
+RETIRED_BOOTSTRAP_KEY_HASH = "46aabbfbfc926e9847f4edf2948414a8f69c169c94825c4bfe2fe501ef032ee0"
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
@@ -50,40 +53,43 @@ def get_current_user(
     if not token:
         x_api_key = request.headers.get("X-API-Key")
         if x_api_key:
+            hashed_key = hashlib.sha256(x_api_key.encode()).hexdigest()
+            if hashed_key == RETIRED_BOOTSTRAP_KEY_HASH:
+                return None
             # Superadmin bypass
-            if settings.admin_api_key and x_api_key == settings.admin_api_key:
-                superadmin = db.query(User).filter(User.is_superadmin == True).first()
-                if superadmin:
-                    return superadmin
+            if settings.admin_api_key and hmac.compare_digest(
+                x_api_key.encode(), settings.admin_api_key.encode()
+            ):
+                return db.query(User).filter(
+                    User.is_superadmin == True, User.is_active == True
+                ).first()
             
             # Legacy API key lookup
-            hashed_key = hashlib.sha256(x_api_key.encode()).hexdigest()
             api_key_record = db.query(ApiKey).filter(
                 ApiKey.key_hash == hashed_key, 
                 ApiKey.revoked_at == None
             ).first()
             
             if api_key_record:
+                # An organization key is a scoped service credential, not a user.
+                # Only get_current_org_id consumes this scope; user/admin routes
+                # must never inherit a member's identity or privileges.
                 request.state.api_key_org_id = api_key_record.org_id
-                # Find any user in that org to act as the authenticated user
-                org_member = db.query(OrgMember).filter(OrgMember.org_id == api_key_record.org_id).first()
-                if org_member:
-                    return db.query(User).filter(User.id == org_member.user_id).first()
-                
-                # Fallback to superadmin if org has no users
-                superadmin = db.query(User).filter(User.is_superadmin == True).first()
-                return superadmin
         return None
 
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
-        if user_id is None:
+        if not isinstance(user_id, str) or len(user_id) > 10 or not user_id.isascii() or not user_id.isdecimal():
+            return None
+        user_id = int(user_id)
+        # User IDs are PostgreSQL signed integers. Reject invalid subjects before SQL.
+        if not 0 < user_id <= 2_147_483_647:
             return None
     except jwt.PyJWTError:
         return None
         
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    user = db.query(User).filter(User.id == user_id).first()
     if not user or not user.is_active:
         return None
         

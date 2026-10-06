@@ -312,59 +312,33 @@ def get_system_health(
     db: Session = Depends(get_db),
     admin_user: User = Depends(require_superadmin)
 ):
-    """
-    Step 3 & 4: Comprehensive production health check.
-    Calculates table counts and performs a safe transactional write/delete test.
-    """
-    # 1. DB Row Counts
+    """Read-only diagnostics; configuration is not proof of backup recovery."""
+    from fastapi.responses import JSONResponse
+    from app.config import settings
     try:
-        counts = {
-            "waitlist": db.query(WaitlistEntry).count(),
-            "users": db.query(User).count(),
-            "posts": db.query(Post).count(),
-            "orgs": db.query(Org).count()
-        }
-    except Exception as e:
-        print(f"❌ [HEALTH] Connection Failed: {e}")
-        return {"status": "unhealthy", "database": "disconnected", "error": str(e)}
-
-    # 2. STEP 4: SAFE WRITE TEST
-    write_test = False
-    try:
-        test_email = "healthcheck@sabeel.test"
-        # Cleanup any previous leaked tests
-        db.query(WaitlistEntry).filter(WaitlistEntry.email == test_email).delete()
-        
-        # Insert
-        test_entry = WaitlistEntry(
-            email=test_email, 
-            name="System Health Check", 
-            source="internal_testing"
-        )
-        db.add(test_entry)
-        db.flush()
-        
-        # Query/Verify
-        verified = db.query(WaitlistEntry).filter(WaitlistEntry.email == test_email).first()
-        if verified:
-            # Delete
-            db.delete(verified)
-            db.commit()
-            write_test = True
-    except Exception as e:
+        with db.no_autoflush:
+            counts = {
+                "waitlist": db.query(WaitlistEntry).count(),
+                "users": db.query(User).count(),
+                "posts": db.query(Post).count(),
+                "orgs": db.query(Org).count(),
+            }
+    except Exception:
         db.rollback()
-        print(f"❌ [HEALTH] Write Test Failed: {e}")
-        write_error = str(e)
-    
-    if write_test:
-        print("✅ Write test passed")
-        import logging
-        logging.getLogger("social-media-llm").info("[HEALTH] Passed")
-    
+        return JSONResponse(status_code=503, content={
+            "status": "unhealthy", "database": "unavailable", "write_test": "not_run",
+            "backup_status": "unverified", "backup_verified": False,
+            "error": "Database diagnostics are unavailable",
+        })
+    durable_configured = settings.backup_storage_type.lower() == "s3" and all((
+        settings.s3_access_key, settings.s3_secret_key, settings.s3_bucket_name,
+    ))
     return {
-        "status": "healthy" if write_test else "degraded",
+        "status": "healthy" if durable_configured else "degraded",
         "database": "connected",
-        "write_test": "passed" if write_test else "failed",
+        "write_test": "not_run",
+        "backup_status": "configured" if durable_configured else "not_configured",
+        "backup_verified": False,
         "tables": counts,
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }

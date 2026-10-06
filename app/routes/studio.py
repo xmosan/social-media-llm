@@ -6,8 +6,12 @@ import json
 
 from app.db import get_db
 from sqlalchemy.orm import Session
-from app.models import Post
+from app.models import Post, User
 from app.security.rbac import get_current_org_id
+from app.security.auth import require_user, get_current_user
+from app.security.ownership import require_account
+from app.services.source_grounding import resolve_selected_source
+from app.services.post_service import get_mutable_post, prepare_scheduled_post
 
 from app.services.quote_message_service import build_quote_card_message
 from app.services.visual_service import VisualRequest, generate_visual
@@ -40,8 +44,9 @@ def _parse_scheduled_at(value: str | None) -> datetime | None:
 router = APIRouter(prefix="/api/studio", tags=["studio"])
 
 
-@router.post("/generate-card-message")
-def studio_generate_card_message(data: dict):
+@router.post("/generate-card-message", dependencies=[Depends(require_user)])
+def studio_generate_card_message(data: dict, db: Session = Depends(get_db),
+                                 org_id: int = Depends(get_current_org_id), user: User = Depends(require_user)):
     """
     Phase 3: Generate strictly the structured card message payload.
     Separated from caption generation.
@@ -53,15 +58,21 @@ def studio_generate_card_message(data: dict):
     intent = data.get("intent", "wisdom")
 
     try:
+        source_payload = resolve_selected_source(db, org_id, source_type, source_payload, user.id)
         card_msg = build_quote_card_message(source_type, source_payload, tone, intent)
-        return {"card_message": card_msg}
+        return {"card_message": card_msg, "source_metadata": source_payload}
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[STUDIO] Card Message generation failed: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
-@router.post("/generate-caption")
-def studio_generate_caption(data: dict):
+@router.post("/generate-caption", dependencies=[Depends(require_user)])
+def studio_generate_caption(data: dict, db: Session = Depends(get_db),
+                            org_id: int = Depends(get_current_org_id), user: User = Depends(require_user)):
     """
     Phase 3: Generate the social media caption explicitly.
     Does NOT affect or generate visual card text.
@@ -77,6 +88,10 @@ def studio_generate_caption(data: dict):
     tone = data.get("tone", "calm")
     intention = data.get("intention") or data.get("intent")
     topic = data.get("topic")
+    try:
+        source_payload = resolve_selected_source(db, org_id, source_type, source_payload, user.id)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
 
     # ── Hadith: grounded caption from exact metadata ───────────────────────────
     if source_type == "hadith":
@@ -101,7 +116,7 @@ def studio_generate_caption(data: dict):
             return {"caption": caption}
         except Exception as e:
             logger.error(f"[STUDIO] Quran grounded caption failed: {e}")
-            # Fall through to topic-based generation below
+            raise HTTPException(status_code=422, detail="Could not generate a caption for the selected verse")
 
     # ── Quran fallback: inject reference into topic for topic-based search ─────
     if source_payload and source_type == "quran":
@@ -120,7 +135,7 @@ def studio_generate_caption(data: dict):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
-@router.post("/generate-visual")
+@router.post("/generate-visual", dependencies=[Depends(require_user)])
 def studio_generate_visual(data: dict):
     """
     Phase 3: Route explicitly into Visual Service Facade for all Studio image generation.
@@ -153,7 +168,8 @@ def studio_generate_visual(data: dict):
 
 
 @router.post("/create-post")
-def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
+def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id),
+                       user: User | None = Depends(get_current_user)):
     """
     Phase 3: Safely create a one-off post by assembling the separated payloads.
     Guarantees structural traceability for source data mapping.
@@ -167,11 +183,22 @@ def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = 
     ig_account_id = data.get("ig_account_id")
     if not ig_account_id:
         raise HTTPException(status_code=400, detail="ig_account_id required")
+    account = require_account(db, org_id, ig_account_id, active=True)
+    ig_account_id = account.id
 
     source_type = data.get("source_type", "manual")
     source_reference = data.get("source_reference")
     source_metadata = data.get("source_metadata")
     source_text = data.get("source_text") or data.get("topic") or ""
+    if source_type in {"quran", "hadith"}:
+        try:
+            source_metadata = resolve_selected_source(db, org_id, source_type, source_metadata or {}, user.id if user else None)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error))
+        if source_reference and source_reference != source_metadata["reference"]:
+            raise HTTPException(status_code=422, detail="Post reference does not match the selected source")
+        source_reference = source_metadata["reference"]
+        source_text = source_metadata["translation_text"]
 
     # ── Hadith Source Integrity Validation Gate ────────────────────────────────
     if source_type == "hadith":
@@ -207,6 +234,13 @@ def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = 
         except Exception:
             card_msg = None
 
+    if source_type in {"quran", "hadith"}:
+        from app.services.source_grounding import validate_source_card
+        try:
+            validate_source_card(card_msg, source_metadata, source_type)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error))
+
     # Derive source_foundation for the Post model
     if source_type == "hadith":
         source_foundation = "hadith"
@@ -221,12 +255,16 @@ def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = 
     # This is the single source of truth for both the Studio and Planning calendar.
     raw_scheduled_at = data.get("scheduled_at")
     scheduled_time = _parse_scheduled_at(raw_scheduled_at)
+    if raw_scheduled_at and scheduled_time is None:
+        raise HTTPException(status_code=422, detail="Invalid scheduled_at format. Use ISO 8601.")
 
     # Determine final status
     if scheduled_time:
         final_status = "scheduled"
     else:
         final_status = data.get("status", "drafted")
+    if final_status not in {"drafted", "needs_review", "scheduled"}:
+        raise HTTPException(status_code=422, detail="Invalid initial post status")
 
     post = Post(
         org_id=org_id,
@@ -250,6 +288,10 @@ def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = 
         source_foundation=source_foundation,
     )
 
+    if final_status == "scheduled":
+        if not scheduled_time:
+            raise HTTPException(status_code=422, detail="A scheduled time is required")
+        prepare_scheduled_post(db, post)
     db.add(post)
     db.commit()
     db.refresh(post)
@@ -289,14 +331,16 @@ def studio_schedule_post(
     if not raw_scheduled_at:
         raise HTTPException(status_code=400, detail="scheduled_at required")
 
-    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
+    post = get_mutable_post(db, post_id, org_id)
 
+    require_account(db, org_id, post.ig_account_id, active=True)
+    if post.status in {"published", "publishing", "publish_unknown"}:
+        raise HTTPException(status_code=409, detail="This post cannot be scheduled again")
     scheduled_time = _parse_scheduled_at(raw_scheduled_at)
     if not scheduled_time:
         raise HTTPException(status_code=400, detail="Invalid scheduled_at format. Use ISO 8601.")
 
+    prepare_scheduled_post(db, post)
     post.scheduled_time = scheduled_time
     post.status = "scheduled"
     db.commit()

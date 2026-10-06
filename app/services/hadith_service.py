@@ -63,11 +63,8 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _active_provider() -> str:
-    """
-    Returns 'sunnah_now' when HADITH_API_KEY is configured,
-    'fallback_cdn' otherwise.
-    """
-    return "sunnah_now" if settings.hadith_api_key else "fallback_cdn"
+    """The configured provider remains sunnah.now even when credentials are missing."""
+    return "sunnah_now"
 
 
 def _sunnah_now_base() -> str:
@@ -534,10 +531,13 @@ def get_hadith_by_reference(collection_key: str, hadith_number: int) -> Optional
     Fetches an exact hadith by collection key and hadith number.
 
     Uses sunnah.now (primary) if HADITH_API_KEY is set.
-    Falls back to fawazahmed0 CDN if no key is configured.
+    Missing credentials fail clearly; the provider is never substituted.
 
     SAFETY: Returns only what the API provides. No fields are fabricated.
     """
+    if not settings.hadith_api_key:
+        raise ValueError("Hadith source is unavailable: sunnah.now is not configured")
+
     provider = _active_provider()
     logger.info(f"[HADITH] get_hadith_by_reference provider={provider} {collection_key}#{hadith_number}")
 
@@ -556,12 +556,15 @@ def search_hadith(query: str, collection_key: Optional[str] = None, limit: int =
     Searches Hadith text for the given query string.
 
     Uses sunnah.now (primary) if HADITH_API_KEY is set.
-    Falls back to fawazahmed0 CDN if no key is configured.
+    Missing credentials fail clearly; the provider is never substituted.
 
     SAFETY: Returns only real hadiths. No fabricated results.
     """
     if not query or not query.strip():
         return []
+
+    if not settings.hadith_api_key:
+        raise ValueError("Hadith source is unavailable: sunnah.now is not configured")
 
     provider = _active_provider()
     logger.info(f"[HADITH] search_hadith provider={provider} query='{query}'")

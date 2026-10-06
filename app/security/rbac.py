@@ -5,11 +5,11 @@ from fastapi import Request, HTTPException, Depends, Header, status
 from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import User, OrgMember, Org
-from app.security.auth import require_user
+from app.security.auth import get_current_user, require_user
 
 def get_current_org_id(
     request: Request,
-    user: User = Depends(require_user),
+    user: User | None = Depends(get_current_user),
     org_id: str | None = Header(default=None, alias="X-Org-Id"),
     db: Session = Depends(get_db)
 ) -> int:
@@ -17,17 +17,23 @@ def get_current_org_id(
     Drop-in replacement for require_api_key.
     Returns the org_id the request is authorized for based on user membership and scoping.
     """
-    # 1. Check if the auth system already determined an org_id via legacy API Key compat mode
-    if hasattr(request.state, "api_key_org_id"):
-        return request.state.api_key_org_id
-
-    # 2. Check explicitly requested org
+    # Parse explicit scoping before choosing either a service or user principal.
     target_org_id = None
     if org_id:
         try:
             target_org_id = int(org_id)
         except ValueError:
-            pass
+            raise HTTPException(status_code=400, detail="Invalid X-Org-Id")
+        if target_org_id <= 0 or target_org_id > 2_147_483_647:
+            raise HTTPException(status_code=400, detail="Invalid X-Org-Id")
+
+    key_org_id = getattr(request.state, "api_key_org_id", None)
+    if key_org_id is not None:
+        if target_org_id is not None and target_org_id != key_org_id:
+            raise HTTPException(status_code=403, detail="API key cannot access this organization")
+        return key_org_id
+
+    user = require_user(user)
 
     if target_org_id:
         if user.is_superadmin:
@@ -52,7 +58,15 @@ def get_current_org_id(
 
     # 3. Use active_org_id if set
     if user.active_org_id:
-        return user.active_org_id
+        if user.is_superadmin:
+            return user.active_org_id
+        membership = db.query(OrgMember).filter(
+            OrgMember.user_id == user.id,
+            OrgMember.org_id == user.active_org_id,
+        ).first()
+        if membership:
+            return user.active_org_id
+        raise HTTPException(status_code=403, detail="You no longer have access to the active organization")
 
     # 4. Fallback behavior: return the first org the user belongs to
     if user.is_superadmin:

@@ -55,6 +55,7 @@ class StyleDNASpec:
     Phase 1: This spec is built from the legacy `style_preset` string.
     Phase 2: This will be loaded from the `style_dna` table.
     """
+    style_id: Optional[int] = None
     family: str = "sacred_black"
     atmosphere: str = "contemplative"
     ornament_level: str = "corner"
@@ -255,10 +256,10 @@ def get_automation_style_dna(db: Session, automation: TopicAutomation) -> StyleD
     Returns a StyleDNASpec (always — uses 'islamic_reminder' as fallback).
     """
     from app.models import StyleDNA, Post
-    from app.services.rotation_engine import pick_style
+    from app.services.rotation_engine import pick_style, latest_rotation
 
     pool = getattr(automation, "style_dna_pool", []) or []
-    last_style_id = (getattr(automation, "flags", {}) or {}).get("last_style_id")
+    last_style_id = latest_rotation(automation.id, db).get("rotation_style_id")
 
     # Intelligent pick: avoid back-to-back same style
     selected_dna_id = pick_style(pool, last_style_id=last_style_id)
@@ -273,6 +274,7 @@ def get_automation_style_dna(db: Session, automation: TopicAutomation) -> StyleD
             logger.info(f"[STYLE_DNA] Selected: '{db_obj.name}' (id={selected_dna_id}, "
                         f"last={last_style_id}, pool={pool})")
             return StyleDNASpec(
+                style_id=selected_dna_id,
                 family=db_obj.family,
                 atmosphere=db_obj.atmosphere,
                 ornament_level=db_obj.ornament_level,

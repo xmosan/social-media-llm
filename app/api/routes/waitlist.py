@@ -97,7 +97,7 @@ async def waitlist_join(
         logger.error(f"Error saving waitlist entry: {e}")
         raise HTTPException(status_code=500, detail="Database error occurred.")
 
-@router.get("/stats")
+@router.get("/stats", dependencies=[Depends(require_superadmin)])
 def get_waitlist_stats(db: Session = Depends(get_db)):
     """
     Returns high-level growth analytics for the waitlist.
@@ -133,7 +133,7 @@ def get_waitlist_stats(db: Session = Depends(get_db)):
         "top_utm_sources": {s[0]: s[1] for s in utm_sources_query}
     }
 
-@router.get("/export")
+@router.get("/export", dependencies=[Depends(require_superadmin)])
 def export_waitlist_csv(db: Session = Depends(get_db)):
     """
     Generates and returns a CSV export of all waitlist entries.
@@ -171,7 +171,7 @@ def export_waitlist_csv(db: Session = Depends(get_db)):
         headers={"Content-Disposition": 'attachment; filename="waitlist.csv"'}
     )
 
-@router.get("/all")
+@router.get("/all", dependencies=[Depends(require_superadmin)])
 def get_all_entries(
     limit: int = 100,
     offset: int = 0,

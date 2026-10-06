@@ -1681,7 +1681,9 @@ def render_minimal_quote_card(
     readability_priority: bool = True,
     experimental_mode: bool = False,
     engine: str = "dalle",
-    glossy: bool = False
+    glossy: bool = False,
+    visual_history: dict = None,
+    render_metadata: dict = None
 ) -> str:
     """
     Sabeel Designer Engine v9.0 — Precision Layout & Cinematic Typography.
@@ -1706,7 +1708,7 @@ def render_minimal_quote_card(
     dalle_bg = None
     
     if mode == "custom" and (not visual_prompt or not visual_prompt.strip()):
-        mode = "preset"; style = "quran"
+        raise ValueError("A visual direction is required for a custom background")
 
     # Scene mode: if style is a known scene preset, route to scene pipeline
     _SCENE_KEYS = {
@@ -1735,16 +1737,15 @@ def render_minimal_quote_card(
         except Exception as e:
             print(f"⚠️ [Gallery Mode] Could not load {style}: {e}")
             bg = None
-            mode = "preset"
-            style = "sacred_script"
+            raise ValueError("The selected gallery image is unavailable")
 
     if mode == "custom":
         if _VS_OK:
             vs_spec = vs_interpret(visual_prompt)
-            dalle_bg = generate_background(visual_prompt, target_size, cache_dir=output_dir, engine=engine, vs_spec=vs_spec)
+            dalle_bg = generate_background(visual_prompt, target_size, cache_dir=None if render_metadata is not None else output_dir, engine=engine, vs_spec=vs_spec)
         
         if dalle_bg is None:
-            mode = "preset"
+            raise ValueError("Sabeel Vision could not generate the requested background")
         else:
             bg = dalle_bg
             # Analyze background to detect if it's too bright/busy
@@ -1764,32 +1765,14 @@ def render_minimal_quote_card(
         
         if engine in ("dalle", "gemini") and _VS_OK:
             from app.services.visual_system import compose_scene_prompt
-            scene_prompt = compose_scene_prompt(scene_key, custom_direction=visual_prompt)
+            scene_prompt = compose_scene_prompt(scene_key, custom_direction=visual_prompt, history=visual_history, metadata=render_metadata)
             dalle_bg = generate_background(scene_prompt, target_size, cache_dir=output_dir, engine=engine, vs_spec=None)
             if dalle_bg:
                 bg = dalle_bg
                 # bg = apply_vignette(bg, intensity=0.42)
         
         if bg is None:
-            # PIL fallback: map family-key → valid PRESET_CONFIGS preset
-            _FAMILY_TO_PRESET = {
-                "sacred_black":         "quran",
-                "emerald_forest":       "fajr",
-                "celestial_night":      "laylulqadr",
-                "parchment_manuscript": "scholar",
-                "luxury_marble":        "kaaba",
-                "sacred_desert":        "madinah",
-                # New extended families
-                "royal_velvet":         "midnight",
-                "midnight_ink":         "kaaba",
-                "dawn_horizon":         "madinah",
-                "obsidian_stone":       "quran",
-                "ocean_depth":          "fajr",
-                "warm_copper":          "desert",
-            }
-            mode  = "preset"
-            style = _FAMILY_TO_PRESET.get(scene_key, scene_key)
-            print(f"⚠️ [Scene Fallback] AI generation skipped, using PIL preset={style}")
+            raise ValueError("Sabeel Vision could not generate the requested scene")
 
     if mode == "preset":
         key = style if style in PRESET_CONFIGS else "quran"
@@ -1849,6 +1832,12 @@ def render_minimal_quote_card(
             
         palette = PRESET_TEXT.get(key, PRESET_TEXT["quran"])
         glow_rgba = cfg.get("glow")
+
+    if render_metadata is not None:
+        render_metadata["background_sha256"] = hashlib.sha256(bg.convert("RGB").tobytes()).hexdigest()
+        if mode == "custom" and vs_spec is not None:
+            import json
+            render_metadata["prompt_signature"] = hashlib.sha256(json.dumps({"prompt": visual_prompt, "traits": vs_spec.variation_traits}, sort_keys=True).encode()).hexdigest()
 
     # 2. Typography Adaptation (Visual System v8.5+)
     if _VS_OK:
@@ -2142,4 +2131,3 @@ def render_quote_card(background_local_path: Optional[str], quote: str,
     
     from app.config import build_public_media_url
     return build_public_media_url(fn, local_path=fp2)
-

@@ -1,7 +1,7 @@
 # Copyright (c) 2026 Mohammed Hassan. All rights reserved.
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
-from pydantic import Field
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
@@ -10,8 +10,11 @@ class Settings(BaseSettings):
         env_file_encoding = "utf-8"
         case_sensitive = False
         extra = "ignore"
+        hide_input_in_errors = True
 
-    database_url: str = Field(default="sqlite:///./saas.db", env="DATABASE_URL")
+    database_url: str = Field(default="", repr=False, env="DATABASE_URL")
+    run_startup_migrations: bool = False
+    scheduler_enabled: bool = True
     timezone: str = Field(default="America/Detroit", env="TIMEZONE")
     uploads_dir: str = Field(default="uploads", env="UPLOADS_DIR")
 
@@ -42,9 +45,9 @@ class Settings(BaseSettings):
         print("!"*64 + "\n")
         # Hadith API startup log (never print key value)
         if self.hadith_api_key:
-            print("[HADITH] API configured (HadithAPI.com mode — key loaded)")
+            print("[HADITH] sunnah.now configured (key loaded)")
         else:
-            print("[HADITH] API configured (fawazahmed0 CDN — no key required)")
+            print("[HADITH] sunnah.now unavailable (key missing; no provider fallback)")
         
         if self.hadith_in_automations_enabled:
             print("[HADITH_AUTOMATION] feature_flag_enabled=true")
@@ -67,9 +70,30 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = Field(default=None)
 
     # Auth & security
-    secret_key: str = Field(default="change-me-in-production-for-jwt", env="SECRET_KEY")
+    # One explicitly configured key signs both login tokens and OAuth sessions.
+    secret_key: str = Field(
+        validation_alias=AliasChoices("SECRET_KEY", "JWT_SECRET", "secret_key"),
+        repr=False,
+    )
+    bootstrap_superadmin: bool = False
     superadmin_email: str | None = Field(default=None, env="SUPERADMIN_EMAIL")
-    superadmin_password: str | None = Field(default=None, env="SUPERADMIN_PASSWORD")
+    superadmin_password: str | None = Field(default=None, env="SUPERADMIN_PASSWORD", repr=False)
+
+    @field_validator("secret_key")
+    @classmethod
+    def validate_signing_key(cls, value: str) -> str:
+        if len(value.strip()) < 32:
+            raise ValueError("SECRET_KEY (or JWT_SECRET) must contain at least 32 characters")
+        return value
+
+    @model_validator(mode="after")
+    def validate_bootstrap_credentials(self):
+        if self.bootstrap_superadmin:
+            if not self.superadmin_email or not self.superadmin_email.strip():
+                raise ValueError("SUPERADMIN_EMAIL is required when BOOTSTRAP_SUPERADMIN is enabled")
+            if not self.superadmin_password or len(self.superadmin_password.strip()) < 12:
+                raise ValueError("SUPERADMIN_PASSWORD must contain at least 12 characters when bootstrap is enabled")
+        return self
 
     # Google OAuth
     google_client_id: str | None = Field(default=None, env="GOOGLE_CLIENT_ID")
@@ -83,10 +107,19 @@ class Settings(BaseSettings):
 
     # Backups & Reliability
     backup_storage_type: str = Field(default="local", env="BACKUP_STORAGE_TYPE")
-    s3_access_key: str | None = Field(default=None, env="S3_ACCESS_KEY")
-    s3_secret_key: str | None = Field(default=None, env="S3_SECRET_KEY")
+    s3_access_key: str | None = Field(default=None, repr=False, env="S3_ACCESS_KEY")
+    s3_secret_key: str | None = Field(default=None, repr=False, env="S3_SECRET_KEY")
     s3_bucket_name: str | None = Field(default=None, env="S3_BUCKET_NAME")
     s3_region: str | None = Field(default=None, env="S3_REGION")
+    s3_endpoint_url: str | None = None
+    s3_addressing_style: str = "auto"
+
+    @field_validator("s3_addressing_style")
+    @classmethod
+    def validate_s3_addressing_style(cls, value: str) -> str:
+        if value not in {"auto", "virtual", "path"}:
+            raise ValueError("S3_ADDRESSING_STYLE must be auto, virtual or path")
+        return value
     env_backup_key: str | None = Field(default=None, env="ENV_BACKUP_KEY")
     primary_region: str | None = Field(default=None, env="PRIMARY_REGION")
     secondary_database_url: str | None = Field(default=None, env="SECONDARY_DATABASE_URL")
@@ -103,11 +136,10 @@ class Settings(BaseSettings):
     qf_env: str = Field(default="prod", env="QF_ENV")
 
     # Hadith API
-    # Default: fawazahmed0 CDN (free, no key, no rate limits)
-    # Set HADITH_API_KEY + HADITH_API_BASE_URL to use HadithAPI.com instead
+    # Canonical provider: sunnah.now. Missing configuration must not change providers.
     hadith_api_key: str | None = Field(default=None, env="HADITH_API_KEY")
     hadith_api_base_url: str = Field(
-        default="https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1",
+        default="https://api.sunnah.now",
         env="HADITH_API_BASE_URL"
     )
     # Phase 2 gate: Hadith in automations (enabled)
