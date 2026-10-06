@@ -237,8 +237,12 @@ def get_mutable_post(db: Session, post_id: int, org_id: int) -> Post:
     if post is None:
         raise HTTPException(status_code=404, detail="Post not found")
     publication = (post.flags or {}).get("publication") or {}
-    if post.status in {"published", "publishing", "publish_unknown"} or post.published_time or publication.get("remote_id"):
-        raise HTTPException(status_code=409, detail="This post is published or has an unresolved publishing attempt")
+    if post.status == "published" or post.published_time or publication.get("remote_id"):
+        raise HTTPException(status_code=409, detail="This post has already been published. Editing and sharing it again are disabled.")
+    if post.status == "publishing":
+        raise HTTPException(status_code=409, detail="Publishing is still in progress. Please wait before taking further action.")
+    if post.status == "publish_unknown":
+        raise HTTPException(status_code=409, detail="Instagram has not confirmed the outcome. Check Instagram before retrying.")
     return post
 
 

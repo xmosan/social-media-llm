@@ -65,3 +65,9 @@ class CalendarTests(DatabaseCase):
         with self.assertRaises(HTTPException) as result:
             self.render("not/a-timezone")
         self.assertEqual(result.exception.status_code, 422)
+
+    def test_calendar_passes_published_state_to_the_viewer(self):
+        self.db.add(Post(id=1, org_id=1, ig_account_id=1, status="published", caption="Published fixture",
+                         published_time=datetime(2026, 10, 6, 23, tzinfo=timezone.utc)))
+        self.db.commit()
+        self.assertIn("'', &quot;published&quot;)", self.render("America/Detroit"))
