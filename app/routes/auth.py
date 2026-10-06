@@ -19,30 +19,16 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ) -> dict[str, Any]:
-    print(f"AUTH DIAGNOSTIC: Login attempt for user: {form_data.username}")
     user = db.query(User).filter(func.lower(User.email) == func.lower(form_data.username.strip())).first()
-    
-    if not user:
-        # DEEP DIAGNOSTIC: List all users to see what's in there
-        all_emails = [u.email for u in db.query(User).all()]
-        detail = f"AUTH_ERR_001: User not found ({form_data.username}). DB has {len(all_emails)} users: {all_emails}"
-        print(f"AUTH DIAGNOSTIC: {detail}")
+
+    # Never expose account existence, account state, or the user directory.
+    if (not user or not user.is_active or not user.password_hash
+            or not verify_password(form_data.password, user.password_hash)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=detail,
+            detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-        
-    if not verify_password(form_data.password, user.password_hash):
-        detail = f"AUTH_ERR_002: Password mismatch for {user.email}"
-        print(f"AUTH DIAGNOSTIC: {detail}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=detail,
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-        
-    print(f"AUTH DIAGNOSTIC: Login successful for user: {user.email} (ID: {user.id})")
     
     # Ensure active_org_id is set
     if not user.active_org_id:
@@ -54,7 +40,6 @@ def login(
     access_token = create_access_token(data={"sub": str(user.id)})
     
     # Set HttpOnly cookie for web clients
-    print(f"AUTH DIAGNOSTIC: Setting access_token cookie for {user.email}")
     response.set_cookie(
         key="access_token",
         value=access_token,
