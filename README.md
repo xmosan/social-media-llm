@@ -4,29 +4,46 @@
 
 ## Disaster Recovery Plan
 
-This platform is built with production reliability mechanisms to quickly recover from regional or system-wide disruptions. 
+Recovery requires a verified backup and an explicit cutover. Startup retries the configured PostgreSQL connection three times, then fails. It does not switch to `SECONDARY_DATABASE_URL`, fall back to SQLite, or create/repair the schema. `SECONDARY_DATABASE_URL`, `ENV_BACKUP_KEY`, and `PRIMARY_REGION` are legacy configuration fields; they do not implement automatic failover or environment snapshots.
 
-### How to restore from backup
-1. Obtain the latest `.sql.gz` backup file either from the local `/backups/` directory or your configured S3 bucket (`s3://<BUCKET_NAME>/database_backups/`).
-2. Decompress the file: `gunzip backup_YYYY_MM_DD_HHMM.sql.gz`
-3. Restore the SQL dump to your new PostgreSQL instance using `psql`:
-   `psql <NEW_DATABASE_URL> -f backup_YYYY_MM_DD_HHMM.sql`
-   (Note: Ensure your new database is empty, as the dump contains the entire schema definitions).
+### Backup storage and schedule
 
-### How to switch DATABASE_URL to secondary
-The backend features an automatic connection retry loop with exponential backoff on startup.
-If `DATABASE_URL` (the primary database) fails after 3 sequential connection attempts, the system will seamlessly swap the connection pool to the `SECONDARY_DATABASE_URL` environment variable assuming it is configured. 
+When the application scheduler is enabled, `app/services/scheduler.py` requests a database dump daily at **03:00 UTC**. The administrator's portable-backup action calls the same service in `app/services/backups.py`.
 
-To permanently cutover to a secondary database manually:
-1. Replace `DATABASE_URL` in your `.env` or Railway Variables with the connection string for your read replica or fallback database.
-2. Restart the deployment.
+- The production image includes `pg_dump` 17. Backups are gzip-compressed SQL files named `backup_<timestamp>_<uuid>.sql.gz`.
+- Set `BACKUP_STORAGE_TYPE=s3` and configure `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET_NAME`, and `S3_REGION` through the deployment's secret/configuration store. For Railway buckets, also configure `S3_ENDPOINT_URL` and `S3_ADDRESSING_STYLE=virtual`; use Railway reference variables for credentials.
+- Remote objects live under `database_backups/`. The service verifies the uploaded object's size and attempts to retain the latest 14 remote snapshots. Retention failures are logged separately.
+- Local copies are in the process working directory's `backups/` folder (`/app/backups` in the image). They are not durable on an unmounted Railway application filesystem. The administrator download endpoint only retrieves local copies.
+- Railway's native volume backups are separate from these SQL dumps. Check their schedule and completed snapshots in **Postgres → Backups**. Point-in-time recovery is another, separately configured feature.
 
-### How to redeploy in new region
-If the `PRIMARY_REGION` cluster is inaccessible due to a provider outage:
-1. Verify you have the most recent encrypted Environment Config snapshot generated. 
-2. Spin up a new Railway project or Docker host in the secondary region.
-3. Decrypt your environment variables locally using the `ENV_BACKUP_KEY` and inject them into the new host deployment's variables.
-4. Set `DATABASE_URL` to your fallback database. Alternatively, provision a fresh PostgreSQL database in the new region and restore the latest S3 SQL.gz backup to it.
+A successful upload is not proof of restoration. Check the latest remote object's timestamp and test recovery periodically. A daily schedule does not guarantee a recovery point if the application or backup job is unavailable.
+
+### Restore into an isolated database first
+
+1. Obtain approval before handling a production backup. Download a selected `.sql.gz` object from private remote storage into a restricted temporary directory; do not commit it or print its contents. The dump can contain credentials and private user data.
+2. Provision a separate, empty PostgreSQL 17 database from `template0`. Verify its host and name are not production. Do not start the application, scheduler, or provider integrations against the restored copy.
+3. Configure libpq connection settings for that disposable target, using a protected password file or secret injection rather than credentials in shell arguments. Check archive integrity with `gzip -t`, then restore with the PostgreSQL client:
+
+   ```sh
+   # PGHOST, PGPORT, PGUSER, and PGDATABASE must identify the disposable target.
+   # BACKUP_FILE must identify the approved local .sql.gz copy.
+   set -o pipefail
+   gzip -t "$BACKUP_FILE" && gzip -dc "$BACKUP_FILE" | psql -X --set ON_ERROR_STOP=on --single-transaction
+   ```
+
+   These dumps contain `--clean --if-exists` statements: restoring can drop objects in the target. Never aim a recovery drill at production. They omit object ownership but may retain grants; any referenced roles must be reviewed and provisioned on the isolated target. Do not ignore SQL errors. See [PostgreSQL's SQL-dump restoration guidance](https://www.postgresql.org/docs/17/backup-dump.html#BACKUP-DUMP-RESTORE).
+4. Verify schema, row counts, organization/account relationships, exact source metadata, separate card/caption fields, schedules, and saved publication IDs/statuses using read-only checks. Record the snapshot timestamp, restore duration, and results without recording private rows. Do not publish recovered jobs as a test.
+5. Remove the disposable database and temporary dump through the approved cleanup process. Keep the remote recovery snapshot.
+
+CI exercises real PostgreSQL dump/restore with synthetic fixtures in `tests/postgres/test_backend_postgres.py`, including source metadata and uncertain publication state. That proves the tested mechanism; it does not certify an actual production backup. Production restoration must be recorded separately after a drill.
+
+### Manual cutover or deployment in a new region
+
+1. Approve a maintenance window, confirm a current backup, and record the existing deployment/database target for rollback. Stop the old application's writers and scheduler before cutover to avoid competing publishers or divergent data.
+2. Restore to and verify a separate target as above. Provision the application from the intended commit and inject configuration from the existing secure configuration store; the application does not generate encrypted environment snapshots. Preserve the shared session signing key and required provider configuration without placing secrets in Git or logs.
+3. Set `DATABASE_URL` to the verified target, initially with `SCHEDULER_ENABLED=false`, and deploy. Startup performs a read-only schema check. Resolve missing schema through a reviewed migration, not startup synchronization or table recreation.
+4. Verify `/health` and `/ready`, authentication, organization isolation, and saved source/card/caption data. Review overdue schedules and reconcile uncertain Instagram publication results before enabling one scheduler. Do not retry uncertain publishing blindly.
+5. Re-enable scheduling only after the old instance is stopped and the recovered state is reviewed. If rollback is necessary, stop the new instance first. Account for any writes accepted after cutover before returning to the old database; switching URLs alone does not reconcile them.
 
 ## Centralized Observability (Axiom)
 
