@@ -168,3 +168,41 @@ class BackupChecks(unittest.TestCase):
         response = admin_backup.download_latest_backup()
         self.assertEqual(Path(response.path), dump)
         self.assertEqual(response.headers["cache-control"], "no-store")
+
+    def test_railway_s3_endpoint_region_and_addressing_are_separate(self):
+        with patch.object(settings, "s3_access_key", "fixture-key"), patch.object(settings, "s3_secret_key", "fixture-secret"), patch.object(settings, "s3_bucket_name", "fixture-bucket"), patch.object(settings, "s3_region", "auto"), patch.object(settings, "s3_endpoint_url", "https://storage.example.test"), patch.object(settings, "s3_addressing_style", "virtual"), patch.object(backups.boto3, "client") as client:
+            backups._get_s3_client()
+        self.assertEqual(client.call_args.kwargs["endpoint_url"], "https://storage.example.test")
+        self.assertEqual(client.call_args.kwargs["region_name"], "auto")
+        self.assertEqual(client.call_args.kwargs["config"].s3["addressing_style"], "virtual")
+
+    def test_legacy_endpoint_in_region_remains_compatible(self):
+        with patch.object(settings, "s3_access_key", "fixture-key"), patch.object(settings, "s3_secret_key", "fixture-secret"), patch.object(settings, "s3_bucket_name", "fixture-bucket"), patch.object(settings, "s3_region", "https://legacy.example.test"), patch.object(settings, "s3_endpoint_url", None), patch.object(backups.boto3, "client") as client:
+            backups._get_s3_client()
+        self.assertEqual(client.call_args.kwargs["endpoint_url"], "https://legacy.example.test")
+        self.assertIsNone(client.call_args.kwargs["region_name"])
+
+    def test_remote_upload_is_checked_before_reporting_durability(self):
+        file = Path(self.directory.name) / "fixture.gz"
+        file.write_bytes(b"fixture")
+        client = Mock()
+        with patch.object(backups, "_get_s3_client", return_value=client):
+            client.head_object.return_value = {"ContentLength": 7}
+            self.assertTrue(backups._s3_upload(str(file), "database_backups/fixture.gz"))
+            client.head_object.return_value = {"ContentLength": 1}
+            self.assertFalse(backups._s3_upload(str(file), "database_backups/fixture.gz"))
+            client.head_object.side_effect = RuntimeError("Fixture unavailable")
+            self.assertFalse(backups._s3_upload(str(file), "database_backups/fixture.gz"))
+
+    def test_retention_handles_pagination_and_s3_delete_batch_limit(self):
+        from datetime import datetime, timezone, timedelta
+        now = datetime.now(timezone.utc)
+        objects = [{"Key": f"database_backups/backup_{index}.sql.gz", "LastModified": now - timedelta(minutes=index)} for index in range(2015)]
+        client = Mock()
+        client.get_paginator.return_value.paginate.return_value = [{"Contents": objects[:1000]}, {"Contents": objects[1000:]}]
+        with patch.object(backups, "_get_s3_client", return_value=client):
+            backups._s3_cleanup_old_backups()
+        batches = [call.kwargs["Delete"]["Objects"] for call in client.delete_objects.call_args_list]
+        self.assertEqual([len(batch) for batch in batches], [1000, 1000, 1])
+        deleted = {item["Key"] for batch in batches for item in batch}
+        self.assertTrue(all(obj["Key"] not in deleted for obj in objects[:14]))

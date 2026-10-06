@@ -1,0 +1,34 @@
+name: Backend checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  container-and-postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out the proposed code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Build the production image
+        run: docker build --tag sabeel-backend:ci .
+      - name: Check installed runtime dependencies
+        run: docker run --rm --network none --entrypoint python sabeel-backend:ci -m pip check
+      - name: Run isolated backend checks in the production image
+        run: docker run --rm --network none --entrypoint python sabeel-backend:ci -B tests/run_security_checks.py
+      - name: Add a disposable PostgreSQL server to the test image
+        run: docker build --file tests/Dockerfile.postgres --tag sabeel-backend-postgres:ci .
+      - name: Verify startup, transactions, and backup restoration
+        run: docker run --rm --network none sabeel-backend-postgres:ci

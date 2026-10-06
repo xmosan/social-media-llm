@@ -107,10 +107,19 @@ class Settings(BaseSettings):
 
     # Backups & Reliability
     backup_storage_type: str = Field(default="local", env="BACKUP_STORAGE_TYPE")
-    s3_access_key: str | None = Field(default=None, env="S3_ACCESS_KEY")
-    s3_secret_key: str | None = Field(default=None, env="S3_SECRET_KEY")
+    s3_access_key: str | None = Field(default=None, repr=False, env="S3_ACCESS_KEY")
+    s3_secret_key: str | None = Field(default=None, repr=False, env="S3_SECRET_KEY")
     s3_bucket_name: str | None = Field(default=None, env="S3_BUCKET_NAME")
     s3_region: str | None = Field(default=None, env="S3_REGION")
+    s3_endpoint_url: str | None = None
+    s3_addressing_style: str = "auto"
+
+    @field_validator("s3_addressing_style")
+    @classmethod
+    def validate_s3_addressing_style(cls, value: str) -> str:
+        if value not in {"auto", "virtual", "path"}:
+            raise ValueError("S3_ADDRESSING_STYLE must be auto, virtual or path")
+        return value
     env_backup_key: str | None = Field(default=None, env="ENV_BACKUP_KEY")
     primary_region: str | None = Field(default=None, env="PRIMARY_REGION")
     secondary_database_url: str | None = Field(default=None, env="SECONDARY_DATABASE_URL")

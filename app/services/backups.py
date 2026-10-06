@@ -16,6 +16,7 @@ from ..config import settings
 
 try:
     import boto3
+    from botocore.config import Config
     _BOTO3_AVAILABLE = True
 except ImportError:
     boto3 = None
@@ -24,7 +25,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 BACKUPS_DIR = os.path.join(os.getcwd(), "backups")
-MAX_RETENTION_DAYS = 14
+MAX_RETAINED_BACKUPS = 14
 
 def _ensure_backup_dir():
     os.makedirs(BACKUPS_DIR, mode=0o700, exist_ok=True)
@@ -36,15 +37,19 @@ def _get_s3_client():
         return None
     if not settings.s3_access_key or not settings.s3_secret_key or not settings.s3_bucket_name:
         return None
-    endpoint = settings.s3_region if settings.s3_region and "http" in settings.s3_region else None
-    region = settings.s3_region if settings.s3_region and "http" not in settings.s3_region else None
+    # Keep compatibility with older installs that put an endpoint in S3_REGION.
+    legacy_endpoint = settings.s3_region if (settings.s3_region or "").startswith(("https://", "http://")) else None
+    endpoint = settings.s3_endpoint_url or legacy_endpoint
+    region = None if legacy_endpoint else settings.s3_region
     
     return boto3.client(
         's3',
         aws_access_key_id=settings.s3_access_key,
         aws_secret_access_key=settings.s3_secret_key,
         region_name=region,
-        endpoint_url=endpoint
+        endpoint_url=endpoint,
+        config=Config(signature_version="s3v4", s3={"addressing_style": settings.s3_addressing_style},
+                      connect_timeout=10, read_timeout=60, retries={"max_attempts": 3, "mode": "standard"}),
     )
 
 def _s3_upload(file_path: str, object_name: str):
@@ -53,24 +58,26 @@ def _s3_upload(file_path: str, object_name: str):
         if not s3:
             return False
         s3.upload_file(file_path, settings.s3_bucket_name, object_name)
-        return True
+        stored = s3.head_object(Bucket=settings.s3_bucket_name, Key=object_name)
+        return stored.get("ContentLength") == os.path.getsize(file_path)
     except Exception:
         logger.error("S3 backup upload failed")
         return False
 
 def _s3_cleanup_old_backups():
-    s3 = _get_s3_client()
-    if not s3:
-        return
     try:
+        s3 = _get_s3_client()
+        if not s3:
+            return
         pages = s3.get_paginator("list_objects_v2").paginate(Bucket=settings.s3_bucket_name, Prefix="database_backups/")
         objects = sorted((obj for page in pages for obj in page.get("Contents", [])
                           if obj["Key"].startswith("database_backups/backup_") and obj["Key"].endswith(".sql.gz")),
                          key=lambda x: x["LastModified"], reverse=True)
-        to_delete = objects[MAX_RETENTION_DAYS:]
+        to_delete = objects[MAX_RETAINED_BACKUPS:]
         
-        if to_delete:
-            delete_keys = [{'Key': obj['Key']} for obj in to_delete]
+        # S3 DeleteObjects accepts at most 1,000 keys per request.
+        for offset in range(0, len(to_delete), 1000):
+            delete_keys = [{'Key': obj['Key']} for obj in to_delete[offset:offset + 1000]]
             s3.delete_objects(
                 Bucket=settings.s3_bucket_name,
                 Delete={'Objects': delete_keys}
@@ -82,7 +89,7 @@ def _local_cleanup_old_backups():
     files = glob.glob(os.path.join(BACKUPS_DIR, "backup_*.sql.gz"))
     files.sort(key=os.path.getmtime, reverse=True)
     
-    for f in files[MAX_RETENTION_DAYS:]:
+    for f in files[MAX_RETAINED_BACKUPS:]:
         try:
             os.remove(f)
         except Exception as e:

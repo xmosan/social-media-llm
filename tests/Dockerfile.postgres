@@ -1,0 +1,9 @@
+# The production image keeps only PostgreSQL client tools. Tests add a server
+# in a separate image and run it unprivileged with a private Unix socket.
+FROM sabeel-backend:ci
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends postgresql-17 \
+    && rm -rf /var/lib/apt/lists/*
+USER postgres
+ENTRYPOINT ["python", "-B", "tests/run_postgres_checks.py"]
+CMD ["/usr/lib/postgresql/17/bin"]
