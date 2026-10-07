@@ -44,12 +44,16 @@ def generate_quote_card(
     background_sink=None,
     post_format: str = "feed_4_5",
     allow_sequence: bool = False,
+    brand_kit: dict = None,
 ) -> str:
     """
     Parses an Islamic caption and renders a premium quote card.
     Supports Dual-Language (Arabic + English) detection and layout.
     """
     import re
+    if brand_kit is not None:
+        from app.services.brand_kit import normalize_brand
+        brand_kit = normalize_brand(brand_kit)
 
     print(f"\n🖼️  [ImageCard] mode={mode} | style={style}")
     
@@ -93,9 +97,12 @@ def generate_quote_card(
         
         # 1.5 Arabic Text (Specific to Quranic content or if provided in payload)
         if card_message.get("arabic_text"):
+            from app.services.source_display import display_range
+            start, end = display_range(card_message)
             segments.append({
-                "text": card_message["arabic_text"],
+                "text": card_message["arabic_text"][start:end],
                 "role": "source_arabic",
+                "label": (card_message.get("arabic_display") or {}).get("label"),
                 "size": sizes[1],
                 "is_arabic": True,
                 "color": (255, 255, 255)
@@ -155,7 +162,17 @@ def generate_quote_card(
         raise CardTypographyError("This legacy card uses an excerpt. Rebuild its card message from the full source before creating a sequence.")
     if allow_sequence and render_metadata is None:
         raise ValueError("Sequence generation requires a manifest destination")
-    pages = plan_sequence(segments, family=style, layout=layout, post_format=post_format) if allow_sequence and style in DESIGN_FAMILIES else [{"segments": segments, "slices": [], "label": "Complete source"}]
+    pages = plan_sequence(segments, family=style, layout=layout, post_format=post_format, brand_kit=brand_kit) if allow_sequence and style in DESIGN_FAMILIES else [{"segments": segments, "slices": [], "label": "Complete source"}]
+    if card_message and card_message.get("arabic_display"):
+        from app.services.source_display import display_range
+        start, _ = display_range(card_message)
+        for page in pages:
+            if len(pages) == 1:
+                page["label"] = "Source with Arabic chain excerpt"
+            for part in page["slices"]:
+                if part["role"] == "source_arabic":
+                    part["start"] += start
+                    part["end"] += start
     retained = background_image
     def keep_photo(image):
         nonlocal retained
@@ -172,6 +189,7 @@ def generate_quote_card(
             engine=engine, glossy=glossy, visual_history=visual_history,
             render_metadata=metadata, layout=layout, background_image=retained,
             background_sink=keep_photo, post_format=post_format,
+            brand_kit=brand_kit,
         )
         rendered.append({"index": i, "url": url, "label": page["label"], "slices": page["slices"],
                          "quality": metadata.get("quality", {}),
@@ -181,7 +199,8 @@ def generate_quote_card(
     if allow_sequence:
         actual_format = "story_9_16" if post_format == "story_9_16" else "carousel_4_5" if len(rendered)>1 else "feed_4_5"
         render_metadata["media_manifest"] = {"version": 1, "format": actual_format,
-                                            "card_digest": card_digest(card_message), "pages": rendered}
+                                            "card_digest": card_digest(card_message), "pages": rendered,
+                                            **({"brand_kit": brand_kit} if brand_kit is not None else {})}
     return rendered[0]["url"]
 
 

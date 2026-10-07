@@ -75,6 +75,10 @@ def validate_manifest(manifest, card, owner_id):
     if any(p.get("slices") for p in pages) or len(pages)>1:
         for role, field in ROLE_FIELDS.items():
             text, cursor = (card or {}).get(field) or "", 0
+            expected_end = len(text)
+            if role == "source_arabic":
+                from app.services.source_display import display_range
+                cursor, expected_end = display_range(card or {})
             for page in pages:
                 for part in page.get("slices", []):
                     if part.get("role") == role:
@@ -82,7 +86,7 @@ def validate_manifest(manifest, card, owner_id):
                                 or not cursor < part["end"] <= len(text)):
                             raise ValueError("The sequence does not preserve the complete source in order")
                         cursor = part["end"]
-            if cursor != len(text):
+            if cursor != expected_end:
                 raise ValueError("The sequence is missing source or reflection text")
     return manifest
 
@@ -138,9 +142,11 @@ def export_post(post):
         bundle.writestr("source.json", json.dumps({"source_type": post.source_type,
             "source_reference": post.source_reference, "source_metadata": source_metadata,
             "card_message": post.card_message, "format": post.post_format,
+            "brand_kit": (manifest or {}).get("brand_kit"),
             "pages": [{k:v for k,v in p.items() if k != "url"} for p in pages]}, ensure_ascii=False, indent=2))
         bundle.writestr("caption.txt", post.caption or "")
-        bundle.writestr("README.txt", "Publish every numbered image in order. Together they preserve the full source.\n"
+        bundle.writestr("README.txt", "Publish every numbered image in order. Full canonical text is retained in source.json.\n"
+                         "If the card labels an Arabic excerpt, an earlier narration chain is omitted from display only; source.json records its exact range.\n"
                          "Review the source, context, Arabic and reflection before sharing.\n"
                          "Story captions are separate notes and are not sent as Instagram Story text.\n")
     archive.seek(0)

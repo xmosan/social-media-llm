@@ -119,7 +119,7 @@ class CardTypographyTests(unittest.TestCase):
         self.assertEqual(result.error, str(error))
         self.assertEqual(result.error_status, 422)
         with patch('app.routes.studio.generate_visual', return_value=result):
-            response = studio_generate_visual({'card_message': {'headline': 'fixture'}})
+            response = studio_generate_visual({'card_message': {'headline': 'fixture'}, 'brand_kit': {}})
         self.assertEqual(response.status_code, 422)
         self.assertEqual(json.loads(response.body)['error'], str(error))
         with patch.object(visual_service, '_generate_quote_card', side_effect=ValueError('private provider response')):

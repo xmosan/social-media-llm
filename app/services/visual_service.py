@@ -53,6 +53,7 @@ class VisualRequest:
     background_token: Optional[str] = None
     owner_id: Optional[int] = None
     post_format: str = "feed_4_5"
+    brand_kit: Optional[dict] = None
 
 
 @dataclass
@@ -108,6 +109,13 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
     Renders a full quote card (background + text overlay) using image_card.py.
     """
     from app.services.image_card import generate_quote_card
+    from app.services.brand_kit import normalize_brand
+    from app.services.source_display import display_range
+    try:
+        brand = normalize_brand(request.brand_kit) if request.brand_kit is not None else None
+        display_range(request.card_message)
+    except ValueError as error:
+        raise CardTypographyError(str(error)) from None
 
     effective_prompt = request.custom_prompt or (None if request.style in {"editorial", "minimal_paper", "quiet_photography"} else request.theme)
     effective_mode = "custom" if request.custom_prompt else request.mode
@@ -137,6 +145,7 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
         layout=request.layout, background_image=background_image,
         background_sink=retain_background if request.style == "quiet_photography" else None,
         post_format=request.post_format, allow_sequence=True,
+        brand_kit=brand,
     )
 
     from app.services.media_sequence import seal_manifest, validate_manifest
@@ -151,6 +160,7 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
         generated_by=generation_metadata.get("image_model", "pil_renderer"),
         error=None if url else "generate_quote_card returned empty URL",
         design={"version": 1, "family": request.style, "layout": request.layout,
+                "brand_kit": brand,
                 "background_token": background_token if request.style == "quiet_photography" else None,
                 "direction": request.custom_prompt or "", "quality": generation_metadata.get("quality", {}),
                 "media_manifest": manifest,

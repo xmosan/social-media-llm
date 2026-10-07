@@ -44,6 +44,41 @@ def _parse_scheduled_at(value: str | None) -> datetime | None:
 router = APIRouter(prefix="/api/studio", tags=["studio"])
 
 
+@router.get("/brand-kit", dependencies=[Depends(require_user)])
+def get_brand_kit(db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
+    from app.services.brand_kit import workspace_brand
+    from app.services.media_sequence import card_digest
+    kit = workspace_brand(db, org_id)
+    return {"brand_kit": kit, "revision": card_digest(kit)}
+
+
+@router.put("/brand-kit", dependencies=[Depends(require_user)])
+def save_brand_kit(data: dict, db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
+    from app.models import Org
+    from app.services.brand_kit import normalize_brand
+    from app.services.media_sequence import card_digest
+    try:
+        kit = normalize_brand(data.get("brand_kit"))
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from None
+    org = db.query(Org).filter(Org.id == org_id).with_for_update().first()
+    if not org:
+        raise HTTPException(404, "Workspace not found")
+    if data.get("revision") != card_digest(normalize_brand(org.brand_kit)):
+        raise HTTPException(409, "The workspace brand changed in another session. Load it again before saving.")
+    org.brand_kit = kit
+    db.commit()
+    return {"brand_kit": kit, "revision": card_digest(kit)}
+
+
+def _editorial_context(data):
+    from app.services.brand_kit import editorial_context
+    try:
+        return editorial_context(data.get("audience") or "english_muslims", data.get("purpose") or "reminder")
+    except (ValueError, TypeError):
+        raise HTTPException(422, "Choose a supported audience and purpose") from None
+
+
 @router.post("/generate-card-message", dependencies=[Depends(require_user)])
 def studio_generate_card_message(data: dict, db: Session = Depends(get_db),
                                  org_id: int = Depends(get_current_org_id), user: User = Depends(require_user)):
@@ -59,8 +94,13 @@ def studio_generate_card_message(data: dict, db: Session = Depends(get_db),
 
     try:
         source_payload = resolve_selected_source(db, org_id, source_type, source_payload, user.id)
-        card_msg = build_quote_card_message(source_type, source_payload, tone, intent)
-        return {"card_message": card_msg, "source_metadata": source_payload}
+        context = _editorial_context(data)
+        custom = (data.get("custom_payload") or {}).get("custom_prompt") or ""
+        card_msg = build_quote_card_message(source_type, source_payload, tone, intent,
+            custom_prompt=context + "\n" + str(custom)[:2000], include_reflection=data.get("include_reflection", True) is True)
+        from app.services.source_display import arabic_display_options
+        return {"card_message": card_msg, "source_metadata": source_payload,
+                "arabic_display_options": arabic_display_options(card_msg) if source_type == "hadith" else []}
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error))
     except HTTPException:
@@ -88,6 +128,7 @@ def studio_generate_caption(data: dict, db: Session = Depends(get_db),
     tone = data.get("tone", "calm")
     intention = data.get("intention") or data.get("intent")
     topic = data.get("topic")
+    context = _editorial_context(data)
     try:
         source_payload = resolve_selected_source(db, org_id, source_type, source_payload, user.id)
     except ValueError as error:
@@ -97,7 +138,7 @@ def studio_generate_caption(data: dict, db: Session = Depends(get_db),
     if source_type == "hadith":
         try:
             from app.services.hadith_caption_service import generate_hadith_caption
-            caption = generate_hadith_caption(source_payload, tone=tone, intent=intention)
+            caption = generate_hadith_caption(source_payload, tone=tone, intent=intention, editorial_context=context)
             return {"caption": caption}
         except Exception as e:
             logger.error(f"[STUDIO] Hadith caption generation failed: {e}")
@@ -111,7 +152,7 @@ def studio_generate_caption(data: dict, db: Session = Depends(get_db),
     if source_type == "quran" and source_payload.get("translation_text") and source_payload.get("reference"):
         try:
             from app.services.quran_caption_service import generate_ai_caption_from_quran
-            caption = generate_ai_caption_from_quran(source_payload, style=tone)
+            caption = generate_ai_caption_from_quran(source_payload, style=tone, editorial_context=context)
             logger.info(f"[STUDIO] Quran caption grounded directly to: {source_payload.get('reference')}")
             return {"caption": caption}
         except Exception as e:
@@ -136,10 +177,15 @@ def studio_generate_caption(data: dict, db: Session = Depends(get_db),
 
 
 @router.post("/generate-visual", dependencies=[Depends(require_user)])
-def studio_generate_visual(data: dict, org_id: int = Depends(get_current_org_id)):
+def studio_generate_visual(data: dict, org_id: int = Depends(get_current_org_id), db: Session = Depends(get_db)):
     """
     Phase 3: Route explicitly into Visual Service Facade for all Studio image generation.
     """
+    from app.services.brand_kit import normalize_brand, workspace_brand
+    try:
+        brand = normalize_brand(data["brand_kit"]) if "brand_kit" in data else workspace_brand(db, org_id)
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from None
     req = VisualRequest(
         theme=data.get("theme", data.get("style", "sacred_black")),
         atmosphere=data.get("atmosphere", "contemplative"),
@@ -157,6 +203,7 @@ def studio_generate_visual(data: dict, org_id: int = Depends(get_current_org_id)
         background_token=data.get("background_token"),
         owner_id=org_id,
         post_format=data.get("post_format", "feed_4_5"),
+        brand_kit=brand,
     )
 
     res = generate_visual(req)
@@ -283,6 +330,15 @@ def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = 
             raise HTTPException(status_code=422, detail=str(error)) from None
         if data.get("media_url") != manifest["pages"][0]["url"]:
             raise HTTPException(status_code=422, detail="The preview and sequence cover do not match")
+        if design.get("brand_kit") != manifest.get("brand_kit"):
+            raise HTTPException(422, "Apply the latest brand changes before saving")
+        if manifest.get("brand_kit") is not None and "brand_kit" in data:
+            from app.services.brand_kit import normalize_brand
+            try:
+                if normalize_brand(data["brand_kit"]) != manifest["brand_kit"]:
+                    raise ValueError("Apply the latest brand changes before saving")
+            except ValueError as error:
+                raise HTTPException(422, str(error)) from None
     elif data.get("post_format") in {"carousel_4_5", "story_9_16"}:
         raise HTTPException(status_code=422, detail="Generate a complete sequence before saving this format")
 
@@ -325,7 +381,8 @@ def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = 
                **({"media_manifest": manifest} if manifest else {}),
                **({"draft_key": draft_key} if draft_key else {})},
         # Intelligence fields
-        intent_type=data.get("intent_type"),
+        intent_type=data.get("purpose") or data.get("intent_type"),
+        target_audience=data.get("audience"),
         message_hint=data.get("message_hint"),
         source_foundation=source_foundation,
     )

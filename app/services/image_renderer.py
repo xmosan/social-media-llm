@@ -1473,13 +1473,16 @@ def render_minimal_quote_card(
     background_image=None,
     background_sink=None,
     post_format="feed_4_5",
+    brand_kit=None,
 ) -> str:
     """
     Render every source block with measured typography, or fail without clipping.
     """
     # Preflight all source blocks before any paid image-provider call.
     family = style if style in {"editorial", "quiet_photography", "minimal_paper"} else "legacy"
-    target_size, text_blocks = layout_card(segments, family=family, layout=layout, post_format=post_format)
+    target_size, text_blocks = layout_card(segments, family=family, layout=layout, post_format=post_format, brand_kit=brand_kit)
+    from app.services.brand_kit import PALETTES
+    brand_palette = PALETTES[brand_kit["palette"]] if brand_kit is not None else None
     W, H = target_size
     cx, cy = W // 2, H // 2
     base_dir    = os.path.dirname(
@@ -1516,7 +1519,7 @@ def render_minimal_quote_card(
 
     if family in {"editorial", "minimal_paper"}:
         mode = "designed"
-        bg = Image.new("RGB", target_size, (248, 246, 239) if family == "minimal_paper" else (244, 246, 243))
+        bg = Image.new("RGB", target_size, brand_palette["paper"] if brand_palette else (248, 246, 239) if family == "minimal_paper" else (244, 246, 243))
         if family == "minimal_paper":
             # Subtle material variation, never decorative marks or pseudo-script.
             grain = Image.effect_noise(target_size, 9).convert("RGB")
@@ -1533,7 +1536,7 @@ def render_minimal_quote_card(
                                             render_metadata=render_metadata)
         if raw_photo is None:
             raise ValueError("Sabeel Vision could not generate the photograph")
-        bg = Image.new("RGB", target_size, (247, 246, 242))
+        bg = Image.new("RGB", target_size, brand_palette["paper"] if brand_palette else (247, 246, 242))
         photo_height = text_blocks[0]["photo_height"]
         photo = ImageOps.fit(raw_photo.convert("RGB"), (W, photo_height), method=Image.Resampling.LANCZOS)
         bg.paste(photo, (0, H-photo_height))
@@ -1661,7 +1664,7 @@ def render_minimal_quote_card(
     # The shared final quality gate checks the actual glyph footprints. Legacy
     # gallery/scene choices remain usable, but no extra glow is added to them.
     quality = {}
-    final_img = paint_card_text(bg, text_blocks, quality=quality)
+    final_img = paint_card_text(bg, text_blocks, quality=quality, brand_kit=brand_kit)
     if family == "quiet_photography" and background_sink and background_image is None:
         background_sink(raw_photo)
     if render_metadata is not None:

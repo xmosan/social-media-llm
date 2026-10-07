@@ -8,7 +8,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
-def compose_source_caption(payload: dict, source_type: str, tone: str) -> str:
+def compose_source_caption(payload: dict, source_type: str, tone: str, *, editorial_context: str = "") -> str:
     reference = payload.get("reference")
     translation = payload.get("translation_text")
     arabic = payload.get("arabic_text")
@@ -38,7 +38,7 @@ def compose_source_caption(payload: dict, source_type: str, tone: str) -> str:
             ),
             prompt=json.dumps({
                 "source_type": source_type, "reference": reference,
-                "translation": translation, "tone": tone,
+                "translation": translation, "tone": tone, "editorial_context": editorial_context,
             }, ensure_ascii=False), schema=Reflection,
         )
         reflection = data.get("reflection") if isinstance(data, dict) else None

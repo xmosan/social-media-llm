@@ -198,6 +198,7 @@ STUDIO_SCRIPTS_JS = r"""
         studioBackgroundToken = null;
         studioGalleryImage = null;
         studioSessionEpoch++;
+        window.resetCreatorControls?.();
         studioSaveBusy = false;
         studioResumeEpoch++;
         studioPostId = null; studioDraftKey = crypto.randomUUID();
@@ -270,6 +271,7 @@ STUDIO_SCRIPTS_JS = r"""
             modal.classList.remove('hidden');
         }
         window.switchStudioSection(1);
+        window.loadStudioBrand?.();
     };
 
     window.closeNewPostModal = function() {
@@ -603,7 +605,7 @@ STUDIO_SCRIPTS_JS = r"""
 
         btn.disabled = true;
         if(icon) icon.classList.add('animate-spin');
-        if(text) text.innerText = 'Architecting Message...';
+        if(text) text.innerText = 'Preparing your source…';
 
         try {
             let sourceType = 'manual';
@@ -620,6 +622,9 @@ STUDIO_SCRIPTS_JS = r"""
             const customPrompt = document.getElementById('studioCustomPrompt')?.value || "";
 
             const payload = {
+                audience: document.getElementById('studioAudience')?.value || 'english_muslims',
+                purpose: document.getElementById('studioPurpose')?.value || 'reminder',
+                include_reflection: document.getElementById('includeStudioReflection')?.checked || false,
                 source_type: sourceType,
                 source_payload: sourcePayload,
                 tone: tone,
@@ -632,12 +637,17 @@ STUDIO_SCRIPTS_JS = r"""
             const res = await fetch('/api/studio/generate-card-message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload), signal: AbortSignal.timeout(60000)
             });
             const data = await res.json();
             if (sourceEpoch !== studioSourceEpoch) return;
+            if (!res.ok || !data.card_message) throw Error(data.detail || data.error || 'The card message could not be built.');
             if (data.card_message) {
                 studioCardMessage = data.card_message;
+                if(sourceType === 'hadith') window.selectedHadithMetadata=data.source_metadata;
+                if(sourceType === 'quran') window.selectedAyahMetadata=data.source_metadata;
+                window.studioSourceContext={...data.source_metadata,type:sourceType};
+                window.renderSourceReview?.();
                 document.getElementById('editEyebrow').value = studioCardMessage.eyebrow || '';
                 document.getElementById('editHeadline').value = studioCardMessage.headline || '';
                 document.getElementById('editSupporting').value = studioCardMessage.supporting_text || '';
@@ -648,11 +658,12 @@ STUDIO_SCRIPTS_JS = r"""
                 switchStudioSection(2);
             }
         } catch (e) {
-            alert('Architecture failed. Please try again.');
+            if(sourceEpoch === studioSourceEpoch) alert(e.message || 'Could not build the card. Please try again.');
         } finally {
+            if(sourceEpoch !== studioSourceEpoch) return;
             btn.disabled = false;
             if(icon) icon.classList.remove('animate-spin');
-            if(text) text.innerText = 'Build Quote Card Message';
+            if(text) text.innerText = 'Prepare source & continue';
         }
     }
 
@@ -673,6 +684,9 @@ STUDIO_SCRIPTS_JS = r"""
 
     window.resetStudioSourceOutput = function() {
         studioSourceEpoch++;
+        window.clearReflectionBusy?.();
+        const reflectionButton=document.getElementById('draftReflectionButton'); if(reflectionButton) reflectionButton.disabled=false;
+        document.getElementById('arabicExcerptControls')?.classList.add('hidden');
         cancelStudioVisual();
         studioCardMessage = null;
         studioCaptionMessage = null;
@@ -719,6 +733,7 @@ STUDIO_SCRIPTS_JS = r"""
         const loader = document.getElementById('cardLoader');
         const preview = document.getElementById('quoteCardPreview');
         const note = document.getElementById('visualQualityNote');
+        try { window.requireStudioBrand?.(); } catch(e) { if(note) note.textContent=e.message; return; }
         const controller = new AbortController();
         studioVisualController = controller;
         const epoch = ++studioVisualEpoch;
@@ -731,6 +746,7 @@ STUDIO_SCRIPTS_JS = r"""
         try {
             const payload = {
                 card_message: studioCardMessage,
+                brand_kit: window.studioBrandSnapshot?.(),
                 style: studioGalleryImage || document.getElementById('studioStyle').value,
                 layout: document.getElementById('studioLayout')?.value || 'english_first',
                 post_format: document.getElementById('studioFormat')?.value || 'feed_4_5',
@@ -749,6 +765,7 @@ STUDIO_SCRIPTS_JS = r"""
             currentQuoteCardUrl = data.image_url;
             document.getElementById('finalMediaUrl').value = data.image_url;
             studioVisualDesign = data.visual_design || null;
+            window.acceptRenderedBrand?.(studioVisualDesign?.brand_kit);
             studioBackgroundToken = studioVisualDesign?.background_token || null;
             studioViewedPages = new Set(); studioSequenceReviewed = false;
             document.getElementById("sequenceReviewCheck").checked = false;
@@ -775,6 +792,134 @@ STUDIO_SCRIPTS_JS = r"""
         }
     };
     // End feed visual requests.
+
+    // Creator identity and editorial controls.
+    let studioBrandRevision = null;
+    let studioBrandTouched = false;
+    let studioBrandReady = false;
+    let studioBrandSaveBusy = false;
+    let studioReflectionBusy = false;
+    const brandDefaults = {version:1,palette:'olive',typography:'modern',signature:'',series_name:'',family:'editorial',composition:'varied'};
+    const brandFields = {palette:'brandPalette',typography:'brandTypography',signature:'brandSignature',series_name:'brandSeries',family:'brandFamily',composition:'brandComposition'};
+    window.studioBrandSnapshot = function() {
+        const kit = {...brandDefaults};
+        for (const [key,id] of Object.entries(brandFields)) kit[key] = document.getElementById(id)?.value ?? kit[key];
+        return kit;
+    };
+    function setBrandControls(kit) {
+        for (const [key,id] of Object.entries(brandFields)) { const el=document.getElementById(id); if(el) el.value=kit[key] ?? brandDefaults[key]; }
+    }
+    window.acceptRenderedBrand = function(kit) { if(kit) {setBrandControls(kit);studioBrandReady=true;} };
+    window.resetCreatorControls = function() {
+        studioBrandRevision=null; studioBrandTouched=false; studioBrandReady=false; studioBrandSaveBusy=false; studioReflectionBusy=false;
+        setBrandControls(brandDefaults);
+        for (const [id,value] of [['studioAudience','english_muslims'],['studioPurpose','reminder']]) { const el=document.getElementById(id); if(el) el.value=value; }
+        for (const id of ['brandStatus','sourceAttribution','sourceArabicFull','sourceProviderDetails','arabicExcerptPreview']) { const el=document.getElementById(id); if(el) el.textContent=''; }
+        document.getElementById('arabicExcerptControls')?.classList.add('hidden');
+        const add=document.getElementById('includeStudioReflection'); if(add) add.checked=false;
+        const save=document.getElementById('saveBrandButton'); if(save) save.disabled=false;
+        const reflect=document.getElementById('draftReflectionButton'); if(reflect) reflect.disabled=false;
+    };
+    window.loadStudioBrand = async function(apply=false) {
+        const epoch=studioSessionEpoch, before=JSON.stringify(window.studioBrandSnapshot());
+        const status=document.getElementById('brandStatus');
+        if(status) status.textContent='Loading workspace brand…';
+        try {
+            const response=await fetch('/api/studio/brand-kit',{signal:AbortSignal.timeout(20000)});
+            const data=await response.json();
+            if(epoch!==studioSessionEpoch) return;
+            if(!response.ok) throw Error(data.detail || 'Brand unavailable');
+            studioBrandRevision=data.revision;
+            if(apply && before!==JSON.stringify(window.studioBrandSnapshot())) {
+                if(status) status.textContent='Workspace brand loaded; edits you made while loading were kept. Load again to apply it.';
+                return;
+            }
+            if(apply || (!studioBrandTouched && !studioPostId && !currentQuoteCardUrl)) {
+                setBrandControls(data.brand_kit); studioBrandReady=true;
+                const family=document.getElementById('studioStyle'); if(family) family.value=data.brand_kit.family;
+                document.querySelectorAll('.scene-card').forEach(c=>c.classList.toggle('active',c.dataset.family===data.brand_kit.family));
+                document.getElementById('photoDirectionControls')?.classList.toggle('hidden',data.brand_kit.family!=='quiet_photography');
+                if(apply) window.invalidateQuoteCard();
+            }
+            if(status) status.textContent='Workspace brand loaded. Draft changes stay here until you save them as the workspace default.';
+        } catch(e) { if(epoch===studioSessionEpoch && status) status.textContent='Could not load the workspace brand. Use “Load workspace brand” to retry. Your draft is safe.'; }
+    };
+    window.changeStudioBrand = function() {
+        studioBrandTouched=true; studioBrandReady=true;
+        window.invalidateQuoteCard(); window.rememberStudio();
+    };
+    window.requireStudioBrand = function() { if(!studioBrandReady) throw Error('Load the workspace brand before creating the layout.'); };
+    window.saveWorkspaceBrand = async function() {
+        if(studioBrandSaveBusy) return;
+        const epoch=studioSessionEpoch, status=document.getElementById('brandStatus'), button=document.getElementById('saveBrandButton');
+        if(!studioBrandRevision) { status.textContent='Load the workspace brand before saving. This protects changes from another session.'; return; }
+        const snapshot=window.studioBrandSnapshot();
+        studioBrandSaveBusy=true; button.disabled=true; status.textContent='Saving workspace brand…';
+        try {
+            const response=await fetch('/api/studio/brand-kit',{method:'PUT',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(20000),body:JSON.stringify({brand_kit:snapshot,revision:studioBrandRevision})});
+            const data=await response.json();
+            if(epoch!==studioSessionEpoch) return;
+            if(!response.ok) throw Error(data.detail || 'Brand could not be saved');
+            studioBrandRevision=data.revision;
+            if(data.brand_kit && JSON.stringify(snapshot)===JSON.stringify(window.studioBrandSnapshot())) setBrandControls(data.brand_kit);
+            status.textContent='Saved for new Studio drafts and automation artwork. Existing drafts retain their own designs.';
+        } catch(e) { if(epoch===studioSessionEpoch) status.textContent=e.message; }
+        finally { if(epoch===studioSessionEpoch) { studioBrandSaveBusy=false; button.disabled=false; } }
+    };
+    window.restoreCreatorControls = function(data) {
+        setBrandControls(data.brand_kit || data.visual_design?.brand_kit || brandDefaults);
+        studioBrandTouched=true; studioBrandReady=true;
+        const audience=document.getElementById('studioAudience'); if(audience) audience.value=data.audience || 'english_muslims';
+        const purpose=document.getElementById('studioPurpose'); if(purpose) purpose.value=['reminder','learn','reflect','practice'].includes(data.purpose) ? data.purpose : 'reminder';
+        window.renderSourceReview();
+    };
+    window.renderSourceReview = function() {
+        const meta=window.selectedHadithMetadata || window.selectedAyahMetadata || {};
+        const out=document.getElementById('sourceAttribution');
+        const lines=[['Reference',meta.reference],['Source',meta.api_source || (window.selectedAyahMetadata ? "Connected Qur’an library" : null)],
+            ['Collection',meta.collection],['Narrator (returned)',meta.narrator],['Grade (returned)',meta.grade],['Translator (returned)',meta.translator || meta.translation_name]];
+        if(out) out.textContent=lines.map(([label,value])=>label+': '+(value==null || value==='' ? 'Not returned by the source' : typeof value==='object' ? JSON.stringify(value) : value)).join('\n');
+        const arabic=document.getElementById('sourceArabicFull'); if(arabic) arabic.textContent=meta.arabic_text || studioCardMessage?.arabic_text || 'No Arabic returned.';
+        const raw=document.getElementById('sourceProviderDetails'); if(raw) raw.textContent=JSON.stringify(meta.provider_metadata || {translator:meta.translator ?? null,provenance:meta.provenance ?? null},null,2);
+        const options=studioCardMessage?.arabic_display_options || [];
+        document.getElementById('arabicExcerptControls')?.classList.toggle('hidden',!options.length);
+        const select=document.getElementById('arabicDisplayMode'); if(select) select.value=studioCardMessage?.arabic_display ? 'short_chain' : 'full';
+        const preview=document.getElementById('arabicExcerptPreview');
+        if(preview) preview.textContent=studioCardMessage?.arabic_display ? studioCardMessage.arabic_text.slice(studioCardMessage.arabic_display.start,studioCardMessage.arabic_display.end) : '';
+    };
+    window.changeArabicDisplay = function() {
+        if(!studioCardMessage) return;
+        const choice=document.getElementById('arabicDisplayMode').value;
+        if(choice==='short_chain') studioCardMessage.arabic_display=studioCardMessage.arabic_display_options?.[0] || null;
+        else delete studioCardMessage.arabic_display;
+        window.renderSourceReview(); window.invalidateQuoteCard(); window.rememberStudio();
+    };
+    window.removeStudioReflection = function() {
+        document.getElementById('editSupporting').value=''; window.updateStudioCardFromUI(); window.rememberStudio();
+    };
+    window.clearReflectionBusy = function() {studioReflectionBusy=false;};
+    window.draftStudioReflection = async function() {
+        if(studioReflectionBusy || !studioCardMessage) return;
+        const epoch=studioSourceEpoch, session=studioSessionEpoch, before=document.getElementById('editSupporting').value;
+        const button=document.getElementById('draftReflectionButton'); studioReflectionBusy=true; button.disabled=true;
+        try {
+            const meta=window.selectedHadithMetadata || window.selectedAyahMetadata;
+            const response=await fetch('/api/studio/generate-card-message',{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(60000),body:JSON.stringify({
+                source_type:window.selectedHadithMetadata ? 'hadith' : 'quran',source_payload:meta,include_reflection:true,
+                audience:document.getElementById('studioAudience').value,purpose:document.getElementById('studioPurpose').value,
+                tone:document.getElementById('studioTone').value,custom_payload:{custom_prompt:document.getElementById('studioCustomPrompt')?.value || ''}})});
+            const data=await response.json();
+            if(epoch!==studioSourceEpoch || session!==studioSessionEpoch) return;
+            if(!response.ok) throw Error(data.detail || data.error || 'Reflection unavailable');
+            if(document.getElementById('editSupporting').value!==before) throw Error('You edited the reflection while it was being drafted. Your edit was kept.');
+            if(data.card_message.headline!==studioCardMessage.headline || data.card_message.arabic_text!==studioCardMessage.arabic_text) throw Error('The source changed. Select it again before drafting a reflection.');
+            document.getElementById('editSupporting').value=data.card_message.supporting_text || '';
+            window.updateStudioCardFromUI(); window.rememberStudio();
+        } catch(e) { if(epoch===studioSourceEpoch && session===studioSessionEpoch) alert(e.message); }
+        finally { if(epoch===studioSourceEpoch && session===studioSessionEpoch) {studioReflectionBusy=false;button.disabled=false;} }
+    };
+    // End creator controls.
+
     // Sequence editor: source, all pages, and the saved draft have one identity.
     let studioSessionEpoch = 0;
     let studioPostId = null;
@@ -794,6 +939,9 @@ STUDIO_SCRIPTS_JS = r"""
             source_type: type, source_metadata: meta, source_reference: meta?.reference,
             topic: document.getElementById('studioTopic')?.value || '',
             card_message: studioCardMessage, visual_design: studioVisualDesign,
+            brand_kit: window.studioBrandSnapshot?.(),
+            audience: document.getElementById('studioAudience')?.value || 'english_muslims',
+            purpose: document.getElementById('studioPurpose')?.value || 'reminder',
             post_format: studioVisualDesign?.media_manifest?.format || document.getElementById('studioFormat')?.value || 'feed_4_5',
             caption_message: {caption: document.getElementById('studioCaption')?.value || ''},
             media_url: currentQuoteCardUrl, visual_style: document.getElementById('studioStyle')?.value,
@@ -872,6 +1020,7 @@ STUDIO_SCRIPTS_JS = r"""
         set('studioFormat', (format || data.post_format) === 'story_9_16' ? 'story_9_16' : 'feed_4_5');
         set('studioLayout', layout || studioVisualDesign?.layout || 'english_first');
         set('studioCustomDirection', direction ?? studioVisualDesign?.direction);
+        window.restoreCreatorControls?.(data);
         document.querySelectorAll('.scene-card').forEach(c=>c.classList.toggle('active', c.dataset.family === document.getElementById('studioStyle').value));
         document.getElementById('photoDirectionControls')?.classList.toggle('hidden', document.getElementById('studioStyle').value !== 'quiet_photography');
         document.getElementById('cardMessageWorkspace')?.classList.remove('hidden');
@@ -916,6 +1065,7 @@ STUDIO_SCRIPTS_JS = r"""
                 source_type:['quran','hadith'].includes(post.source_type) ? post.source_type : post.source_foundation || 'manual',
                 source_metadata:meta, card_message:post.card_message, caption_message:{caption:post.caption || ''},
                 visual_design:{...(post.flags?.visual_design || {}), media_manifest:post.flags?.media_manifest},
+                audience:post.target_audience,purpose:post.intent_type,
                 post_format:post.post_format, media_url:post.media_url, visual_style:post.visual_style, topic:post.topic});
         } catch(e) { alert(e.message); }
     };
@@ -1013,6 +1163,8 @@ STUDIO_SCRIPTS_JS = r"""
             }
 
             const payload = {
+                audience: document.getElementById('studioAudience')?.value || 'english_muslims',
+                purpose: document.getElementById('studioPurpose')?.value || 'reminder',
                 source_type: srcType,
                 source_payload: srcPayload,
                 topic: document.getElementById('studioTopic').value,
@@ -2687,28 +2839,24 @@ STUDIO_COMPONENTS_HTML = """
                         <textarea id="studioCustomPrompt" placeholder="E.g. Focus on patience during hardship..." class="w-full bg-cream/20 border border-brand/5 rounded-2xl px-6 py-4 text-xs font-medium text-brand outline-none focus:border-brand/20 h-20 resize-none transition-all placeholder:text-brand/30 shadow-inner"></textarea>
                     </div>
 
-                    <!-- Intent Selection -->
-                    <div class="space-y-3">
-                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Intent (Flavor)</label>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <div onclick="setStudioIntent('wisdom', this)" class="intent-card active p-3 bg-brand/5 border border-brand/5 rounded-xl cursor-pointer hover:border-brand/20 transition-all text-center">
-                                <span class="block text-[8px] font-black text-brand uppercase tracking-widest">Wisdom</span>
-                            </div>
-                            <div onclick="setStudioIntent('reminder', this)" class="intent-card p-3 bg-brand/5 border border-brand/5 rounded-xl cursor-pointer hover:border-brand/20 transition-all text-center">
-                                <span class="block text-[8px] font-black text-brand uppercase tracking-widest">Reminder</span>
-                            </div>
-                            <div onclick="setStudioIntent('warning', this)" class="intent-card p-3 bg-brand/5 border border-brand/5 rounded-xl cursor-pointer hover:border-brand/20 transition-all text-center">
-                                <span class="block text-[8px] font-black text-brand uppercase tracking-widest">Warning</span>
-                            </div>
-                            <div onclick="setStudioIntent('glad_tidings', this)" class="intent-card p-3 bg-brand/5 border border-brand/5 rounded-xl cursor-pointer hover:border-brand/20 transition-all text-center">
-                                <span class="block text-[8px] font-black text-brand uppercase tracking-widest">Tidings</span>
-                            </div>
-                        </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <label>Who are you creating for?
+                          <select id="studioAudience" onchange="rememberStudio()" class="w-full mt-2 p-3 border border-brand/15 rounded-xl bg-white">
+                            <option value="english_muslims">English-speaking Muslims</option><option value="new_muslims">Muslims new to learning</option><option value="curious_readers">People exploring Islam</option><option value="arabic_readers">Arabic-speaking Muslims</option>
+                          </select>
+                        </label>
+                        <label>What should this post help them do?
+                          <select id="studioPurpose" onchange="rememberStudio()" class="w-full mt-2 p-3 border border-brand/15 rounded-xl bg-white">
+                            <option value="reminder">Pause for a daily reminder</option><option value="learn">Understand the source</option><option value="reflect">Reflect on their own life</option><option value="practice">Take a small, relevant action</option>
+                          </select>
+                        </label>
                     </div>
+                    <p class="text-sm text-brand/70">These choices guide new reflection and caption drafts. The Arabic, translation and attribution stay exactly as returned.</p>
+                    <label class="flex gap-3 text-sm"><input id="includeStudioReflection" type="checkbox"> Draft an optional reflection alongside the source</label>
 
                     <!-- Tone Selection -->
                     <div class="space-y-3">
-                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Vibe (Atmosphere)</label>
+                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Writing voice</label>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <div onclick="setStudioTone('calm', this)" class="tone-card active p-3 bg-brand/5 border border-brand/5 rounded-xl cursor-pointer hover:border-brand/20 transition-all text-center">
                                 <span class="block text-[8px] font-black text-brand uppercase tracking-widest">Calm</span>
@@ -2728,7 +2876,7 @@ STUDIO_COMPONENTS_HTML = """
                 <div class="pt-4">
                     <button type="button" id="btnBuildMessage" onclick="buildCardMessage()" class="w-full py-6 bg-brand text-white rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:scale-[1.01] transition-all flex items-center justify-center gap-3">
                         <span class="btn-icon">✨</span>
-                        <span class="btn-text">Build Quote Card Message</span>
+                        <span class="btn-text">Prepare source & continue</span>
                     </button>
                 </div>
             </div>
@@ -2737,16 +2885,34 @@ STUDIO_COMPONENTS_HTML = """
             <div id="cardMessageWorkspace" class="hidden animate-in fade-in slide-in-from-top-4 duration-500 space-y-6 bg-brand/[0.02] p-8 rounded-[2.5rem] border border-brand/5">
                 <div class="space-y-4">
                     <div class="space-y-2">
-                        <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Eyebrow</label>
+                        <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Source reference</label>
                         <input type="text" id="editEyebrow" readonly title="Choose a different source in the Source step" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-bold text-brand outline-none focus:border-brand/30">
                     </div>
                     <div class="space-y-2">
-                        <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Headline</label>
+                        <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Exact source translation</label>
                         <textarea id="editHeadline" readonly title="The source translation is preserved exactly" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-medium text-brand outline-none focus:border-brand/30 h-24 resize-none"></textarea>
+                    </div>
+                    <details class="text-sm border-t border-brand/10 pt-4">
+                      <summary class="cursor-pointer font-semibold">Full source & returned attribution</summary>
+                      <p class="mt-3 text-brand/70">Review the original record and context. Missing attribution is shown as missing; Sabeel does not infer it.</p>
+                      <pre id="sourceAttribution" class="mt-3 whitespace-pre-wrap font-sans text-sm break-words"></pre>
+                      <p id="sourceArabicFull" lang="ar" dir="rtl" class="mt-4 text-xl leading-loose whitespace-pre-wrap"></p>
+                      <details class="mt-3"><summary>Provider metadata</summary><pre id="sourceProviderDetails" class="mt-2 whitespace-pre-wrap text-xs break-words"></pre></details>
+                    </details>
+                    <div id="arabicExcerptControls" class="hidden text-sm space-y-3">
+                      <label class="block">Arabic narration on the card
+                        <select id="arabicDisplayMode" onchange="changeArabicDisplay()" class="w-full p-3 mt-2 border border-brand/15 rounded-xl">
+                          <option value="full">Full narration and chain</option><option value="short_chain">Begin with Umar · labeled Arabic excerpt</option>
+                        </select>
+                      </label>
+                      <p class="text-brand/70">For this exact Bukhari 1 record only: start at Umar's name and keep his report of the Prophet's words in full. Earlier narrators are omitted from the image, not the saved source or caption. Review the excerpt in context; it has not received qualified source review.</p>
+                      <p id="arabicExcerptPreview" lang="ar" dir="rtl" class="text-xl leading-loose"></p>
                     </div>
                     <div class="space-y-2">
                         <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Optional reflection · separate from the source</label>
-                        <textarea id="editSupporting" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-medium text-brand outline-none focus:border-brand/30 h-16 resize-none"></textarea>
+                        <textarea id="editSupporting" oninput="updateStudioCardFromUI(); rememberStudio()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-medium text-brand outline-none focus:border-brand/30 h-16 resize-none"></textarea>
+                        <div class="flex flex-wrap gap-4 text-sm"><button id="draftReflectionButton" type="button" onclick="draftStudioReflection()" class="underline">Draft a reflection</button><button type="button" onclick="removeStudioReflection()" class="underline">Remove reflection</button></div>
+                        <p class="text-sm text-brand/70">AI reflection is optional commentary. Edit it in your own voice and check it against the source.</p>
                     </div>
                 </div>
             </div>
@@ -2756,6 +2922,21 @@ STUDIO_COMPONENTS_HTML = """
             </div>
              <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <div class="space-y-8">
+                    <details open class="p-5 border border-brand/15 rounded-xl space-y-4 text-sm">
+                      <summary class="font-semibold cursor-pointer">Your brand</summary>
+                      <p class="text-brand/70">Palette, typography and signature stay consistent across your series. Each saved draft keeps its own design.</p>
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <label>Palette<select id="brandPalette" onchange="changeStudioBrand()" class="w-full mt-1 p-2 border rounded-lg bg-white"><option value="olive">Olive & chalk</option><option value="ink">Ink & mist</option><option value="clay">Clay & cream</option><option value="night">Night & linen</option></select></label>
+                        <label>Typography<select id="brandTypography" onchange="changeStudioBrand()" class="w-full mt-1 p-2 border rounded-lg bg-white"><option value="modern">Modern sans</option><option value="classic">Classic serif</option></select></label>
+                        <label>Creator signature<input id="brandSignature" maxlength="48" oninput="changeStudioBrand()" placeholder="@yourname" class="w-full mt-1 p-2 border rounded-lg"></label>
+                        <label>Series name<input id="brandSeries" maxlength="48" oninput="changeStudioBrand()" placeholder="e.g. A moment to reflect" class="w-full mt-1 p-2 border rounded-lg"></label>
+                        <label>Default design family<select id="brandFamily" onchange="changeStudioBrand()" class="w-full mt-1 p-2 border rounded-lg bg-white"><option value="editorial">Editorial typography</option><option value="quiet_photography">Quiet photography</option><option value="minimal_paper">Minimal paper</option></select></label>
+                        <label>Composition<select id="brandComposition" onchange="changeStudioBrand()" class="w-full mt-1 p-2 border rounded-lg bg-white"><option value="varied">Vary with each source</option><option value="airy">Open & spacious</option><option value="anchored">Top-aligned reading column</option></select></label>
+                      </div>
+                      <p class="text-xs text-brand/70">Arabic uses the same shaped typeface in both choices. Narrations containing Arabic honorifics use a supporting serif face. Signatures support English and Arabic.</p>
+                      <div class="flex flex-wrap gap-3"><button id="saveBrandButton" type="button" onclick="saveWorkspaceBrand()" class="px-3 py-2 bg-brand text-white rounded-lg">Save workspace brand</button><button type="button" onclick="loadStudioBrand(true)" class="underline">Load workspace brand</button></div>
+                      <p id="brandStatus" role="status" class="text-brand/70"></p>
+                    </details>
                     <div class="space-y-5">
                         <label class="block text-sm text-brand">Where will this appear?
                             <select id="studioFormat" onchange="changeStudioFormat()" class="mt-2 w-full p-3 border border-brand/15 rounded-xl bg-white">
@@ -2781,7 +2962,7 @@ STUDIO_COMPONENTS_HTML = """
                                 <option value="bilingual">Arabic first · full English follows</option>
                             </select>
                         </label>
-                        <p class="text-xs leading-relaxed text-brand/60">Changing the layout keeps your source and photograph. Long sources flow across labeled pages with complete English and Arabic chapters. They are never shortened to fit.</p>
+                        <p class="text-xs leading-relaxed text-brand/60">Changing the layout keeps your source and photograph. Long sources flow across labeled pages with complete English and Arabic chapters. Text is never shortened to fit. A chosen Arabic chain excerpt is explicitly labeled.</p>
                         <div id="photoDirectionControls" class="hidden space-y-3">
                             <label class="block text-sm text-brand">Photograph direction
                                 <input type="text" id="studioCustomDirection" oninput="changeStudioBackground()" placeholder="e.g. natural daylight, olive-tree shadows, pale stone" class="mt-2 w-full p-3 border border-brand/15 rounded-xl text-sm">

@@ -683,11 +683,12 @@ def simulate_growth_plan(
         if i == 0:
             try:
                 from app.services.image_card import generate_quote_card
+                from app.services.brand_kit import workspace_brand
                 family = style.family if hasattr(style, "family") else "editorial"
                 # Preview and production share the measured source-card service.
                 # No punctuation cleanup, uppercasing or Arabic omission here.
                 visual_url = generate_quote_card(
-                    render_metadata=preview_metadata, allow_sequence=True,
+                    render_metadata=preview_metadata, allow_sequence=True, brand_kit=workspace_brand(db, org_id),
                     card_message={"eyebrow": item_ref or "", "headline": primary_item.text,
                                   "arabic_text": primary_item.arabic_text or ""},
                     style=FAMILY_TO_RENDER_STYLE.get(family, "quran"),

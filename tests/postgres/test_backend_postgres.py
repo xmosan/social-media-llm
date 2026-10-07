@@ -53,6 +53,36 @@ class PostgresChecks(unittest.TestCase):
         self.db.commit()
         return post.id
 
+    def test_brand_migration_is_additive_and_repeatable_on_existing_workspaces(self):
+        spec=importlib.util.spec_from_file_location('brand_migration', ROOT/'scripts/migrate_brand_kit.py')
+        migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(migration)
+        self.db.close()
+        with engine.begin() as connection:
+            connection.execute(text('ALTER TABLE orgs DROP COLUMN brand_kit'))  # Disposable fixture only.
+            migration.migrate(connection);migration.migrate(connection)
+        with Session(engine) as db:
+            org=db.get(Org,1)
+            self.assertEqual(org.name,'Test workspace');self.assertIsNone(org.brand_kit)
+            self.assertEqual(db.query(IGAccount).count(),1)
+
+    def test_simultaneous_brand_edits_accept_one_revision_and_reject_the_stale_one(self):
+        from app.routes.studio import save_brand_kit
+        from app.services.brand_kit import normalize_brand
+        from app.services.media_sequence import card_digest
+        from fastapi import HTTPException
+        revision=card_digest(normalize_brand());barrier=threading.Barrier(2)
+        def save(palette):
+            with Session(engine) as db:
+                barrier.wait(timeout=10)
+                try:
+                    save_brand_kit({'brand_kit':normalize_brand({'palette':palette}),'revision':revision},db,1)
+                    return 200
+                except HTTPException as error:
+                    db.rollback();return error.status_code
+        with ThreadPoolExecutor(2) as pool:statuses=list(pool.map(save,['clay','night']))
+        self.assertEqual(sorted(statuses),[200,409])
+        self.db.expire_all();self.assertIn(self.db.get(Org,1).brand_kit['palette'],{'clay','night'})
+
     def test_concurrent_studio_recovery_key_creates_one_ordered_draft(self):
         from app.routes.studio import studio_create_post
         from app.services.media_sequence import seal_manifest, card_digest
@@ -233,6 +263,33 @@ class PostgresChecks(unittest.TestCase):
             self.assertEqual(result.post.id, id_)
             self.assertTrue(post_service.publish_post(self.db, id_, 1).ok)
             send.assert_called_once()
+
+    def test_automation_uses_workspace_brand_and_freezes_it_in_reviewable_draft(self):
+        from app.services.brand_kit import normalize_brand
+        from app.services.media_sequence import card_digest, validate_manifest
+        self.automation_fixture()
+        kit=normalize_brand({'palette':'clay','signature':'@fixture','series_name':'Learning together'})
+        self.db.get(Org,1).brand_kit=kit
+        self.db.get(TopicAutomation,1).approval_mode='auto_approve'
+        self.db.commit()
+        def render(**kw):
+            self.assertEqual(kw['brand_kit'],kit)
+            card=kw['card_message']
+            kw['render_metadata'].update({'quality':{'review_required':True},'media_manifest':{
+                'version':1,'format':'feed_4_5','card_digest':card_digest(card),'brand_kit':kw['brand_kit'],
+                'pages':[{'index':0,'url':CDN,'width':1080,'height':1350,'quality':{'status':'passed'},
+                          'slices':[{'role':role,'start':0,'end':len(card[field])}
+                              for role,field in [('source_translation','headline'),('source_arabic','arabic_text'),('reflection','supporting_text')]
+                              if card.get(field)]}]}})
+            return CDN
+        with patch('app.services.image_card.generate_quote_card',side_effect=render),patch.object(automation_runner,'generate_topic_variations',return_value=['wisdom']):
+            draft=automation_runner.run_automation_once(self.db,1)
+        self.assertIsNotNone(draft);self.assertEqual(draft.status,'drafted')
+        self.assertIsNone(draft.scheduled_time)
+        self.assertEqual(draft.flags['visual_design']['brand_kit'],kit)
+        validate_manifest(draft.flags['media_manifest'],draft.card_message,1)
+        self.db.get(Org,1).brand_kit=normalize_brand({'palette':'night'});self.db.commit();self.db.expire_all()
+        self.assertEqual(self.db.get(Post,draft.id).flags['media_manifest']['brand_kit'],kit)
 
     def test_database_lock_blocks_overlapping_automation_workers(self):
         self.automation_fixture()

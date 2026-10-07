@@ -86,7 +86,7 @@ DESIGN_FAMILIES = {"editorial", "quiet_photography", "minimal_paper"}
 FEED_LAYOUTS = {"english_first", "bilingual"}
 
 
-def layout_card(segments, *, serif=False, family="editorial", layout="english_first", post_format="feed_4_5"):
+def layout_card(segments, *, serif=False, family="editorial", layout="english_first", post_format="feed_4_5", brand_kit=None):
     """Measured feed and Story compositions with safe text areas.
 
     The sequence planner partitions sources that exceed this single-card layout.
@@ -107,12 +107,38 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
         raise CardTypographyError("Choose a feed post or Story sequence")
     story = post_format == "story_9_16"
     width, height, margin = 1080, 1920 if story else 1350, 88
+    brand_blocks = []
+    composition = None
+    if brand_kit is not None:
+        from app.services.brand_kit import normalize_brand, composition_for
+        brand_kit = normalize_brand(brand_kit)
+        composition = composition_for(brand_kit, next((s["text"] for s in segments if s["role"] == "reference"), ""))
+        margin = 104 if composition == "airy" else 80
     top_margin = 250 if story else margin
     bottom_margin = 310 if story else margin
     short = all(len(s["text"]) <= (80 if s["role"] == "source_arabic" else 100) for s in segments)
     # A photograph occupies a separate, full-width area, never a box behind text.
     photo_height = (430 if short else 280) if family == "quiet_photography" else 0
     available_bottom = min(height-bottom_margin, height-photo_height-64) if photo_height else height-bottom_margin
+    if brand_kit is not None:
+        for key, role, position in (("series_name", "series_title", "top"), ("signature", "creator_signature", "bottom")):
+            text = brand_kit[key]
+            if not text:
+                continue
+            font = load_font(text, 34)
+            lines = wrap(text, font, width-2*margin)
+            if len(lines) != 1 or lines[0]["width"] > width-2*margin:
+                raise CardTypographyError("Shorten the creator signature or series name; it must fit on one readable line")
+            h = lines[0]["height"]
+            y = top_margin if position == "top" else available_bottom-h
+            brand_blocks.append({"role": role, "lines": lines, "font": font, "leading": 0,
+                "height": h, "label": None, "size": 34, "y": y,
+                "bounds": (margin, y, width-margin, y+h), "photo_height": photo_height,
+                "alignment": "Right" if paragraph_direction(text) == "rtl" else "Left"})
+            if position == "top":
+                top_margin += h+48
+            else:
+                available_bottom -= h+32
     for scale in (1, .92, .84):
         blocks = []
         fits = True
@@ -122,7 +148,8 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
                              "reflection": (46, 42)}.get(role, (104 if short else 80, 52))
             size = max(minimum, round(base * scale))
             needs_arabic_font = contains_arabic(text) or seg.get("use_arabic_font", False)
-            font = load_font(text, size, serif=serif or family == "minimal_paper" or needs_arabic_font)
+            use_serif = brand_kit["typography"] == "classic" if brand_kit is not None else serif or family == "minimal_paper"
+            font = load_font(text, size, serif=use_serif or needs_arabic_font)
             lines = wrap(text, font, width - 2 * margin)
             leading = round(size * (.36 if needs_arabic_font else .30))
             block_height = sum(line["height"] for line in lines) + max(0, len(lines)-1) * leading
@@ -132,6 +159,7 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
                 label_font = load_font(label_text, 34)
                 label = {**measure(label_text, label_font), "font": label_font}
                 block_height += label["height"] + 18
+                fits &= label["width"] <= width-2*margin
             fits &= all(line["width"] <= width - 2 * margin for line in lines)
             blocks.append({"role": role, "lines": lines, "font": font, "leading": leading,
                            "height": block_height, "label": label, "size": size,
@@ -146,7 +174,7 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
         if fits and total <= body_bottom - top_margin:
             # Short cards use deliberate negative space; reference anchors the
             # footer. Medium sources get the full reading column.
-            y = top_margin + min(240 if short else 120, max(0, (body_bottom-top_margin-total)//(2 if short else 3)))
+            y = top_margin + (0 if composition == "anchored" else min(240 if short else 120, max(0, (body_bottom-top_margin-total)//(2 if short else 3))))
             for block in body:
                 block["y"] = y
                 block["bounds"] = (margin, y, width-margin, y+block["height"])
@@ -156,11 +184,11 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
                 block["y"] = y
                 block["bounds"] = (margin, y, width-margin, y+block["height"])
                 y += block["height"] + gap
-            return (width, height), body + references
+            return (width, height), body + references + brand_blocks
     raise CardTypographyError("This source and reflection are too long for a readable feed card. Choose a shorter complete source or remove the optional reflection. Nothing has been shortened or hidden; long sources need a multi-card sequence.")
 
 
-def plan_sequence(segments, *, family="editorial", layout="english_first", post_format="feed_4_5"):
+def plan_sequence(segments, *, family="editorial", layout="english_first", post_format="feed_4_5", brand_kit=None):
     """Exact contiguous source slices, never AI excerpts or inferred alignment.
 
     Short cards keep both languages together. Long records use complete language
@@ -172,7 +200,7 @@ def plan_sequence(segments, *, family="editorial", layout="english_first", post_
     # An English narration may include ﷺ. Choose its supporting font once for
     # the whole chapter; subsequent pages without that glyph must not switch face.
     segments = [dict(seg, use_arabic_font=contains_arabic(seg["text"])) for seg in segments]
-    options = dict(family=family, layout=layout, post_format=post_format)
+    options = dict(family=family, layout=layout, post_format=post_format, brand_kit=brand_kit)
     if sum(len(str(s.get("text", ""))) for s in segments) > 24000:
         raise CardTypographyError("This complete source exceeds the current ten-page sequence limit. Choose a shorter complete source.")
     try:
@@ -191,7 +219,7 @@ def plan_sequence(segments, *, family="editorial", layout="english_first", post_
     pages = []
     for seg in body:
         text, start = seg["text"], 0
-        chapter = {"source_translation": "Translation", "source_arabic": "Arabic source", "reflection": "Reflection"}.get(seg["role"], "Source")
+        chapter = seg.get("label") or {"source_translation": "Translation", "source_arabic": "Arabic source", "reflection": "Reflection"}.get(seg["role"], "Source")
         parts = []
         while start < len(text):
             ends = [m.end() for m in re.finditer(r"\S+\s*", text[start:])]
@@ -246,7 +274,7 @@ def plan_sequence(segments, *, family="editorial", layout="english_first", post_
             except CardTypographyError:
                 pass
         for i, (start, end) in enumerate(parts):
-            label = f"{chapter} · part {i+1} of {len(parts)}" if len(parts)>1 else chapter+" · complete"
+            label = f"{chapter} · part {i+1} of {len(parts)}" if len(parts)>1 else chapter if seg.get("label") else chapter+" · complete"
             pages.append({"segments": [dict(seg, text=text[start:end], label=label), *refs],
                           "slices": [{"role": seg["role"], "start": start, "end": end}], "label": label})
     for i, page in enumerate(pages):
@@ -291,7 +319,7 @@ def _contrast_at_ink(background, mask, color):
     return min(values)
 
 
-def paint_card_text(background, blocks, *, alignment="Left", quality=None):
+def paint_card_text(background, blocks, *, alignment="Left", quality=None, brand_kit=None):
     """Check the actual opaque glyph footprint, repair globally, then paint.
 
     No average-brightness proxy and no shadows/panels behind lettering. A 4.8:1
@@ -301,13 +329,17 @@ def paint_card_text(background, blocks, *, alignment="Left", quality=None):
     background = background.convert("RGB")
     masks = [_ink_mask(background.size, b, alignment) for b in blocks]
     dark, light = (25, 43, 39), (255, 253, 247)
+    from app.services.brand_kit import PALETTES
+    palette = PALETTES[brand_kit["palette"]] if brand_kit is not None else None
     repaired = False
     for amount in (0, .35, .60, .80, 1):
         candidate = background if amount == 0 else Image.blend(background, Image.new("RGB", background.size, (248, 246, 239)), amount)
         choices = []
-        for mask in masks:
+        for block, mask in zip(blocks, masks):
+            preferred = palette["accent" if block["role"] == "series_title" else "ink"] if palette else None
+            preferred_score = _contrast_at_ink(candidate, mask, preferred) if preferred else 0
             scores = [(_contrast_at_ink(candidate, mask, color), color) for color in (dark, light)]
-            choices.append(max(scores, key=lambda pair: pair[0]))
+            choices.append((preferred_score, preferred) if preferred_score >= 4.8 else max(scores, key=lambda pair: pair[0]))
         if all(score >= 4.8 for score, _ in choices):
             repaired = amount > 0
             break
