@@ -193,6 +193,10 @@ STUDIO_SCRIPTS_JS = r"""
 
     window.resetStudioSession = function() {
         invalidateHadithSearch();
+        cancelStudioVisual();
+        studioVisualDesign = null;
+        studioBackgroundToken = null;
+        studioGalleryImage = null;
         clearTimeout(searchDebounceTimeout);
         currentQuoteCardUrl = null;
         isQuoteCardOutOfDate = false;
@@ -215,6 +219,13 @@ STUDIO_SCRIPTS_JS = r"""
         setVal('studioCaption', '');
         setVal('finalMediaUrl', '');
         setVal('studioVisualPrompt', '');
+        setVal('studioStyle', 'editorial');
+        setVal('studioLayout', 'english_first');
+        setVal('studioCustomDirection', '');
+        document.getElementById('photoDirectionControls')?.classList.add('hidden');
+        document.querySelectorAll('.scene-card').forEach(c => c.classList.toggle('active', c.dataset.family === 'editorial'));
+        const qualityNote = document.getElementById('visualQualityNote');
+        if (qualityNote) qualityNote.textContent = '';
         // Clear scheduling fields
         setVal('scheduleDate', '');
         setVal('scheduleTime', '');
@@ -638,56 +649,90 @@ STUDIO_SCRIPTS_JS = r"""
         window.invalidateQuoteCard();
     };
 
+    // Feed visual requests: independent background/layout, stale-response protection.
+    let studioVisualController = null;
+    let studioVisualEpoch = 0;
+    let studioVisualDesign = null;
+    let studioBackgroundToken = null;
+
+    function cancelStudioVisual() {
+        studioVisualEpoch++;
+        studioVisualController?.abort();
+        studioVisualController = null;
+        const btn = document.getElementById('btnGenerateCard');
+        if (btn) { btn.disabled = false; btn.innerText = 'Create feed card'; }
+        document.getElementById('cardLoader')?.classList.add('hidden');
+    }
+
+    window.changeStudioBackground = function() {
+        studioBackgroundToken = null;
+        window.invalidateQuoteCard();
+    };
+
+    window.newStudioPhotograph = function() {
+        window.changeStudioBackground();
+        window.generateQuoteCard();
+    };
+
     window.generateQuoteCard = async function() {
-        if (!studioCardMessage) { alert("Build a message first."); return; }
-        
+        if (!studioCardMessage) { alert('Choose and build your source first.'); return; }
+        if (studioVisualController) return;
         const btn = document.getElementById('btnGenerateCard');
         const loader = document.getElementById('cardLoader');
         const preview = document.getElementById('quoteCardPreview');
-        const syncBanner = document.getElementById('outOfSyncBanner');
-
+        const note = document.getElementById('visualQualityNote');
+        const controller = new AbortController();
+        studioVisualController = controller;
+        const epoch = ++studioVisualEpoch;
+        const timer = setTimeout(() => controller.abort(), 180000);
         btn.disabled = true;
-        btn.innerText = 'Preparing Visual...';
-        if (loader) loader.classList.remove('hidden');
-        if (preview) preview.classList.add('hidden');
-        if (syncBanner) syncBanner.classList.add('hidden');
-
+        btn.innerText = studioBackgroundToken ? 'Applying layout…' : 'Creating your feed card…';
+        loader?.classList.remove('hidden');
+        if (note) note.textContent = '';
+        document.getElementById('cardActions')?.classList.add('hidden');
         try {
             const payload = {
                 card_message: studioCardMessage,
-                style: studioGalleryImage ? studioGalleryImage : document.getElementById('studioStyle').value,
-                visual_prompt: document.getElementById('studioCustomDirection')?.value,
-                text_style_prompt: document.getElementById('studioTextStylePrompt')?.value,
+                style: studioGalleryImage || document.getElementById('studioStyle').value,
+                layout: document.getElementById('studioLayout')?.value || 'english_first',
+                visual_prompt: document.getElementById('studioCustomDirection')?.value || '',
+                background_token: studioBackgroundToken,
                 engine: studioEngine,
-                glossy: studioGlossy,
                 mode: studioGalleryImage ? 'gallery' : 'scene'
             };
-
             const res = await fetch('/api/studio/generate-visual', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload), signal: controller.signal
             });
             const data = await res.json();
-            if (data.image_url) {
-                currentQuoteCardUrl = data.image_url;
-                document.getElementById('finalMediaUrl').value = data.image_url;
-                preview.src = data.image_url + '?t=' + Date.now();
-                preview.classList.remove('hidden');
-                if (loader) loader.classList.add('hidden');
-                document.getElementById('cardActions').classList.remove('hidden');
-                isQuoteCardOutOfDate = false;
-            } else {
-                alert('Visual generation failed: ' + (data.error || 'Unknown error'));
-            }
+            if (epoch !== studioVisualEpoch) return;
+            if (!res.ok || !data.image_url) throw new Error(data.error || data.detail || 'The card could not be created. Please retry.');
+            currentQuoteCardUrl = data.image_url;
+            document.getElementById('finalMediaUrl').value = data.image_url;
+            studioVisualDesign = data.visual_design || null;
+            studioBackgroundToken = studioVisualDesign?.background_token || null;
+            preview.src = data.image_url;
+            preview.classList.remove('hidden');
+            document.getElementById('cardActions')?.classList.remove('hidden');
+            document.getElementById('outOfSyncBanner')?.classList.add('hidden');
+            isQuoteCardOutOfDate = false;
+            if (note) note.textContent = (studioVisualDesign?.background_reused ? 'Your photograph was reused. ' : '') +
+                (studioVisualDesign?.quality?.background_repaired ? 'The background was softened for readability. ' : '') +
+                'Review the full source, Arabic and reflection at phone size before continuing.';
         } catch (e) {
-            alert('Sabeel Vision could not finish generating the image. Please try again.');
+            if (epoch === studioVisualEpoch && note) note.textContent = e.name === 'AbortError'
+                ? 'This took too long. Your source is safe; please retry.' : e.message;
         } finally {
-            if (loader) loader.classList.add('hidden');
-            btn.disabled = false;
-            btn.innerText = 'Craft your visual through Sabeel Vision';
+            clearTimeout(timer);
+            if (epoch === studioVisualEpoch) {
+                studioVisualController = null;
+                loader?.classList.add('hidden');
+                btn.disabled = false;
+                btn.innerText = studioBackgroundToken ? 'Apply layout with this photograph' : 'Create feed card';
+            }
         }
-    }
+    };
+    // End feed visual requests.
 
     window.generateSocialCaption = async function() {
         const btn = document.getElementById('btnGenerateCaption');
@@ -795,6 +840,8 @@ STUDIO_SCRIPTS_JS = r"""
     }
 
     window.invalidateQuoteCard = function() {
+        cancelStudioVisual();
+        document.getElementById('cardActions')?.classList.add('hidden');
         if (currentQuoteCardUrl) {
             isQuoteCardOutOfDate = true;
             const banner = document.getElementById('outOfSyncBanner');
@@ -829,14 +876,15 @@ STUDIO_SCRIPTS_JS = r"""
 
     window.setStudioScene = function(sceneKey, el) {
         studioGalleryImage = null;
+        studioBackgroundToken = null;
+        document.getElementById('photoDirectionControls')?.classList.toggle('hidden', sceneKey !== 'quiet_photography');
         document.querySelectorAll('.gallery-thumb').forEach(c => c.classList.remove('border-brand', 'ring-2', 'ring-brand/20'));
         const input = document.getElementById('studioStyle');
         if (input) input.value = sceneKey;
         document.querySelectorAll('.style-card').forEach(c => c.classList.remove('active'));
         if (el) el.closest('.style-card').classList.add('active');
         window.invalidateQuoteCard();
-        // Instant Feedback: Automatically trigger regeneration when style is changed
-        if (studioCardMessage) window.generateQuoteCard();
+        // Choosing a family is free; the creator explicitly starts generation.
     };
 
     window.setStudioGallery = function(filename, el) {
@@ -1009,7 +1057,8 @@ STUDIO_SCRIPTS_JS = r"""
         const btn = document.getElementById('studioSubmitBtn');
         const original = btn.innerHTML;
 
-        if (isQuoteCardOutOfDate && !confirm("Your quote card no longer matches your latest message. Share anyway?")) {
+        if (isQuoteCardOutOfDate || studioVisualController) {
+            alert("Apply your latest source and layout changes before sharing.");
             return;
         }
 
@@ -1073,6 +1122,8 @@ STUDIO_SCRIPTS_JS = r"""
             source_metadata: srcMetadata,
             topic: topicVal,
             card_message: studioCardMessage,
+            visual_design: studioVisualDesign,
+            post_format: 'feed_4_5',
             caption_message: finalCaptionMsg,
             media_url: document.getElementById('finalMediaUrl')?.value || currentQuoteCardUrl,
             intent_type: document.getElementById('studioIntent').value,
@@ -1178,7 +1229,7 @@ STUDIO_SCRIPTS_JS = r"""
 
             const container = document.getElementById('autoV2StyleDNAContainer');
             if (container) {
-                container.innerHTML = v2DnaPresets.map(p => {
+                const renderPreset = p => {
                     const orbGrad = FAMILY_ORBS[p.family] || 'from-brand/20 to-brand/5';
                     const orbDot  = ORB_DOTS[p.family] || 'bg-brand/20';
                     const dnaId   = p.id;   // string key OR integer — both safe as data-attr
@@ -1194,7 +1245,11 @@ STUDIO_SCRIPTS_JS = r"""
                         <div class="text-[8px] text-text-muted/70 font-bold leading-tight mt-0.5">${p.tone_style}</div>
                     </div>
                     `;
-                }).join('');
+                };
+                const recommended = p => ['editorial', 'quiet_photography', 'minimal_paper'].includes(p.family);
+                container.innerHTML = v2DnaPresets.filter(recommended).map(renderPreset).join('') +
+                    '<details class="col-span-full"><summary class="text-sm text-brand/60 cursor-pointer">Earlier styles</summary><div class="grid grid-cols-2 gap-3 mt-3">' +
+                    v2DnaPresets.filter(p => !recommended(p)).map(renderPreset).join('') + '</div></details>';
                 // Do NOT auto-select on load — force intentional user choice
             }
         } catch (e) {
@@ -1380,7 +1435,7 @@ STUDIO_SCRIPTS_JS = r"""
                         <div class="flex flex-col col-span-full pt-1">
                             <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Approval Protocol</span>
                             <span class="text-[11px] font-black ${mode === 'auto_approve' ? 'text-rose-600' : 'text-emerald-600'} mt-1">
-                                ${mode === 'auto_approve' ? 'Auto-Pilot: Publishes automatically' : 'Drafting Engine: Requires your review'}
+                                ${mode === 'auto_approve' ? 'Auto-Pilot: reviewed formats only' : 'Drafting Engine: Requires your review'}
                             </span>
                         </div>
                     </div>
@@ -2342,7 +2397,7 @@ STUDIO_COMPONENTS_HTML = """
 
       <form id="composerForm" onsubmit="submitNewPost(event)" class="flex-1 overflow-hidden flex flex-col relative bg-white">
         <input type="hidden" name="visual_mode" id="studioVisualMode" value="quote_card">
-        <input type="hidden" name="visual_style" id="studioStyle" value="sacred_script">
+        <input type="hidden" name="visual_style" id="studioStyle" value="editorial">
         <input type="hidden" name="media_url" id="finalMediaUrl">
         <input type="hidden" name="intent_type" id="studioIntent" value="wisdom">
         <input type="hidden" name="tone_style" id="studioTone" value="calm">
@@ -2471,14 +2526,14 @@ STUDIO_COMPONENTS_HTML = """
                 <div class="space-y-4">
                     <div class="space-y-2">
                         <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Eyebrow</label>
-                        <input type="text" id="editEyebrow" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-bold text-brand outline-none focus:border-brand/30">
+                        <input type="text" id="editEyebrow" readonly title="Choose a different source in the Source step" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-bold text-brand outline-none focus:border-brand/30">
                     </div>
                     <div class="space-y-2">
                         <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Headline</label>
-                        <textarea id="editHeadline" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-medium text-brand outline-none focus:border-brand/30 h-24 resize-none"></textarea>
+                        <textarea id="editHeadline" readonly title="The source translation is preserved exactly" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-medium text-brand outline-none focus:border-brand/30 h-24 resize-none"></textarea>
                     </div>
                     <div class="space-y-2">
-                        <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Supporting Text</label>
+                        <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Optional reflection · separate from the source</label>
                         <textarea id="editSupporting" oninput="updateStudioCardFromUI()" class="w-full bg-white border border-brand/10 rounded-xl px-4 py-3 text-xs font-medium text-brand outline-none focus:border-brand/30 h-16 resize-none"></textarea>
                     </div>
                 </div>
@@ -2489,140 +2544,41 @@ STUDIO_COMPONENTS_HTML = """
             </div>
              <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <div class="space-y-8">
-                    <!-- Style Selection & Custom Mode -->
-                    <!-- Style Selection & Custom Mode -->
-                    <div class="space-y-6">
-                        <div class="space-y-4">
-                            <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Choose a Style Family</label>
-                            
-                            <!-- Unified Scene-Based Presets -->
-                            <div class="grid grid-cols-2 gap-3" id="presetModeContainer">
-                                <div onclick="setStudioScene('sacred_script', this)" class="style-card scene-card active p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all flex flex-col items-center text-center group">
-                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-brand/20 to-brand/5 flex items-center justify-center mb-2 shadow-inner group-hover:scale-110 transition-transform">
-                                        <div class="w-3 h-3 rounded-full bg-brand/20 animate-pulse"></div>
-                                    </div>
-                                    <span class="block text-[9px] font-black text-brand uppercase tracking-widest">Sacred Script</span>
-                                    <span class="block text-[7px] text-text-muted mt-0.5">Classic spiritual aesthetic</span>
-                                </div>
-                                <div onclick="setStudioScene('midnight_oasis', this)" class="style-card scene-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all flex flex-col items-center text-center group">
-                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-900/40 to-brand/5 flex items-center justify-center mb-2 shadow-inner group-hover:scale-110 transition-transform">
-                                        <div class="w-3 h-3 rounded-full bg-indigo-400/20 animate-pulse"></div>
-                                    </div>
-                                    <span class="block text-[9px] font-black text-brand uppercase tracking-widest">Midnight Oasis</span>
-                                    <span class="block text-[7px] text-text-muted mt-0.5">Deep atmospheric tones</span>
-                                </div>
-                                <div onclick="setStudioScene('desert_glow', this)" class="style-card scene-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all flex flex-col items-center text-center group">
-                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-amber-600/30 to-brand/5 flex items-center justify-center mb-2 shadow-inner group-hover:scale-110 transition-transform">
-                                        <div class="w-3 h-3 rounded-full bg-amber-400/20 animate-pulse"></div>
-                                    </div>
-                                    <span class="block text-[9px] font-black text-brand uppercase tracking-widest">Desert Glow</span>
-                                    <span class="block text-[7px] text-text-muted mt-0.5">Warm golden atmosphere</span>
-                                </div>
-                                <div onclick="setStudioScene('luxury_editorial', this)" class="style-card scene-card p-4 bg-brand/5 border border-brand/5 rounded-2xl cursor-pointer hover:border-brand/20 transition-all flex flex-col items-center text-center group">
-                                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-slate-900 to-brand/5 flex items-center justify-center mb-2 shadow-inner group-hover:scale-110 transition-transform">
-                                        <div class="w-3 h-3 rounded-full bg-slate-400/20 animate-pulse"></div>
-                                    </div>
-                                    <span class="block text-[9px] font-black text-brand uppercase tracking-widest">Luxury Editorial</span>
-                                    <span class="block text-[7px] text-text-muted mt-0.5">Premium magazine feel</span>
-                                </div>
-                            </div>
+                    <div class="space-y-5">
+                        <p class="text-sm text-brand/70">Feed post · 4:5. Choose a design, then review every word at phone size.</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="presetModeContainer">
+                            <button type="button" data-family="editorial" onclick="setStudioScene('editorial', this)" class="style-card scene-card active p-4 text-left border border-brand/15 rounded-xl">
+                                <span class="block text-sm font-semibold text-brand">Editorial typography</span><span class="block text-xs text-brand/60 mt-2">Clear ink, generous space.</span>
+                            </button>
+                            <button type="button" data-family="quiet_photography" onclick="setStudioScene('quiet_photography', this)" class="style-card scene-card p-4 text-left border border-brand/15 rounded-xl">
+                                <span class="block text-sm font-semibold text-brand">Quiet photography</span><span class="block text-xs text-brand/60 mt-2">Natural light, a separate text area.</span>
+                            </button>
+                            <button type="button" data-family="minimal_paper" onclick="setStudioScene('minimal_paper', this)" class="style-card scene-card p-4 text-left border border-brand/15 rounded-xl">
+                                <span class="block text-sm font-semibold text-brand">Minimal paper</span><span class="block text-xs text-brand/60 mt-2">Warm paper, restrained type.</span>
+                            </button>
                         </div>
-
-                        <div class="space-y-2">
-                            <label class="text-[8px] font-bold text-text-muted uppercase tracking-widest ml-1">Optional Direction</label>
-                            <input type="text" id="studioCustomDirection" placeholder="e.g. sunset dunes, moonlit hall, softer gold tones..." class="w-full bg-cream/20 border border-brand/5 rounded-2xl px-6 py-4 text-xs font-medium text-brand outline-none focus:border-brand/20 transition-all shadow-inner placeholder:text-brand/30">
-                        </div>
-
-                        <!-- Premium Gallery (App Defaults) -->
-                        <div class="space-y-3 pt-4 border-t border-brand/5">
-                            <div class="flex items-center justify-between">
-                                <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Or Choose a Premium Background</label>
-                                <span class="text-[8px] text-text-muted uppercase tracking-widest bg-brand/5 px-2 py-0.5 rounded-md">Instant</span>
-                            </div>
-                            <div class="flex gap-4 overflow-x-auto pb-4 snap-x hide-scrollbar">
-                                <!-- Sacred Corridor -->
-                                <div onclick="setStudioGallery('vsbg_1703898d266c.jpg', this)" class="gallery-thumb group relative w-24 h-28 snap-start shrink-0 cursor-pointer transition-all border-2 border-transparent rounded-2xl p-0.5">
-                                    <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
-                                        <img src="/static/img/gallery/vsbg_1703898d266c.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
-                                    </div>
-                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Sacred Obsidian</span>
-                                </div>
-
-                                <!-- Golden Manuscript -->
-                                <div onclick="setStudioGallery('vsbg_483ca6ddb2c3.jpg', this)" class="gallery-thumb group relative w-24 h-28 snap-start shrink-0 cursor-pointer transition-all border-2 border-transparent rounded-2xl p-0.5">
-                                    <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
-                                        <img src="/static/img/gallery/vsbg_483ca6ddb2c3.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
-                                    </div>
-                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Midnight Scholar</span>
-                                </div>
-
-                                <!-- Midnight Oasis -->
-                                <div onclick="setStudioGallery('vsbg_8e6c34cea9aa.jpg', this)" class="gallery-thumb group relative w-24 h-28 snap-start shrink-0 cursor-pointer transition-all border-2 border-transparent rounded-2xl p-0.5">
-                                    <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
-                                        <img src="/static/img/gallery/vsbg_8e6c34cea9aa.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
-                                    </div>
-                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Vestige of Light</span>
-                                </div>
-
-                                <!-- Celestial Glow -->
-                                <div onclick="setStudioGallery('vsbg_7e47e2ef36e5.jpg', this)" class="gallery-thumb group relative w-24 h-28 snap-start shrink-0 cursor-pointer transition-all border-2 border-transparent rounded-2xl p-0.5">
-                                    <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
-                                        <img src="/static/img/gallery/vsbg_7e47e2ef36e5.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
-                                    </div>
-                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Divine Forest</span>
-                                </div>
-
-                                <!-- Desert Silence -->
-                                <div onclick="setStudioGallery('vsbg_6a4e0c22c2ce.jpg', this)" class="gallery-thumb group relative w-24 h-28 snap-start shrink-0 cursor-pointer transition-all border-2 border-transparent rounded-2xl p-0.5">
-                                    <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
-                                        <img src="/static/img/gallery/vsbg_6a4e0c22c2ce.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
-                                    </div>
-                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Royal Obsidian</span>
-                                </div>
-
-                                <!-- Eternal Stone -->
-                                <div onclick="setStudioGallery('vsbg_5e98671f4321.jpg', this)" class="gallery-thumb group relative w-24 h-28 snap-start shrink-0 cursor-pointer transition-all border-2 border-transparent rounded-2xl p-0.5">
-                                    <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
-                                        <img src="/static/img/gallery/vsbg_5e98671f4321.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
-                                    </div>
-                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Zenith Stone</span>
-                                </div>
-
-                                <!-- Fajr Horizon -->
-                                <div onclick="setStudioGallery('vsbg_3cdd20be4a77.jpg', this)" class="gallery-thumb group relative w-24 h-28 snap-start shrink-0 cursor-pointer transition-all border-2 border-transparent rounded-2xl p-0.5">
-                                    <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
-                                        <img src="/static/img/gallery/vsbg_3cdd20be4a77.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
-                                    </div>
-                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Midnight Tea</span>
-                                </div>
-
-                                <!-- Royal Velvet -->
-                                <div onclick="setStudioGallery('vsbg_1bf225ff5dda.jpg', this)" class="gallery-thumb group relative w-24 h-28 snap-start shrink-0 cursor-pointer transition-all border-2 border-transparent rounded-2xl p-0.5">
-                                    <div class="w-full h-24 rounded-[1.25rem] overflow-hidden shadow-sm">
-                                        <img src="/static/img/gallery/vsbg_1bf225ff5dda.jpg" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-brand/5">
-                                    </div>
-                                    <span class="block text-[7px] font-black text-brand/40 uppercase tracking-widest mt-2 text-center group-hover:text-brand transition-colors">Celestial Silk</span>
-                                </div>
-                            </div>
+                        <label class="block text-sm text-brand">Reading order
+                            <select id="studioLayout" onchange="invalidateQuoteCard()" class="mt-2 w-full p-3 border border-brand/15 rounded-xl bg-white">
+                                <option value="english_first">English first · Arabic preserved</option>
+                                <option value="bilingual">Arabic first · full English follows</option>
+                            </select>
+                        </label>
+                        <p class="text-xs leading-relaxed text-brand/60">Changing the layout keeps your source and photograph. Sources that cannot fit readably will need a multi-card sequence; they will never be shortened to fit.</p>
+                        <div id="photoDirectionControls" class="hidden space-y-3">
+                            <label class="block text-sm text-brand">Photograph direction
+                                <input type="text" id="studioCustomDirection" oninput="changeStudioBackground()" placeholder="e.g. natural daylight, olive-tree shadows, pale stone" class="mt-2 w-full p-3 border border-brand/15 rounded-xl text-sm">
+                            </label>
+                            <button type="button" onclick="newStudioPhotograph()" class="text-sm text-brand underline">Create a new photograph</button>
                         </div>
                     </div>
-
-                    <!-- Sabeel Vision Rebrand -->
-                    <div class="space-y-4">
-                        <label class="text-[9px] font-black text-brand uppercase tracking-widest ml-1">Sabeel Vision</label>
-                        <!-- Provider chips hidden to maintain proprietary feel; internal mapping preserved -->
-                        <div class="flex flex-wrap gap-2 hidden">
-                            <div onclick="setStudioEngine('openai', this)" class="engine-chip active px-4 py-2 bg-brand/5 border border-brand/5 rounded-full cursor-pointer text-[8px] font-black uppercase tracking-widest transition-all">Sabeel Vision</div>
-                        </div>
-                    </div>
-
-                    <button type="button" id="btnGenerateCard" onclick="generateQuoteCard()" class="w-full py-6 bg-brand text-white rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Craft your visual through Sabeel Vision</button>
+                    <button type="button" id="btnGenerateCard" onclick="generateQuoteCard()" class="w-full py-6 bg-brand text-white rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Create feed card</button>
                 </div>
                 <div class="flex flex-col items-center gap-6">
-                    <div id="cardPreviewContainer" class="w-full max-w-[340px] aspect-square bg-cream rounded-[3rem] border-8 border-brand/5 overflow-hidden relative shadow-2xl flex items-center justify-center">
-                        <img id="quoteCardPreview" class="hidden w-full h-full object-contain">
-                        <div id="cardLoader" class="hidden animate-spin w-12 h-12 border-4 border-t-brand rounded-full"></div>
+                    <div id="cardPreviewContainer" class="w-full max-w-[390px] aspect-[4/5] bg-cream border border-brand/10 overflow-hidden relative shadow-2xl flex items-center justify-center">
+                        <img id="quoteCardPreview" alt="Your complete feed card" class="hidden w-full h-full object-contain">
+                        <div id="cardLoader" class="hidden absolute animate-spin w-12 h-12 border-4 border-t-brand rounded-full"></div>
                     </div>
+                    <p id="visualQualityNote" role="status" aria-live="polite" class="text-sm leading-relaxed text-brand/70 max-w-[390px]"></p>
                     <div id="cardActions" class="hidden flex gap-3">
                         <button type="button" onclick="switchStudioSection(3)" class="px-8 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Confirm Visual &rarr;</button>
                     </div>
@@ -2927,6 +2883,7 @@ STUDIO_COMPONENTS_HTML = """
                     </div>
                     <div class="space-y-4 pt-4 border-t border-brand/5 col-span-full">
                         <label class="text-[10px] font-black text-brand uppercase tracking-widest ml-1">Approval Protocol</label>
+                        <p class="text-sm text-brand/70 leading-relaxed">During the feed quality rollout, newly generated source cards are saved as drafts for visual and source review, including plans set to auto-approve.</p>
                         <input type="hidden" name="approval_mode" id="autoV2ApprovalModeInput" value="needs_manual_approve">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div onclick="selectApprovalMode('needs_manual_approve', this)" class="approval-card ring-2 ring-brand shadow-xl cursor-pointer bg-cream border border-brand/5 rounded-2xl p-6 hover:border-brand/30 transition-all flex flex-col relative overflow-hidden">
