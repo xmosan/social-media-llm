@@ -3,13 +3,29 @@ const source=fs.readFileSync(path.join(__dirname,'../../app/routes/ui_assets.py'
 const code=source.slice(source.indexOf('    // Creator identity and editorial controls.'),source.indexOf('    // End creator controls.'));
 function setup(fetch) {
  const nodes={},alerts=[];let invalidated=0,remembered=0;
- const el=id=>nodes[id] ||= {value:'',checked:false,disabled:false,textContent:'',classList:{add(){},toggle(){}},dataset:{}};
+ const el=id=>nodes[id] ||= {value:'',checked:false,disabled:false,textContent:'',classList:{add(){},remove(){},toggle(){}},dataset:{}};
  const c={window:{invalidateQuoteCard:()=>invalidated++,rememberStudio:()=>remembered++,updateStudioCardFromUI:()=>{}},document:{getElementById:el,querySelectorAll:()=>[]},
   studioSessionEpoch:1,studioSourceEpoch:1,studioPostId:null,currentQuoteCardUrl:null,studioCardMessage:null,fetch,AbortSignal,alert:m=>alerts.push(m)};
  vm.runInNewContext(code,c);c.window.resetCreatorControls();
  return {c,el,alerts,invalidated:()=>invalidated,run:s=>vm.runInNewContext(s,c)};
 }
 const kit={version:1,palette:'night',typography:'classic',signature:'@fixture',series_name:'A series',family:'minimal_paper',composition:'airy'};
+test('switching source families reloads the workspace brand after resetting the session',async()=>{
+ let finish,calls=0;
+ const f=setup(()=>{calls++;return new Promise(r=>finish=r);});
+ f.c.activeSourceTab='quran';
+ f.c.window.resetStudioSession=()=>{f.c.studioSessionEpoch++;f.c.window.resetCreatorControls();};
+ f.c.window.updateBuildButtonState=()=>{};
+ const start=source.indexOf('    window.switchSourceTab =');
+ f.run(source.slice(start,source.indexOf('\n    };',start)+7));
+ f.c.window.switchSourceTab('hadith');
+ assert.equal(calls,1);assert.throws(()=>f.c.window.requireStudioBrand(),/Load/);
+ finish({ok:true,json:async()=>({brand_kit:kit,revision:'fresh'})});
+ await new Promise(r=>setImmediate(r));
+ assert.equal(f.c.window.studioBrandSnapshot().signature,'@fixture');
+ assert.equal(f.run('studioBrandRevision'),'fresh');assert.doesNotThrow(()=>f.c.window.requireStudioBrand());
+ f.c.window.switchSourceTab('hadith');assert.equal(calls,1);
+});
 test('late workspace loading never overwrites the saved draft brand or editor controls',async()=>{
  let finish;const f=setup(()=>new Promise(r=>finish=r));
  const pending=f.c.window.loadStudioBrand();
