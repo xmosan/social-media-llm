@@ -28,7 +28,7 @@ def module_at(name, path):
 
 
 class AppStartupChecks(unittest.TestCase):
-    def test_actual_app_startup_health_and_shutdown_without_seeds_or_live_jobs(self):
+    def test_actual_app_startup_health_without_legacy_migrations_or_live_jobs(self):
         assert engine.url.database == "sabeel_test"
         assert engine.url.query["host"] == os.environ["SABEEL_PG_TEST_SOCKET"]
         Base.metadata.create_all(engine)
@@ -38,7 +38,7 @@ class AppStartupChecks(unittest.TestCase):
             try:
                 with patch.dict(sys.modules, {"app.db": actual_db}):
                     main = module_at("app.isolated_startup_main", ROOT / "app/main.py")
-                    with patch.object(main, "run_admin_library_migration") as migrate, patch.object(main, "run_startup_tasks") as seed, patch.object(main, "start_scheduler") as jobs:
+                    with patch.object(main, "run_admin_library_migration") as migrate, patch.object(main, "run_startup_tasks") as seed, patch.object(main, "start_scheduler") as jobs, patch("app.services.automation_service.seed_style_dna", return_value=0) as creator_seed:
                         with TestClient(main.app) as client:
                             for endpoint in ("/health", "/ready"):
                                 response = client.get(endpoint)
@@ -49,6 +49,8 @@ class AppStartupChecks(unittest.TestCase):
                         self.assertFalse(main.app.state.ready)
                         migrate.assert_not_called()
                         seed.assert_not_called()
+                        creator_seed.assert_called_once()
+                        self.assertEqual(creator_seed.call_args.kwargs["families"], {"editorial", "quiet_photography", "minimal_paper"})
                         jobs.assert_not_called()
             finally:
                 actual_db.engine.dispose()
