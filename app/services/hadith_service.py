@@ -49,6 +49,10 @@ sunnah.now response shape (from official docs at docs.sunnah.now):
 }
 """
 
+import base64
+import binascii
+import hashlib
+import json
 import logging
 import httpx
 from typing import Optional
@@ -212,20 +216,20 @@ def _sunnah_now_collection_page(collection_key: str, page: int) -> Optional[list
         return None
     url = f"{_sunnah_now_base()}/api/early-access/book/{col['sunnah_now_slug']}/hadith?page={page}&pageSize=50"
     data = _get_json(url, headers=_sunnah_now_headers())
-    if not isinstance(data, list) or any(not isinstance(item, dict) for item in data):
+    if not isinstance(data, list) or len(data) > 50 or any(not isinstance(item, dict) for item in data):
         return None
     return data
 
 
-def _sunnah_now_get_hadith_by_reference(collection_key: str, hadith_number: int) -> Optional[dict]:
+def _sunnah_now_get_hadith_by_reference(collection_key: str, hadith_number: int, provider_page=None) -> Optional[dict]:
     """Resolve an exact ID within its collection, never through the single-ID route.
 
     The provider's single-record route returned a different narration from its
     collection list for bukhari/1 (verified 2026-10-07). Search and verification
     must therefore use the collection list. A calculated page is only a hint;
-    every response must contain the requested ID. The first three pages cover
-    the entire current search window even when IDs are not sequential. Other
-    references fail closed if absent from these bounded probes.
+    every response must contain the requested ID. Search results carry a page
+    hint that is fetched again and verified. Legacy references fail closed when
+    absent from the bounded first-page and calculated-page probes.
     """
     if collection_key not in COLLECTION_REGISTRY or isinstance(hadith_number, bool):
         return None
@@ -235,8 +239,11 @@ def _sunnah_now_get_hadith_by_reference(collection_key: str, hadith_number: int)
         return None
     if number <= 0 or str(number) != str(hadith_number):
         return None
+    if provider_page is not None and (type(provider_page) is not int or not 1 <= provider_page <= 10000):
+        return None
     hinted_page = (number - 1) // 50 + 1
-    for page in dict.fromkeys([1, 2, 3, hinted_page]):
+    pages = [provider_page] if provider_page is not None else [1, 2, 3, hinted_page]
+    for page in dict.fromkeys(pages):
         data = _sunnah_now_collection_page(collection_key, page)
         if data is None:
             return None  # Provider failure must not select a substitute record.
@@ -246,62 +253,86 @@ def _sunnah_now_get_hadith_by_reference(collection_key: str, hadith_number: int)
             return None
         if matches:
             result = _normalize_sunnah_now_hadith(matches[0], collection_key)
+            if result:
+                result["provider_page"] = page
             return result if validate_hadith_item(result) else None
     logger.warning("[HADITH] Exact collection record not found: %s#%s", collection_key, number)
     return None
 
 
-def _sunnah_now_search_hadith(query: str, collection_key: Optional[str], limit: int) -> list[dict]:
+def search_hadith_page(query: str, collection_key=None, limit=10, cursor=None) -> dict:
+    """Bounded, resumable collection search. A cursor never asserts completeness.
+
+    The provider has pagination but no text search. Inspect at most three pages
+    per call, round-robin across collections. An offset resumes inside a page
+    when the result limit is reached, without dropping the remaining matches.
     """
-    Searches hadiths via sunnah.now by paginating through books and filtering locally.
-
-    Endpoint (from docs.sunnah.now/api/book-hadiths.html):
-      GET https://api.sunnah.now/api/early-access/book/{slug}/hadith?page={n}&pageSize=50
-      Header: X-API-Key: <token>
-
-    sunnah.now does not have a server-side text search endpoint in v0.1.0.
-    We scan up to 3 pages (150 hadiths) per collection for keyword matches.
-    """
-    query_lower = query.lower().strip()
-    results = []
-    collections_to_search = (
-        [collection_key] if collection_key and collection_key in COLLECTION_REGISTRY
-        else list(COLLECTION_REGISTRY.keys())
-    )
-
-    for col_key in collections_to_search:
-        if len(results) >= limit:
-            break
-
-        col = COLLECTION_REGISTRY[col_key]
-        for page in range(1, 4):  # 3 pages × 50 = 150 hadiths per collection
-            if len(results) >= limit:
-                break
-
-            logger.info(f"[HADITH][sunnah_now] Scanning {col['name']} page {page}")
-            data = _sunnah_now_collection_page(col_key, page)
-
-            if not data or not isinstance(data, list):
-                break  # no more pages or error
-
-            for h in data:
-                if len(results) >= limit:
-                    break
-
-                # Match against English text
-                en_lang = (h.get("language") or {}).get("en") or {}
-                text = (en_lang.get("text") or "").lower()
-
-                if query_lower in text:
-                    normalized = _normalize_sunnah_now_hadith(h, col_key)
-                    if normalized and validate_hadith_item(normalized):
-                        results.append(normalized)
-
+    if not settings.hadith_api_key:
+        raise ValueError("Hadith source is unavailable: sunnah.now is not configured")
+    query = query.strip().casefold()
+    if not query or len(query) > 200:
+        raise ValueError("Enter a search phrase between 1 and 200 characters")
+    if collection_key and collection_key not in COLLECTION_REGISTRY:
+        raise ValueError("Choose a supported Hadith collection")
+    collections = [collection_key] if collection_key else list(COLLECTION_REGISTRY)
+    limit = max(1, min(30, limit))
+    identity = hashlib.sha256((query + "|" + (collection_key or "")).encode()).hexdigest()[:24]
+    state = {"q": identity, "step": 0, "offset": 0, "done": []}
+    if cursor:
+        try:
+            if len(cursor) > 2048:
+                raise ValueError()
+            state = json.loads(base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4)))
+            if (state["q"] != identity or type(state["step"]) is not int or not 0 <= state["step"] < 10000 * len(collections)
+                    or type(state["offset"]) is not int or not 0 <= state["offset"] < 50
+                    or not isinstance(state["done"], list) or any(c not in collections for c in state["done"])):
+                raise ValueError()
+        except (ValueError, TypeError, KeyError, UnicodeError, binascii.Error):
+            raise ValueError("Search expired or changed. Start the search again.") from None
+    results, pages_scanned = [], 0
+    done = set(state["done"])
+    while len(done) < len(collections) and pages_scanned < 3 and len(results) < limit:
+        index = state["step"] % len(collections)
+        page = state["step"] // len(collections) + 1
+        key = collections[index]
+        if key in done:
+            state["step"] += 1
+            state["offset"] = 0
+            continue
+        data = _sunnah_now_collection_page(key, page)
+        if data is None:
+            raise RuntimeError("Hadith search is temporarily unavailable. Please retry.")
+        pages_scanned += 1
+        identities = [str(item.get("id")) for item in data]
+        if len(identities) != len(set(identities)):
+            raise RuntimeError("The Hadith provider returned ambiguous records. Please retry later.")
+        offset = state["offset"]
+        while offset < len(data) and len(results) < limit:
+            item = data[offset]
+            offset += 1
+            languages = item.get("language") or {}
+            text = " ".join(str((languages.get(lang) or {}).get("text") or "") for lang in ("en", "ar"))
+            if query in text.casefold():
+                normalized = _normalize_sunnah_now_hadith(item, key)
+                if normalized and validate_hadith_item(normalized):
+                    normalized["provider_page"] = page
+                    results.append(normalized)
+        if offset < len(data):
+            state["offset"] = offset
+        else:
             if len(data) < 50:
-                break  # last page reached
+                done.add(key)
+            state["step"] += 1
+            state["offset"] = 0
+    state["done"] = sorted(done)
+    complete = len(done) == len(collections)
+    next_cursor = None if complete else base64.urlsafe_b64encode(json.dumps(state, separators=(",", ":")).encode()).decode().rstrip("=")
+    return {"items": results, "next_cursor": next_cursor, "complete": complete, "pages_scanned": pages_scanned}
 
-    logger.info(f"[HADITH][sunnah_now] Search '{query}' → {len(results)} results")
-    return results[:limit]
+
+def _sunnah_now_search_hadith(query: str, collection_key: Optional[str], limit: int) -> list[dict]:
+    """Legacy list-only caller; Studio uses the resumable page response."""
+    return search_hadith_page(query, collection_key, limit)["items"]
 
 
 def _normalize_sunnah_now_hadith(h: dict, collection_key: str) -> Optional[dict]:
@@ -536,7 +567,7 @@ def get_supported_collections() -> list[dict]:
     return [{"key": k, "name": v["name"]} for k, v in COLLECTION_REGISTRY.items()]
 
 
-def get_hadith_by_reference(collection_key: str, hadith_number: int) -> Optional[dict]:
+def get_hadith_by_reference(collection_key: str, hadith_number: int, provider_page=None) -> Optional[dict]:
     """
     Fetches an exact hadith by collection key and hadith number.
 
@@ -552,7 +583,7 @@ def get_hadith_by_reference(collection_key: str, hadith_number: int) -> Optional
     logger.info(f"[HADITH] get_hadith_by_reference provider={provider} {collection_key}#{hadith_number}")
 
     if provider == "sunnah_now":
-        result = _sunnah_now_get_hadith_by_reference(collection_key, hadith_number)
+        result = _sunnah_now_get_hadith_by_reference(collection_key, hadith_number, provider_page=provider_page)
         if result:
             return result
         logger.warning(f"[HADITH] sunnah_now failed for {collection_key}#{hadith_number} — not falling back to CDN (key mode)")

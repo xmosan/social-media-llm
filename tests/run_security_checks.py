@@ -78,6 +78,8 @@ if __name__ == "__main__":
             cwd=directory,
             env={
                 "PATH": os.defpath,
+                **({"DYLD_FALLBACK_LIBRARY_PATH": os.environ["DYLD_FALLBACK_LIBRARY_PATH"]}
+                   if os.environ.get("DYLD_FALLBACK_LIBRARY_PATH") else {}),
                 "SABEEL_ISOLATED_SECURITY_TESTS": "1",
                 "SECRET_KEY": "isolated-test-key-not-for-production-0001",
                 "ADMIN_API_KEY": "isolated-admin-key",

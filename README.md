@@ -63,6 +63,30 @@ Keep `OPENAI_API_KEY` in the deployment secret store. Responses are decoded from
 
 Before changing defaults, run the bounded comparison script with an output directory outside the repository. It prints a dry-run plan unless `--live` is present. Use `--models sunburst flare` for OpenAI only; `--env-file` names a private existing credential file, never a committed file. It records attempts before calling the provider to prevent accidental paid retries after interruption. Generated files and per-request timing/usage are local evaluation artifacts, not repository content. Confirm model access, inspect actual cards, and check provider retirement notices before deploying a replacement.
 
+## Card typography and Hadith search
+
+Cards use bundled Amiri for Arabic, Qur'anic marks, and mixed text containing ﷺ.
+Pillow 12.2.0 with native RAQM shaping is required: source Unicode is sent directly
+to the shaping engine without manual reversal. The Docker build installs FriBiDi
+and verifies RAQM support. On macOS, install FriBiDi and check
+`python -c "from PIL import features; assert features.check_feature('raqm')"`
+before running the renderer or isolated tests. If using a private native-library
+prefix, pass `DYLD_FALLBACK_LIBRARY_PATH=<prefix>/lib` to the test runner.
+
+Reference, Arabic, translation, and optional labeled reflection share a measured
+layout. Longer cards use 1080 × 1350 portrait; short cards remain 1080 square.
+Content that cannot fit at readable sizes fails before background generation.
+No block is silently dropped, no reference hidden, and source case is preserved.
+Previously saved images are not rewritten; regenerate their visuals to apply the fix.
+
+Hadith search returns a bounded batch plus `next_cursor`, `complete`, and
+`pages_scanned`. Studio offers **Search more narrations** and collection selection.
+Each call checks at most three provider pages; no empty batch claims the whole
+collection has been searched. Page hints travel with selected source metadata and
+are re-fetched with exact collection/ID validation before use. The inconsistent
+single-record provider endpoint remains disabled. Older saved records without a
+page hint keep the existing bounded lookup and fail closed if not found.
+
 ## Disaster Recovery Plan
 
 Recovery requires a verified backup and an explicit cutover. Startup retries the configured PostgreSQL connection three times, then fails. It does not switch to `SECONDARY_DATABASE_URL`, fall back to SQLite, or create/repair the schema. `SECONDARY_DATABASE_URL`, `ENV_BACKUP_KEY`, and `PRIMARY_REGION` are legacy configuration fields; they do not implement automatic failover or environment snapshots.

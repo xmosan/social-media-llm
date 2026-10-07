@@ -592,44 +592,18 @@ def search_hadith_library(
     query: str,
     collection: Optional[str] = None,
     limit: int = 10,
+    cursor: Optional[str] = None,
     user: User = Depends(require_user)
 ):
-    """
-    Searches Hadith text for the given keyword query.
-
-    Returns a list of normalized Hadith objects with Arabic + English.
-    Fails gracefully if the Hadith API is unavailable.
-
-    Params:
-        query: Keyword(s) to search (e.g. "patience", "intention")
-        collection: Optional collection key (e.g. "bukhari", "muslim")
-        limit: Max results (default 10, max 30)
-    """
-    from app.services.hadith_service import search_hadith
-
-    if not query or not query.strip():
-        raise HTTPException(status_code=400, detail="Query parameter is required.")
-
-    limit = min(limit, 30)
-
+    """Return a bounded search batch and an explicit continuation cursor."""
+    from app.services.hadith_service import search_hadith_page
     try:
-        results = search_hadith(query=query.strip(), collection_key=collection, limit=limit)
-        return {
-            "query": query,
-            "collection": collection,
-            "count": len(results),
-            "items": results
-        }
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"[HADITH] Search error: {e}")
-        return {
-            "query": query,
-            "collection": collection,
-            "count": 0,
-            "items": [],
-            "error": "Hadith API unavailable. Please try again later."
-        }
+        result = search_hadith_page(query, collection, limit, cursor)
+        return {"query": query, "collection": collection, "count": len(result["items"]), **result}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from None
+    except Exception:
+        raise HTTPException(status_code=503, detail="Hadith search is temporarily unavailable. Please retry.") from None
 
 
 @router.get("/hadith/reference")

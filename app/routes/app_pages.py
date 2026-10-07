@@ -103,7 +103,7 @@ APP_DASHBOARD_CONTENT = """
       <!-- Growth Feed -->
       <div class="lg:col-span-1 space-y-6">
         <h2 class="text-[10px] font-bold uppercase tracking-[0.4em] text-text-muted flex items-center gap-2">
-            Today's Content
+            Next Scheduled Reminder
         </h2>
         <div class="card bg-white p-8 space-y-8 border-brand/5 shadow-xl shadow-brand/[0.02] group relative overflow-hidden">
           <div class="absolute top-0 right-0 w-32 h-32 bg-brand/[0.02] rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700"></div>
@@ -838,7 +838,7 @@ async def app_dashboard_page(
 
     next_post_countdown = "No posts scheduled"
     next_post_time = "--:--"
-    next_post_caption = "Create your first automation to see content here."
+    next_post_caption = "Nothing scheduled yet. Schedule a saved draft or create a reminder."
     next_post_media = '<div class="w-full h-full flex items-center justify-center text-muted font-black text-xs uppercase italic">No Media</div>'
     
     next_post_id = ""
@@ -852,7 +852,7 @@ async def app_dashboard_page(
         minutes, _ = divmod(remainder, 60)
         next_post_countdown = f"{diff.days}d {hours}h {minutes}m"
         next_post_time = next_post.scheduled_time.strftime("%b %d, %H:%M")
-        next_post_caption = next_post.caption or "No caption generated."
+        next_post_caption = html.escape(next_post.caption) if next_post.caption else "No caption generated."
         
         next_post_id = str(next_post.id)
         next_post_caption_json = html.escape(json.dumps(next_post.caption or ""), quote=True)
@@ -860,7 +860,7 @@ async def app_dashboard_page(
         next_post_actions_class = ""
         
         if next_post.media_url:
-            next_post_media = f'<img src="{next_post.media_url}" class="w-full h-full object-cover">'
+            next_post_media = f'<img src="{next_post.media_url}" class="w-full h-full object-contain">'
 
     # Content Pipeline (Next 7 Days)
     calendar_headers = ""
@@ -994,7 +994,7 @@ async def app_dashboard_page(
             <div class="card bg-white border border-brand/5 shadow-sm hover:shadow-xl hover:shadow-brand/[0.02] transition-all duration-300 flex flex-col group overflow-hidden">
                 <!-- Visual Banner -->
                 <div class="h-32 w-full bg-cream relative border-b border-brand/5 overflow-hidden flex items-center justify-center">
-                    {f'<img src="{p.media_url}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700">' if p.media_url else '<svg class="w-8 h-8 text-brand/10" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.058-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>'}
+                    {f'<img src="{p.media_url}" class="w-full h-full object-contain">' if p.media_url else '<svg class="w-8 h-8 text-brand/10" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.058-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>'}
                     <div class="absolute top-4 right-4 px-2.5 py-1 {status_bg} {status_color} backdrop-blur-md rounded-lg text-[8px] font-black uppercase tracking-[0.2em] shadow-sm">{status_label}</div>
                 </div>
                 
@@ -1008,12 +1008,12 @@ async def app_dashboard_page(
                     <!-- Content -->
                     <div class="flex-1">
                         <p class="text-[13px] font-medium text-text-main leading-relaxed line-clamp-3 italic opacity-90">
-                            "{p.caption[:120] if p.caption else "Suggested Reminder"}"
+                            "{html.escape(p.caption[:120]) if p.caption else "Suggested Reminder"}"
                         </p>
                     </div>
                     
                     <!-- Actions -->
-                    <div class="flex items-center gap-3 pt-4 border-t border-brand/5 mt-auto">
+                    <div class="flex flex-wrap items-center gap-2 pt-4 border-t border-brand/5 mt-auto">
                         {actions_html}
                     </div>
                 </div>
@@ -1025,9 +1025,9 @@ async def app_dashboard_page(
             <div class="flex items-center gap-3 border-b border-brand/5 pb-4">
                 {sec_data['icon']}
                 <h2 class="text-[11px] font-black uppercase tracking-[0.3em] text-brand/80">{sec_title}</h2>
-                <span class="ml-2 px-2 py-0.5 bg-brand/5 rounded-md text-[9px] font-bold text-brand">{{len(sec_data['posts'])}}</span>
+                <span class="ml-2 px-2 py-0.5 bg-brand/5 rounded-md text-[9px] font-bold text-brand">{len(sec_data['posts'])}</span>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
                 {cards_html}
             </div>
         </div>

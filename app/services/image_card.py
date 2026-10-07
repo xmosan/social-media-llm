@@ -5,7 +5,8 @@ import os
 import textwrap
 from PIL import Image, ImageDraw, ImageFont
 from app.config import settings
-from .image_renderer import render_minimal_quote_card, PRESET_TEXT, CUSTOM_TEXT_LIGHT, CUSTOM_TEXT_DARK
+from app.services.card_typography import contains_arabic
+from app.services.image_renderer import render_minimal_quote_card, PRESET_TEXT, CUSTOM_TEXT_LIGHT, CUSTOM_TEXT_DARK
 
 # Base font sizes per zone (reference, quote, support)
 ZONE_SIZES = {
@@ -23,7 +24,7 @@ ZONE_SIZES = {
 
 def is_arabic_segment(text: str) -> bool:
     """Detects if a string contains Arabic characters."""
-    return any("\u0600" <= c <= "\u06FF" or "\u0750" <= c <= "\u077F" for c in text)
+    return contains_arabic(text)
 
 def generate_quote_card(
     caption: str = None,
@@ -79,6 +80,7 @@ def generate_quote_card(
         if card_message.get("eyebrow"):
             segments.append({
                 "text": card_message["eyebrow"],
+                "role": "reference",
                 "size": sizes[0],
                 "is_arabic": is_arabic_segment(card_message["eyebrow"]),
                 "color": (255, 255, 255)
@@ -88,6 +90,7 @@ def generate_quote_card(
         if card_message.get("arabic_text"):
             segments.append({
                 "text": card_message["arabic_text"],
+                "role": "source_arabic",
                 "size": sizes[1],
                 "is_arabic": True,
                 "color": (255, 255, 255)
@@ -97,17 +100,17 @@ def generate_quote_card(
         if card_message.get("headline"):
             segments.append({
                 "text": card_message["headline"],
+                "role": "source_translation",
                 "size": sizes[1] if not card_message.get("arabic_text") else sizes[2],
                 "is_arabic": is_arabic_segment(card_message["headline"]),
                 "color": (255, 255, 255)
             })
         
         # 3. Supporting Text (Reference/Explanation)
-        # Note: If arabic_text was present, we might have already used up segments.
-        # But render_minimal_quote_card can take multiple segments.
         if card_message.get("supporting_text"):
              segments.append({
                 "text": card_message["supporting_text"],
+                "role": "reflection",
                 "size": sizes[2],
                 "is_arabic": is_arabic_segment(card_message["supporting_text"]),
                 "color": (255, 255, 255)
@@ -127,11 +130,11 @@ def generate_quote_card(
         if len(raw_zones) < 2:
             raw_zones = [p.strip() for p in clean.split("\n") if p.strip()]
 
-        for i, text in enumerate(raw_zones[:3]):
+        for i, text in enumerate(raw_zones):
             if not text: continue
             segments.append({
                 "text":  text,
-                "size":  sizes[i],
+                "size":  sizes[min(i, 2)],
                 "is_arabic": is_arabic_segment(text),
                 "color": (255, 255, 255)
             })
