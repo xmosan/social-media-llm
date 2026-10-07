@@ -4,6 +4,10 @@ import unicodedata
 
 from PIL import Image, ImageDraw, ImageFont, features
 
+class CardTypographyError(ValueError):
+    """A safe, actionable card validation error for the Studio UI."""
+
+
 FONT_DIR = Path(__file__).resolve().parents[2] / "assets" / "fonts"
 ARABIC_FONT = FONT_DIR / "Amiri-Regular.ttf"
 LATIN_FONT = FONT_DIR / "Inter.ttf"
@@ -22,12 +26,12 @@ def display_text(text):
 
 def load_font(text, size, *, serif=False, arabic_path=None):
     if not features.check_feature("raqm"):
-        raise ValueError("Arabic text shaping is unavailable; the card was not generated")
+        raise CardTypographyError("Arabic text shaping is unavailable; the card was not generated")
     path = (arabic_path or ARABIC_FONT) if contains_arabic(text) else (ARABIC_FONT if serif else LATIN_FONT)
     try:
         return ImageFont.truetype(str(path), size, layout_engine=ImageFont.Layout.RAQM)
     except OSError:
-        raise ValueError("The required card font is unavailable; no substitute was used") from None
+        raise CardTypographyError("The required card font is unavailable; no substitute was used") from None
 
 
 def paragraph_direction(text):
@@ -75,8 +79,8 @@ def layout_card(segments, *, serif=False):
     """
     segments = [dict(s) for s in segments if str(s.get("text", "")).strip()]
     if not segments:
-        raise ValueError("Card text is required")
-    width, margin, gap = 1080, 96, 36
+        raise CardTypographyError("Card text is required")
+    width, margin, gap = 1080, 88, 32
     for height, scales in ((1080, (1, .95, .9)), (1350, (1, .95, .9, .85, .8, .75, .7))):
         for scale in scales:
             blocks = []
@@ -92,9 +96,10 @@ def layout_card(segments, *, serif=False):
                 leading = round(size * (.32 if arabic else .28))
                 block_height = sum(line["height"] for line in lines) + max(0, len(lines)-1) * leading
                 label = None
-                if role == "reflection":
-                    label_font = load_font("Reflection", 28)
-                    label = {**measure("Reflection", label_font), "font": label_font}
+                label_text = "Reflection" if role == "reflection" else seg.get("label")
+                if label_text:
+                    label_font = load_font(label_text, 28)
+                    label = {**measure(label_text, label_font), "font": label_font}
                     block_height += label["height"] + 16
                 fits &= all(line["width"] <= width - 2 * margin for line in lines)
                 blocks.append({"role": role, "lines": lines, "font": font, "leading": leading,
@@ -107,7 +112,7 @@ def layout_card(segments, *, serif=False):
                     block["bounds"] = (margin, y, width-margin, y+block["height"])
                     y += block["height"] + gap
                 return (width, height), blocks
-    raise ValueError("This source and reflection are too long for a readable card. Choose a shorter source or remove the optional reflection. Your source text has not been shortened.")
+    raise CardTypographyError("This source and reflection are too long for a readable card. Choose a shorter source or remove the optional reflection. Your source text has not been shortened.")
 
 
 def paint_card_text(background, blocks, *, alignment="Center"):

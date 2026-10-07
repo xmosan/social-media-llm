@@ -57,8 +57,8 @@ class CardTypographyTests(unittest.TestCase):
                 previous = blocks[i-1]['bounds'][3]
                 self.assertGreaterEqual(top-previous, 32)
                 self.assertIsNone(ink.crop((0, previous+3, size[0], top-3)).getbbox())
-        self.assertIsNone(ink.crop((0, 0, 90, size[1])).getbbox())
-        self.assertIsNone(ink.crop((990, 0, size[0], size[1])).getbbox())
+        self.assertIsNone(ink.crop((0, 0, 82, size[1])).getbbox())
+        self.assertIsNone(ink.crop((998, 0, size[0], size[1])).getbbox())
 
     def test_long_source_uses_portrait_and_does_not_drop_words(self):
         text = 'Synthetic longer translation with source words preserved. ' * 18
@@ -89,3 +89,41 @@ class CardTypographyTests(unittest.TestCase):
             self.assertTrue(segments[2]['is_arabic'])
             card.generate_quote_card(caption='First\n\nSecond\n\nThird\n\nFourth')
             self.assertEqual(len(render.call_args.args[0]), 4)
+
+    def test_actual_provider_hadith_fits_with_four_line_reflection(self):
+        import json
+        record = json.loads((Path(__file__).resolve().parents[1] / 'fixtures' / 'hadith_bukhari_1.json').read_text())
+        reflection = 'Before your next decision, pause to name what you hope to gain. Honest reflection can reveal the difference between what you value and what you want others to notice.'
+        segments = [{'text': record['reference'], 'role': 'reference', 'size': 34},
+                    {'text': record['arabic_text'], 'role': 'source_arabic', 'size': 60},
+                    {'text': record['translation_text'], 'role': 'source_translation', 'size': 42},
+                    {'text': reflection, 'role': 'reflection', 'size': 42}]
+        size, blocks = typography.layout_card(segments)
+        self.assertEqual(size, (1080, 1350))
+        self.assertEqual(len(blocks), 4)
+        for block, segment in zip(blocks, segments):
+            self.assertEqual(' '.join(line['text'] for line in block['lines']), ' '.join(segment['text'].split()))
+            self.assertLessEqual(block['bounds'][3], size[1] - 88)
+
+    def test_excerpt_label_is_visible_without_modifying_source_text(self):
+        text = 'Exact provider excerpt fixture.'
+        size, blocks = typography.layout_card([{'text': text, 'role': 'source_translation', 'label': 'Translation excerpt', 'size': 42}])
+        self.assertEqual(blocks[0]['label']['text'], 'Translation excerpt')
+        self.assertEqual(blocks[0]['lines'][0]['text'], text)
+
+    def test_facade_exposes_only_safe_card_errors_and_route_uses_422(self):
+        import json
+        from app.services import visual_service
+        from app.routes.studio import studio_generate_visual
+        error = typography.CardTypographyError('Choose a shorter source or remove the optional reflection.')
+        with patch.object(visual_service, '_generate_quote_card', side_effect=error):
+            result = visual_service.generate_visual(visual_service.VisualRequest(card_message={'headline': 'fixture'}))
+        self.assertEqual(result.error, str(error))
+        self.assertEqual(result.error_status, 422)
+        with patch('app.routes.studio.generate_visual', return_value=result):
+            response = studio_generate_visual({'card_message': {'headline': 'fixture'}})
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(json.loads(response.body)['error'], str(error))
+        with patch.object(visual_service, '_generate_quote_card', side_effect=ValueError('private provider response')):
+            result = visual_service.generate_visual(visual_service.VisualRequest(card_message={'headline': 'fixture'}))
+        self.assertNotIn('private', result.error)
