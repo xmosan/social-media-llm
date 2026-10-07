@@ -4,16 +4,19 @@ from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
-def build_quote_card_message(source_type: str, source_payload: Dict[str, Any], tone: str = "calm", intent: str = "wisdom", custom_prompt: str = "") -> Dict[str, Any]:
+def build_quote_card_message(source_type: str, source_payload: Dict[str, Any], tone: str = "calm", intent: str = "wisdom", custom_prompt: str = "", include_reflection: bool = True) -> Dict[str, Any]:
     """
     Orchestrator for building the structured content that appears ON THE CARD.
     """
     logger.info(f"[QUOTE_MESSAGE] Building card message for source_type: {source_type}")
     
     if source_type == "quran":
-        return build_quran_quote_message(source_payload, tone, intent, custom_prompt)
+        return build_quran_quote_message(source_payload, tone, intent, custom_prompt, include_reflection)
     elif source_type == "hadith":
-        return build_hadith_quote_message(source_payload, tone, intent, custom_prompt)
+        result = build_hadith_quote_message(source_payload, tone, intent, custom_prompt, include_reflection)
+        from app.services.source_display import arabic_display_options
+        result["arabic_display_options"] = arabic_display_options(result)
+        return result
     elif source_type == "manual":
         return build_manual_quote_message(source_payload, tone, intent)
     else:
@@ -24,7 +27,7 @@ def build_quote_card_message(source_type: str, source_payload: Dict[str, Any], t
             "supporting_text": ""
         }
 
-def build_quran_quote_message(ayah_record: Dict[str, Any], tone: str, intent: str, custom_prompt: str = "") -> Dict[str, Any]:
+def build_quran_quote_message(ayah_record: Dict[str, Any], tone: str, intent: str, custom_prompt: str = "", include_reflection: bool = True) -> Dict[str, Any]:
     """
     Safely generates framing text for the Quran quote card using the LLM, while
     locking the primary headline to the exact translation text.
@@ -53,7 +56,7 @@ def build_quran_quote_message(ayah_record: Dict[str, Any], tone: str, intent: st
         custom_prompt=custom_prompt,
         source_type="quran",
         reference=reference
-    )
+    ) if include_reflection else {}
 
     logger.info(f"[QUOTE_MESSAGE] Final Arabic text for {reference} (first 20 chars): {repr(arabic_text[:20])}")
 
@@ -68,7 +71,7 @@ def build_quran_quote_message(ayah_record: Dict[str, Any], tone: str, intent: st
     return message
 
 
-def build_hadith_quote_message(hadith_record: Dict[str, Any], tone: str, intent: str, custom_prompt: str = "") -> Dict[str, Any]:
+def build_hadith_quote_message(hadith_record: Dict[str, Any], tone: str, intent: str, custom_prompt: str = "", include_reflection: bool = True) -> Dict[str, Any]:
     """
     Safely generates framing text for the Hadith quote card using the LLM, while
     locking the primary headline to the complete returned translation.
@@ -102,7 +105,7 @@ def build_hadith_quote_message(hadith_record: Dict[str, Any], tone: str, intent:
         custom_prompt=custom_prompt,
         source_type="hadith",
         reference=reference
-    )
+    ) if include_reflection else {}
     
     supporting = framing.get("supporting_text", "")
 

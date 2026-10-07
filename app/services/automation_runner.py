@@ -656,6 +656,9 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                     generation_metadata["background_token"] = store_background(
                         image, automation.org_id, style_dna_spec.visual_prompt if _has_prompt else "")
 
+                from app.services.brand_kit import workspace_brand
+                brand_kit = workspace_brand(db, automation.org_id)
+
                 # CALL generate_quote_card — same function Studio/scheduled posts use.
                 # This ensures: Arabic reshaping, ZONE_SIZES, is_arabic flags, scene variation all match.
                 media_url = generate_quote_card(
@@ -670,7 +673,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                     card_message=card_message,
                     visual_history=prior_visuals,
                     render_metadata=generation_metadata,
-                    allow_sequence=True,
+                    allow_sequence=True, brand_kit=brand_kit,
                     background_sink=retain_automation_photo if _scene_key == "quiet_photography" else None,
                 )
 
@@ -761,7 +764,8 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             flags={"relevance_check": "fallback" if fallback_mode else "passed", "scheduled_occurrence": occurrence,
                    "visual_review_required": visual_review_required,
                    **({"media_manifest": manifest, "visual_design": {"family": _scene_key,
-                       "layout": "english_first", "direction": style_dna_spec.visual_prompt if _has_prompt else "",
+                       "layout": "english_first", "brand_kit": manifest.get("brand_kit"),
+                       "direction": style_dna_spec.visual_prompt if _has_prompt else "",
                        "background_token": generation_metadata.get("background_token"), "media_manifest": manifest}}
                        if manifest else {})}
         )

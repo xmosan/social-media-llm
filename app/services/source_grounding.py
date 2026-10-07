@@ -57,6 +57,8 @@ def resolve_selected_source(db, org_id: int, source_type: str, payload: dict, us
 def validate_source_card(card, canonical: dict, source_type: str):
     if card is None:
         return
+    from app.services.source_display import validate_source_display
+    validate_source_display(card, source_type)
     headline = (canonical.get("card_text") if source_type == "hadith" and not (isinstance(card, dict) and card.get("source_complete")) else None) or canonical.get("translation_text")
     if (not isinstance(card, dict) or card.get("headline") != headline
             or card.get("eyebrow") != canonical.get("reference")

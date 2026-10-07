@@ -15,6 +15,7 @@ class Org(Base):
     __tablename__ = "orgs"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
+    brand_kit = Column(JSON, nullable=True)  # Workspace default; posts retain their own render snapshot.
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     members = relationship("OrgMember", back_populates="org")
