@@ -89,5 +89,5 @@ class VisualFailureChecks(unittest.TestCase):
         with tempfile.TemporaryDirectory() as output, patch.object(renderer, "_VS_OK", True), patch.object(renderer, "generate_background", return_value=None):
             for mode in ("scene", "custom"):
                 with self.subTest(mode=mode), self.assertRaisesRegex(ValueError, "Sabeel Vision"):
-                    renderer.render_minimal_quote_card([], output, style="sacred_black", mode=mode, visual_prompt="Test scene")
+                    renderer.render_minimal_quote_card([{"text": "Synthetic test card", "size": 48}], output, style="sacred_black", mode=mode, visual_prompt="Test scene")
             self.assertEqual(list(__import__("pathlib").Path(output).iterdir()), [])

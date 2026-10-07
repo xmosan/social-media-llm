@@ -31,7 +31,8 @@ def resolve_selected_source(db, org_id: int, source_type: str, payload: dict, us
         number = payload.get("hadith_number")
         if not collection or number is None:
             raise ValueError("Select a Hadith with a collection and narration number")
-        canonical = get_hadith_by_reference(collection, resource_id(number))
+        page_hint = {"provider_page": payload["provider_page"]} if payload.get("provider_page") is not None else {}
+        canonical = get_hadith_by_reference(collection, resource_id(number), **page_hint)
         if not canonical:
             raise ValueError("The selected Hadith is unavailable from the configured provider")
         if canonical.get("collection_key") != collection or str(canonical.get("hadith_number")) != str(number):

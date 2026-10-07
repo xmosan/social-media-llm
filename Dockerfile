@@ -6,7 +6,7 @@ WORKDIR /app
 # Install system dependencies for psycopg2 and other packages
 RUN apt-get update && apt-get install -y \
     build-essential \
-    libpq-dev \
+    libpq-dev libfribidi0 \
     curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -22,6 +22,8 @@ RUN install -d /usr/share/postgresql-common/pgdg \
 # Copy requirements and install
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# Source text requires native bidi/shaping, including Qur'anic diacritics.
+RUN python -c "from PIL import features; assert features.check_feature('raqm'), 'Arabic text shaping (RAQM) is required'"
 
 # Copy application code
 COPY . .

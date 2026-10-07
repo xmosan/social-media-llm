@@ -54,3 +54,63 @@ class HadithProviderTests(unittest.TestCase):
         self.assertIsNone(self.service._normalize_sunnah_now_hadith({**RECORD, 'id': None}, 'bukhari'))
         actual = self.service._normalize_sunnah_now_hadith({**RECORD, 'grade': 'Provider fixture grade'}, 'bukhari')
         self.assertEqual(actual['grade'], 'Provider fixture grade')
+
+    def test_search_continues_beyond_150_and_revalidates_nonsequential_identity(self):
+        filler = [{**deepcopy(RECORD), 'id': n, 'language': {'en': {'text': 'Other synthetic text.'}}} for n in range(50)]
+        target = {**deepcopy(RECORD), 'id': 9999}
+        def page(key, number):
+            return filler if number <= 3 else [target] if number == 4 else []
+        with patch.object(settings, 'hadith_api_key', 'fixture'), patch.object(self.service, '_sunnah_now_collection_page', side_effect=page):
+            first = self.service.search_hadith_page('intentions', 'bukhari')
+            self.assertEqual(first['items'], [])
+            self.assertFalse(first['complete'])
+            self.assertEqual(first['pages_scanned'], 3)
+            second = self.service.search_hadith_page('intentions', 'bukhari', cursor=first['next_cursor'])
+            item = second['items'][0]
+            self.assertTrue(second['complete'])
+            self.assertEqual(item['provider_page'], 4)
+            resolved = self.service.get_hadith_by_reference('bukhari', 9999, provider_page=item['provider_page'])
+            self.assertEqual(resolved, item)
+            self.assertIsNone(self.service.get_hadith_by_reference('bukhari', 1, provider_page=4))
+
+    def test_page_offsets_do_not_skip_remaining_matches(self):
+        records = [{**deepcopy(RECORD), 'id': n+1} for n in range(50)]
+        with patch.object(settings, 'hadith_api_key', 'fixture'), patch.object(self.service, '_sunnah_now_collection_page', side_effect=lambda key, page: records if page == 1 else []):
+            first = self.service.search_hadith_page('intentions', 'bukhari', limit=30)
+            second = self.service.search_hadith_page('intentions', 'bukhari', limit=30, cursor=first['next_cursor'])
+        self.assertEqual([x['hadith_number'] for x in first['items'] + second['items']], list(range(1, 51)))
+        self.assertTrue(second['complete'])
+
+    def test_provider_failure_is_not_reported_as_empty_or_complete(self):
+        with patch.object(settings, 'hadith_api_key', 'fixture'), patch.object(self.service, '_sunnah_now_collection_page', return_value=None):
+            with self.assertRaises(RuntimeError):
+                self.service.search_hadith_page('intentions')
+
+    def test_cursor_is_bound_to_query_and_validated_before_network(self):
+        with patch.object(settings, 'hadith_api_key', 'fixture'), patch.object(self.service, '_sunnah_now_collection_page', return_value=[{**deepcopy(RECORD), 'id': n} for n in range(50)]):
+            first = self.service.search_hadith_page('intentions', 'bukhari')
+        with patch.object(settings, 'hadith_api_key', 'fixture'), patch.object(self.service, '_sunnah_now_collection_page') as fetch:
+            for cursor in ('garbage', 'W10', first['next_cursor']):
+                with self.assertRaises(ValueError):
+                    self.service.search_hadith_page('different', 'bukhari', cursor=cursor)
+            fetch.assert_not_called()
+
+    def test_search_route_reports_provider_failure_as_retryable_http_error(self):
+        from app.routes.library import search_hadith_library
+        from fastapi import HTTPException
+        with patch('app.services.hadith_service.search_hadith_page', create=True, side_effect=RuntimeError('private provider diagnostic')):
+            with self.assertRaises(HTTPException) as caught:
+                search_hadith_library('fixture', user=object())
+        self.assertEqual(caught.exception.status_code, 503)
+        self.assertNotIn('private', caught.exception.detail)
+
+    def test_source_resolution_rechecks_search_page_and_rejects_wrong_identity(self):
+        from app.services.source_grounding import resolve_selected_source
+        canonical = self.service._normalize_sunnah_now_hadith(RECORD, 'bukhari')
+        payload = {**canonical, 'provider_page': 4}
+        with patch('app.services.hadith_service.get_hadith_by_reference', return_value=canonical) as fetch:
+            self.assertEqual(resolve_selected_source(None, 1, 'hadith', payload), canonical)
+            fetch.assert_called_once_with('bukhari', 1, provider_page=4)
+        with patch('app.services.hadith_service.get_hadith_by_reference', return_value={**canonical, 'hadith_number': 2}):
+            with self.assertRaisesRegex(ValueError, 'different source'):
+                resolve_selected_source(None, 1, 'hadith', payload)

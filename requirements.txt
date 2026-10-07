@@ -39,7 +39,7 @@ watchfiles==1.1.1
 websockets==16.0
 psycopg2-binary
 openai==2.21.0
-Pillow
+Pillow==12.2.0
 beautifulsoup4
 bcrypt
 PyJWT

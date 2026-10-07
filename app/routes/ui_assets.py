@@ -192,6 +192,8 @@ STUDIO_SCRIPTS_JS = r"""
     }
 
     window.resetStudioSession = function() {
+        invalidateHadithSearch();
+        clearTimeout(searchDebounceTimeout);
         currentQuoteCardUrl = null;
         isQuoteCardOutOfDate = false;
         studioCreationMode = 'preset';
@@ -281,7 +283,9 @@ STUDIO_SCRIPTS_JS = r"""
     }
 
     window.switchSourceTab = function(tab) {
+        if (tab !== activeSourceTab) window.resetStudioSession();
         activeSourceTab = tab;
+        document.getElementById('hadithCollectionLabel')?.classList.toggle('hidden', tab !== 'hadith');
         const btnQuran = document.getElementById('tabBtnQuran');
         const btnHadith = document.getElementById('tabBtnHadith');
         const quranSearch = document.getElementById('quranSearchSection');
@@ -322,6 +326,11 @@ STUDIO_SCRIPTS_JS = r"""
     let searchDebounceTimeout = null;
     window.onSourceInput = onSourceInput;
     function onSourceInput() {
+        invalidateHadithSearch();
+        selectedHadithId = selectedAyahId = null;
+        window.selectedHadithMetadata = window.selectedAyahMetadata = window.studioSourceContext = null;
+        hide('selectedHadithBadge');
+        hide('selectedAyahBadge');
         updateBuildButtonState();
         clearTimeout(searchDebounceTimeout);
         searchDebounceTimeout = setTimeout(() => {
@@ -330,54 +339,84 @@ STUDIO_SCRIPTS_JS = r"""
         }, 300);
     }
 
-    window.searchHadith = async function() {
-        const topicEl = document.getElementById('studioTopic');
-        const query = topicEl ? topicEl.value : '';
-        const resultsArea = document.getElementById('hadithSearchResults');
-        if (!resultsArea) return;
-        if (query.length < 2) {
-            resultsArea.classList.add('hidden');
-            return;
+    // Hadith search is resumable because the source API has no text-search endpoint.
+    let hadithSearchState = { epoch: 0, controller: null, query: '', collection: '', cursor: null, items: [], pages: 0, busy: false };
+    function invalidateHadithSearch() {
+        hadithSearchState.controller?.abort();
+        hadithSearchState = { epoch: hadithSearchState.epoch + 1, controller: null, query: '', collection: '', cursor: null, items: [], pages: 0, busy: false };
+    }
+    function renderHadithResults(area, message, action) {
+        area.replaceChildren();
+        for (const h of hadithSearchState.items) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'w-full text-left p-4 border-b border-brand/5 hover:bg-brand/5 transition-all';
+            button.setAttribute('data-meta', JSON.stringify({ ...h, source_type: 'hadith', id: h.hadith_number }));
+            button.onclick = () => window.selectHadithFromEl(button);
+            const title = document.createElement('div');
+            title.className = 'text-xs font-bold text-brand mb-1';
+            title.textContent = h.reference || '';
+            const body = document.createElement('div');
+            body.className = 'text-xs text-text-muted line-clamp-2';
+            body.textContent = h.card_text || h.translation_text || '';
+            button.append(title, body);
+            area.append(button);
         }
-        resultsArea.innerHTML = '<div class="p-4 text-center text-[8px] font-bold text-brand animate-pulse uppercase tracking-widest">Searching Wisdom...</div>';
-        resultsArea.classList.remove('hidden');
+        const status = document.createElement('div');
+        status.className = 'p-4 text-xs text-text-muted';
+        status.setAttribute('role', 'status');
+        status.textContent = message;
+        area.append(status);
+        if (action) {
+            const more = document.createElement('button');
+            more.type = 'button';
+            more.className = 'w-full p-4 text-xs font-bold text-brand hover:bg-brand/5';
+            more.textContent = action;
+            more.onclick = () => window.searchHadith(true);
+            area.append(more);
+        }
+    }
+    window.searchHadith = async function(continueSearch = false) {
+        const query = (document.getElementById('studioTopic')?.value || '').trim();
+        const collection = document.getElementById('hadithCollection')?.value || '';
+        const area = document.getElementById('hadithSearchResults');
+        if (!area || activeSourceTab !== 'hadith') return;
+        if (continueSearch && hadithSearchState.busy) return;
+        if (!continueSearch || hadithSearchState.query !== query || hadithSearchState.collection !== collection) invalidateHadithSearch();
+        if (query.length < 2) { area.classList.add('hidden'); return; }
+        const state = hadithSearchState;
+        state.query = query;
+        state.collection = collection;
+        state.busy = true;
+        state.controller = new AbortController();
+        const timer = setTimeout(() => state.controller.abort(), 45000);
+        area.classList.remove('hidden');
+        renderHadithResults(area, 'Searching the source collection…');
         try {
-            const res = await fetch(`/api/library/hadith/search?query=${encodeURIComponent(query)}`);
-            if (!res.ok) {
-                const err = await res.json().catch(()=>({}));
-                resultsArea.innerHTML = `<div class="p-4 text-center text-[10px] font-bold text-red-500 uppercase tracking-widest">Error: ${err.detail || res.statusText}</div>`;
-                return;
+            const params = new URLSearchParams({ query });
+            if (collection) params.set('collection', collection);
+            if (state.cursor) params.set('cursor', state.cursor);
+            const res = await fetch('/api/library/hadith/search?' + params.toString(), { signal: state.controller.signal });
+            const data = await res.json().catch(() => ({}));
+            if (state !== hadithSearchState || activeSourceTab !== 'hadith') return;
+            if (!res.ok || data.error) throw new Error(data.detail || data.error || 'Hadith search is unavailable.');
+            const known = new Set(state.items.map(h => h.collection_key + ':' + h.hadith_number));
+            for (const item of data.items || []) {
+                const key = item.collection_key + ':' + item.hadith_number;
+                if (!known.has(key)) { state.items.push(item); known.add(key); }
             }
-            const data = await res.json();
-            if (!data.items || data.items.length === 0) { resultsArea.classList.add('hidden'); return; }
-            // Store full hadith objects on the results elements via data attributes
-            resultsArea.innerHTML = data.items.map((h, idx) => {
-                const safeRef = (h.reference || '').replace(/"/g, '&quot;');
-                const metaJson = JSON.stringify({
-                    source_type: 'hadith',
-                    id: h.hadith_number,
-                    collection: h.collection || '',
-                    collection_key: h.collection_key || '',
-                    reference: h.reference || '',
-                    hadith_number: h.hadith_number,
-                    arabic_text: h.arabic_text || '',
-                    translation_text: h.translation_text || '',
-                    card_text: h.card_text || '',
-                    narrator: h.narrator || null,
-                    grade: h.grade || null,
-                    api_source: h.api_source || '',
-                    was_excerpted: !!h.was_excerpted
-                }).replace(/"/g, '&quot;');
-                return `
-                <div data-meta="${metaJson}" onclick="selectHadithFromEl(this)" class="p-4 border-b border-brand/5 hover:bg-brand/5 cursor-pointer transition-all">
-                    <div class="flex justify-between items-start mb-1">
-                        <span class="text-[8px] font-black text-brand uppercase tracking-widest">${safeRef}</span>
-                        ${h.narrator ? `<span class="text-[7px] font-bold text-accent uppercase tracking-widest">${h.narrator.replace(/</g,'&lt;')}</span>` : ''}
-                    </div>
-                    <div class="text-[10px] text-text-muted font-medium italic line-clamp-2">${(h.card_text || h.translation_text || '').replace(/</g,'&lt;')}</div>
-                </div>`;
-            }).join('');
-        } catch (e) { console.error(e); }
+            state.cursor = data.next_cursor || null;
+            state.pages += data.pages_scanned || 0;
+            const message = `${state.items.length} matches · ${state.pages} source pages checked. ` +
+                (data.complete ? 'Search complete.' : 'More narrations remain to be searched.');
+            renderHadithResults(area, message, state.cursor ? 'Search more narrations' : null);
+        } catch (error) {
+            if (state !== hadithSearchState || activeSourceTab !== 'hadith') return;
+            renderHadithResults(area, error.name === 'AbortError' ? 'Search took too long. Please retry.' : (error.message || 'Connection failed. Please retry.'), 'Retry search');
+        } finally {
+            clearTimeout(timer);
+            state.busy = false;
+        }
     };
 
     window.selectedHadithMetadata = null;
@@ -386,7 +425,7 @@ STUDIO_SCRIPTS_JS = r"""
     window.selectHadithFromEl = function(el) {
         try {
             const raw = el.getAttribute('data-meta');
-            const meta = JSON.parse(raw.replace(/&quot;/g, '"'));
+            const meta = JSON.parse(raw);
             window._applyHadithSelection(meta);
         } catch(e) {
             console.error('[Studio] selectHadithFromEl parse error:', e);
@@ -406,6 +445,7 @@ STUDIO_SCRIPTS_JS = r"""
     }
 
     window._applyHadithSelection = function(meta) {
+        invalidateHadithSearch();
         selectedHadithId = meta.hadith_number || meta.id;
         selectedAyahId = null;
         window.selectedHadithMetadata = meta;
@@ -492,7 +532,7 @@ STUDIO_SCRIPTS_JS = r"""
     window.selectAyahFromEl = function(el) {
         try {
             const raw = el.getAttribute('data-meta');
-            const meta = JSON.parse(raw.replace(/&quot;/g, '"'));
+            const meta = JSON.parse(raw);
             window.selectAyah(meta.id, meta.reference, meta.translation_text, meta.arabic_text);
         } catch(e) {
             console.error('[Studio] selectAyahFromEl parse error:', e);
@@ -1562,7 +1602,7 @@ STUDIO_SCRIPTS_JS = r"""
                         <!-- Visual Area -->
                         <div class="aspect-square bg-gray-100 relative group-hover:scale-[1.01] transition-transform duration-700">
                              ${data.visual_url ? `
-                                <img src="${data.visual_url}" class="w-full h-full object-cover" alt="Post Preview">
+                                <img src="${data.visual_url}" class="w-full h-full object-contain" alt="Post Preview">
                              ` : `
                                 <div class="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-3 opacity-60">
                                     <div class="w-16 h-16 rounded-2xl bg-brand/5 border border-brand/10 flex items-center justify-center">
@@ -2334,6 +2374,14 @@ STUDIO_COMPONENTS_HTML = """
                             </div>
                             <!-- Search Results Floating Dropdown -->
                             <div id="quranSearchResults" class="absolute left-0 right-0 top-full mt-2 hidden max-h-64 overflow-y-auto bg-white border border-brand/10 rounded-2xl shadow-2xl custom-scrollbar z-[150]"></div>
+                            <label id="hadithCollectionLabel" class="hidden text-xs text-text-muted mt-3">Hadith collection
+                                <select id="hadithCollection" onchange="onSourceInput()" class="ml-2 bg-white border border-brand/10 rounded-lg p-2">
+                                    <option value="">All collections</option><option value="bukhari">Sahih al-Bukhari</option>
+                                    <option value="muslim">Sahih Muslim</option><option value="abudawud">Sunan Abu Dawud</option>
+                                    <option value="tirmidhi">Jami' at-Tirmidhi</option><option value="nasai">Sunan an-Nasa'i</option>
+                                    <option value="ibnmajah">Sunan Ibn Majah</option>
+                                </select>
+                            </label>
                             <div id="hadithSearchResults" class="absolute left-0 right-0 top-full mt-2 hidden max-h-64 overflow-y-auto bg-white border border-brand/10 rounded-2xl shadow-2xl custom-scrollbar z-[150]"></div>
                        </div>
 
@@ -2572,7 +2620,7 @@ STUDIO_COMPONENTS_HTML = """
                 </div>
                 <div class="flex flex-col items-center gap-6">
                     <div id="cardPreviewContainer" class="w-full max-w-[340px] aspect-square bg-cream rounded-[3rem] border-8 border-brand/5 overflow-hidden relative shadow-2xl flex items-center justify-center">
-                        <img id="quoteCardPreview" class="hidden w-full h-full object-cover">
+                        <img id="quoteCardPreview" class="hidden w-full h-full object-contain">
                         <div id="cardLoader" class="hidden animate-spin w-12 h-12 border-4 border-t-brand rounded-full"></div>
                     </div>
                     <div id="cardActions" class="hidden flex gap-3">
@@ -2612,7 +2660,7 @@ STUDIO_COMPONENTS_HTML = """
                   <!-- Card Thumbnail -->
                   <div id="presenceCardThumb" class="hidden md:block flex-shrink-0">
                       <div class="w-28 h-28 rounded-2xl overflow-hidden border-2 border-brand/10 shadow-xl bg-brand/5">
-                          <img id="presenceCardThumbImg" class="w-full h-full object-cover" alt="Your quote card">
+                          <img id="presenceCardThumbImg" class="w-full h-full object-contain" alt="Your quote card">
                       </div>
                       <div class="text-[7px] font-black uppercase tracking-widest text-brand/30 text-center mt-2">Your Card</div>
                   </div>
@@ -2683,7 +2731,7 @@ STUDIO_COMPONENTS_HTML = """
               <div class="space-y-5">
                 <div class="text-[9px] font-black uppercase tracking-widest text-brand/30 ml-1">Reminder Preview</div>
                 <div class="w-full aspect-square bg-cream rounded-[3rem] border-4 border-brand/5 overflow-hidden relative shadow-2xl">
-                  <img id="finalPreviewImage" class="w-full h-full object-cover">
+                  <img id="finalPreviewImage" class="w-full h-full object-contain">
                   <div id="sharePreviewEmpty" class="absolute inset-0 flex items-center justify-center flex-col gap-3 opacity-20">
                     <svg class="w-10 h-10 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                     <div class="text-[10px] font-black text-brand uppercase tracking-widest">Visual pending</div>
@@ -3094,6 +3142,9 @@ APP_LAYOUT_HTML = """<!doctype html>
   </main>
   <nav class="md:hidden fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] max-w-[400px] bg-white border border-brand/10 p-2 flex justify-between items-center z-[140] shadow-2xl rounded-[2.5rem] backdrop-blur-xl bg-white/90">
     <a href="/app" class="flex-1 flex flex-col items-center gap-1 py-1 mobile-tab {active_dashboard}"><span class="text-[8px] font-bold uppercase tracking-widest">Home</span></a>
+    <a href="/app/calendar" class="flex-1 flex flex-col items-center py-3 mobile-tab {active_calendar}"><span class="text-[9px] font-bold">Plan</span></a>
+    <a href="/app/automations" class="flex-1 flex flex-col items-center py-3 mobile-tab {active_automations}"><span class="text-[9px] font-bold">Streams</span></a>
+    <a href="/app/media" class="flex-1 flex flex-col items-center py-3 mobile-tab {active_media}"><span class="text-[9px] font-bold">Visuals</span></a>
     <a href="/app/library" class="flex-1 flex flex-col items-center gap-1 py-1 mobile-tab {active_library}"><span class="text-[8px] font-bold uppercase tracking-widest">Library</span></a>
   </nav>
   <script>

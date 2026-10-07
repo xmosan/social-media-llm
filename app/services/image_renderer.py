@@ -8,7 +8,7 @@ Custom pipeline (5 layers):
   4. Vignette + atmosphere — grain, mist, depth particles
   5. Ornaments / border    — corner filigree, manuscript frame, gold block
 Then:
-  6. Text (3-zone)         — reference honored, quote prominent, support quiet
+  6. Measured text flow   — reference, source languages, separate reflection
   7. Cinematic post        — grain, bloom, warmth
 """
 
@@ -19,7 +19,8 @@ import math
 import random
 import json
 from typing import Optional
-from PIL import Image, ImageDraw, ImageFont, ImageFilter
+from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
+from app.services.card_typography import layout_card, paint_card_text, display_text
 from app.services.text_provider import generate_text, Glow, TextGenerationError
 from app.config import settings
 from app.services.image_provider import generate_configured_image, configured_image_cache_key
@@ -78,56 +79,10 @@ def is_arabic_text(text: str) -> bool:
     )
 
 def reshape_arabic(text: str) -> str:
-    """Correctly reshapes and reorders Arabic text for RTL rendering in PIL."""
-    if not _ARABIC_OK or not text:
-        return text
-    
-    # IDEMPOTENCY CHECK (DISABLED v4 - Always process to ensure reordering)
-    # if any("\uFB50" <= c <= "\uFEFF" for c in text):
-    #     return text
-
-    try:
-        # CLEANING: Strip LTR/RTL control marks (v2 Absolute Fix)
-        # Sometimes source data has hidden LTR marks (\u200E) that poisoning the reorderer
-        clean_text = text.replace('\u200E', '').replace('\u200F', '').strip()
-        
-        # Configuration for Quranic Uthmani text
-        configuration = {
-            'delete_harakat': False,
-            'support_zwj': True,
-            'use_unshaped_instead_of_isolated': True,
-        }
-        reshaper = arabic_reshaper.ArabicReshaper(configuration=configuration)
-        reshaped_text = reshaper.reshape(clean_text)
-        
-        # BIDI: Force Right-to-Left base direction (v2 Absolute Fix)
-        bidi_text = get_display(reshaped_text, base_dir='R')
-        
-        # FAILSAFE: If the result is still logically ordered (Word 1 at start), 
-        # force a word-level reversal. get_display can sometimes be confused 
-        # by Presentation Forms in certain environments.
-        words = bidi_text.split()
-        if len(words) > 1 and bidi_text.strip().startswith(reshaped_text.strip().split()[0]):
-            # If the first word of bidi matches the first word of reshaped, 
-            # then NO word reversal occurred. Force it.
-            bidi_text = " ".join(reversed(reshaped_text.split()))
-            print("🧬 [ArabicEngine] Using Word-Level Failsafe Reorder")
-        
-        # LOGGING (Debug): Confirming the reordering for the logs
-        first_orig = clean_text[:5]
-        first_bidi = bidi_text[:5]
-        
-        # Hex codes for deep debug
-        orig_hex = " ".join([hex(ord(c)) for c in first_orig])
-        bidi_hex = " ".join([hex(ord(c)) for c in first_bidi])
-        
-        print(f"🧬 [ArabicEngine] Input: '{first_orig}' ({orig_hex})")
-        print(f"🧬 [ArabicEngine] BIDI : '{first_bidi}' ({bidi_hex})")
-        
-        return bidi_text
-    except Exception as e:
-        print(f"⚠️ Arabic reshape error: {e}")
-        return text
+    """Compatibility wrapper; direction is inferred from the logical paragraph."""
+    if is_arabic_text(text) and not _ARABIC_OK:
+        raise ValueError("Arabic shaping support is required to render source text")
+    return display_text(text)
 
 # v8.0 CINEMATIC SETTINGS
 SHOW_READABILITY_MASKS = False
@@ -367,7 +322,7 @@ def fit_text_to_zone(
     while iterations < max_iterations:
         iterations += 1
         try:
-            fnt = ImageFont.truetype(font_path, curr_size)
+            fnt = ImageFont.truetype(font_path, curr_size, layout_engine=ImageFont.Layout.RAQM)
         except OSError:
             if is_arabic:
                 raise ValueError("The Arabic source font could not be loaded") from None
@@ -397,7 +352,7 @@ def fit_text_to_zone(
         block_h = sum(m["h"] for m in line_metrics) + (len(lines)-1) * zd_ls
         
         # 3. Check Fit
-        if block_h <= max_h:
+        if block_h <= max_h and all(m["w"] <= max_w for m in line_metrics):
             return lines, fnt, block_h, zd_ls, total_tracking
             
         # 4. Decimate (Priority Order)
@@ -412,7 +367,7 @@ def fit_text_to_zone(
             break
             
     # Final fallback if we never perfectly fit
-    return lines, fnt, block_h, int(curr_size * (0.45 + curr_ls)), base_ls + curr_tracking
+    raise ValueError("Text does not fit the card without clipping")
 
 
 def _extract_palette(p: str):
@@ -801,13 +756,13 @@ def generate_background(
             if render_metadata is not None:
                 render_metadata.update(image_provider="openai", image_model=settings.openai_image_model,
                                        image_quality=settings.openai_image_quality, image_cached=True)
-            return cached.resize(target_size, Image.Resampling.LANCZOS)
+            return ImageOps.fit(cached, target_size, method=Image.Resampling.LANCZOS)
 
     # Scene prompts are already composed; do not reinterpret them as abstract textures.
     prompt = vs_compose(vs_spec, raw_prompt=visual_prompt) if vs_spec and vs_compose else visual_prompt
     prompt += " Background only. No text, letters, calligraphy, symbols or logos. Leave clear space for separately rendered typography."
     result = generate_configured_image(prompt, engine=engine)
-    image = result.image.resize(target_size, Image.Resampling.LANCZOS)
+    image = ImageOps.fit(result.image, target_size, method=Image.Resampling.LANCZOS)
     if render_metadata is not None:
         render_metadata.update(image_provider=result.provider, image_model=result.model,
                                image_quality=settings.openai_image_quality, image_cached=False)
@@ -1524,11 +1479,12 @@ def render_minimal_quote_card(
     render_metadata: dict = None
 ) -> str:
     """
-    Sabeel Designer Engine v9.0 — Precision Layout & Cinematic Typography.
-    Guarantees 100% text preservation using iterative fitting budgets.
+    Render every source block with measured typography, or fail without clipping.
     """
-    W, H = 1080, 1080
-    target_size = (W, H)
+    # Preflight all source blocks before any paid image-provider call.
+    text_style = vs_interpret_text(text_style_prompt, experimental=experimental_mode) if _VS_OK else None
+    target_size, text_blocks = layout_card(segments, serif=bool(text_style and text_style.font_family == "Serif"))
+    W, H = target_size
     cx, cy = W // 2, H // 2
     base_dir    = os.path.dirname(
         os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -1570,7 +1526,7 @@ def render_minimal_quote_card(
             bg_path = os.path.join(app_root, "static", "img", "gallery", style)
             bg = Image.open(bg_path).convert("RGB")
             if bg.size != target_size:
-                bg = bg.resize(target_size, Image.LANCZOS)
+                bg = ImageOps.fit(bg, target_size, method=Image.Resampling.LANCZOS)
             # bg = apply_vignette(bg, intensity=0.42)
         except Exception as e:
             print(f"⚠️ [Gallery Mode] Could not load {style}: {e}")
@@ -1688,202 +1644,18 @@ def render_minimal_quote_card(
         palette = _build_adaptive_palette(bg, target_size)
         glow_rgba = (255, 255, 255, 40)
 
-    # 3. V9.0 PRECISION LAYOUT BUDGETS
-    BUDGETS = [
-        [int(H * 0.09), int(H * 0.23), int(W * 0.78), int(H * 0.14)], # Top (shifted slightly down)
-        [int(H * 0.28), int(H * 0.65), int(W * 0.86), int(H * 0.37)], # Main (Arabic - tightened to avoid bottom bleed)
-        [int(H * 0.70), int(H * 0.88), int(W * 0.80), int(H * 0.18)], # Sub (English - moved up and taller)
-    ]
-    
-    draw_tmp = ImageDraw.Draw(bg)
-    zone_data = []
-
-    print(f"📐 [v9.0] Budget Fitting...")
-
-    for i, seg in enumerate(segments):
-        if i >= 3: break
-        
-        # Style resolution
-        if typo_spec:
-            style_idx = [typo_spec.top, typo_spec.main, typo_spec.sub][i]
-            col = style_idx.color
-            opacity = style_idx.opacity
-            z_style = style_idx # Reference for later
-        else:
-            col = palette[i] if palette and i < len(palette) else (255,255,255)
-            opacity = 1.0
-            z_style = None
-            
-        # Font Selection (with robust fallback)
-        variant = "Inter"
-        if typo_spec and typo_spec.text_style:
-            # FORCE Amiri for Arabic segments to ensure ligature support
-            if segments[i].get("is_arabic", False):
-                f_base = "Amiri"
-            else:
-                f_base = "Amiri" if typo_spec.text_style.font_family == "Serif" else "Inter"
-            variant = f_base
-            if typo_spec.text_style.weight == "Bold": variant += "-Bold"
-            elif typo_spec.text_style.weight == "Light": variant += "-Light"
-            if typo_spec.text_style.italic: variant += "-Italic"
-            
-        font_path = os.path.join(base_dir, "assets", "fonts", f"{variant}.ttf")
-        
-        # Fallback to base fonts if specific variant missing
-        if not os.path.exists(font_path):
-            f_base = "Amiri-Regular" if "Amiri" in variant else "Inter"
-            font_path = os.path.join(base_dir, "assets", "fonts", f"{f_base}.ttf")
-            
-        # Final safety fallback
-        if not os.path.exists(font_path):
-            # Try to find ANY available font in assets/fonts/
-            available = [f for f in os.listdir(os.path.join(base_dir, "assets", "fonts")) if f.endswith(".ttf")]
-            if available:
-                font_path = os.path.join(base_dir, "assets", "fonts", available[0])
-            else:
-                font_path = None # Will trigger load_default()
-
-        # Text Preparation
-        seg_text = str(seg["text"])
-        if typo_spec and typo_spec.text_style:
-            if typo_spec.text_style.uppercase or (mode == "custom" and i == 0): seg_text = seg_text.upper()
-
-        # Iterative Fit
-        budget = BUDGETS[i]
-        base_ls = typo_spec.text_style.letter_spacing if typo_spec and typo_spec.text_style else 0
-        z_boost = getattr(z_style, "letter_spacing", 0) if z_style else 0
-        
-        start_sz = int(seg["size"])
-        if i == 1 and len(seg_text) > 90: start_sz = int(start_sz * 0.88)
-        elif i == 0 and len(seg_text) > 40: start_sz = int(start_sz * 0.90)
-        elif i == 2: start_sz = max(start_sz, int(start_sz * 1.15)) # Boost English translation
-
-        # 4. Fit to Zone (v9.0 Unified)
-        z_y, z_h, z_w, max_h = BUDGETS[i]
-        zd_ls_base = [0.12, 0.22, 0.18][i]
-        is_ar_seg = seg.get("is_arabic", False)
-
-        lines, fnt, block_h, zd_ls, final_track = fit_text_to_zone(
-            seg_text, font_path, z_w, max_h, int(seg["size"]), draw_tmp, 
-            min_size=24, base_ls=zd_ls_base, is_arabic=is_ar_seg
-        )
-        
-        zone_data.append({
-            "lines": lines, "font": fnt, "block_h": block_h, "is_arabic": is_ar_seg,
-            "color": col, "opacity": opacity, "ls": zd_ls, "tracking": final_track,
-            "y": z_y, "x_center": W // 2, "anchor": "mt", "style_ref": z_style
-        })
-        print(f"   ✅ Zone {i}: {len(lines)} lines | size={fnt.size} | y={z_y}")
-
-    # 4. Alignment / Editorial Override
-    if typo_spec and typo_spec.text_style.layout_mode == "Editorial":
-        ts = typo_spec.text_style
-        zone_data[0].update({"x_center": int(W * 0.90), "anchor": "rt", "y": int(H * 0.10)})
-        q_cx = int(W * 0.12) if ts.alignment != "Right" else int(W * 0.88)
-        zone_data[1].update({"x_center": q_cx, "anchor": "lt" if ts.alignment != "Right" else "rt"})
-        zone_data[2].update({"x_center": int(W * 0.88) if ts.alignment != "Right" else int(W * 0.12), 
-                             "anchor": "rb" if ts.alignment != "Right" else "lb", "y": BUDGETS[2][1] - zone_data[2]["block_h"]})
-    else:
-        for zd in zone_data:
-            if typo_spec and typo_spec.text_style:
-                ts = typo_spec.text_style
-                if ts.alignment == "Left": zd.update({"x_center": int(W * 0.12) + ts.horiz_offset, "anchor": "lt"})
-                elif ts.alignment == "Right": zd.update({"x_center": int(W * 0.88) - ts.horiz_offset, "anchor": "rt"})
-
-    # 5. Atmospheric Pass
-    # Apply directional veils to protect text areas without destroying center beauty
-    # bg = draw_top_gradient_band(bg, (5, 5, 10), 85, height_percent=0.22)
-    # bg = draw_bottom_gradient_band(bg, (5, 5, 10), 120, height_percent=0.32)
-    
-    if typo_spec:
-        # Refined Atmospheric Layering (Feathered Halo Only)
-        if getattr(typo_spec, "halo_radius", 0) > 0 or glossy:
-            main_zd = zone_data[1]
-            # Use a feathered radial halo instead of a hard rectangular glass box
-            radius = typo_spec.halo_radius if getattr(typo_spec, "halo_radius", 0) > 0 else 350
-            h_op = typo_spec.halo_opacity if getattr(typo_spec, "halo_opacity", 0) > 0 else 45
-            h_col = typo_spec.halo_color[:3] if hasattr(typo_spec, "halo_color") else (0, 0, 0)
-            
-            bg = draw_radial_halo(bg, (main_zd["x_center"], main_zd["y"] + main_zd["block_h"] // 2), radius, h_col, h_op)
-
-    bg_rgba = bg.convert("RGBA")
+    # Finish atmospheric effects before drawing the exact source glyphs.
     g_rgba = typo_spec.glow_rgba if typo_spec else glow_rgba
+    background = apply_cinematic_layers(bg.convert("RGBA"), glow_color=list(g_rgba) if g_rgba else None)
+    final_img = paint_card_text(background, text_blocks,
+                                alignment=text_style.alignment if text_style else "Center")
+    if render_metadata is not None:
+        render_metadata["card_layout"] = {
+            "width": W, "height": H,
+            "blocks": [{"role": b["role"], "font_size": b["size"],
+                        "line_count": len(b["lines"]), "bounds": list(b["bounds"])} for b in text_blocks],
+        }
 
-    # Calculate global zone brightness to detect high-contrast legibility danger
-    zone_brightness_avg = _detect_center_brightness(bg, target_size)
-    dynamic_text_shadow = (0, 0, 0, 160) if zone_brightness_avg > 140 else (0, 0, 0, 100)
-
-    # 6. Render Loop (v9.1 Cinematic Dual-Language)
-    for i, zd in enumerate(zone_data):
-        z_y, cx, anchor, z_font, lp_track, zd_ls = zd["y"], zd["x_center"], zd["anchor"], zd["font"], zd["tracking"], zd["ls"]
-        col, opacity = zd["color"], zd["opacity"]
-        fc = (int(col[0]), int(col[1]), int(col[2]), int(255 * opacity))
-        
-        z_style = zd["style_ref"]
-        shd_fill = tuple(z_style.shadow_fill) if z_style else dynamic_text_shadow
-        
-        # Readiness metrics
-        base_rad = 8 * (z_font.size / 74)
-        risk = getattr(typo_spec, "readability_risk", "low")
-        radius = base_rad * (1.8 if risk == "high" else 1.3 if risk == "medium" else 1.0)
-        h_col = (255, 252, 240, 140 if risk == "high" else 100) if (sum(col[:3]) > 400) else (0, 0, 0, 110 if risk == "high" else 70)
-        
-        # Force dark halo on very bright backgrounds
-        if zone_brightness_avg > 160:
-            h_col = (0, 0, 0, 180)
-            shd_fill = (0, 0, 0, 200)
-            radius = radius * 1.2
-            
-        # Create a dedicated layer for this zone's text to apply effects cleanly
-        zone_mask = Image.new("RGBA", target_size, (0, 0, 0, 0))
-        z_draw = ImageDraw.Draw(zone_mask)
-        
-        final_lines = zd["lines"]
-        is_ar_zone = zd.get("is_arabic", False)
-        
-        # Starting vertical position
-        ty = z_y
-        
-        for lyr_idx, line in enumerate(final_lines):
-            # Process Arabic text if needed (Reshaping + BIDI)
-            display_text = reshape_arabic(line) if is_ar_zone else line
-            
-            # 1. Shadow/Glow Pass (Indented Correctly)
-            if z_style:
-                if z_style.glow_style != "none":
-                    draw_glow(z_draw, (cx, ty), display_text, z_font, h_col, radius*1.5, anchor=anchor, tracking=lp_track, is_arabic=is_ar_zone)
-                if z_style.shadow_fill[3] > 0:
-                    # Subtle drop shadow
-                    draw_text_advanced(z_draw, (cx + z_style.shadow_dx, ty + z_style.shadow_dy), display_text, font=z_font, fill=shd_fill, anchor=anchor, letter_spacing=lp_track, is_arabic=is_ar_zone)
-
-            # 2. Ornament Pass (Reference Zone Only)
-            if i == 0 and lyr_idx == 0:
-                if not getattr(typo_spec, "show_reference", True): continue
-                if typo_spec and typo_spec.has_glow:
-                    draw_top_ornament(z_draw, cx, ty - 22, typo_spec.orn_color)
-            
-            # 3. Main Text Stroke (for Bolder legibility)
-            sw = 1 if (i == 1 and typo_spec and typo_spec.text_style.weight == "Bold") else 0
-            
-            # 4. Final Text Draw
-            draw_text_advanced(z_draw, (cx, ty), display_text, font=z_font, fill=fc, anchor=anchor, letter_spacing=lp_track, stroke_width=sw, stroke_fill=fc)
-            
-            # 5. Measure & Advance
-            bbox = draw_tmp.textbbox((0, 0), display_text, font=z_font)
-            line_h = bbox[3] - bbox[1]
-            ty += line_h + zd_ls
-
-        # 6. Zone Separator (if applicable)
-        if i == 0 and typo_spec and typo_spec.text_style.layout_mode == "Stack":
-             draw_zone_separator(z_draw, cx, ty + zd_ls // 2, typo_spec.orn_color)
-
-        # 7. Final Composite (Force Alpha Composite for visibility)
-        if zone_mask:
-            bg_rgba = Image.alpha_composite(bg_rgba, zone_mask)
-            print(f"   🖼️  Zone {i} composited.")
-        
-    final_img = apply_cinematic_layers(bg_rgba, glow_color=list(g_rgba) if g_rgba else None)
-    
     filename = f"qcard_{int(time.time() * 1000)}.jpg"
     final_path = os.path.join(output_dir, filename)
     os.makedirs(output_dir, exist_ok=True)
