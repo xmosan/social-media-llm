@@ -61,7 +61,7 @@ def save_brand_kit(data: dict, db: Session = Depends(get_db), org_id: int = Depe
         kit = normalize_brand(data.get("brand_kit"))
     except ValueError as error:
         raise HTTPException(422, str(error)) from None
-    org = db.query(Org).filter(Org.id == org_id).with_for_update().first()
+    org = db.query(Org).filter(Org.id == org_id).populate_existing().with_for_update().first()
     if not org:
         raise HTTPException(404, "Workspace not found")
     if data.get("revision") != card_digest(normalize_brand(org.brand_kit)):

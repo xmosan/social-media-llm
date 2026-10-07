@@ -685,7 +685,7 @@ STUDIO_SCRIPTS_JS = r"""
     window.resetStudioSourceOutput = function() {
         studioSourceEpoch++;
         window.clearReflectionBusy?.();
-        const reflectionButton=document.getElementById('draftReflectionButton'); if(reflectionButton) reflectionButton.disabled=false;
+        const reflectionButton=document.getElementById('draftReflectionButton'); if(reflectionButton) {reflectionButton.disabled=false;reflectionButton.textContent='Draft a reflection';}
         document.getElementById('arabicExcerptControls')?.classList.add('hidden');
         cancelStudioVisual();
         studioCardMessage = null;
@@ -818,7 +818,7 @@ STUDIO_SCRIPTS_JS = r"""
         document.getElementById('arabicExcerptControls')?.classList.add('hidden');
         const add=document.getElementById('includeStudioReflection'); if(add) add.checked=false;
         const save=document.getElementById('saveBrandButton'); if(save) save.disabled=false;
-        const reflect=document.getElementById('draftReflectionButton'); if(reflect) reflect.disabled=false;
+        const reflect=document.getElementById('draftReflectionButton'); if(reflect) {reflect.disabled=false;reflect.textContent='Draft a reflection';}
     };
     window.loadStudioBrand = async function(apply=false) {
         const epoch=studioSessionEpoch, before=JSON.stringify(window.studioBrandSnapshot());
@@ -877,7 +877,8 @@ STUDIO_SCRIPTS_JS = r"""
         const meta=window.selectedHadithMetadata || window.selectedAyahMetadata || {};
         const out=document.getElementById('sourceAttribution');
         const lines=[['Reference',meta.reference],['Source',meta.api_source || (window.selectedAyahMetadata ? "Connected Qur’an library" : null)],
-            ['Collection',meta.collection],['Narrator (returned)',meta.narrator],['Grade (returned)',meta.grade],['Translator (returned)',meta.translator || meta.translation_name]];
+            ...(window.selectedHadithMetadata ? [['Collection',meta.collection],['Narrator (returned)',meta.narrator],['Grade (returned)',meta.grade]] : []),
+            ['Translator (returned)',meta.translator || meta.translation_name]];
         if(out) out.textContent=lines.map(([label,value])=>label+': '+(value==null || value==='' ? 'Not returned by the source' : typeof value==='object' ? JSON.stringify(value) : value)).join('\n');
         const arabic=document.getElementById('sourceArabicFull'); if(arabic) arabic.textContent=meta.arabic_text || studioCardMessage?.arabic_text || 'No Arabic returned.';
         const raw=document.getElementById('sourceProviderDetails'); if(raw) raw.textContent=JSON.stringify(meta.provider_metadata || {translator:meta.translator ?? null,provenance:meta.provenance ?? null},null,2);
@@ -901,7 +902,7 @@ STUDIO_SCRIPTS_JS = r"""
     window.draftStudioReflection = async function() {
         if(studioReflectionBusy || !studioCardMessage) return;
         const epoch=studioSourceEpoch, session=studioSessionEpoch, before=document.getElementById('editSupporting').value;
-        const button=document.getElementById('draftReflectionButton'); studioReflectionBusy=true; button.disabled=true;
+        const button=document.getElementById('draftReflectionButton'); studioReflectionBusy=true; button.disabled=true;button.textContent='Drafting reflection…';
         try {
             const meta=window.selectedHadithMetadata || window.selectedAyahMetadata;
             const response=await fetch('/api/studio/generate-card-message',{method:'POST',headers:{'Content-Type':'application/json'},signal:AbortSignal.timeout(60000),body:JSON.stringify({
@@ -916,7 +917,7 @@ STUDIO_SCRIPTS_JS = r"""
             document.getElementById('editSupporting').value=data.card_message.supporting_text || '';
             window.updateStudioCardFromUI(); window.rememberStudio();
         } catch(e) { if(epoch===studioSourceEpoch && session===studioSessionEpoch) alert(e.message); }
-        finally { if(epoch===studioSourceEpoch && session===studioSessionEpoch) {studioReflectionBusy=false;button.disabled=false;} }
+        finally { if(epoch===studioSourceEpoch && session===studioSessionEpoch) {studioReflectionBusy=false;button.disabled=false;button.textContent='Draft a reflection';} }
     };
     // End creator controls.
 

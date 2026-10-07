@@ -73,6 +73,7 @@ class PostgresChecks(unittest.TestCase):
         revision=card_digest(normalize_brand());barrier=threading.Barrier(2)
         def save(palette):
             with Session(engine) as db:
+                loaded = db.get(Org,1)  # Authorization may already have loaded this row.
                 barrier.wait(timeout=10)
                 try:
                     save_brand_kit({'brand_kit':normalize_brand({'palette':palette}),'revision':revision},db,1)
