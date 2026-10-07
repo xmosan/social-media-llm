@@ -308,7 +308,10 @@ STUDIO_SCRIPTS_JS = r"""
     }
 
     window.switchSourceTab = function(tab) {
-        if (tab !== activeSourceTab) window.resetStudioSession();
+        if (tab !== activeSourceTab) {
+            window.resetStudioSession();
+            window.loadStudioBrand?.();
+        }
         activeSourceTab = tab;
         document.getElementById('hadithCollectionLabel')?.classList.toggle('hidden', tab !== 'hadith');
         const btnQuran = document.getElementById('tabBtnQuran');
