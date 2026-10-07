@@ -42,6 +42,8 @@ def generate_quote_card(
     layout: str = "english_first",
     background_image=None,
     background_sink=None,
+    post_format: str = "feed_4_5",
+    allow_sequence: bool = False,
 ) -> str:
     """
     Parses an Islamic caption and renders a premium quote card.
@@ -145,24 +147,43 @@ def generate_quote_card(
 
     print(f"📦 [ImageCard] Final Segments: {len(segments)}")
 
-    # ── Render ────────────────────────────────────────────────────────────────
-    output_dir = settings.uploads_dir
-    url = render_minimal_quote_card(
-        segments,
-        output_dir,
-        style=style,
-        visual_prompt=visual_prompt,
-        mode=mode,
-        text_style_prompt=text_style_prompt,
-        readability_priority=readability_priority,
-        experimental_mode=experimental_mode,
-        engine=engine,
-        glossy=glossy,
-        visual_history=visual_history,
-        render_metadata=render_metadata,
-        layout=layout, background_image=background_image, background_sink=background_sink,
-    )
-    return url
+    # One canonical renderer for both single cards and complete sequences.
+    from app.services.card_typography import DESIGN_FAMILIES, plan_sequence
+    from app.services.media_sequence import card_digest
+    if allow_sequence and card_message and card_message.get("was_excerpted"):
+        from app.services.card_typography import CardTypographyError
+        raise CardTypographyError("This legacy card uses an excerpt. Rebuild its card message from the full source before creating a sequence.")
+    if allow_sequence and render_metadata is None:
+        raise ValueError("Sequence generation requires a manifest destination")
+    pages = plan_sequence(segments, family=style, layout=layout, post_format=post_format) if allow_sequence and style in DESIGN_FAMILIES else [{"segments": segments, "slices": [], "label": "Complete source"}]
+    retained = background_image
+    def keep_photo(image):
+        nonlocal retained
+        retained = image
+        if background_sink:
+            background_sink(image)
+    rendered = []
+    for i, page in enumerate(pages):
+        metadata = {}
+        url = render_minimal_quote_card(
+            page["segments"], settings.uploads_dir, style=style,
+            visual_prompt=visual_prompt, mode=mode, text_style_prompt=text_style_prompt,
+            readability_priority=readability_priority, experimental_mode=experimental_mode,
+            engine=engine, glossy=glossy, visual_history=visual_history,
+            render_metadata=metadata, layout=layout, background_image=retained,
+            background_sink=keep_photo, post_format=post_format,
+        )
+        rendered.append({"index": i, "url": url, "label": page["label"], "slices": page["slices"],
+                         "quality": metadata.get("quality", {}),
+                         "width": 1080, "height": 1920 if post_format == "story_9_16" else 1350})
+        if render_metadata is not None and i == 0:
+            render_metadata.update(metadata)
+    if allow_sequence:
+        actual_format = "story_9_16" if post_format == "story_9_16" else "carousel_4_5" if len(rendered)>1 else "feed_4_5"
+        render_metadata["media_manifest"] = {"version": 1, "format": actual_format,
+                                            "card_digest": card_digest(card_message), "pages": rendered}
+    return rendered[0]["url"]
+
 
 
 def create_quote_card(text: str, attribution: str, outfile_path: str):

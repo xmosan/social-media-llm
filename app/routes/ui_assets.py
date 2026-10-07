@@ -197,6 +197,13 @@ STUDIO_SCRIPTS_JS = r"""
         studioVisualDesign = null;
         studioBackgroundToken = null;
         studioGalleryImage = null;
+        studioSessionEpoch++;
+        studioSaveBusy = false;
+        studioResumeEpoch++;
+        studioPostId = null; studioDraftKey = crypto.randomUUID();
+        studioPageIndex = 0; studioViewedPages = new Set(); studioSequenceReviewed = false;
+        document.getElementById("sequenceReviewCheck").checked = false;
+        document.getElementById("studioSaveStatus").textContent = "";
         clearTimeout(searchDebounceTimeout);
         currentQuoteCardUrl = null;
         isQuoteCardOutOfDate = false;
@@ -221,6 +228,8 @@ STUDIO_SCRIPTS_JS = r"""
         setVal('studioVisualPrompt', '');
         setVal('studioStyle', 'editorial');
         setVal('studioLayout', 'english_first');
+        setVal('studioFormat', 'feed_4_5');
+        document.getElementById('cardPreviewContainer').style.aspectRatio = '4 / 5';
         setVal('studioCustomDirection', '');
         document.getElementById('photoDirectionControls')?.classList.add('hidden');
         document.querySelectorAll('.scene-card').forEach(c => c.classList.toggle('active', c.dataset.family === 'editorial'));
@@ -264,6 +273,8 @@ STUDIO_SCRIPTS_JS = r"""
     };
 
     window.closeNewPostModal = function() {
+        window.rememberStudio();
+        studioResumeEpoch++;
         const modal = document.getElementById('newPostModal');
         if (modal) {
             modal.classList.add('hidden');
@@ -666,6 +677,11 @@ STUDIO_SCRIPTS_JS = r"""
         studioCardMessage = null;
         studioCaptionMessage = null;
         studioVisualDesign = null;
+        studioViewedPages = new Set(); studioSequenceReviewed = false;
+        const review = document.getElementById('sequenceReviewCheck');
+        if (review) { review.checked = false; review.disabled = true; }
+        const label = document.getElementById('sequencePageLabel');
+        if (label) label.textContent = '';
         currentQuoteCardUrl = null;
         isQuoteCardOutOfDate = false;
         for (const id of ['finalMediaUrl', 'studioCaption', 'editEyebrow', 'editHeadline', 'editSupporting']) {
@@ -682,7 +698,7 @@ STUDIO_SCRIPTS_JS = r"""
         studioVisualController?.abort();
         studioVisualController = null;
         const btn = document.getElementById('btnGenerateCard');
-        if (btn) { btn.disabled = false; btn.innerText = 'Create feed card'; }
+        if (btn) { btn.disabled = false; btn.innerText = 'Create layout'; }
         document.getElementById('cardLoader')?.classList.add('hidden');
     }
 
@@ -708,7 +724,7 @@ STUDIO_SCRIPTS_JS = r"""
         const epoch = ++studioVisualEpoch;
         const timer = setTimeout(() => controller.abort(), 180000);
         btn.disabled = true;
-        btn.innerText = studioBackgroundToken ? 'Applying layout…' : 'Creating your feed card…';
+        btn.innerText = studioBackgroundToken ? 'Applying layout…' : 'Creating your sequence…';
         loader?.classList.remove('hidden');
         if (note) note.textContent = '';
         document.getElementById('cardActions')?.classList.add('hidden');
@@ -717,6 +733,7 @@ STUDIO_SCRIPTS_JS = r"""
                 card_message: studioCardMessage,
                 style: studioGalleryImage || document.getElementById('studioStyle').value,
                 layout: document.getElementById('studioLayout')?.value || 'english_first',
+                post_format: document.getElementById('studioFormat')?.value || 'feed_4_5',
                 visual_prompt: document.getElementById('studioCustomDirection')?.value || '',
                 background_token: studioBackgroundToken,
                 engine: studioEngine,
@@ -733,11 +750,14 @@ STUDIO_SCRIPTS_JS = r"""
             document.getElementById('finalMediaUrl').value = data.image_url;
             studioVisualDesign = data.visual_design || null;
             studioBackgroundToken = studioVisualDesign?.background_token || null;
+            studioViewedPages = new Set(); studioSequenceReviewed = false;
+            document.getElementById("sequenceReviewCheck").checked = false;
             preview.src = data.image_url;
             preview.classList.remove('hidden');
             document.getElementById('cardActions')?.classList.remove('hidden');
             document.getElementById('outOfSyncBanner')?.classList.add('hidden');
             isQuoteCardOutOfDate = false;
+            window.showStudioPage(0); window.rememberStudio();
             if (note) note.textContent = (studioVisualDesign?.background_reused ? 'Your photograph was reused. ' : '') +
                 (studioVisualDesign?.quality?.background_repaired ? 'The background was softened for readability. ' : '') +
                 'Review the full source, Arabic and reflection at phone size before continuing.';
@@ -750,11 +770,214 @@ STUDIO_SCRIPTS_JS = r"""
                 studioVisualController = null;
                 loader?.classList.add('hidden');
                 btn.disabled = false;
-                btn.innerText = studioBackgroundToken ? 'Apply layout with this photograph' : 'Create feed card';
+                btn.innerText = studioBackgroundToken ? 'Apply layout with this photograph' : 'Create layout';
             }
         }
     };
     // End feed visual requests.
+    // Sequence editor: source, all pages, and the saved draft have one identity.
+    let studioSessionEpoch = 0;
+    let studioPostId = null;
+    let studioDraftKey = null;
+    let studioSaveBusy = false;
+    let studioPageIndex = 0;
+    let studioViewedPages = new Set();
+    let studioSequenceReviewed = false;
+    let studioResumeEpoch = 0;
+    function sequencePages() { return studioVisualDesign?.media_manifest?.pages || []; }
+    function recoveryKey() { return 'sabeel-studio-v2:' + (document.getElementById('newPostModal')?.dataset.workspace || ''); }
+    function studioPayload() {
+        const meta = window.selectedHadithMetadata || window.selectedAyahMetadata;
+        const type = window.selectedHadithMetadata ? 'hadith' : window.selectedAyahMetadata ? 'quran' : 'manual';
+        return {post_id: studioPostId, draft_key: studioDraftKey,
+            ig_account_id: Number(document.getElementById('studioAccount')?.value),
+            source_type: type, source_metadata: meta, source_reference: meta?.reference,
+            topic: document.getElementById('studioTopic')?.value || '',
+            card_message: studioCardMessage, visual_design: studioVisualDesign,
+            post_format: studioVisualDesign?.media_manifest?.format || document.getElementById('studioFormat')?.value || 'feed_4_5',
+            caption_message: {caption: document.getElementById('studioCaption')?.value || ''},
+            media_url: currentQuoteCardUrl, visual_style: document.getElementById('studioStyle')?.value,
+            intent_type: document.getElementById('studioIntent')?.value,
+            reviewed: studioSequenceReviewed && !isQuoteCardOutOfDate};
+    }
+    window.rememberStudio = function() {
+        if (!studioCardMessage) return;
+        try { localStorage.setItem(recoveryKey(), JSON.stringify({payload: studioPayload(),
+            dirty: isQuoteCardOutOfDate, format: document.getElementById('studioFormat')?.value,
+            layout: document.getElementById('studioLayout')?.value, direction: document.getElementById('studioCustomDirection')?.value})); } catch (_) {}
+    };
+    window.showStudioPage = function(index) {
+        const pages = sequencePages();
+        if (!pages.length) return;
+        studioPageIndex = Math.max(0, Math.min(index, pages.length-1));
+        studioViewedPages.add(studioPageIndex);
+        const page = pages[studioPageIndex];
+        const image = document.getElementById('quoteCardPreview');
+        image.src = page.url;
+        image.alt = `Page ${studioPageIndex+1} of ${pages.length}: ${page.label}`;
+        image.classList.remove('hidden');
+        document.getElementById('sequencePageLabel').textContent = `${studioPageIndex+1} / ${pages.length} · ${page.label}`;
+        document.getElementById('sequencePrevious').disabled = studioPageIndex === 0;
+        document.getElementById('sequenceNext').disabled = studioPageIndex === pages.length-1;
+        document.getElementById('sequenceReviewCheck').disabled = studioViewedPages.size !== pages.length;
+        window.updateStudioFormatPreview();
+    };
+    window.moveStudioPage = function(delta) { window.showStudioPage(studioPageIndex+delta); };
+    window.updateStudioFormatPreview = function() {
+        const story = (studioVisualDesign?.media_manifest?.format || document.getElementById('studioFormat')?.value) === 'story_9_16';
+        const preview = document.getElementById('cardPreviewContainer');
+        if (preview) preview.style.aspectRatio = story ? '9 / 16' : '4 / 5';
+        for (const id of ['storyPreviewTop', 'storyPreviewBottom', 'storyCaptionNote']) document.getElementById(id)?.classList.toggle('hidden', !story);
+        const help = document.getElementById('sequenceFormatHelp');
+        if (help) help.textContent = story ? 'Stories · 9:16. Text stays clear of profile and reply controls. Publish every frame in order. Business account required for direct publishing; export is also available. Caption stays in your notes.' : 'Feed · 4:5. Long sources become a carousel of up to ten pages. Review and publish every page in order; English and Arabic chapters are labeled separately.';
+    };
+    window.changeStudioFormat = function() {
+        window.invalidateQuoteCard();
+        // Preview dimensions describe the existing card until the new render completes.
+        const help = document.getElementById('sequenceFormatHelp');
+        if (help) help.textContent = 'Apply this format to preview the new layout. Your source and photograph will be retained.';
+    };
+    window.confirmStudioSequence = function() {
+        if (isQuoteCardOutOfDate || studioVisualController) { alert('Apply the latest changes first.'); return; }
+        if (sequencePages().length && (studioViewedPages.size !== sequencePages().length || !document.getElementById('sequenceReviewCheck')?.checked)) {
+            alert('View every page and confirm your review before continuing.'); return;
+        }
+        studioSequenceReviewed = true;
+        window.rememberStudio();
+        window.switchStudioSection(3);
+    };
+    function restoreStudioPayload(data, {dirty=false, format, layout, direction}={}) {
+        studioPostId = data.post_id || null;
+        studioDraftKey = data.draft_key || crypto.randomUUID();
+        const set = (id, value) => { const el=document.getElementById(id); if(el) el.value=value || ''; };
+        const meta = data.source_metadata || {};
+        const type = data.source_type;
+        if (type === 'quran') {
+            window.selectedAyahMetadata = {...meta, id: meta.id || meta.original_id}; selectedAyahId = meta.id || meta.original_id || meta.reference;
+        } else if (type === 'hadith') {
+            window.selectedHadithMetadata = meta; selectedHadithId = meta.hadith_number || meta.reference;
+        }
+        window.selectedAyahMetadata = type === 'quran' ? window.selectedAyahMetadata : null;
+        window.selectedHadithMetadata = type === 'hadith' ? window.selectedHadithMetadata : null;
+        window.studioSourceContext = {...meta, type};
+        studioCardMessage = data.card_message;
+        studioVisualDesign = data.visual_design;
+        studioBackgroundToken = studioVisualDesign?.background_token || null;
+        currentQuoteCardUrl = data.media_url || null;
+        studioCaptionMessage = data.caption_message;
+        set('studioAccount', data.ig_account_id); set('studioTopic', data.topic || meta.reference);
+        set('editEyebrow', studioCardMessage?.eyebrow); set('editHeadline', studioCardMessage?.headline);
+        set('editSupporting', studioCardMessage?.supporting_text); set('studioCaption', data.caption_message?.caption);
+        set('finalMediaUrl', currentQuoteCardUrl); set('studioStyle', studioVisualDesign?.family || data.visual_style || 'editorial');
+        set('studioFormat', (format || data.post_format) === 'story_9_16' ? 'story_9_16' : 'feed_4_5');
+        set('studioLayout', layout || studioVisualDesign?.layout || 'english_first');
+        set('studioCustomDirection', direction ?? studioVisualDesign?.direction);
+        document.querySelectorAll('.scene-card').forEach(c=>c.classList.toggle('active', c.dataset.family === document.getElementById('studioStyle').value));
+        document.getElementById('photoDirectionControls')?.classList.toggle('hidden', document.getElementById('studioStyle').value !== 'quiet_photography');
+        document.getElementById('cardMessageWorkspace')?.classList.remove('hidden');
+        studioViewedPages = new Set(); studioSequenceReviewed = false;
+        document.getElementById('sequenceReviewCheck').checked = false;
+        isQuoteCardOutOfDate = dirty;
+        if (sequencePages().length) window.showStudioPage(0);
+        else if (currentQuoteCardUrl) { document.getElementById('quoteCardPreview').src=currentQuoteCardUrl; document.getElementById('quoteCardPreview').classList.remove('hidden'); }
+        document.getElementById('cardActions')?.classList.toggle('hidden', !currentQuoteCardUrl || dirty);
+        document.getElementById('outOfSyncBanner')?.classList.toggle('hidden', !dirty);
+        window.switchStudioSection(2);
+        document.getElementById('visualQualityNote').textContent = 'Draft restored. Review every page before sharing. Source and caption remain separate.';
+    }
+    window.restoreStudioRecovery = async function() {
+        const epoch = ++studioResumeEpoch;
+        try {
+            const saved = JSON.parse(localStorage.getItem(recoveryKey()) || 'null');
+            if (!saved) { alert('No recoverable Studio work on this device.'); return; }
+            if (saved.payload.post_id) {
+                const res = await fetch(`/api/studio/post/${saved.payload.post_id}`, {signal:AbortSignal.timeout(15000)});
+                const post = await res.json();
+                if (epoch !== studioResumeEpoch) return;
+                if (!res.ok) throw Error(post.detail || 'Saved draft unavailable');
+                if (['published','publishing','publish_unknown','publish_partial'].includes(post.status)) throw Error('This post has published or pending frames. Open its publication recovery controls.');
+            }
+            // Preserve unsaved caption, source and layout edits on this device.
+            // The server copy is only used to check whether editing is still safe.
+            restoreStudioPayload(saved.payload, saved);
+        } catch (e) { alert(e.message || 'This recovery copy could not be loaded. Your saved drafts remain available.'); }
+    };
+    window.resumeStudioPost = async function(id) {
+        const epoch = ++studioResumeEpoch;
+        try {
+            const res = await fetch(`/api/studio/post/${id}`);
+            const post = await res.json();
+            if (epoch !== studioResumeEpoch) return;
+            if (!res.ok) throw Error(post.detail || 'Draft unavailable');
+            if (['published','publishing','publish_unknown','publish_partial'].includes(post.status)) throw Error('This post has published or pending frames. Use its publication recovery controls.');
+            window.closeEditPostModal(); window.openNewPostModal();
+            const meta = {...(post.source_metadata?.metadata || {}), ...(post.source_metadata || {})};
+            restoreStudioPayload({post_id:post.id, draft_key:post.flags?.draft_key, ig_account_id:post.ig_account_id,
+                source_type:['quran','hadith'].includes(post.source_type) ? post.source_type : post.source_foundation || 'manual',
+                source_metadata:meta, card_message:post.card_message, caption_message:{caption:post.caption || ''},
+                visual_design:{...(post.flags?.visual_design || {}), media_manifest:post.flags?.media_manifest},
+                post_format:post.post_format, media_url:post.media_url, visual_style:post.visual_style, topic:post.topic});
+        } catch(e) { alert(e.message); }
+    };
+    async function persistStudioDraft(scheduledAt=null) {
+        if (studioSaveBusy) return null;
+        if (isQuoteCardOutOfDate || studioVisualController || !currentQuoteCardUrl) throw Error('Apply your visual changes before saving.');
+        if (!document.getElementById('studioAccount')?.value) throw Error('Choose an account before saving.');
+        const sessionEpoch = studioSessionEpoch;
+        const payload = studioPayload();
+        payload.scheduled_at = scheduledAt;
+        payload.status = 'drafted';
+        studioSaveBusy = true;
+        window.rememberStudio();
+        try {
+            const res = await fetch('/api/studio/create-post', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload),signal:AbortSignal.timeout(45000)});
+            const post = await res.json();
+            if (!res.ok) throw Error(post.detail || 'Draft could not be saved');
+            if (sessionEpoch !== studioSessionEpoch) return null;
+            studioPostId = post.id;
+            window.rememberStudio();
+            document.getElementById('studioSaveStatus').textContent = `Draft #${post.id} saved · ${sequencePages().length || 1} page(s)`;
+            return post;
+        } catch(e) {
+            if (sessionEpoch !== studioSessionEpoch) return null;
+            throw e;
+        } finally { if (sessionEpoch === studioSessionEpoch) studioSaveBusy = false; }
+    }
+    window.saveStudioDraft = async function() {
+        try { await persistStudioDraft(); } catch(e) { document.getElementById('studioSaveStatus').textContent=e.message; }
+    };
+    window.exportStudioSequence = async function() {
+        try { const post=await persistStudioDraft(); if(post) window.location.href=`/posts/${post.id}/export`; }
+        catch(e) { document.getElementById('studioSaveStatus').textContent=e.message; }
+    };
+    window.shareStudioNow = async function() {
+        if (studioSaveBusy) return;
+        const sessionEpoch=studioSessionEpoch;
+        const button=document.getElementById('studioShareNowBtn'); button.disabled=true;
+        try {
+            if (!studioSequenceReviewed) throw Error('Confirm the visual review first.');
+            const post=await persistStudioDraft(); if(!post) return;
+            studioSaveBusy=true;
+            const res=await fetch(`/posts/${post.id}/publish`,{method:'POST',signal:AbortSignal.timeout(180000)});
+            const data=await res.json();
+            if (!res.ok) throw Error(data.detail || 'Publishing needs attention. Open the saved post to check its progress.');
+            if (sessionEpoch === studioSessionEpoch) { localStorage.removeItem(recoveryKey()); window.location.reload(); }
+        } catch(e) { if (sessionEpoch === studioSessionEpoch) document.getElementById('studioSaveStatus').textContent=e.message; }
+        finally {if (sessionEpoch === studioSessionEpoch) {studioSaveBusy=false;button.disabled=false;}}
+    };
+    window.recoverStoryPublication = async function(resume=false) {
+        if (postEditInFlight) return;
+        setPostEditBusy(true);
+        try {
+            const id=document.getElementById('editPostId').value;
+            const res=await fetch(`/posts/${id}/${resume ? 'publish' : 'reconcile-publication'}`,{method:'POST'});
+            const data=await res.json();
+            if(!res.ok) throw Error(data.detail || 'Publication needs attention');
+            window.location.reload();
+        } catch(e) { alert(e.message); } finally {setPostEditBusy(false);}
+    };
+    // End sequence editor.
+
 
     window.generateSocialCaption = async function() {
         const sourceEpoch = studioSourceEpoch;
@@ -864,6 +1087,8 @@ STUDIO_SCRIPTS_JS = r"""
     }
 
     window.invalidateQuoteCard = function() {
+        studioSequenceReviewed = false;
+        document.getElementById("sequenceReviewCheck").checked = false;
         cancelStudioVisual();
         document.getElementById('cardActions')?.classList.add('hidden');
         if (currentQuoteCardUrl) {
@@ -871,6 +1096,7 @@ STUDIO_SCRIPTS_JS = r"""
             const banner = document.getElementById('outOfSyncBanner');
             if(banner) banner.classList.remove('hidden');
         }
+        window.rememberStudio();
     };
 
     window.setStudioIntent = function(intent, el) {
@@ -1115,72 +1341,17 @@ STUDIO_SCRIPTS_JS = r"""
         btn.disabled = true;
         btn.innerHTML = 'SCHEDULING... <span class="animate-pulse">✨</span>';
 
-        const topicVal = document.getElementById('studioTopic').value;
-        const editedCaption = document.getElementById('studioCaption').value;
-
-        // ── Determine source type and metadata ────────────────────────────────
-        let srcType = 'manual';
-        let srcReference = topicVal;
-        let srcMetadata = null;
-
-        if (selectedHadithId && window.selectedHadithMetadata) {
-            srcType = 'hadith';
-            srcReference = window.selectedHadithMetadata.reference || topicVal;
-            srcMetadata = window.selectedHadithMetadata;
-        } else if (selectedAyahId && window.selectedAyahMetadata) {
-            srcType = 'quran';
-            srcReference = window.selectedAyahMetadata.reference || topicVal;
-            srcMetadata = window.selectedAyahMetadata;
-        }
-
-        let finalCaptionMsg = studioCaptionMessage;
-        if (editedCaption) {
-            finalCaptionMsg = editedCaption;
-        }
-
-        const reqPayload = {
-            ig_account_id: parseInt(accountId, 10),
-            visual_mode: 'quote_card',
-            source_type: srcType,
-            source_reference: srcReference,
-            source_metadata: srcMetadata,
-            topic: topicVal,
-            card_message: studioCardMessage,
-            visual_design: studioVisualDesign,
-            post_format: 'feed_4_5',
-            caption_message: finalCaptionMsg,
-            media_url: document.getElementById('finalMediaUrl')?.value || currentQuoteCardUrl,
-            intent_type: document.getElementById('studioIntent').value,
-            visual_style: studioCreationMode === 'custom' ? 'custom' : document.getElementById('studioStyle').value,
-            // ── Canonical scheduled datetime ──────────────────────────────────────
-            scheduled_at: scheduledAt,
-        };
-
         try {
-            const res = await fetch('/api/studio/create-post', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(reqPayload)
-            });
-            if (res.ok) {
-                const savedPost = await res.json();
-                // Close modal and navigate to calendar so the post is visible immediately
-                window.closeNewPostModal();
-                // Brief success flash before redirect
-                btn.innerHTML = '✅ Scheduled! Redirecting...';
-                setTimeout(() => { window.location.href = '/app/calendar'; }, 900);
-            } else {
-                const data = await res.json().catch(() => ({detail: 'System timeout'}));
-                alert('Creation Error: ' + (data.detail || 'Unknown error'));
-                btn.innerHTML = original;
-                btn.disabled = false;
-            }
-        } catch (e) {
-            alert('Connection failure: ' + e);
-            btn.innerHTML = original;
-            btn.disabled = false;
-        }
-    }
+            if (!studioSequenceReviewed) throw Error('Confirm your visual review before scheduling.');
+            const saved = await persistStudioDraft(scheduledAt);
+            if (!saved) return;
+            localStorage.removeItem(recoveryKey());
+            window.closeNewPostModal();
+            localStorage.removeItem(recoveryKey());
+            window.location.href = '/app/calendar';
+        } catch(e) { alert('Could not schedule: ' + e.message); }
+        finally {btn.disabled=false;btn.innerHTML=original;}
+    };
 
     window.addEventListener('load', () => {
         if (window.syncCalendarTimezone()) return;
@@ -2089,7 +2260,7 @@ STUDIO_SCRIPTS_JS = r"""
             return;
         }
         document.getElementById('editPostId').value = id;
-        postEditReadOnly = ['published', 'publishing', 'publish_unknown'].includes(status);
+        postEditReadOnly = ['published', 'publishing', 'publish_unknown', 'publish_partial'].includes(status);
         const captionEl = document.getElementById('editPostCaption');
         if (captionEl) { captionEl.value = caption || ''; captionEl.readOnly = postEditReadOnly; }
         const title = document.getElementById('editPostTitle');
@@ -2104,6 +2275,11 @@ STUDIO_SCRIPTS_JS = r"""
         }
         document.getElementById('deleteConfirmActions')?.classList.add('hidden');
         document.getElementById('editPostActions')?.classList.remove('hidden');
+        document.getElementById('reopenStudioBtn')?.classList.toggle('hidden', postEditReadOnly);
+        document.getElementById('resumeStoriesBtn')?.classList.toggle('hidden', status !== 'publish_partial');
+        document.getElementById('reconcileStoriesBtn')?.classList.toggle('hidden', !['publish_unknown','publishing'].includes(status));
+        document.getElementById('exportSavedPostBtn').href = `/posts/${id}/export`;
+        if(status === 'publish_partial' && description) description.textContent='Some Story frames are published. Resume sends only the remaining frames.';
         setPostEditBusy(false);
         modal.classList.remove('hidden');
         modal.style.display = 'flex';
@@ -2333,6 +2509,12 @@ STUDIO_COMPONENTS_HTML = """
     </div>
 
     <input type="hidden" id="editPostId">
+    <div class="flex flex-wrap gap-3 text-sm">
+        <button type="button" id="reopenStudioBtn" onclick="resumeStudioPost(document.getElementById('editPostId').value)" class="px-4 py-3 bg-brand text-white rounded-xl">Review all pages in Studio</button>
+        <a id="exportSavedPostBtn" class="px-4 py-3 border border-brand/20 rounded-xl">Export images + source</a>
+        <button type="button" id="resumeStoriesBtn" onclick="recoverStoryPublication(true)" class="hidden px-4 py-3 bg-brand text-white rounded-xl">Resume remaining Stories</button>
+        <button type="button" id="reconcileStoriesBtn" onclick="recoverStoryPublication(false)" class="hidden px-4 py-3 border border-brand/20 rounded-xl">Check publishing outcome</button>
+    </div>
     
     <div class="space-y-6">
         <div class="space-y-3">
@@ -2385,7 +2567,7 @@ STUDIO_COMPONENTS_HTML = """
 
 <!-- CONTENT STUDIO MODAL -->
 
-<div id="newPostModal" class="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[100] flex items-end md:items-center justify-center p-0 md:p-10 hidden">
+<div id="newPostModal" data-workspace="{workspace_key}" class="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[100] flex items-end md:items-center justify-center p-0 md:p-10 hidden">
     <div class="w-full h-[100dvh] md:h-full md:max-w-7xl rounded-none md:rounded-[3rem] overflow-hidden flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in duration-500 border-0 border-t md:border border-brand/5 shadow-2xl bg-white">
       
       <!-- Studio Sidebar -->
@@ -2429,7 +2611,13 @@ STUDIO_COMPONENTS_HTML = """
         <input type="hidden" id="studioTextStylePrompt">
 
         <div class="flex-1 overflow-y-auto p-6 md:p-12 pb-32 custom-scrollbar">
+          <div class="flex flex-wrap items-center gap-3 mb-6 text-sm">
+              <button type="button" onclick="saveStudioDraft()" class="px-4 py-2 border border-brand/20 rounded-xl">Save draft (unscheduled)</button>
+              <button type="button" onclick="exportStudioSequence()" class="px-4 py-2 border border-brand/20 rounded-xl">Export images + source</button>
+              <span id="studioSaveStatus" role="status" aria-live="polite" class="text-brand/70"></span>
+          </div>
           <div id="studioSection1" class="studio-section space-y-10 animate-in slide-in-from-right-8 duration-500">
+            <button type="button" onclick="restoreStudioRecovery()" class="text-sm text-brand underline">Restore my last Studio session on this device</button>
             <div>
               <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 1</label>
               <h4 class="text-3xl font-bold text-brand italic">Ignite the Spark</h4>
@@ -2564,12 +2752,18 @@ STUDIO_COMPONENTS_HTML = """
             </div>
             <div id="outOfSyncBanner" class="hidden p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
                 <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-                <span class="text-[9px] font-black text-amber-800 uppercase tracking-widest">Message has changed. Re-generate visual to sync.</span>
+                <span class="text-[9px] font-black text-amber-800 uppercase tracking-widest">Source, reflection or layout changed. Apply the changes before sharing.</span>
             </div>
              <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <div class="space-y-8">
                     <div class="space-y-5">
-                        <p class="text-sm text-brand/70">Feed post · 4:5. Choose a design, then review every word at phone size.</p>
+                        <label class="block text-sm text-brand">Where will this appear?
+                            <select id="studioFormat" onchange="changeStudioFormat()" class="mt-2 w-full p-3 border border-brand/15 rounded-xl bg-white">
+                                <option value="feed_4_5">Feed · 4:5 post or carousel</option>
+                                <option value="story_9_16">Stories · 9:16 sequence</option>
+                            </select>
+                        </label>
+                        <p id="sequenceFormatHelp" class="text-sm text-brand/70">Feed · 4:5. Long sources flow across readable pages. Review and publish every page in order.</p>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="presetModeContainer">
                             <button type="button" data-family="editorial" onclick="setStudioScene('editorial', this)" class="style-card scene-card active p-4 text-left border border-brand/15 rounded-xl">
                                 <span class="block text-sm font-semibold text-brand">Editorial typography</span><span class="block text-xs text-brand/60 mt-2">Clear ink, generous space.</span>
@@ -2587,7 +2781,7 @@ STUDIO_COMPONENTS_HTML = """
                                 <option value="bilingual">Arabic first · full English follows</option>
                             </select>
                         </label>
-                        <p class="text-xs leading-relaxed text-brand/60">Changing the layout keeps your source and photograph. Sources that cannot fit readably will need a multi-card sequence; they will never be shortened to fit.</p>
+                        <p class="text-xs leading-relaxed text-brand/60">Changing the layout keeps your source and photograph. Long sources flow across labeled pages with complete English and Arabic chapters. They are never shortened to fit.</p>
                         <div id="photoDirectionControls" class="hidden space-y-3">
                             <label class="block text-sm text-brand">Photograph direction
                                 <input type="text" id="studioCustomDirection" oninput="changeStudioBackground()" placeholder="e.g. natural daylight, olive-tree shadows, pale stone" class="mt-2 w-full p-3 border border-brand/15 rounded-xl text-sm">
@@ -2595,16 +2789,24 @@ STUDIO_COMPONENTS_HTML = """
                             <button type="button" onclick="newStudioPhotograph()" class="text-sm text-brand underline">Create a new photograph</button>
                         </div>
                     </div>
-                    <button type="button" id="btnGenerateCard" onclick="generateQuoteCard()" class="w-full py-6 bg-brand text-white rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Create feed card</button>
+                    <button type="button" id="btnGenerateCard" onclick="generateQuoteCard()" class="w-full py-6 bg-brand text-white rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Create layout</button>
                 </div>
                 <div class="flex flex-col items-center gap-6">
                     <div id="cardPreviewContainer" class="w-full max-w-[390px] aspect-[4/5] bg-cream border border-brand/10 overflow-hidden relative shadow-2xl flex items-center justify-center">
-                        <img id="quoteCardPreview" alt="Your complete feed card" class="hidden w-full h-full object-contain">
+                        <div id="storyPreviewTop" class="hidden absolute top-0 left-0 right-0 p-4 bg-black/40 text-white text-xs pointer-events-none" style="height:13%;z-index:1">▰ ▰ ▰<br>Your profile · Story preview</div>
+                        <div id="storyPreviewBottom" class="hidden absolute bottom-0 left-0 right-0 p-4 text-white text-xs pointer-events-none" style="height:16%;background:linear-gradient(transparent,#0009);z-index:1">Reply…</div>
+                        <img id="quoteCardPreview" alt="Your complete source card" class="hidden w-full h-full object-contain">
                         <div id="cardLoader" class="hidden absolute animate-spin w-12 h-12 border-4 border-t-brand rounded-full"></div>
                     </div>
                     <p id="visualQualityNote" role="status" aria-live="polite" class="text-sm leading-relaxed text-brand/70 max-w-[390px]"></p>
+                    <div class="flex items-center justify-between gap-3 text-sm w-full max-w-[390px]">
+                        <button type="button" id="sequencePrevious" onclick="moveStudioPage(-1)" disabled class="p-3 border rounded-xl">Previous</button>
+                        <span id="sequencePageLabel" role="status" class="text-center text-xs"></span>
+                        <button type="button" id="sequenceNext" onclick="moveStudioPage(1)" disabled class="p-3 border rounded-xl">Next</button>
+                    </div>
+                    <label class="flex items-start gap-2 text-sm max-w-[390px]"><input type="checkbox" id="sequenceReviewCheck" disabled> I reviewed every page, the full source, Arabic and separate reflection.</label>
                     <div id="cardActions" class="hidden flex gap-3">
-                        <button type="button" onclick="switchStudioSection(3)" class="px-8 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Confirm Visual &rarr;</button>
+                        <button type="button" onclick="confirmStudioSequence()" class="px-8 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Confirm Visual &rarr;</button>
                     </div>
                 </div>
              </div>
@@ -2614,6 +2816,10 @@ STUDIO_COMPONENTS_HTML = """
                Caption refinement stage. Source is locked from Phase 1 selection.
                ───────────────────────────────────────────────────────────────── -->
           <div id="studioSection3" class="studio-section hidden space-y-8">
+              <div id="storyCaptionNote" class="hidden p-4 border border-brand/15 rounded-xl text-sm">
+                  <p>Story text is already on your images. A caption is optional and saved as notes; Instagram does not receive it as Story text.</p>
+                  <button type="button" onclick="switchStudioSection(4)" class="mt-3 text-brand underline">Continue to share without a caption</button>
+              </div>
 
               <!-- Source Grounding Banner -->
               <div id="presenceGroundingBadge" class="hidden flex items-center gap-3 bg-brand/[0.04] border border-brand/10 rounded-2xl px-6 py-4">
@@ -2688,7 +2894,7 @@ STUDIO_COMPONENTS_HTML = """
 
                   <!-- Editable Refinement Zone -->
                   <div class="relative">
-                      <textarea id="studioCaption" name="caption" class="w-full bg-brand/[0.02] border border-brand/10 rounded-[2rem] px-8 py-7 text-[11px] font-medium text-brand min-h-[200px] outline-none leading-relaxed custom-scrollbar focus:border-brand/30 focus:bg-white transition-all resize-none" placeholder="Your generated caption will appear here. You can edit it before publishing."></textarea>
+                      <textarea id="studioCaption" name="caption" oninput="rememberStudio()" class="w-full bg-brand/[0.02] border border-brand/10 rounded-[2rem] px-8 py-7 text-[11px] font-medium text-brand min-h-[200px] outline-none leading-relaxed custom-scrollbar focus:border-brand/30 focus:bg-white transition-all resize-none" placeholder="Your generated caption will appear here. You can edit it before publishing."></textarea>
                   </div>
 
                   <!-- Continue -->
@@ -2791,6 +2997,8 @@ STUDIO_COMPONENTS_HTML = """
                 </div>
 
                 <!-- CTA -->
+                <p class="text-sm text-brand/70">The whole reviewed sequence will be shared in order. Stories are separate posts; interrupted sequences can be checked and resumed from the saved post.</p>
+                <button type="button" id="studioShareNowBtn" onclick="shareStudioNow()" class="w-full py-4 border border-brand/20 text-brand rounded-2xl font-bold">Share reviewed sequence now</button>
                 <button type="submit" id="studioSubmitBtn"
                   class="w-full py-6 bg-brand text-white rounded-3xl font-black text-[12px] uppercase tracking-[0.3em] shadow-2xl shadow-brand/20 hover:bg-brand-hover hover:scale-[1.005] transition-all flex items-center justify-center gap-3">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>

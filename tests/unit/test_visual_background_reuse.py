@@ -54,6 +54,9 @@ class VisualBackgroundReuseTests(unittest.TestCase):
             self.assertIsNotNone(kw['background_image'])
             self.assertEqual(kw['layout'], 'bilingual')
             kw['render_metadata'].update({'background_reused': True, 'quality': {'status': 'passed'}})
+            from app.services.media_sequence import card_digest
+            kw['render_metadata']['media_manifest'] = {'version':1,'format':'feed_4_5','card_digest':card_digest(card),'pages':[
+                {'index':0,'url':'https://res.cloudinary.com/fixture/image/upload/card.jpg','width':1080,'height':1350,'quality':{'status':'passed'},'slices':[]}]}
             return 'https://res.cloudinary.com/fixture/image/upload/card.jpg'
         with patch.object(visual, '_load_background', return_value=Image.new('RGB',(10,10))), patch('app.services.image_card.generate_quote_card', side_effect=render):
             result = visual.generate_visual(self.request(background_token='signed-fixture', layout='bilingual', card_message=card))

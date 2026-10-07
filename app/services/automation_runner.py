@@ -651,6 +651,11 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
 
                 print(f"📡 [v9.0] Routing via generate_quote_card — family={_family}, scene={_scene_key}, mode={_render_mode}, arabic={bool(card_message.get('arabic_text'))}")
 
+                def retain_automation_photo(image):
+                    from app.services.visual_service import store_background
+                    generation_metadata["background_token"] = store_background(
+                        image, automation.org_id, style_dna_spec.visual_prompt if _has_prompt else "")
+
                 # CALL generate_quote_card — same function Studio/scheduled posts use.
                 # This ensures: Arabic reshaping, ZONE_SIZES, is_arabic flags, scene variation all match.
                 media_url = generate_quote_card(
@@ -665,6 +670,8 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                     card_message=card_message,
                     visual_history=prior_visuals,
                     render_metadata=generation_metadata,
+                    allow_sequence=True,
+                    background_sink=retain_automation_photo if _scene_key == "quiet_photography" else None,
                 )
 
                 # Source mismatch guardrail
@@ -695,6 +702,12 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             except Exception as e:
                 print(f"[AUTO] Media resolution error: {e}")
 
+        from app.services.media_sequence import seal_manifest, validate_manifest
+        manifest = generation_metadata.get("media_manifest")
+        if manifest:
+            manifest = seal_manifest(manifest, automation.org_id)
+            validate_manifest(manifest, card_message, automation.org_id)
+
         # 4. Create Post
         # Unknown legacy policy values must never grant automatic approval.
         visual_review_required = bool(generation_metadata.get("quality", {}).get("review_required"))
@@ -719,6 +732,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             card_message=card_message,
             caption_message={"caption": caption},
             media_url=media_url,
+            post_format=manifest["format"] if manifest else None,
             caption=caption,
             hashtags=hashtags,
             alt_text=alt_text,
@@ -745,7 +759,11 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 "relevance_audit": relevance_results.get(primary_item.original_id) if primary_item else None
             },
             flags={"relevance_check": "fallback" if fallback_mode else "passed", "scheduled_occurrence": occurrence,
-                   "visual_review_required": visual_review_required}
+                   "visual_review_required": visual_review_required,
+                   **({"media_manifest": manifest, "visual_design": {"family": _scene_key,
+                       "layout": "english_first", "direction": style_dna_spec.visual_prompt if _has_prompt else "",
+                       "background_token": generation_metadata.get("background_token"), "media_manifest": manifest}}
+                       if manifest else {})}
         )
         
         # 5. Guardrail & Validation

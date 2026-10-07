@@ -212,10 +212,10 @@ def schedule_post(db: Session, post_id: int, org_id: int,
 def prepare_scheduled_post(db: Session, post: Post) -> IGAccount:
     """Persist the selected image on the CDN before accepting a schedule."""
     account = require_account(db, post.org_id, post.ig_account_id, active=True)
-    if not post.caption or not post.caption.strip() or not post.media_url:
+    if (post.post_format != "story_9_16" and (not post.caption or not post.caption.strip())) or not post.media_url:
         raise HTTPException(status_code=422, detail="A saved caption and image are required before scheduling")
     hashtags = " ".join(post.hashtags) if isinstance(post.hashtags, list) else (post.hashtags or "")
-    if len(post.caption + ("\n\n" + hashtags if hashtags else "")) > 2200:
+    if post.post_format != "story_9_16" and len((post.caption or "") + ("\n\n" + hashtags if hashtags else "")) > 2200:
         raise HTTPException(status_code=422, detail="Shorten the caption before scheduling; preserve the source wording")
     if (post.flags or {}).get("relevance_check") == "failed":
         raise HTTPException(status_code=422, detail="The source relevance check failed")
@@ -225,6 +225,13 @@ def prepare_scheduled_post(db: Session, post: Post) -> IGAccount:
         raise HTTPException(status_code=422, detail="Repeated content requires correction: " + ", ".join(repeats))
     try:
         validate_saved_source_snapshot(post)
+        from app.services.media_sequence import saved_manifest
+        manifest = saved_manifest(post)
+        from app.services.media_sequence import require_sequence_review
+        require_sequence_review(post, manifest)
+        if manifest and manifest["format"] == "story_9_16":
+            from app.services.publisher import validate_story_account
+            validate_story_account(account.ig_user_id, account.access_token)
         post.media_url = prepare_publish_media(post.media_url)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from None
@@ -239,6 +246,8 @@ def get_mutable_post(db: Session, post_id: int, org_id: int) -> Post:
     publication = (post.flags or {}).get("publication") or {}
     if post.status == "published" or post.published_time or publication.get("remote_id"):
         raise HTTPException(status_code=409, detail="This post has already been published. Editing and sharing it again are disabled.")
+    if post.status == "publish_partial":
+        raise HTTPException(status_code=409, detail="Some Story frames are already published. Resume the remaining frames; editing is disabled.")
     if post.status == "publishing":
         raise HTTPException(status_code=409, detail="Publishing is still in progress. Please wait before taking further action.")
     if post.status == "publish_unknown":
@@ -258,35 +267,48 @@ def publish_post(db: Session, post_id: int, org_id: int) -> PostResult:
         return PostResult(post=post)  # Already published: never send it again.
     if post.status in {"publishing", "publish_unknown"}:
         return PostResult(post=post, error="Publishing is in progress or its outcome needs reconciliation", status_code=409)
-    if post.status not in {"drafted", "submitted", "approved", "scheduled", "failed", "needs_review"}:
+    if post.status not in {"drafted", "submitted", "approved", "scheduled", "failed", "needs_review", "publish_partial"}:
         return PostResult(post=post, error="This post cannot be published from its current state", status_code=409)
-    if not post.caption or not post.caption.strip() or not post.media_url:
+    if (post.post_format != "story_9_16" and (not post.caption or not post.caption.strip())) or not post.media_url:
         return PostResult(post=post, error="A saved caption and image are required", status_code=422)
     if (post.flags or {}).get("relevance_check") == "failed":
         return PostResult(post=post, error="The source relevance check failed", status_code=422)
     try:
         account = require_account(db, org_id, post.ig_account_id, active=True)
         validate_saved_source_snapshot(post)
+        from app.services.media_sequence import saved_manifest, card_digest
+        manifest = saved_manifest(post)
+        from app.services.media_sequence import require_sequence_review
+        require_sequence_review(post, manifest)
+        story = bool(manifest and manifest["format"] == "story_9_16")
+        if story:
+            from app.services.publisher import validate_story_account
+            validate_story_account(account.ig_user_id, account.access_token)
+        if publication.get("frames") and (publication.get("ig_user_id") != account.ig_user_id or publication.get("manifest_digest") != card_digest(manifest)):
+            raise ValueError("The account or sequence changed after publishing started")
         from app.services.rotation_engine import repetition_issues
         repeats = repetition_issues(db, post)
-        if repeats:
+        if repeats and post.status != "publish_partial":
             return PostResult(post=post, error="Repeated content requires correction before publishing: " + ", ".join(repeats), status_code=422)
         media_url = prepare_publish_media(post.media_url)
     except HTTPException as error:
         return PostResult(post=post, error=error.detail, status_code=error.status_code)
     except ValueError as error:
         return PostResult(post=post, error=str(error), status_code=422)
-    caption = post.caption
+    caption = post.caption or ""
     if post.hashtags:
         hashtags = " ".join(post.hashtags) if isinstance(post.hashtags, list) else post.hashtags
         caption += "\n\n" + hashtags
-    if len(caption) > 2200:
+    if not story and len(caption) > 2200:
         return PostResult(post=post, error="The caption exceeds Instagram's limit. Shorten the social copy without rewriting scripture.", status_code=422)
 
     # Commit a conditional claim before any Instagram publish request. This also
     # prevents competing workers that read the same scheduled post from sending it.
     attempt = {"attempt_id": uuid4().hex, "started_at": datetime.now(timezone.utc).isoformat(),
                "ig_user_id": account.ig_user_id}
+    if story:
+        attempt.update(manifest_digest=card_digest(manifest), frames=publication.get("frames") or
+                       [{"index": i, "state": "pending"} for i in range(len(manifest["pages"]))])
     previous_status = post.status
     flags = {**(post.flags or {}), "publication": attempt}
     claimed = db.execute(update(Post).where(
@@ -304,9 +326,17 @@ def publish_post(db: Session, post_id: int, org_id: int) -> PostResult:
         db.commit()
 
     try:
-        result = publish_to_instagram(caption=caption, media_url=media_url,
-                                     ig_user_id=ig_user_id, access_token=access_token,
-                                     on_container_created=record_container)
+        if story:
+            from app.services.publisher import publish_story_sequence
+            def record_progress(frames):
+                post.flags = {**(post.flags or {}), "publication": {**attempt, "frames": frames}}
+                db.commit()
+            result = publish_story_sequence(media_urls=[p["url"] for p in manifest["pages"]],
+                ig_user_id=ig_user_id, access_token=access_token, frames=attempt["frames"], on_progress=record_progress)
+        else:
+            result = publish_to_instagram(caption=caption, media_url=media_url,
+                ig_user_id=ig_user_id, access_token=access_token, on_container_created=record_container,
+                **({"media_urls": [p["url"] for p in manifest["pages"]]} if manifest and manifest["format"] == "carousel_4_5" else {}))
         if not isinstance(result, dict):
             raise ValueError("Invalid publisher result")
     except Exception:
@@ -316,6 +346,20 @@ def publish_post(db: Session, post_id: int, org_id: int) -> PostResult:
         result = {"ok": False, "outcome": "unknown", "error": "Publishing outcome is unknown. Check Instagram before retrying."}
 
     publication = {**((post.flags or {}).get("publication") or attempt)}
+    if story:
+        frames = publication.get("frames", [])
+        complete = len(frames) == len(manifest["pages"]) and all(f.get("state") == "published" for f in frames)
+        uncertain = result.get("outcome") == "unknown" or any(f.get("state") in {"publishing", "unknown"} for f in frames)
+        partial = any(f.get("state") == "published" for f in frames)
+        post.status = "published" if complete else "publish_unknown" if uncertain else "publish_partial" if partial else "failed"
+        publication["outcome"] = post.status
+        if complete:
+            post.published_time = datetime.now(timezone.utc)
+        error = result.get("error") or "Some Story frames remain. Resume to publish only the remaining frames."
+        post.flags = {**(post.flags or {}), "publication": publication, "publish_error": None if complete else error}
+        db.commit()
+        db.refresh(post)
+        return PostResult(post=post) if complete else PostResult(post=post, error=error, status_code=502)
     if result.get("creation_id"):
         publication["creation_id"] = result["creation_id"]
     if result.get("ok") and result.get("remote_id"):
@@ -357,14 +401,43 @@ def reconcile_publication(db: Session, post_id: int, org_id: int) -> PostResult:
             return PostResult(post=post, error="Publishing is still in progress", status_code=409)
     except (KeyError, TypeError, ValueError):
         return PostResult(post=post, error="This attempt needs manual investigation because its start time is missing", status_code=409)
-    if not attempt.get("creation_id"):
-        return PostResult(post=post, error="No container ID was saved. Check Instagram before resolving this attempt.", status_code=409)
     try:
         account = require_account(db, org_id, post.ig_account_id, active=True)
     except HTTPException as error:
         return PostResult(post=post, error=error.detail, status_code=error.status_code)
     if attempt.get("ig_user_id") and attempt["ig_user_id"] != account.ig_user_id:
         return PostResult(post=post, error="The connected Instagram account changed after this attempt", status_code=409)
+    if attempt.get("frames"):
+        from app.services.media_sequence import saved_manifest, card_digest
+        try:
+            manifest = saved_manifest(post)
+            if not manifest or attempt.get("manifest_digest") != card_digest(manifest):
+                raise ValueError("The saved sequence changed after publishing started")
+        except ValueError as error:
+            return PostResult(post=post, error=str(error), status_code=409)
+        frames = [dict(frame) for frame in attempt["frames"]]
+        for frame in frames:
+            if frame.get("state") not in {"publishing", "unknown"}:
+                continue
+            code = get_container_status(str(frame.get("creation_id", "")), account.access_token)
+            frame["provider_status"] = code or "UNAVAILABLE"
+            if code == "PUBLISHED":
+                frame["state"] = "published"
+            elif code in {"ERROR", "EXPIRED"}:
+                frame["state"] = "failed"
+            else:
+                frame["state"] = "unknown"
+        unresolved = any(f.get("state") in {"publishing", "unknown"} for f in frames)
+        complete = len(frames) == len(manifest["pages"]) and all(f.get("state") == "published" for f in frames)
+        partial = any(f.get("state") == "published" for f in frames)
+        post.status = "publish_unknown" if unresolved else "published" if complete else "publish_partial" if partial else "failed"
+        attempt.update(frames=frames, reconciled_at=now.isoformat(), outcome=post.status)
+        post.flags = {**(post.flags or {}), "publication": attempt}
+        db.commit()
+        db.refresh(post)
+        return PostResult(post=post, error="Instagram has not confirmed a Story frame; resuming remains blocked.", status_code=409) if unresolved else PostResult(post=post)
+    if not attempt.get("creation_id"):
+        return PostResult(post=post, error="No container ID was saved. Check Instagram before resolving this attempt.", status_code=409)
     code = get_container_status(str(attempt["creation_id"]), account.access_token)
     attempt.update(provider_status=code or "UNAVAILABLE", reconciled_at=now.isoformat())
     if code == "PUBLISHED":

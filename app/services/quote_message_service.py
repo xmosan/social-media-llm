@@ -71,15 +71,18 @@ def build_quran_quote_message(ayah_record: Dict[str, Any], tone: str, intent: st
 def build_hadith_quote_message(hadith_record: Dict[str, Any], tone: str, intent: str, custom_prompt: str = "") -> Dict[str, Any]:
     """
     Safely generates framing text for the Hadith quote card using the LLM, while
-    locking the primary headline to the safe excerpt / translation.
+    locking the primary headline to the complete returned translation.
     """
     reference = hadith_record.get("reference")
-    collection = hadith_record.get("collection", "")
+    collection = hadith_record.get("collection")
 
-    card_text = (hadith_record.get("card_text") or hadith_record.get("translation_text") or "").strip()
-    translation_text = (hadith_record.get("translation_text") or card_text).strip()
-    arabic_text = (hadith_record.get("arabic_text") or "").strip()
-    was_excerpted = bool(hadith_record.get("was_excerpted", False))
+    # New generations use the complete returned source. Pagination, rather than
+    # provider-side excerpting, now handles long narrations. Legacy saved cards
+    # retain their original excerpt and are validated separately.
+    translation_text = hadith_record.get("translation_text") or ""
+    card_text = translation_text
+    arabic_text = hadith_record.get("arabic_text") or ""
+    was_excerpted = False
 
     if not reference:
         logger.error("[QUOTE_MESSAGE] Hadith resolution failed: missing reference")
@@ -89,7 +92,7 @@ def build_hadith_quote_message(hadith_record: Dict[str, Any], tone: str, intent:
         logger.error(f"[QUOTE_MESSAGE] Hadith has no text content: {reference}")
         raise ValueError("Selected Hadith has no text content. Please choose another Hadith.")
 
-    narrator_raw = (hadith_record.get("narrator") or "").strip()
+    narrator_raw = hadith_record.get("narrator")
 
     from .llm import generate_card_framing_from_source
     framing = generate_card_framing_from_source(
@@ -119,6 +122,7 @@ def build_hadith_quote_message(hadith_record: Dict[str, Any], tone: str, intent:
         "hadith_grade": hadith_record.get("grade"),
         "hadith_collection": collection,
         "full_translation_text": translation_text,
+        "source_complete": True,
     }
 
 

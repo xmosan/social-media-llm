@@ -52,6 +52,7 @@ class VisualRequest:
     layout: str = "english_first"
     background_token: Optional[str] = None
     owner_id: Optional[int] = None
+    post_format: str = "feed_4_5"
 
 
 @dataclass
@@ -118,19 +119,8 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
 
     def retain_background(image):
         nonlocal background_token
-        from tempfile import TemporaryDirectory
-        from pathlib import Path
-        from app.services.cloudinary_service import upload_to_cloudinary
-        from app.services.publish_media import is_durable_media_url
-        with TemporaryDirectory(prefix="sabeel-background-") as directory:
-            from uuid import uuid4
-            path = Path(directory) / f"background_{uuid4().hex}.jpg"
-            image.convert("RGB").save(path, "JPEG", quality=97)
-            url = upload_to_cloudinary(str(path))
-        if not is_durable_media_url(url):
-            raise CardTypographyError("The photograph could not be saved for reuse. Please try again.")
-        background_token = _background_signer().dumps({"url": url, "owner": request.owner_id,
-                                                       "prompt": _hash_prompt(request.custom_prompt or "")})
+        background_token = store_background(image, request.owner_id, request.custom_prompt or "")
+
 
 
     url = generate_quote_card(
@@ -146,7 +136,12 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
         render_metadata=generation_metadata,
         layout=request.layout, background_image=background_image,
         background_sink=retain_background if request.style == "quiet_photography" else None,
+        post_format=request.post_format, allow_sequence=True,
     )
+
+    from app.services.media_sequence import seal_manifest, validate_manifest
+    manifest = seal_manifest(generation_metadata["media_manifest"], request.owner_id)
+    validate_manifest(manifest, request.card_message, request.owner_id)
 
     prompt_hash = _hash_prompt(effective_prompt or request.theme)
     return VisualResult(
@@ -158,8 +153,25 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
         design={"version": 1, "family": request.style, "layout": request.layout,
                 "background_token": background_token if request.style == "quiet_photography" else None,
                 "direction": request.custom_prompt or "", "quality": generation_metadata.get("quality", {}),
+                "media_manifest": manifest,
                 "background_reused": generation_metadata.get("background_reused", False)},
     )
+
+
+def store_background(image, owner_id, prompt=""):
+    """Persist one raw photograph for Studio and automation draft re-layout."""
+    from tempfile import TemporaryDirectory
+    from pathlib import Path
+    from uuid import uuid4
+    from app.services.cloudinary_service import upload_to_cloudinary
+    from app.services.publish_media import is_durable_media_url
+    with TemporaryDirectory(prefix="sabeel-background-") as directory:
+        path = Path(directory) / f"background_{uuid4().hex}.jpg"
+        image.convert("RGB").save(path, "JPEG", quality=97)
+        url = upload_to_cloudinary(str(path))
+    if not is_durable_media_url(url):
+        raise CardTypographyError("The photograph could not be saved for reuse. Please try again.")
+    return _background_signer().dumps({"url": url, "owner": owner_id, "prompt": _hash_prompt(prompt)})
 
 
 def _generate_background_only(request: VisualRequest) -> VisualResult:

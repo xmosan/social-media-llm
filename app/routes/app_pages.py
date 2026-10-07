@@ -769,7 +769,7 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
         active_automations=active_map["automations"],
         active_library=active_map["library"],
         active_media=active_map["media"],
-        studio_modal=STUDIO_COMPONENTS_HTML.replace("{account_options}", account_options),
+        studio_modal=STUDIO_COMPONENTS_HTML.replace("{account_options}", account_options).replace("{workspace_key}", f"{org.id}:{user.id}"),
         studio_js=STUDIO_SCRIPTS_JS,
         connected_account_info=(extras.get("connected_account_info", "") if extras else ""),
         connect_instagram_modal=CONNECT_INSTAGRAM_MODAL_HTML,
@@ -922,7 +922,7 @@ async def app_dashboard_page(
     }
     
     for p in posts:
-        if p.status in ["failed", "needs_review"]:
+        if p.status in ["failed", "needs_review", "publishing", "publish_unknown", "publish_partial"]:
             sections["Needs Attention"]["posts"].append(p)
         elif p.status in ["draft", "drafted", "ready"]:
             sections["Drafts & Ideas"]["posts"].append(p)
@@ -946,7 +946,7 @@ async def app_dashboard_page(
             
             status_color = "text-text-muted"
             status_bg = "bg-brand/5"
-            status_label = "Reflection Draft" if p.status == "draft" else p.status.capitalize()
+            status_label = {"publish_partial": "Stories partly shared", "publish_unknown": "Check publish outcome", "publishing": "Publishing"}.get(p.status, "Reflection Draft" if p.status == "draft" else p.status.capitalize())
             
             if p.status in ["published", "shared"]: 
                 status_color = "text-emerald-600"
@@ -960,7 +960,7 @@ async def app_dashboard_page(
                 status_color = "text-accent"
                 status_bg = "bg-accent/10"
                 status_label = "Review Ready"
-            elif p.status in ["failed", "needs_review"]:
+            elif p.status in ["failed", "needs_review", "publishing", "publish_unknown", "publish_partial"]:
                 status_color = "text-rose-600"
                 status_bg = "bg-rose-50"
             
@@ -969,7 +969,7 @@ async def app_dashboard_page(
             
             # Action Buttons based on status
             actions_html = ""
-            refine_btn = f"""<button onclick="openEditPostModal('{p.id}', {caption_json}, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}')" class="flex-1 py-3 bg-white border border-brand/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-text-muted hover:text-brand hover:border-brand/30 transition-all shadow-sm">Refine</button>"""
+            refine_btn = f"""<button onclick="openEditPostModal('{p.id}', {caption_json}, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}', {html.escape(json.dumps(p.status))})" class="flex-1 py-3 bg-white border border-brand/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-text-muted hover:text-brand hover:border-brand/30 transition-all shadow-sm">Refine</button>"""
             
             share_btn = f"""<button onclick="approvePost('{p.id}', event)" class="flex-1 py-3 bg-brand text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:scale-[1.02] transition-all shadow-xl shadow-brand/20">Share Now</button>"""
             
@@ -979,7 +979,14 @@ async def app_dashboard_page(
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
             </button>"""
             
-            if sec_title == "Needs Attention":
+            manifest = (p.flags or {}).get("media_manifest")
+            if manifest:
+                p_type = ("STORIES" if p.post_format == "story_9_16" else "CAROUSEL" if p.post_format == "carousel_4_5" else "FEED") + f" · {len(manifest['pages'])} PAGE(S)"
+            if p.status in {"publishing", "publish_unknown", "publish_partial"}:
+                actions_html = refine_btn.replace('>Refine</button>', '>View publishing progress</button>')
+            elif manifest and sec_title in {"Needs Attention", "Drafts & Ideas"}:
+                actions_html = refine_btn.replace('>Refine</button>', '>Review sequence</button>') + delete_btn
+            elif sec_title == "Needs Attention":
                 actions_html = refine_btn + retry_btn + delete_btn
             elif sec_title == "Drafts & Ideas":
                 schedule_btn = f"""<button onclick="openScheduleModal('{p.id}', event)" class="flex-1 py-3 bg-brand/5 border border-brand/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-brand hover:bg-brand hover:text-white transition-all shadow-sm">Schedule</button>"""
@@ -1246,10 +1253,10 @@ async def app_calendar_page(
                         status_badge = "bg-brand text-white shadow-md shadow-brand/20"
                         border_color = "border-l-brand"
                         display_status = "Planned"
-                    elif dp.status == "failed":
+                    elif dp.status in {"failed", "publishing", "publish_unknown", "publish_partial"}:
                         status_badge = "bg-rose-100 text-rose-800"
                         border_color = "border-l-rose-500"
-                        display_status = "Failed"
+                        display_status = {"publishing":"Publishing", "publish_unknown":"Check outcome", "publish_partial":"Partly shared"}.get(dp.status,"Failed")
                     else: # draft
                         status_badge = "bg-amber-100 text-amber-800"
                         border_color = "border-l-amber-400"
