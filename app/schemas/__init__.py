@@ -3,7 +3,7 @@
 
 from pydantic import BaseModel, Field, validator
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 class UserCreate(BaseModel):
     name: str
@@ -232,7 +232,7 @@ class TopicAutomationCreate(BaseModel):
     banned_phrases: list[str] = Field(default_factory=list)
     library_scope: list[str] = Field(default_factory=list) # ["prebuilt", "org_library"]
     posting_mode: str = "schedule"
-    approval_mode: str = "auto_approve"
+    approval_mode: Literal["auto_approve", "needs_manual_approve"] = "auto_approve"
     image_mode: str = "reuse_last_upload"
     
     content_profile_id: int | None = None
@@ -291,7 +291,7 @@ class TopicAutomationUpdate(BaseModel):
     banned_phrases: list[str] | None = None
     library_scope: list[str] | None = None # ["prebuilt", "org_library"]
     posting_mode: str | None = None
-    approval_mode: str | None = None
+    approval_mode: Literal["auto_approve", "needs_manual_approve"] | None = None
     image_mode: str | None = None
     
     content_profile_id: int | None = None

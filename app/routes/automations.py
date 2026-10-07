@@ -54,6 +54,10 @@ def create_automation(
     
     # Filter out fields that don't exist in the model
     model_data = data.dict()
+    # Growth Plans expose generated Style DNA cards. The legacy schema default
+    # reuses an earlier upload, which a new plan does not have.
+    if data.automation_version >= 2 and "image_mode" not in data.model_fields_set:
+        model_data["image_mode"] = "quote_card"
     valid_cols = [c.key for c in TopicAutomation.__table__.columns]
     filtered_data = {k: v for k, v in model_data.items() if k in valid_cols}
 
@@ -252,14 +256,18 @@ def trigger_automation(
     if not auto:
         raise HTTPException(status_code=404, detail="Automation not found")
 
-    result = run_automation(db, auto.id, force_publish=True)
+    if not auto.enabled:
+        raise HTTPException(status_code=409, detail="Enable this automation before running it.")
+
+    # Running now changes execution time, not the saved approval/publishing policy.
+    result = run_automation(db, auto.id)
 
     if not result.post:
         detail = result.error or "Automation run failed. Check history."
         raise HTTPException(status_code=500, detail=detail)
     
-    if result.post.status == "failed" and "publish_error" in (result.post.flags or {}):
-        raise HTTPException(status_code=500, detail=f"Instagram Publish Failed: {result.post.flags['publish_error']}")
+    if result.post.status == "failed":
+        raise HTTPException(status_code=422, detail="This run could not prepare or publish its post. Check the automation history.")
 
     return result.post
 

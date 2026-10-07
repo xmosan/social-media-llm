@@ -1640,6 +1640,7 @@ STUDIO_SCRIPTS_JS = r"""
 
         if (!form.dataset.editId) {
             payload.ig_account_id = parseInt(form.ig_account_id.value);
+            payload.image_mode = 'quote_card';
             payload.posting_mode = 'schedule';
             payload.enabled = true;
         } else {
@@ -1770,26 +1771,38 @@ STUDIO_SCRIPTS_JS = r"""
         setTimeout(() => { window.updateAutoV2Summary(); }, 200);
     };
 
+    const automationRunsInFlight = new Set();
     window.runNow = async function(event, id) {
         event.stopPropagation();
-        const btn = event.target;
+        if (automationRunsInFlight.has(id)) return;
+        automationRunsInFlight.add(id);
+        const btn = event.currentTarget || event.target;
         const original = btn.innerText;
         
         btn.disabled = true;
-        btn.innerText = 'SHARING...';
+        btn.innerText = 'RUNNING...';
         
         try {
             const res = await fetch(`/automations/${id}/run-once`, { method: 'POST' });
+            const data = await res.json().catch(() => ({}));
             if (res.ok) {
-                alert('Reminder stream triggered successfully.');
+                const messages = {
+                    drafted: 'Post created as a draft. Review and approve it before publishing.',
+                    scheduled: 'Post created and scheduled according to this plan.',
+                    needs_review: 'Post created but needs review before it can be shared.',
+                    published: 'Post published successfully.',
+                    publishing: 'Publishing is in progress. Check the post status before trying again.',
+                    publish_unknown: 'Publishing outcome is not yet confirmed. Check the post status before trying again.'
+                };
+                alert(messages[data.status] || 'Run completed. Check the post in automation history.');
                 window.location.reload();
             } else {
-                const err = await res.json();
-                alert('Failed to trigger: ' + (err.detail || 'System Error'));
+                alert('Could not run automation: ' + (data.detail || 'Check its history before trying again.'));
             }
         } catch (e) {
-            alert('Connection failed.');
+            alert('The connection was interrupted. Check automation history before running it again.');
         } finally {
+            automationRunsInFlight.delete(id);
             btn.disabled = false;
             btn.innerText = original;
         }

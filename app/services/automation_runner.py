@@ -359,30 +359,16 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             active_providers.append(SystemLibraryProvider())
             
         pooled_items = []
-        target_limit = 5 # Fetch more for filtering pool
-        
-        # ── Phase 1 Safety Gate: Hadith in automations is disabled ──────────
-        # Hadith integration is Phase 2. This gate prevents untested Hadith
-        # content from entering the automation pipeline before verification.
-        _hadith_enabled = getattr(settings, "hadith_in_automations_enabled", False)
-        if not _hadith_enabled:
-            # Silently filter out any Hadith items that content providers may return
-            # This does not affect Quran or Library content.
-            pass  # Gate enforced below after pooled_items are collected
-        # ────────────────────────────────────────────────────────────────────
         
         # Dual-pass logic: Try the variation first, then the base topic
         attempts = [topic, topic_base] if topic != topic_base else [topic]
         
         for search_query in attempts:
-            if pooled_items: break # Found enough in first pass
-            
             for provider in active_providers:
-                needed = target_limit - len(pooled_items)
-                if needed <= 0: break
-                
                 try:
-                    items = provider.get_content(db, automation.org_id, search_query, limit=needed, automation_id=automation.id)
+                    # Rank the complete matching pool across BOTH libraries and
+                    # both search terms before choosing a source.
+                    items = provider.get_content(db, automation.org_id, search_query, limit=None, automation_id=automation.id)
                     pooled_items.extend(items)
                     if items:
                         log_event("provider_content_sourced", 
@@ -393,12 +379,15 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 except Exception as e:
                     print(f"[PROVIDER] Error in {provider.provider_name}: {e}")
 
-        # Apply Hadith feature flag gate (Phase 1)
+        # Respect the configured Hadith feature gate
         if not getattr(settings, "hadith_in_automations_enabled", False):
             before_count = len(pooled_items)
             pooled_items = [i for i in pooled_items if getattr(i, "type", "") != "hadith"]
             if len(pooled_items) < before_count:
-                print(f"[HADITH] Phase 1 gate: filtered {before_count - len(pooled_items)} Hadith items from automation pool")
+                print(f"[HADITH] Feature gate: filtered {before_count - len(pooled_items)} Hadith items from automation pool")
+
+        from app.services.rotation_engine import rank_provider_items
+        pooled_items = rank_provider_items(pooled_items, db, automation.id, avoid_days)
                 
         # 1.45 Relevance Filtering Gate (v2 Integrity)
         primary_item = None
@@ -417,34 +406,35 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                     # Never borrow Arabic from a different translation/source record.
                     continue
 
+                candidate_payload = {
+                    **(candidate.meta or {}), "reference": candidate.reference,
+                    "translation_text": candidate.text, "text": candidate.text,
+                    "arabic_text": candidate.arabic_text,
+                }
+                if candidate.type in {"quran", "hadith"}:
+                    from app.services.source_grounding import resolve_selected_source
+                    if candidate.type == "quran":
+                        candidate_payload["id"] = candidate.original_id
+                    try:
+                        candidate_payload = resolve_selected_source(db, automation.org_id, candidate.type, candidate_payload)
+                    except (ValueError, HTTPException):
+                        log_event("automation_source_verification_failed", automation_id=automation.id,
+                                  content_item_id=candidate.original_id)
+                        continue
+                    candidate.reference = candidate_payload["reference"]
+                    candidate.text = candidate_payload["translation_text"]
+                    candidate.arabic_text = candidate_payload.get("arabic_text")
                 primary_item = candidate
-                log_event("quran_relevance_passed", automation_id=automation.id, reference=candidate.reference, reason=audit["reason"])
+                source_payload = candidate_payload
+                log_event("source_relevance_passed", automation_id=automation.id, reference=candidate.reference, reason=audit["reason"])
                 break
             else:
-                log_event("quran_relevance_rejected", automation_id=automation.id, reference=candidate.reference, reason=audit["reason"])
+                log_event("source_relevance_rejected", automation_id=automation.id, reference=candidate.reference, reason=audit["reason"])
 
         if not primary_item:
             automation.last_error = "No relevant, complete source passed validation."
             db.commit()
             return None
-
-        source_payload = {
-            **(primary_item.meta or {}), "reference": primary_item.reference,
-            "translation_text": primary_item.text, "text": primary_item.text, "arabic_text": primary_item.arabic_text,
-        }
-        if primary_item.type in {"quran", "hadith"}:
-            from app.services.source_grounding import resolve_selected_source
-            if primary_item.type == "quran":
-                source_payload["id"] = primary_item.original_id
-            try:
-                source_payload = resolve_selected_source(db, automation.org_id, primary_item.type, source_payload)
-            except (ValueError, HTTPException) as error:
-                automation.last_error = "Selected source could not be verified: " + str(error)
-                db.commit()
-                return None
-            primary_item.reference = source_payload["reference"]
-            primary_item.text = source_payload["translation_text"]
-            primary_item.arabic_text = source_payload.get("arabic_text")
 
         # Only the selected source may feed generation and usage history.
         pooled_items = [primary_item]
@@ -699,9 +689,8 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 print(f"[AUTO] Media resolution error: {e}")
 
         # 4. Create Post
-        status = "scheduled"
-        if automation.approval_mode == "needs_manual_approve":
-            status = "drafted"
+        # Unknown legacy policy values must never grant automatic approval.
+        status = "scheduled" if automation.approval_mode == "auto_approve" else "drafted"
             
         source_text = primary_item.text
 
@@ -819,7 +808,8 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             automation.last_error = "Repeated content requires review: " + ", ".join(repeats)
 
         # 7. Immediate Publishing if configured OR forced
-        should_publish = not repeats and (force_publish or (automation.posting_mode == "publish_now" and automation.approval_mode == "auto_approve"))
+        should_publish = (not repeats and automation.approval_mode == "auto_approve"
+                          and (force_publish or automation.posting_mode == "publish_now"))
         schedule_error = None
         if new_post.status == "scheduled" and not should_publish:
             try:

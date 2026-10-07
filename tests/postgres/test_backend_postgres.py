@@ -165,6 +165,52 @@ class PostgresChecks(unittest.TestCase):
         stack.enter_context(patch("app.services.image_card.generate_quote_card", create=True, return_value=CDN))
         stack.enter_context(patch("app.services.llm.generate_card_framing_from_source", return_value={"supporting_text": "Fixture reflection"}))
 
+    def test_hadith_manual_approval_round_trip_and_shared_publication(self):
+        from app.routes import posts
+        self.automation_fixture()
+        canonical = {"source_type": "hadith", "collection_key": "bukhari", "hadith_number": 7,
+                     "collection": "Fixture collection", "reference": "Fixture collection 7",
+                     "translation_text": "Synthetic Hadith fixture, not a religious quotation.",
+                     "card_text": "Synthetic Hadith fixture, not a religious quotation.",
+                     "arabic_text": "نص اختباري", "narrator": "Returned narrator", "grade": None,
+                     "provider_metadata": {"chapter": {"id": 9}}}
+        item = self.db.get(ContentItem, 1)
+        item.item_type = "hadith"
+        item.title = canonical["reference"]
+        item.text = canonical["translation_text"]
+        item.arabic_text = canonical["arabic_text"]
+        item.meta = canonical
+        self.db.commit()
+        with patch.object(settings, "hadith_in_automations_enabled", True), \
+             patch("app.services.hadith_service.get_hadith_by_reference", return_value=canonical), \
+             patch.object(automation_runner, "generate_topic_variations", return_value=["wisdom"]), \
+             patch.object(publisher, "publish_to_instagram", return_value={"ok": True, "remote_id": "fixture-remote"}) as send:
+            draft = automation_runner.run_automation_once(self.db, 1, force_publish=True)
+            self.assertIsNotNone(draft)
+            self.assertEqual(draft.status, "drafted")
+            self.assertIsNone(draft.scheduled_time)
+            send.assert_not_called()
+            id_ = draft.id
+            self.db.expire_all()
+            recovered = self.db.get(Post, id_)
+            self.assertEqual(recovered.source_metadata["provider_metadata"], canonical["provider_metadata"])
+            self.assertEqual(recovered.card_message["headline"], canonical["card_text"])
+            scheduled = datetime(2026, 12, 1, 17, tzinfo=timezone.utc)
+            approved = posts.approve_post(id_, posts.ApproveIn(scheduled_time=scheduled), db=self.db, org_id=1)
+            self.assertEqual(approved.status, "scheduled")
+            self.assertEqual(approved.scheduled_time, scheduled)
+            send.assert_not_called()
+            hashtags = " ".join(approved.hashtags or [])
+            caption = approved.caption + ("\n\n" + hashtags if hashtags else "")
+            result = post_service.publish_post(self.db, id_, 1)
+            self.assertTrue(result.ok, result.error)
+            self.assertEqual(send.call_args.kwargs["caption"], caption)
+            self.assertIn(canonical["translation_text"], caption)
+            self.assertIn(canonical["arabic_text"], caption)
+            self.assertEqual(result.post.id, id_)
+            self.assertTrue(post_service.publish_post(self.db, id_, 1).ok)
+            send.assert_called_once()
+
     def test_database_lock_blocks_overlapping_automation_workers(self):
         self.automation_fixture()
         started, release = threading.Event(), threading.Event()
