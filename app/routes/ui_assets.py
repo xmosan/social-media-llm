@@ -193,7 +193,7 @@ STUDIO_SCRIPTS_JS = r"""
 
     window.resetStudioSession = function() {
         invalidateHadithSearch();
-        cancelStudioVisual();
+        window.resetStudioSourceOutput();
         studioVisualDesign = null;
         studioBackgroundToken = null;
         studioGalleryImage = null;
@@ -276,6 +276,7 @@ STUDIO_SCRIPTS_JS = r"""
     window.studioSourceContext = null;
 
     function _setSourceContext(ctx) {
+        window.resetStudioSourceOutput();
         window.studioSourceContext = ctx;
         _renderGroundingBadge();
     }
@@ -337,6 +338,7 @@ STUDIO_SCRIPTS_JS = r"""
     let searchDebounceTimeout = null;
     window.onSourceInput = onSourceInput;
     function onSourceInput() {
+        window.resetStudioSourceOutput();
         invalidateHadithSearch();
         selectedHadithId = selectedAyahId = null;
         window.selectedHadithMetadata = window.selectedAyahMetadata = window.studioSourceContext = null;
@@ -575,6 +577,7 @@ STUDIO_SCRIPTS_JS = r"""
     };
 
     window.buildCardMessage = async function() {
+        const sourceEpoch = studioSourceEpoch;
         const topic = document.getElementById('studioTopic').value;
         const intention = document.getElementById('studioIntent').value;
         const tone = document.getElementById('studioTone').value;
@@ -621,6 +624,7 @@ STUDIO_SCRIPTS_JS = r"""
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
+            if (sourceEpoch !== studioSourceEpoch) return;
             if (data.card_message) {
                 studioCardMessage = data.card_message;
                 document.getElementById('editEyebrow').value = studioCardMessage.eyebrow || '';
@@ -654,6 +658,24 @@ STUDIO_SCRIPTS_JS = r"""
     let studioVisualEpoch = 0;
     let studioVisualDesign = null;
     let studioBackgroundToken = null;
+    let studioSourceEpoch = 0;
+
+    window.resetStudioSourceOutput = function() {
+        studioSourceEpoch++;
+        cancelStudioVisual();
+        studioCardMessage = null;
+        studioCaptionMessage = null;
+        studioVisualDesign = null;
+        currentQuoteCardUrl = null;
+        isQuoteCardOutOfDate = false;
+        for (const id of ['finalMediaUrl', 'studioCaption', 'editEyebrow', 'editHeadline', 'editSupporting']) {
+            const el = document.getElementById(id); if (el) el.value = '';
+        }
+        for (const id of ['cardActions', 'quoteCardPreview', 'cardMessageWorkspace', 'captionResultArea']) {
+            document.getElementById(id)?.classList.add('hidden');
+        }
+    };
+
 
     function cancelStudioVisual() {
         studioVisualEpoch++;
@@ -735,6 +757,7 @@ STUDIO_SCRIPTS_JS = r"""
     // End feed visual requests.
 
     window.generateSocialCaption = async function() {
+        const sourceEpoch = studioSourceEpoch;
         const btn = document.getElementById('btnGenerateCaption');
         const icon = btn.querySelector('.btn-icon');
         const text = btn.querySelector('.btn-text');
@@ -780,6 +803,7 @@ STUDIO_SCRIPTS_JS = r"""
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
+            if (sourceEpoch !== studioSourceEpoch) return;
 
             // Handle both structured caption_message and plain caption string
             let captionText = '';

@@ -42,3 +42,14 @@ test('failed layout and HTTP errors preserve the previous preview and allow retr
   assert.match(f.el('visualQualityNote').textContent,/sequence/);
   assert.equal(f.el('btnGenerateCard').disabled,false);
 });
+
+test('changing the source clears its outputs and discards an in-flight visual', async () => {
+  let resolve;
+  const f=setup(() => new Promise(r=>resolve=r));
+  const generation=f.generate();
+  f.context.window.resetStudioSourceOutput();
+  resolve(response({image_url:'stale-source-card'})); await generation;
+  assert.equal(f.context.studioCardMessage,null);
+  assert.equal(f.context.currentQuoteCardUrl,null);
+  assert.equal(f.el('finalMediaUrl').value,'');
+});
