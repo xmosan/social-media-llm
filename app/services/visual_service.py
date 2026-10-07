@@ -22,6 +22,7 @@ import os
 import hashlib
 from dataclasses import dataclass, field
 from typing import Optional
+from app.services.card_typography import CardTypographyError
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,7 @@ class VisualResult:
     prompt_hash: str = ""            # SHA256 of the effective DALL-E prompt (for caching)
     generated_by: str = "dalle"      # dalle | pil_renderer | cached
     error: Optional[str] = None
+    error_status: int = 500
 
     @property
     def ok(self) -> bool:
@@ -98,6 +100,9 @@ def generate_visual(request: VisualRequest) -> VisualResult:
             return _generate_quote_card(request)
         else:
             return _generate_background_only(request)
+    except CardTypographyError as e:
+        logger.warning("[VisualService] Card validation: %s", str(e))
+        return VisualResult(url="", error=str(e), error_status=422)
     except Exception as e:
         from app.services.image_provider import ImageGenerationError
         logger.error("[VisualService] Generation failed (%s)", type(e).__name__)

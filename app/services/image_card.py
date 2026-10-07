@@ -101,6 +101,7 @@ def generate_quote_card(
             segments.append({
                 "text": card_message["headline"],
                 "role": "source_translation",
+                "label": "Translation excerpt" if is_hadith and card_message.get("was_excerpted") else None,
                 "size": sizes[1] if not card_message.get("arabic_text") else sizes[2],
                 "is_arabic": is_arabic_segment(card_message["headline"]),
                 "color": (255, 255, 255)

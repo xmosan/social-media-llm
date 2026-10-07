@@ -407,7 +407,7 @@ STUDIO_SCRIPTS_JS = r"""
             }
             state.cursor = data.next_cursor || null;
             state.pages += data.pages_scanned || 0;
-            const message = `${state.items.length} matches · ${state.pages} source pages checked. ` +
+            const message = `${state.items.length} ${state.items.length === 1 ? 'match' : 'matches'} · ${state.pages} source pages checked. ` +
                 (data.complete ? 'Search complete.' : 'More narrations remain to be searched.');
             renderHadithResults(area, message, state.cursor ? 'Search more narrations' : null);
         } catch (error) {

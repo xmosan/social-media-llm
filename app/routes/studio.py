@@ -157,7 +157,7 @@ def studio_generate_visual(data: dict):
 
     res = generate_visual(req)
     if not res.ok:
-        return JSONResponse(status_code=500, content={"error": res.error})
+        return JSONResponse(status_code=res.error_status, content={"error": res.error})
 
     return {
         "image_url": res.url,
