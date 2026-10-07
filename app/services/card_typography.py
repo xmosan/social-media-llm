@@ -116,7 +116,7 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
         margin = 104 if composition == "airy" else 80
     top_margin = 250 if story else margin
     bottom_margin = 310 if story else margin
-    short = all(len(s["text"]) <= (80 if s["role"] == "source_arabic" else 100) for s in segments)
+    short = not any(s.get("sequence_page") for s in segments) and all(len(s["text"]) <= (80 if s["role"] == "source_arabic" else 100) for s in segments)
     # A photograph occupies a separate, full-width area, never a box behind text.
     photo_height = (430 if short else 280) if family == "quiet_photography" else 0
     available_bottom = min(height-bottom_margin, height-photo_height-64) if photo_height else height-bottom_margin
@@ -210,6 +210,9 @@ def plan_sequence(segments, *, family="editorial", layout="english_first", post_
     except CardTypographyError as error:
         if "too long" not in str(error):
             raise
+    # Continuations retain a common reading scale/photo allocation. Otherwise a
+    # short tail switches to a larger quote and photograph, creating tiny pages.
+    segments = [dict(s, sequence_page=True) for s in segments]
     refs = [dict(s, label="Page 10 of 10 · Read all pages") for s in segments if s["role"] == "reference"]
     order = ["source_translation", "source_arabic", "source", "reflection"]
     if layout == "bilingual":

@@ -22,7 +22,7 @@ from app.services.brand_kit import normalize_brand, workspace_brand, editorial_c
 from app.services.source_display import arabic_display_options, display_range
 from app.services.source_grounding import validate_source_card
 from app.services import media_sequence as media, quote_message_service as messages
-from app.services.card_typography import layout_card, paint_card_text, CardTypographyError
+from app.services.card_typography import layout_card, plan_sequence, paint_card_text, CardTypographyError
 
 FIXTURE=json.loads((Path(__file__).resolve().parents[1]/'fixtures/hadith_bukhari_1.json').read_text())
 CARD={'eyebrow':FIXTURE['reference'],'headline':FIXTURE['translation_text'],'arabic_text':FIXTURE['arabic_text'],'source_complete':True}
@@ -116,6 +116,21 @@ class SourceDisplayTests(unittest.TestCase):
             self.assertIsNone(result['hadith_grade'])
 
 class BrandLayoutTests(unittest.TestCase):
+    def test_brand_and_photo_do_not_strand_a_few_source_words_on_a_continuation(self):
+        segments=[{'role':role,'text':FIXTURE[field]} for role,field in
+                  [('reference','reference'),('source_translation','translation_text'),('source_arabic','arabic_text')]]
+        kit=normalize_brand({'signature':'@sabeel_studio','series_name':'A moment to reflect'})
+        pages=plan_sequence(segments,family='quiet_photography',brand_kit=kit)
+        for role in ('source_translation','source_arabic'):
+            texts=[s['text'] for p in pages for s in p['segments'] if s['role']==role]
+            self.assertGreater(len(texts),1)
+            self.assertGreaterEqual(min(map(len,texts)),max(map(len,texts))*.5)
+        photos=[]
+        for page in pages:
+            _,blocks=layout_card(page['segments'],family='quiet_photography',brand_kit=kit)
+            photos.append(blocks[0]['photo_height'])
+        self.assertEqual(len(set(photos)),1)
+
     def test_identity_text_and_sources_fit_story_safe_area_and_pass_ink_contrast(self):
         segments=[{'role':'reference','text':'Synthetic fixture'},{'role':'source_translation','text':'A source for this layout test.'},{'role':'source_arabic','text':'نص تجريبي'}]
         for palette in PALETTES:
