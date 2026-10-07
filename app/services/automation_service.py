@@ -73,6 +73,9 @@ class StyleDNASpec:
 # ─────────────────────────────────────────────────────────────────────────────
 
 SYSTEM_STYLE_DNA_PRESETS: dict[str, StyleDNASpec] = {
+    "editorial": StyleDNASpec(family="editorial", atmosphere="clear", ornament_level="none", tone_style="calm"),
+    "quiet_photography": StyleDNASpec(family="quiet_photography", atmosphere="natural", ornament_level="none", tone_style="calm"),
+    "minimal_paper": StyleDNASpec(family="minimal_paper", atmosphere="quiet", ornament_level="none", tone_style="calm"),
     "islamic_reminder": StyleDNASpec(
         family="sacred_black",
         atmosphere="sacred",
@@ -294,6 +297,9 @@ def get_automation_style_dna(db: Session, automation: TopicAutomation) -> StyleD
 
 # Maps Style DNA family string → renderer style param (unifies with Studio render system)
 FAMILY_TO_RENDER_STYLE: dict[str, str] = {
+    "editorial": "editorial",
+    "quiet_photography": "quiet_photography",
+    "minimal_paper": "minimal_paper",
     "sacred_black":         "quran",
     "emerald_forest":       "fajr",
     "celestial_night":      "laylulqadr",
@@ -311,6 +317,9 @@ FAMILY_TO_RENDER_STYLE: dict[str, str] = {
 
 # Maps family → Studio scene key (for frontend preview swatch display)
 FAMILY_TO_SCENE_KEY: dict[str, str] = {
+    "editorial": "editorial",
+    "quiet_photography": "quiet_photography",
+    "minimal_paper": "minimal_paper",
     "sacred_black":         "sacred_script",
     "emerald_forest":       "midnight_oasis",
     "celestial_night":      "midnight_oasis",
@@ -377,6 +386,9 @@ def seed_style_dna(db: Session) -> None:
     
     # Pre-defined mapping of key -> name since the dict keys are technically identifiers
     preset_names = {
+        "editorial": "Editorial Typography",
+        "quiet_photography": "Quiet Photography",
+        "minimal_paper": "Minimal Paper",
         "islamic_reminder": "Dark Sacred",
         "parchment_hadith": "Warm Parchment",
         "nature_reflection": "Emerald Calm",
@@ -660,37 +672,16 @@ def simulate_growth_plan(
         visual_url = None
         if i == 0:
             try:
-                from app.services.automation_runner import clean_translation_for_card
-                quote_text = clean_translation_for_card(primary_item.text)
-                reference = (item_ref or "Sacred Guidance").upper()
-                
-                segments = [{"text": reference, "size": 36}]
-                # Dual language for Quran
-                is_quran = "quran" in (getattr(primary_item, "provider", "") or getattr(primary_item, "item_type", "") or "").lower() and not fallback_mode
-                if is_quran and primary_item.arabic_text:
-                    segments.append({"text": primary_item.arabic_text, "size": 60, "is_arabic": True})
-                    segments.append({"text": quote_text, "size": 52})
-                else:
-                    segments.append({"text": quote_text, "size": 72})
-                
-                # Map Family to Renderer Preset
-                family = style.family if hasattr(style, "family") else "sacred_black"
-                family_map = {
-                    "sacred_black": "quran",
-                    "emerald_forest": "fajr",
-                    "celestial_night": "laylulqadr",
-                    "parchment_manuscript": "scholar",
-                    "luxury_marble": "kaaba",
-                    "sacred_desert": "madinah"
-                }
-                render_style = family_map.get(family, "quran")
-                
-                visual_url = render_minimal_quote_card(
-                    segments=segments,
-                    output_dir=settings.uploads_dir,
-                    style=render_style,
+                from app.services.image_card import generate_quote_card
+                family = style.family if hasattr(style, "family") else "editorial"
+                # Preview and production share the measured source-card service.
+                # No punctuation cleanup, uppercasing or Arabic omission here.
+                visual_url = generate_quote_card(
+                    card_message={"eyebrow": item_ref or "", "headline": primary_item.text,
+                                  "arabic_text": primary_item.arabic_text or ""},
+                    style=FAMILY_TO_RENDER_STYLE.get(family, "quran"),
                     visual_prompt=style.visual_prompt if hasattr(style, "visual_prompt") else None,
-                    mode="custom" if hasattr(style, "visual_prompt") and style.visual_prompt else "preset"
+                    mode="custom" if hasattr(style, "visual_prompt") and style.visual_prompt else "preset",
                 )
                 # Mark as preview
                 if visual_url and "/uploads/" in visual_url:

@@ -20,6 +20,9 @@ from app.services.image_renderer import render_quote_card, render_minimal_quote_
 
 # Maps Style DNA family string → renderer style preset (shared with Studio/scheduled-post system)
 FAMILY_TO_RENDER_STYLE: dict[str, str] = {
+    "editorial": "editorial",
+    "quiet_photography": "quiet_photography",
+    "minimal_paper": "minimal_paper",
     "sacred_black":         "quran",
     "emerald_forest":       "fajr",
     "celestial_night":      "laylulqadr",
@@ -39,6 +42,9 @@ FAMILY_TO_RENDER_STYLE: dict[str, str] = {
 # Scene mode generates a unique AI background per post (DALL-E / Gemini),
 # cycling through themed variations — identical to the Studio rendering pipeline.
 FAMILY_TO_SCENE_KEY: dict[str, str] = {
+    "editorial": "editorial",
+    "quiet_photography": "quiet_photography",
+    "minimal_paper": "minimal_paper",
     "sacred_black":         "sacred_black",
     "emerald_forest":       "emerald_forest",
     "celestial_night":      "celestial_night",
@@ -691,7 +697,8 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
 
         # 4. Create Post
         # Unknown legacy policy values must never grant automatic approval.
-        status = "scheduled" if automation.approval_mode == "auto_approve" else "drafted"
+        visual_review_required = bool(generation_metadata.get("quality", {}).get("review_required"))
+        status = "scheduled" if automation.approval_mode == "auto_approve" and not visual_review_required else "drafted"
             
         source_text = primary_item.text
 
@@ -737,7 +744,8 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 "is_fallback_reflection": fallback_mode,
                 "relevance_audit": relevance_results.get(primary_item.original_id) if primary_item else None
             },
-            flags={"relevance_check": "fallback" if fallback_mode else "passed", "scheduled_occurrence": occurrence}
+            flags={"relevance_check": "fallback" if fallback_mode else "passed", "scheduled_occurrence": occurrence,
+                   "visual_review_required": visual_review_required}
         )
         
         # 5. Guardrail & Validation
@@ -809,7 +817,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             automation.last_error = "Repeated content requires review: " + ", ".join(repeats)
 
         # 7. Immediate Publishing if configured OR forced
-        should_publish = (not repeats and automation.approval_mode == "auto_approve"
+        should_publish = (not repeats and not visual_review_required and automation.approval_mode == "auto_approve"
                           and (force_publish or automation.posting_mode == "publish_now"))
         schedule_error = None
         if new_post.status == "scheduled" and not should_publish:

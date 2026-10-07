@@ -1,19 +1,7 @@
 # Copyright (c) 2026 Mohammed Hassan. All rights reserved.
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
-"""
-visual_service.py — Phase 1 Service Wrapper
-
-Unified interface for all visual asset generation in Sabeel Studio.
-This is a FACADE over the existing, working implementations:
-  - services/visual_system.py   (theme engine, VariationEngine, DALL-E prompts)
-  - services/image_card.py      (quote card rendering from structured card_message)
-  - services/image_renderer.py  (PIL rendering pipeline)
-
-IMPORTANT: This file does NOT change any existing code. It only wraps it.
-All existing routes continue to call the underlying services directly.
-New routes (Phase 3 Studio API) will call this service.
-"""
+"""Shared visual facade for Studio, measured cards and durable background reuse."""
 
 from __future__ import annotations
 
@@ -61,6 +49,9 @@ class VisualRequest:
 
     # Context for DALL-E prompt (used in variation engine)
     topic_hint: Optional[str] = None
+    layout: str = "english_first"
+    background_token: Optional[str] = None
+    owner_id: Optional[int] = None
 
 
 @dataclass
@@ -74,6 +65,7 @@ class VisualResult:
     generated_by: str = "dalle"      # dalle | pil_renderer | cached
     error: Optional[str] = None
     error_status: int = 500
+    design: dict = field(default_factory=dict)
 
     @property
     def ok(self) -> bool:
@@ -116,9 +108,30 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
     """
     from app.services.image_card import generate_quote_card
 
-    effective_prompt = request.custom_prompt or request.theme
+    effective_prompt = request.custom_prompt or (None if request.style in {"editorial", "minimal_paper", "quiet_photography"} else request.theme)
     effective_mode = "custom" if request.custom_prompt else request.mode
     generation_metadata = {}
+    background_image = None
+    background_token = request.background_token
+    if background_token and request.style == "quiet_photography":
+        background_image = _load_background(background_token, request)
+
+    def retain_background(image):
+        nonlocal background_token
+        from tempfile import TemporaryDirectory
+        from pathlib import Path
+        from app.services.cloudinary_service import upload_to_cloudinary
+        from app.services.publish_media import is_durable_media_url
+        with TemporaryDirectory(prefix="sabeel-background-") as directory:
+            from uuid import uuid4
+            path = Path(directory) / f"background_{uuid4().hex}.jpg"
+            image.convert("RGB").save(path, "JPEG", quality=97)
+            url = upload_to_cloudinary(str(path))
+        if not is_durable_media_url(url):
+            raise CardTypographyError("The photograph could not be saved for reuse. Please try again.")
+        background_token = _background_signer().dumps({"url": url, "owner": request.owner_id,
+                                                       "prompt": _hash_prompt(request.custom_prompt or "")})
+
 
     url = generate_quote_card(
         style=request.style,
@@ -131,6 +144,8 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
         glossy=request.glossy,
         card_message=request.card_message,
         render_metadata=generation_metadata,
+        layout=request.layout, background_image=background_image,
+        background_sink=retain_background if request.style == "quiet_photography" else None,
     )
 
     prompt_hash = _hash_prompt(effective_prompt or request.theme)
@@ -140,6 +155,10 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
         prompt_hash=prompt_hash,
         generated_by=generation_metadata.get("image_model", "pil_renderer"),
         error=None if url else "generate_quote_card returned empty URL",
+        design={"version": 1, "family": request.style, "layout": request.layout,
+                "background_token": background_token if request.style == "quiet_photography" else None,
+                "direction": request.custom_prompt or "", "quality": generation_metadata.get("quality", {}),
+                "background_reused": generation_metadata.get("background_reused", False)},
     )
 
 
@@ -197,3 +216,43 @@ def get_available_themes() -> list[dict]:
 def _hash_prompt(prompt: str) -> str:
     """SHA256 hash of a prompt string, used for deduplication and caching."""
     return hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+
+
+def _background_signer():
+    from itsdangerous import URLSafeSerializer
+    from app.config import settings
+    return URLSafeSerializer(settings.secret_key, salt="sabeel-visual-background-v1")
+
+
+def _load_background(token, request):
+    """Only server-issued, same-organization Cloudinary photographs can be reused.
+
+    Receipts deliberately survive refresh/deploy; they contain no credentials.
+    No redirects or arbitrary URL fetching. Layout and source are independent.
+    """
+    import io
+    import requests
+    from PIL import Image
+    from itsdangerous import BadData
+    from app.services.publish_media import is_durable_media_url
+    try:
+        data = _background_signer().loads(token)
+        if (not isinstance(data, dict) or data.get("owner") != request.owner_id
+                or data.get("prompt") != _hash_prompt(request.custom_prompt or "")
+                or not is_durable_media_url(data.get("url"))):
+            raise ValueError("Invalid receipt")
+        with requests.get(data["url"], timeout=(5, 20), allow_redirects=False, stream=True) as response:
+            if response.status_code != 200:
+                raise ValueError("Unavailable image")
+            buffer = io.BytesIO()
+            for chunk in response.iter_content(65536):
+                buffer.write(chunk)
+                if buffer.tell() > 20 * 1024 * 1024:
+                    raise ValueError("Oversize image")
+            buffer.seek(0)
+            with Image.open(buffer) as photo:
+                if photo.width * photo.height > 16_000_000:
+                    raise ValueError("Oversize image")
+                return photo.convert("RGB")
+    except (BadData, ValueError, TypeError, OSError, requests.RequestException):
+        raise CardTypographyError("The saved photograph could not be reused. Choose a new photograph and try again.") from None

@@ -163,3 +163,16 @@ class AutomationWorkflowTests(DatabaseCase):
         with patch.object(automations, 'run_automation', return_value=result), self.assertRaises(HTTPException) as caught:
             automations.trigger_automation(1, db=self.db, org_id=1)
         self.assertEqual(caught.exception.status_code, 422)
+
+
+    def test_feed_quality_rollout_cannot_bypass_creator_review(self):
+        self.db.get(TopicAutomation, 1).approval_mode = 'auto_approve'; self.db.commit()
+        def render(**kwargs):
+            kwargs['render_metadata']['quality'] = {'status': 'passed', 'review_required': True}
+            return CDN
+        with patch('app.services.image_card.generate_quote_card', side_effect=render):
+            post = automation_runner.run_automation_once(self.db, 1, force_publish=True)
+        self.assertEqual(post.status, 'drafted')
+        self.assertIsNone(post.scheduled_time)
+        self.assertTrue(post.flags['visual_review_required'])
+        self.publish.assert_not_called()

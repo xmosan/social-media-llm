@@ -136,7 +136,7 @@ def studio_generate_caption(data: dict, db: Session = Depends(get_db),
 
 
 @router.post("/generate-visual", dependencies=[Depends(require_user)])
-def studio_generate_visual(data: dict):
+def studio_generate_visual(data: dict, org_id: int = Depends(get_current_org_id)):
     """
     Phase 3: Route explicitly into Visual Service Facade for all Studio image generation.
     """
@@ -153,6 +153,9 @@ def studio_generate_visual(data: dict):
         readability_priority=data.get("readability_priority", True),
         experimental_mode=data.get("experimental_mode", False),
         text_style_prompt=data.get("text_style_prompt", ""),
+        layout=data.get("layout", "english_first"),
+        background_token=data.get("background_token"),
+        owner_id=org_id,
     )
 
     res = generate_visual(req)
@@ -163,7 +166,8 @@ def studio_generate_visual(data: dict):
         "image_url": res.url,
         "mode_used": req.mode or "preset",
         "style_used": req.style,
-        "prompt_applied": bool(req.custom_prompt)
+        "prompt_applied": bool(req.custom_prompt),
+        "visual_design": res.design
     }
 
 
@@ -282,6 +286,7 @@ def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = 
         caption_message=caption_msg if isinstance(caption_msg, dict) else {"caption": caption_msg},
         post_format=data.get("post_format"),
         visual_style=data.get("visual_style"),
+        flags={"visual_design": data["visual_design"]} if isinstance(data.get("visual_design"), dict) else {},
         # Intelligence fields
         intent_type=data.get("intent_type"),
         message_hint=data.get("message_hint"),

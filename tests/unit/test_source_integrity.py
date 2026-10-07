@@ -147,13 +147,15 @@ class SourceRouteTests(DatabaseCase):
             caption = self.client.post("/api/studio/generate-caption", json={"source_type": "quran", "source_payload": FIXTURE})
             self.assertEqual(caption.status_code, 200, caption.text)
             saved = self.client.post("/api/studio/create-post", json={"ig_account_id": 1, "source_type": "quran", "source_metadata": FIXTURE,
-                "source_reference": FIXTURE["reference"], "card_message": card, "caption": caption.json()["caption"]})
+                "source_reference": FIXTURE["reference"], "card_message": card, "caption": caption.json()["caption"],
+                "visual_design": {"family": "quiet_photography", "layout": "bilingual", "background_token": "signed-fixture"}})
             self.assertEqual(saved.status_code, 200, saved.text)
         reopened = self.client.get(f'/api/studio/post/{saved.json()["id"]}').json()
         self.assertEqual(reopened["source_text"], FIXTURE["translation_text"])
         self.assertEqual(reopened["card_message"]["headline"], FIXTURE["translation_text"])
         self.assertEqual(reopened["source_metadata"]["id"], 1)
         self.assertIn(FIXTURE["translation_text"], reopened["caption"])
+        self.assertEqual(reopened["flags"]["visual_design"], {"family": "quiet_photography", "layout": "bilingual", "background_token": "signed-fixture"})
 
     def test_modified_card_cannot_be_saved_as_canonical_scripture(self):
         result = self.client.post("/api/studio/create-post", json={"ig_account_id": 1, "source_type": "quran", "source_metadata": FIXTURE,
