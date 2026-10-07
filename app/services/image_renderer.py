@@ -1,15 +1,7 @@
-"""
-Sabeel Studio — Image Renderer v7.0  "Spiritual Depth"
+"""Sabeel card renderer: measured feed layouts, shared quality gate, legacy backgrounds.
 
-Custom pipeline (5 layers):
-  1. Base gradient         — material-matched palette, rich dark grounds
-  2. Material texture      — marble veins, parchment aging, obsidian depth
-  3. Light source          — every card has a focused, emotional light point
-  4. Vignette + atmosphere — grain, mist, depth particles
-  5. Ornaments / border    — corner filigree, manuscript frame, gold block
-Then:
-  6. Measured text flow   — reference, source languages, separate reflection
-  7. Cinematic post        — grain, bloom, warmth
+New defaults use restrained editorial, photography and paper families. Existing
+scene/gallery choices remain compatible and pass through the same text gate.
 """
 
 import os
@@ -1476,14 +1468,17 @@ def render_minimal_quote_card(
     engine: str = "dalle",
     glossy: bool = False,
     visual_history: dict = None,
-    render_metadata: dict = None
+    render_metadata: dict = None,
+    layout: str = "english_first",
+    background_image=None,
+    background_sink=None,
 ) -> str:
     """
     Render every source block with measured typography, or fail without clipping.
     """
     # Preflight all source blocks before any paid image-provider call.
-    text_style = vs_interpret_text(text_style_prompt, experimental=experimental_mode) if _VS_OK else None
-    target_size, text_blocks = layout_card(segments, serif=bool(text_style and text_style.font_family == "Serif"))
+    family = style if style in {"editorial", "quiet_photography", "minimal_paper"} else "legacy"
+    target_size, text_blocks = layout_card(segments, family=family, layout=layout)
     W, H = target_size
     cx, cy = W // 2, H // 2
     base_dir    = os.path.dirname(
@@ -1518,11 +1513,40 @@ def render_minimal_quote_card(
     if mode == "scene" or (style in _SCENE_KEYS and mode not in {"custom"}):
         mode = "scene"
 
+    if family in {"editorial", "minimal_paper"}:
+        mode = "designed"
+        bg = Image.new("RGB", target_size, (248, 246, 239) if family == "minimal_paper" else (244, 246, 243))
+        if family == "minimal_paper":
+            # Subtle material variation, never decorative marks or pseudo-script.
+            grain = Image.effect_noise(target_size, 9).convert("RGB")
+            bg = Image.blend(bg, grain, .025)
+    elif family == "quiet_photography":
+        mode = "designed"
+        raw_photo = background_image
+        if raw_photo is None:
+            prompt = ("Quiet editorial photograph, credible natural light, real materials and restrained composition. "
+                      "No text, lettering, calligraphy, symbols, decorative borders, gold filigree, glow or fantasy. "
+                      "No people. Detail should remain convincing when cropped to a wide photograph. "
+                      + (visual_prompt or "Soft daylight across a pale stone courtyard and olive-tree shadows."))
+            raw_photo = generate_background(prompt, (1080, 1080), cache_dir=None, engine=engine,
+                                            render_metadata=render_metadata)
+        if raw_photo is None:
+            raise ValueError("Sabeel Vision could not generate the photograph")
+        bg = Image.new("RGB", target_size, (247, 246, 242))
+        photo_height = text_blocks[0]["photo_height"]
+        photo = ImageOps.fit(raw_photo.convert("RGB"), (W, photo_height), method=Image.Resampling.LANCZOS)
+        bg.paste(photo, (0, H-photo_height))
+        if render_metadata is not None:
+            render_metadata["background_reused"] = background_image is not None
+            render_metadata["background_sha256"] = hashlib.sha256(raw_photo.convert("RGB").tobytes()).hexdigest()
+
     if mode == "gallery":
         # Load the user-selected premium background from the app's static directory
         try:
             # Robust pathing: find the static/img/gallery folder relative to the app root
             app_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if os.path.basename(style) != style:
+                raise ValueError("Invalid gallery image")
             bg_path = os.path.join(app_root, "static", "img", "gallery", style)
             bg = Image.open(bg_path).convert("RGB")
             if bg.size != target_size:
@@ -1628,35 +1652,27 @@ def render_minimal_quote_card(
         glow_rgba = cfg.get("glow")
 
     if render_metadata is not None:
-        render_metadata["background_sha256"] = hashlib.sha256(bg.convert("RGB").tobytes()).hexdigest()
+        render_metadata.setdefault("background_sha256", hashlib.sha256(bg.convert("RGB").tobytes()).hexdigest())
         if mode == "custom" and vs_spec is not None:
             import json
             render_metadata["prompt_signature"] = hashlib.sha256(json.dumps({"prompt": visual_prompt, "traits": vs_spec.variation_traits}, sort_keys=True).encode()).hexdigest()
 
-    # 2. Typography Adaptation (Visual System v8.5+)
-    if _VS_OK:
-        text_style = vs_interpret_text(text_style_prompt, experimental=experimental_mode)
-        analysis   = vs_analyze(bg, target_size)
-        typo_spec  = vs_adapt(analysis, vs_spec if mode == "custom" else None, text_style=text_style, readability_priority=readability_priority)
-        print(f"   🎨 [Adapt] risk={typo_spec.readability_risk} theme={typo_spec.typography_mode}")
-
-    if typo_spec is None:
-        palette = _build_adaptive_palette(bg, target_size)
-        glow_rgba = (255, 255, 255, 40)
-
-    # Finish atmospheric effects before drawing the exact source glyphs.
-    g_rgba = typo_spec.glow_rgba if typo_spec else glow_rgba
-    background = apply_cinematic_layers(bg.convert("RGBA"), glow_color=list(g_rgba) if g_rgba else None)
-    final_img = paint_card_text(background, text_blocks,
-                                alignment=text_style.alignment if text_style else "Center")
+    # The shared final quality gate checks the actual glyph footprints. Legacy
+    # gallery/scene choices remain usable, but no extra glow is added to them.
+    quality = {}
+    final_img = paint_card_text(bg, text_blocks, quality=quality)
+    if family == "quiet_photography" and background_sink and background_image is None:
+        background_sink(raw_photo)
     if render_metadata is not None:
+        render_metadata["quality"] = quality
         render_metadata["card_layout"] = {
-            "width": W, "height": H,
+            "width": W, "height": H, "family": family, "layout": layout,
             "blocks": [{"role": b["role"], "font_size": b["size"],
                         "line_count": len(b["lines"]), "bounds": list(b["bounds"])} for b in text_blocks],
         }
 
-    filename = f"qcard_{int(time.time() * 1000)}.jpg"
+    from uuid import uuid4
+    filename = f"qcard_{uuid4().hex}.jpg"
     final_path = os.path.join(output_dir, filename)
     os.makedirs(output_dir, exist_ok=True)
     

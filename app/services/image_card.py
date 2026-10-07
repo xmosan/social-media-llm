@@ -38,7 +38,10 @@ def generate_quote_card(
     glossy: bool = False,
     card_message: dict = None,
     visual_history: dict = None,
-    render_metadata: dict = None
+    render_metadata: dict = None,
+    layout: str = "english_first",
+    background_image=None,
+    background_sink=None,
 ) -> str:
     """
     Parses an Islamic caption and renders a premium quote card.
@@ -156,7 +159,8 @@ def generate_quote_card(
         engine=engine,
         glossy=glossy,
         visual_history=visual_history,
-        render_metadata=render_metadata
+        render_metadata=render_metadata,
+        layout=layout, background_image=background_image, background_sink=background_sink,
     )
     return url
 
