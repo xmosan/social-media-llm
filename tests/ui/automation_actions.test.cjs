@@ -62,3 +62,32 @@ test('New Growth Plans select shared cards; editing preserves the existing media
     assert.equal(button.disabled, false);
   }
 });
+test('Pause and resume update the plan once and restore controls after failure', async () => {
+  const toggle = source.slice(source.indexOf('    const automationTogglesInFlight'), source.indexOf('    const automationRunsInFlight'));
+  for (const enabled of [false, true]) {
+    let release, reloads = 0;
+    const gate = new Promise(resolve => {release = resolve;});
+    const calls = [], alerts = [], button = {disabled: false, innerText: enabled ? 'Paused' : 'Active'};
+    const context = {Set, alert: message => alerts.push(message), window: {location: {reload: () => reloads++}},
+      fetch: async (...args) => {calls.push(args); await gate; return {ok: true, json: async () => ({enabled})};}};
+    vm.runInNewContext(toggle, context);
+    const event = {stopPropagation() {}, currentTarget: button, target: {}};
+    const first = context.window.toggleAuto(event, 41, enabled);
+    await context.window.toggleAuto(event, 41, enabled);
+    assert.equal(calls.length, 1);
+    assert.equal(button.disabled, true);
+    assert.deepEqual(JSON.parse(calls[0][1].body), {enabled});
+    assert.equal(calls[0][0], '/automations/41');
+    assert.equal(calls[0][1].method, 'PATCH');
+    release(); await first;
+    assert.equal(reloads, 1);
+    assert.equal(button.disabled, false);
+    for (const fetch of [async () => {throw Error('offline');}, async () => ({ok: false, json: async () => ({detail: 'Fixture rejection'})})]) {
+      context.fetch = fetch;
+      await context.window.toggleAuto(event, 41, enabled);
+      assert.equal(reloads, 1);
+      assert.equal(button.disabled, false);
+    }
+    assert.equal(alerts.length, 2);
+  }
+});

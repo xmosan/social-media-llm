@@ -264,7 +264,7 @@ def trigger_automation(
 
     if not result.post:
         detail = result.error or "Automation run failed. Check history."
-        raise HTTPException(status_code=500, detail=detail)
+        raise HTTPException(status_code=422 if result.status == "no_content" else 500, detail=detail)
     
     if result.post.status == "failed":
         raise HTTPException(status_code=422, detail="This run could not prepare or publish its post. Check the automation history.")

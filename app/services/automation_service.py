@@ -218,10 +218,12 @@ def run_automation(db: Session, automation_id: int, force_publish: bool = False)
         post = run_automation_once(db, automation_id, force_publish=force_publish)
 
         if not post:
+            no_source = automation.last_error == "No relevant, complete source passed validation."
             return AutomationRunResult(
                 automation_id=automation_id,
-                status="failed",
-                error="Automation runner returned no post",
+                status="no_content" if no_source else "failed",
+                error=("No relevant, complete source passed validation. Try a more specific topic or add suitable library content."
+                       if no_source else "No post was created. Check the plan's error details before running it again."),
             )
 
         status = "success" if post.status not in ("failed",) else "failed"

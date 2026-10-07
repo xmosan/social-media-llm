@@ -1531,7 +1531,7 @@ async def app_automations_page(
 
           <div class="flex items-center gap-4 w-full md:w-auto relative border-t md:border-t-0 border-brand/[0.04] pt-8 md:pt-0">
             <button onclick="showEditModal({edit_data_json})" class="flex-1 md:flex-none px-8 py-5 bg-white border border-brand/10 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] text-brand/60 hover:text-brand hover:border-brand/30 hover:bg-brand/[0.02] transition-all">Configure</button>
-            <button onclick="runNow(event, {a.id})" class="flex-1 md:flex-none px-8 py-5 bg-brand rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-brand/20 hover:scale-[1.02] transition-all">Share Now</button>
+            <button onclick="runNow(event, {a.id})" class="flex-1 md:flex-none px-8 py-5 bg-brand rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-2xl shadow-brand/20 hover:scale-[1.02] transition-all">Run once</button>
             <button onclick="deleteAutomation({a.id})" class="p-5 bg-rose-50/50 text-rose-500 border border-rose-100 rounded-2xl hover:bg-rose-500 hover:text-white transition-all shadow-sm" title="Delete Strategy">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
             </button>
