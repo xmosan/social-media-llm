@@ -137,3 +137,29 @@ class AutomationWorkflowTests(DatabaseCase):
                                             approval_mode='needs_manual_approve', **overrides)
             plan = automations.create_automation(payload, db=self.db, org_id=1)
             self.assertEqual(plan.image_mode, expected)
+
+    def test_ai_framing_common_words_cannot_dilute_the_selected_source_topic(self):
+        for i in range(2, 7):
+            self.db.add(ContentItem(id=i, org_id=None, source_id=1, item_type='quran',
+                                    title=f'Surah 2, Verse {i+3}', text='Synthetic unrelated fixture: those who speak with you.',
+                                    arabic_text='نص اختباري', topics=[], meta={'surah_number':2, 'verse_number':i+3}))
+        self.db.commit()
+        def relevance(topic, text, reference):
+            return {'accepted': 'patience' in text, 'reason': 'Fixture topic check'}
+        with patch.object(automation_runner, 'generate_topic_variations', return_value=['Setting boundaries while staying patient with someone who repeatedly disappoints you']), \
+             patch.object(automation_runner, 'validate_source_relevance', side_effect=relevance), \
+             patch('app.services.rotation_engine.random.shuffle', side_effect=lambda items: items.sort(key=lambda item: item.id, reverse=True)):
+            post = automation_runner.run_automation_once(self.db, 1)
+        self.assertIsNotNone(post, self.db.get(TopicAutomation, 1).last_error)
+        self.assertEqual(post.content_item_id, 1)
+        self.assertEqual(self.db.query(Post).count(), 1)
+
+    def test_relevance_failure_returns_actionable_error_without_creating_post(self):
+        with patch.object(automation_runner, 'validate_source_relevance', return_value={'accepted':False, 'reason':'Fixture'}):
+            result = self.service.run_automation(self.db, 1)
+        self.assertEqual(result.status, 'no_content')
+        self.assertIn('more specific topic', result.error)
+        self.assertEqual(self.db.query(Post).count(), 0)
+        with patch.object(automations, 'run_automation', return_value=result), self.assertRaises(HTTPException) as caught:
+            automations.trigger_automation(1, db=self.db, org_id=1)
+        self.assertEqual(caught.exception.status_code, 422)

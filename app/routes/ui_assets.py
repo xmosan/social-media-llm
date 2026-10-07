@@ -1771,6 +1771,32 @@ STUDIO_SCRIPTS_JS = r"""
         setTimeout(() => { window.updateAutoV2Summary(); }, 200);
     };
 
+    const automationTogglesInFlight = new Set();
+    window.toggleAuto = async function(event, id, enabled) {
+        event.stopPropagation();
+        if (automationTogglesInFlight.has(id)) return;
+        automationTogglesInFlight.add(id);
+        const btn = event.currentTarget || event.target;
+        const original = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = enabled ? 'ENABLING...' : 'PAUSING...';
+        try {
+            const res = await fetch(`/automations/${id}`, {
+                method: 'PATCH', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({enabled})
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) window.location.reload();
+            else alert('Could not update this plan: ' + (data.detail || 'Please try again.'));
+        } catch (e) {
+            alert('The connection was interrupted. Reload to check whether the plan changed.');
+        } finally {
+            automationTogglesInFlight.delete(id);
+            btn.disabled = false;
+            btn.innerText = original;
+        }
+    };
+
     const automationRunsInFlight = new Set();
     window.runNow = async function(event, id) {
         event.stopPropagation();

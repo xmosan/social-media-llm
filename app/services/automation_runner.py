@@ -360,14 +360,15 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             
         pooled_items = []
         
-        # Dual-pass logic: Try the variation first, then the base topic
-        attempts = [topic, topic_base] if topic != topic_base else [topic]
+        # The selected plan topic defines the source pool. AI variations and
+        # pillar labels are framing instructions, not source search terms:
+        # their common words can otherwise match thousands of unrelated verses.
+        attempts = [rotation_topic]
         
         for search_query in attempts:
             for provider in active_providers:
                 try:
-                    # Rank the complete matching pool across BOTH libraries and
-                    # both search terms before choosing a source.
+                    # Rank all matches across both selected libraries.
                     items = provider.get_content(db, automation.org_id, search_query, limit=None, automation_id=automation.id)
                     pooled_items.extend(items)
                     if items:
