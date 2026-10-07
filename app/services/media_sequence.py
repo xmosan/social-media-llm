@@ -17,7 +17,24 @@ ROLE_FIELDS = {"source_translation": "headline", "source_arabic": "arabic_text",
 
 
 def card_digest(card):
-    return hashlib.sha256(json.dumps(card or {}, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+    # JSON.parse/stringify changes integral floats (13.0 -> 13). Measurements
+    # cross that browser boundary before a draft save, so hash their numeric
+    # value rather than Python's int/float spelling. Source strings stay exact.
+    return _raw_digest(_canonical_numbers(card or {}))
+
+
+def _canonical_numbers(value):
+    if isinstance(value, dict):
+        return {k: _canonical_numbers(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_canonical_numbers(v) for v in value]
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    return value
+
+
+def _raw_digest(value):
+    return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
 
 
 def _signer():
@@ -37,9 +54,11 @@ def validate_manifest(manifest, card, owner_id):
     except BadSignature:
         raise ValueError("This visual sequence could not be verified. Generate it again.") from None
     body = {k: v for k, v in manifest.items() if k != "receipt"}
-    if receipt != {"owner": owner_id, "digest": card_digest(body)}:
+    # Retain verification of already stored pre-normalization manifests.
+    if (not isinstance(receipt, dict) or set(receipt) != {"owner", "digest"}
+            or receipt["owner"] != owner_id or receipt["digest"] not in {card_digest(body), _raw_digest(body)}):
         raise ValueError("The visual sequence changed or belongs to another workspace")
-    if manifest.get("card_digest") != card_digest(card):
+    if manifest.get("card_digest") not in {card_digest(card), _raw_digest(card or {})}:
         raise ValueError("Apply your latest source and reflection changes before saving")
     pages, fmt = manifest.get("pages"), manifest.get("format")
     if (manifest.get("version") != 1 or fmt not in FORMATS or not isinstance(pages, list)

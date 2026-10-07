@@ -148,6 +148,17 @@ class SequenceLifecycleTests(DatabaseCase):
         post.flags={**post.flags,'reviewed_manifest':None};self.db.commit()
         with patch.object(publisher,'publish_to_instagram') as send:
             self.assertEqual(self.client.post(f'/posts/{id}/publish').status_code,422);send.assert_not_called()
+
+    def test_render_measurements_survive_browser_json_number_normalization(self):
+        m=manifest()
+        m['pages'][0]['quality']['blocks']=[{'font_at_390px':13.0,'minimum_contrast':7.62}]
+        m=media.seal_manifest(m,1)
+        # Actual Node JSON.parse/stringify reproduction: 13.0 returns as 13.
+        browser_copy=json.loads(json.dumps(m),parse_float=lambda s: int(float(s)) if float(s).is_integer() else float(s))
+        self.assertIs(type(browser_copy['pages'][0]['quality']['blocks'][0]['font_at_390px']),int)
+        media.validate_manifest(browser_copy,CARD,1)
+        browser_copy['pages'][0]['quality']['blocks'][0]['font_at_390px']=12
+        with self.assertRaises(ValueError):media.validate_manifest(browser_copy,CARD,1)
     def test_carousel_and_legacy_single_share_same_publish_claim(self):
         id,_=self.save('carousel_4_5')
         def send(**kw):
