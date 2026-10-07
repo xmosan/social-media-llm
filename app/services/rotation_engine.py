@@ -85,6 +85,16 @@ def recent_posts(db, automation_id):
                                 Post.created_at >= datetime.now(timezone.utc) - timedelta(days=30)).all()
 
 
+def rank_provider_items(items, db, automation_id, avoid_days=30):
+    """Deduplicate overlapping provider searches and rank by canonical source usage."""
+    from app.models import ContentItem
+    by_id = {str(item.original_id): item for item in items if str(item.original_id).isdigit()}
+    if not by_id:
+        return []
+    records = db.query(ContentItem).filter(ContentItem.id.in_([int(key) for key in by_id])).all()
+    return [by_id[str(item.id)] for item in rank_source_items(records, db, automation_id, avoid_days)]
+
+
 def repetition_issues(db, post):
     if not post.automation_id:
         return []

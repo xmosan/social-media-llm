@@ -199,7 +199,7 @@ def run_automation(db: Session, automation_id: int, force_publish: bool = False)
             error="Automation not found",
         )
 
-    if not automation.enabled and not force_publish:
+    if not automation.enabled:
         return AutomationRunResult(
             automation_id=automation_id,
             status="skipped",

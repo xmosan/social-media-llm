@@ -34,7 +34,7 @@ class BaseContentProvider(ABC):
         pass
 
     @abstractmethod
-    def get_content(self, db: Session, org_id: int, topic: str, limit: int = 1, automation_id: int | None = None) -> List[UnifiedContent]:
+    def get_content(self, db: Session, org_id: int, topic: str, limit: int | None = 1, automation_id: int | None = None) -> List[UnifiedContent]:
         """Fetch content matching the topic"""
         pass
 
@@ -48,7 +48,7 @@ class SystemLibraryProvider(BaseContentProvider):
     def provider_type(self) -> str:
         return "system"
 
-    def get_content(self, db: Session, org_id: int, topic: str, limit: int = 1, automation_id: int | None = None) -> List[UnifiedContent]:
+    def get_content(self, db: Session, org_id: int, topic: str, limit: int | None = 1, automation_id: int | None = None) -> List[UnifiedContent]:
         """Fetch from global system default packs where org_id is NULL"""
         norm_topic = topic.lower().strip()
         
@@ -81,7 +81,7 @@ class SystemLibraryProvider(BaseContentProvider):
             return []
             
         from app.services.rotation_engine import rank_source_items
-        selected = rank_source_items(match_pool, db, automation_id)[:limit] if automation_id else random.sample(match_pool, min(limit, len(match_pool)))
+        selected = rank_source_items(match_pool, db, automation_id)[:limit] if automation_id else random.sample(match_pool, len(match_pool) if limit is None else min(limit, len(match_pool)))
         
         results = []
         for s in selected:
@@ -114,7 +114,7 @@ class UserLibraryProvider(BaseContentProvider):
     def provider_type(self) -> str:
         return "user"
 
-    def get_content(self, db: Session, org_id: int, topic: str, limit: int = 1, automation_id: int | None = None) -> List[UnifiedContent]:
+    def get_content(self, db: Session, org_id: int, topic: str, limit: int | None = 1, automation_id: int | None = None) -> List[UnifiedContent]:
         """Fetch from user's specific organization library"""
         norm_topic = topic.lower().strip()
         
@@ -145,7 +145,7 @@ class UserLibraryProvider(BaseContentProvider):
             return []
             
         from app.services.rotation_engine import rank_source_items
-        selected = rank_source_items(match_pool, db, automation_id)[:limit] if automation_id else random.sample(match_pool, min(limit, len(match_pool)))
+        selected = rank_source_items(match_pool, db, automation_id)[:limit] if automation_id else random.sample(match_pool, len(match_pool) if limit is None else min(limit, len(match_pool)))
         
         results = []
         for s in selected:
