@@ -2307,36 +2307,36 @@ STUDIO_COMPONENTS_HTML = """
 <!-- CONTENT STUDIO MODAL -->
 
 <div id="newPostModal" class="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[100] flex items-end md:items-center justify-center p-0 md:p-10 hidden">
-    <div class="w-full h-[100vh] md:h-full md:max-w-7xl rounded-none md:rounded-[3rem] overflow-hidden flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in duration-500 border-0 border-t md:border border-brand/5 shadow-2xl bg-white">
+    <div class="w-full h-[100dvh] md:h-full md:max-w-7xl rounded-none md:rounded-[3rem] overflow-hidden flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in duration-500 border-0 border-t md:border border-brand/5 shadow-2xl bg-white">
       
       <!-- Studio Sidebar -->
-      <div class="w-full md:w-80 bg-brand/5 border-b md:border-b-0 md:border-r border-brand/5 flex flex-col pt-10 md:pt-12 px-8 z-50 shrink-0">
+      <div class="w-full md:w-80 bg-brand/5 border-b md:border-b-0 md:border-r border-brand/5 flex flex-col pt-4 md:pt-12 px-4 md:px-8 pb-4 md:pb-0 z-50 shrink-0">
         <div>
-          <h3 class="text-3xl font-bold text-brand tracking-tighter italic">Sabeel<br><span class="text-accent">Studio</span></h3>
-          <p class="text-[9px] font-bold text-text-muted uppercase tracking-[0.3em] mt-2">Decoupled Pipeline v4.0</p>
+          <h3 class="text-xl md:text-3xl font-bold text-brand tracking-tighter italic">Sabeel <br class="hidden md:block"><span class="text-accent">Studio</span></h3>
+          <p class="text-[9px] font-bold text-text-muted uppercase tracking-[0.3em] mt-2">Create a reminder</p>
         </div>
         
-        <div class="flex-1 mt-12 space-y-6">
-          <div id="navStep1" class="studio-nav-step active flex items-center gap-4 cursor-pointer" onclick="switchStudioSection(1)">
+        <div class="flex md:flex-col justify-between md:justify-start gap-3 md:gap-6 mt-4 md:mt-12 md:flex-1">
+          <div id="navStep1" class="studio-nav-step active flex flex-col md:flex-row items-center gap-1 md:gap-4 cursor-pointer" onclick="switchStudioSection(1)">
              <div class="w-8 h-8 rounded-full border-2 border-brand flex items-center justify-center text-[10px] font-bold text-white bg-brand shadow-lg shadow-brand/20 nav-num">1</div>
-             <div class="text-xs font-bold uppercase text-brand tracking-widest nav-text">The Spark</div>
+             <div class="text-[8px] md:text-xs font-bold uppercase text-brand tracking-widest nav-text">Source</div>
           </div>
-          <div id="navStep2" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(2)">
+          <div id="navStep2" class="studio-nav-step flex flex-col md:flex-row items-center gap-1 md:gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(2)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">2</div>
-             <div class="text-xs font-bold uppercase tracking-widest nav-text">The Vision</div>
+             <div class="text-[8px] md:text-xs font-bold uppercase tracking-widest nav-text">Visual</div>
           </div>
-          <div id="navStep3" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(3)">
+          <div id="navStep3" class="studio-nav-step flex flex-col md:flex-row items-center gap-1 md:gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(3)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">3</div>
-             <div class="text-xs font-bold uppercase tracking-widest nav-text">The Presence</div>
+             <div class="text-[8px] md:text-xs font-bold uppercase tracking-widest nav-text">Caption</div>
           </div>
-          <div id="navStep4" class="studio-nav-step flex items-center gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(4)">
+          <div id="navStep4" class="studio-nav-step flex flex-col md:flex-row items-center gap-1 md:gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(4)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">4</div>
-             <div class="text-xs font-bold uppercase tracking-widest nav-text">The Share</div>
+             <div class="text-[8px] md:text-xs font-bold uppercase tracking-widest nav-text">Share</div>
           </div>
         </div>
       </div>
 
-      <button type="button" onclick="closeNewPostModal()" class="absolute top-6 right-6 z-[110] w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white hover:text-brand transition-all">
+      <button type="button" onclick="closeNewPostModal()" aria-label="Close Studio" class="absolute top-4 right-4 md:top-6 md:right-6 z-[110] w-10 h-10 rounded-full bg-white border border-brand/10 flex items-center justify-center text-brand hover:bg-cream transition-all">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
       </button>
 
@@ -3140,7 +3140,7 @@ APP_LAYOUT_HTML = """<!doctype html>
   <main class="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-10 space-y-6 md:space-y-10 pb-24 md:pb-10">
     {content}
   </main>
-  <nav class="md:hidden fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] max-w-[400px] bg-white border border-brand/10 p-2 flex justify-between items-center z-[140] shadow-2xl rounded-[2.5rem] backdrop-blur-xl bg-white/90">
+  <nav class="md:hidden fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] max-w-[400px] bg-white border border-brand/10 p-2 flex justify-between items-center z-50 shadow-2xl rounded-[2.5rem] backdrop-blur-xl bg-white/90">
     <a href="/app" class="flex-1 flex flex-col items-center gap-1 py-1 mobile-tab {active_dashboard}"><span class="text-[8px] font-bold uppercase tracking-widest">Home</span></a>
     <a href="/app/calendar" class="flex-1 flex flex-col items-center py-3 mobile-tab {active_calendar}"><span class="text-[9px] font-bold">Plan</span></a>
     <a href="/app/automations" class="flex-1 flex flex-col items-center py-3 mobile-tab {active_automations}"><span class="text-[9px] font-bold">Streams</span></a>
