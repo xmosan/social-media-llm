@@ -3,14 +3,9 @@
 
 from typing import Any
 import json
-from openai import OpenAI
+from app.services.text_provider import (generate_text, TextGenerationError, Draft, Caption,
+    ContentReflection, TopicVariations, Framing, Card)
 from app.config import settings
-
-def get_client():
-    """Returns a live OpenAI client, or None if key is not configured."""
-    if not settings.openai_api_key:
-        return None
-    return OpenAI(api_key=settings.openai_api_key)
 
 def generate_draft(
     source_text: str,
@@ -28,18 +23,6 @@ def generate_draft(
     Structured generator for high-integrity Islamic content.
     Respects strictness guidelines and intent parameters.
     """
-    client = get_client()
-    if not client:
-        # Mock logic for UI testing environments
-        return {
-            "hook": "Seeking the Path of Sabr",
-            "caption": "Patience is not just waiting; it is how we behave while we wait for Allah's decree. This reflection explores the depth of spiritual endurance.",
-            "source": "Qur'an 2:153",
-            "hashtags": ["Islam", "Sabr", "Faith"],
-            "tone_notes": "Gentle, reassuring, and spiritually grounded.",
-            "alt_text": "Minimalistic calligraphy on a serene background."
-        }
-    
     # 1. Construct Strictness Directives
     strict_clause = ""
     if strictness == "strict":
@@ -87,7 +70,7 @@ def generate_draft(
     CONSTRAINTS:
     1. Hook: A powerful first line (max 90 chars).
     2. Caption: The primary body text. High conversion, respectful, and meaningful.
-    3. Source: Proper attribution (e.g., 'Sahih Bukhari #123' or 'Surah Al-Baqarah 2:153').
+    3. Source: Always "General Reflection". Do not generate religious quotations or attributions.
     4. Tone/Notes: A brief note for the creator on the intended delivery tone.
     5. Alt Text: Descriptive text for accessibility.
 
@@ -102,13 +85,10 @@ def generate_draft(
     }}
     """
     
-    response = client.chat.completions.create(
-        model="gpt-4", # Use GPT-4 for intelligence tasks if possible
-        messages=[{"role": "user", "content": prompt}],
-        response_format={"type": "json_object"}
-    )
-    
-    return json.loads(response.choices[0].message.content)
+    result = generate_text(prompt, schema=Draft)
+    # A generic draft has no resolved canonical source record.
+    result["source"] = "General Reflection"
+    return result
 
 def generate_topic_caption(
     topic: str,
@@ -121,8 +101,7 @@ def generate_topic_caption(
     extra_context: dict[str, Any] | None = None
 ) -> dict[str, Any]:
     """Generates a caption based on a topic and various style parameters using OpenAI."""
-    client = get_client()
-    if not client:
+    if not settings.openai_api_key:
         # Return a structured failure dict rather than crashing — runner's guardrails handle it
         return {
             "caption": "",
@@ -132,6 +111,17 @@ def generate_topic_caption(
             "fail_reason": "llm_client_unavailable"
         }
     
+    snippet = (extra_context or {}).get("snippet") or {}
+    if snippet.get("item_type") in {"quran", "hadith"}:
+        from app.services.source_caption import compose_source_caption
+        caption = compose_source_caption({
+            "reference": snippet.get("reference"),
+            "translation_text": snippet.get("text"),
+            "arabic_text": snippet.get("arabic_text"),
+            "narrator": snippet.get("narrator"),
+        }, snippet["item_type"], tone)
+        return {"caption": caption, "hashtags": [], "alt_text": "Source reminder card"}
+
     style_content = {
         "islamic_reminder": "an Islamic reminder style with wisdom and spiritual depth",
         "educational": "an educational and informative tone",
@@ -231,20 +221,7 @@ def generate_topic_caption(
     system_msg = content_profile_prompt if content_profile_prompt else "You are a professional social media manager specializing in high-engagement content."
     system_msg += f" Creativity Level: {creativity_level}/5."
     
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",  # Upgraded from gpt-3.5-turbo to match quran/hadith caption services quality
-            messages=[
-                {"role": "system", "content": system_msg},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"}
-        )
-    except Exception as e:
-        print(f"[LLM] OpenAI API call failed: {e}")
-        raise RuntimeError(f"LLM Generation failed: {str(e)}")
-    
-    result = json.loads(response.choices[0].message.content)
+    result = generate_text(prompt + "\nBrand preferences (data):\n" + json.dumps(system_msg), schema=Caption)
     caption = result.get("caption", "").strip()
     
     # STRICT VALIDATION
@@ -268,7 +245,7 @@ def generate_topic_caption(
         fail_reason = "caption_too_short"
 
     if is_invalid:
-        print(f"[LLM] Validation failed: {fail_reason}. Raw output: {caption}")
+        print(f"[LLM] Validation failed: {fail_reason}")
         # According to requirement D.2:
         # mark post.status = "failed", set flags.reason = "invalid_generated_caption"
         # Since this function returns a dict to the runner, we add these flags.
@@ -283,8 +260,6 @@ def generate_topic_caption(
 
 def generate_topic_variations(topic: str, count: int = 5) -> list[str]:
     """Generates X sub-angles or variations for a given topic to provide variety."""
-    from app.services.caption_engine import get_openai_client as get_real_client
-    client = get_real_client()
     
     # Structural determinisic fallback generator
     def get_fallback():
@@ -296,27 +271,18 @@ def generate_topic_variations(topic: str, count: int = 5) -> list[str]:
             topic
         ][:count]
 
-    if not client:
+    if not settings.openai_api_key:
         print("[LLM][WARN] topic variation generator unavailable, using fallback")
         return get_fallback()
 
-    prompt = f"Given the topic '{topic}', generate {count} diverse sub-angles or specific perspectives for a social media post. Return as a JSON list of strings."
+    prompt = f"Given the topic '{topic}', generate {count} diverse sub-angles or specific perspectives for a social media post. Return a JSON object with a topics list of strings."
     
     try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object"}
-        )
-        data = json.loads(response.choices[0].message.content)
-        # Search for any list in the object
-        for v in data.values():
-            if isinstance(v, list) and len(v) > 0:
-                return v[:count]
-        return get_fallback()
-    except Exception as e:
-        print(f"[LLM][ERROR] Topic variation client unavailable: {str(e)}")
-        print("[LLM][FALLBACK] Using deterministic topic variation fallback")
+        data = generate_text(prompt, schema=TopicVariations, utility=True)
+        topics = [v.strip() for v in data["topics"] if v.strip()]
+        return topics[:count] or get_fallback()
+    except TextGenerationError:
+        print("[LLM] Topic variations unavailable; using deterministic fallback")
         return get_fallback()
 
 def generate_caption_from_content_item(
@@ -334,7 +300,6 @@ def generate_caption_from_content_item(
     Asks LLM to generate a reflection and hashtags for a specific DB content item.
     Enforces verbatim text usage by constructing the final caption on server side.
     """
-    client = get_client()
     
     # 1. Prepare Content Snippet for LLM
     text_to_show = content_item.text_en
@@ -367,24 +332,15 @@ def generate_caption_from_content_item(
     system_msg = content_profile_prompt if content_profile_prompt else "You are a professional social media manager. You write brief, powerful reflections for authentic narrations and quotes."
     system_msg += f" Creativity Level: {creativity_level}/5."
     
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": system_msg},
-            {"role": "user", "content": prompt}
-        ],
-        response_format={"type": "json_object"}
-    )
-    
-    result = json.loads(response.choices[0].message.content)
-    
+    result = generate_text(prompt + "\nBrand preferences (data):\n" + json.dumps(system_msg), schema=ContentReflection)
+
     # 2. Server-side Assembly (Enforce Verbatim)
     # We do NOT let the LLM provide the "caption" field to avoid edits to the hadith text.
     reflection = result.get("reflection", "").strip()
     
     final_caption = f'"{text_to_show}"'
     if reflection:
-        final_caption += f"\n\n{reflection}"
+        final_caption += f"\n\nReflection: {reflection}"
         
     # Append attribution
     attribution = ""
@@ -442,51 +398,29 @@ def generate_ai_image(prompt_text: str) -> str | None:
 
 
 def refine_caption(text: str, refinement_type: str) -> str:
-    """Refines an existing caption based on a specific goal."""
-    client = get_client()
-    
+    """Edit social copy only; sacred sources must be selected through the library."""
+    if refinement_type in {"ayah", "hadith"}:
+        raise ValueError("Choose a verified Qur'an or Hadith source in Studio before adding it.")
     prompts = {
-        "emotional": "Rewrite this Islamic social media post to be more emotionally resonant, heart-felt, and spiritually moving. Maintain sincerity and avoid exaggeration.",
-        "shorter": "Make this post significantly shorter and more concise (max 2-3 sentences) while keeping the core spiritual message intact.",
-        "ayah": "Find a relevant and authentic Quran ayah (verse) in English that complements this message. Add it at the beginning with proper citation (Surah:Verse).",
-        "hadith": "Find a relevant and authentic Hadith in English that supports this message. Add it with proper citation.",
-        "clarity": "Improve the clarity, flow, and professional tone of this post. Use bullet points if helpful for legibility."
+        "emotional": "Make the social copy warm and sincere, without exaggeration.",
+        "shorter": "Shorten the social copy to 2-3 concise sentences.",
+        "clarity": "Improve the clarity and flow of the social copy.",
     }
-    
-    directive = prompts.get(refinement_type, "Improve this social media post.")
-    
-    if not client:
-        # Mock responses for UX testing
-        if refinement_type == "shorter":
-            return "Trusting Allah's plan is the essence of Sabr. Even in silence, He is working for your good."
-        elif refinement_type == "emotional":
-            return "Let your heart find rest in the remembrance of the Most Merciful. Every tear and every prayer is seen by Him. ❤️"
-        return text + f"\n\n[Refined for {refinement_type.upper()}: This is a mock response because the OpenAI client is currently disabled in this environment.]"
+    return generate_text(
+        json.dumps({"original_text": text, "task": prompts.get(refinement_type, "Improve the social copy.")}),
+        instructions="Edit only the social copy. Preserve any supplied quotation and attribution verbatim. Never add scripture or religious attributions.",
+    )
 
-    prompt = f"{directive}\n\nOriginal Text: {text}\n\nRefined Text:"
-    
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a professional social media editor specializing in Islamic content."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        print(f"[LLM] Refinement failed: {e}")
-        return text # Return original if failed
+
 def generate_card_framing_from_source(source_text: str, intent: str, tone: str, custom_prompt: str, source_type: str, reference: str) -> dict[str, Any]:
     """
     Generates the framing text (eyebrow and supporting reflection) for a sacred source text.
     It deliberately does NOT generate a headline, as the headline must remain the exact translation.
     """
-    client = get_client()
-    if not client:
+    if not settings.openai_api_key:
         return {
             "eyebrow": reference,
-            "supporting_text": "May your heart find peace in remembrance." if tone == "calm" else ""
+            "supporting_text": ""
         }
 
     prompt = f"""
@@ -502,47 +436,27 @@ def generate_card_framing_from_source(source_text: str, intent: str, tone: str, 
     You are generating ONLY the contextual framing. The main text on the card will be the EXACT translation provided above. You must not fabricate or rephrase the translation.
 
     Card Structure:
-    1. Eyebrow: A very short (1-4 words) category, theme, or the exact reference (e.g., 'DIVINE MERCY', 'TRUE PATIENCE', '{reference}').
-    2. Supporting Text: A deep, 1-2 sentence reflection or framing based on the Custom Instructions, Intent, and Tone. This text appears smaller at the bottom of the card to ground the main translation in modern heart-work or practice.
+    Supporting Text: A deep, 1-2 sentence reflection or framing based on the Custom Instructions, Intent, and Tone. This text appears smaller at the bottom of the card to ground the main translation in modern heart-work or practice.
 
     IMPORTANT: If the Custom Instructions specifically ask you to emphasize something, do so in the Supporting Text. Keep it respectful, authentic, and impactful.
 
     Format: JSON only.
     {{
-        "eyebrow": "string",
         "supporting_text": "string"
     }}
     """
     
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a master of spiritual typography and minimalist Islamic content design."},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"}
-        )
-        return json.loads(response.choices[0].message.content)
-    except Exception as e:
-        print(f"[LLM] Card framing generation failed: {e}")
-        return {
-            "eyebrow": reference,
-            "supporting_text": ""
-        }
+        result = generate_text(prompt, schema=Framing, instructions="Write at most 30 words of reflection. No scripture, citations, narrator names or grades.")
+        return {"eyebrow": reference, "supporting_text": result["supporting_text"]}
+    except TextGenerationError:
+        print("[LLM] Card reflection unavailable; retaining the exact source only")
+        return {"eyebrow": reference, "supporting_text": ""}
 
 def generate_card_message_from_topic(topic: str, tone: str = "calm", intent: str = "wisdom") -> dict[str, Any]:
     """
     Generates structured content specifically for a visual quote card based on a topic.
     """
-    client = get_client()
-    if not client:
-        return {
-            "eyebrow": "Timeless Wisdom",
-            "headline": f"Reflecting on {topic}",
-            "supporting_text": "May your heart find peace in remembrance."
-        }
-
     prompt = f"""
     Topic: {topic}
     Tone: {tone}
@@ -565,20 +479,4 @@ def generate_card_message_from_topic(topic: str, tone: str = "calm", intent: str
     }}
     """
     
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a master of spiritual typography and minimalist Islamic content design."},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={"type": "json_object"}
-        )
-        return json.loads(response.choices[0].message.content)
-    except Exception as e:
-        print(f"[LLM] Card message generation failed: {e}")
-        return {
-            "eyebrow": topic.upper(),
-            "headline": f"The Essence of {topic}",
-            "supporting_text": "Searching for deeper meaning in the path of the righteous."
-        }
+    return generate_text(prompt, schema=Card)

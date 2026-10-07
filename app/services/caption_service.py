@@ -1,9 +1,7 @@
 # Copyright (c) 2026 Mohammed Hassan. All rights reserved.
 import logging
-import json
-from openai import OpenAI
-from typing import Optional, Dict, Any, List
-from app.config import settings
+from app.services.text_provider import generate_text, SocialCaption
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -66,16 +64,6 @@ def generate_caption_from_source(
     }
     tone_hint = tone_map.get(tone, tone_map["calm"])
 
-    if not settings.openai_api_key:
-        logger.error("[CAPTION] Missing OpenAI API Key.")
-        return {
-            "hook": "Trust in Allah's plan.",
-            "body": "He knows what is best for you when you don't know it yourself.",
-            "cta": "Share this reminder.",
-            "hashtags": ["#TrustAllah", "#Islam"]
-        }
-
-    client = OpenAI(api_key=settings.openai_api_key)
     prompt = SOCIAL_CAPTION_PROMPT.format(
         source_type=source_type,
         reference=reference,
@@ -85,25 +73,4 @@ def generate_caption_from_source(
         platform=platform
     )
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7,
-            response_format={"type": "json_object"}
-        )
-        
-        result_content = response.choices[0].message.content.strip()
-        caption_data = json.loads(result_content)
-        
-        logger.info("[CAPTION] Caption generated successfully")
-        return caption_data
-
-    except Exception as e:
-        logger.error(f"[CAPTION] Generation Error: {e}")
-        return {
-            "hook": "Allah is with the patient.",
-            "body": "A heartfelt reminder for your day.",
-            "cta": "Save this for later.",
-            "hashtags": ["#SabeelStudio", "#Islam"]
-        }
+    return generate_text(prompt, schema=SocialCaption)

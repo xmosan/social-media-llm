@@ -1782,10 +1782,16 @@ class RefineRequest(BaseModel):
     type: str
 
 @router.post("/api/ai/refine")
-async def api_refine_content(
+def api_refine_content(
     payload: RefineRequest,
     user: User = Depends(require_user)
 ):
     from app.services.llm import refine_caption
-    refined = refine_caption(payload.text, payload.type)
+    from app.services.text_provider import TextGenerationError
+    try:
+        refined = refine_caption(payload.text, payload.type)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
+    except TextGenerationError as error:
+        raise HTTPException(status_code=503, detail=str(error))
     return {"refined": refined}

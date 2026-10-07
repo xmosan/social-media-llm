@@ -528,6 +528,8 @@ def refine_post(
     user: User | None = Depends(get_current_user),
 ):
     post = get_mutable_post(db, post_id, org_id)
+    if payload.style in {"ayah", "hadith"}:
+        raise HTTPException(status_code=422, detail="Choose a verified Qur'an or Hadith source in Studio before adding it.")
     grounded_caption = _source_caption(db, post, user, payload.style)
     if grounded_caption is not None:
         return {"caption": grounded_caption}
@@ -535,6 +537,8 @@ def refine_post(
     try:
         refined = refine_caption(payload.current_caption, payload.style)
         return {"caption": refined}
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         print(f"❌ [REFINE_FAIL] {e}")
         raise HTTPException(status_code=500, detail=f"Refinement failed: {str(e)}")

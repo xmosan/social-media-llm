@@ -20,7 +20,7 @@ import random
 import json
 from typing import Optional
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
-from openai import OpenAI
+from app.services.text_provider import generate_text, Glow, TextGenerationError
 from app.config import settings
 from app.services.image_provider import generate_configured_image, configured_image_cache_key
 
@@ -60,11 +60,6 @@ except Exception as _vs_err:
 # ─────────────────────────────────────────────────────────────────────────────
 # OPENAI
 # ─────────────────────────────────────────────────────────────────────────────
-
-def get_openai_client() -> Optional[OpenAI]:
-    if not settings.openai_api_key:
-        return None
-    return OpenAI(api_key=settings.openai_api_key)
 
 # ── Arabic Support ────────────────────────────────────────────────────────────
 ARABIC_FONT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "assets", "fonts", "Amiri-Regular.ttf")
@@ -619,35 +614,20 @@ def analyze_style_prompt(visual_prompt: str, base_style: str) -> Optional[dict]:
     config = interpret_visual_prompt(visual_prompt)
 
     # Optional: AI may only update glow color (not bg)
-    client = get_openai_client()
-    if not client:
+    if not settings.openai_api_key:
         return config
 
     try:
-        r = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": (
-                    "You are a glow color engine for Islamic quote cards. "
-                    "Return ONLY a JSON object with ONE key: "
-                    '{"glow_color_rgba":[r,g,b,a]} where all values are integers 0-255. '
-                    "Choose a glow color that fits the mood: "
-                    "golden glow = warm gold, emerald aura = soft green, "
-                    "celestial = cool pale blue-white, moonlit = silver-blue. "
-                    "Alpha between 60 and 120."
-                )},
-                {"role": "user", "content": f"Visual: {visual_prompt}"}
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.3, timeout=6
+        ai = generate_text(
+            f"Visual: {visual_prompt}", utility=True, schema=Glow, timeout=6,
+            instructions="Choose only a glow_color_rgba: four integers 0-255, alpha 60-120. Keep the glow understated and natural.",
         )
-        ai = _normalize_config(json.loads(r.choices[0].message.content))
         # Only update glow — NEVER touch bg_start_rgb or bg_end_rgb
         if "glow_color_rgba" in ai:
             config["glow_color_rgba"] = ai["glow_color_rgba"]
             print(f"🤖 [StyleAnalyzer] AI glow: {ai['glow_color_rgba']}")
-    except Exception as e:
-        print(f"⚠️  [StyleAnalyzer] AI skipped ({e})")
+    except TextGenerationError:
+        print("[StyleAnalyzer] AI glow unavailable; retaining keyword colors")
 
     return config
 
