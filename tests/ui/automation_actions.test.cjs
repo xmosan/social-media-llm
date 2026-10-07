@@ -46,3 +46,19 @@ test('Failures restore controls and advise checking history before retrying', as
     assert.equal(f.button.innerText, 'Run once');
   }
 });
+test('New Growth Plans select shared cards; editing preserves the existing media mode', async () => {
+  const submit = source.slice(source.indexOf('    window.submitNewAutoV2 ='), source.indexOf('    window.showEditModal ='));
+  for (const editId of [undefined, '7']) {
+    const button = {innerText: 'Save', disabled: false};
+    const fields = {btnSubmitAutoV2: button, autoV2ApprovalModeInput: {value: 'needs_manual_approve'}, autoV2CadenceInput: {value: 'daily'}};
+    let sent;
+    const form = {dataset: {editId}, name: {value: 'Fixture'}, topic_prompt: {value: 'wisdom'}, style_dna_id: {value: '1'}, ig_account_id: {value: '1'}, post_time_local: {value: '17:00'}};
+    const context = {document: {getElementById: id => fields[id]}, window: {location: {reload() {}}},
+      fetch: async (url, options) => {sent = JSON.parse(options.body); return {ok: true};}};
+    vm.runInNewContext(submit, context);
+    await context.window.submitNewAutoV2({preventDefault() {}, target: form});
+    assert.equal(sent.image_mode, editId ? undefined : 'quote_card');
+    assert.equal(sent.approval_mode, 'needs_manual_approve');
+    assert.equal(button.disabled, false);
+  }
+});

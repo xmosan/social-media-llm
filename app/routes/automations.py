@@ -54,6 +54,10 @@ def create_automation(
     
     # Filter out fields that don't exist in the model
     model_data = data.dict()
+    # Growth Plans expose generated Style DNA cards. The legacy schema default
+    # reuses an earlier upload, which a new plan does not have.
+    if data.automation_version >= 2 and "image_mode" not in data.model_fields_set:
+        model_data["image_mode"] = "quote_card"
     valid_cols = [c.key for c in TopicAutomation.__table__.columns]
     filtered_data = {k: v for k, v in model_data.items() if k in valid_cols}
 

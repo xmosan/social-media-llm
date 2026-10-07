@@ -1640,6 +1640,7 @@ STUDIO_SCRIPTS_JS = r"""
 
         if (!form.dataset.editId) {
             payload.ig_account_id = parseInt(form.ig_account_id.value);
+            payload.image_mode = 'quote_card';
             payload.posting_mode = 'schedule';
             payload.enabled = true;
         } else {

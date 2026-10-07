@@ -127,3 +127,13 @@ class AutomationWorkflowTests(DatabaseCase):
             TopicAutomationCreate(ig_account_id=1, name='Fixture', topic_prompt='wisdom', approval_mode='unknown')
         with self.assertRaises(ValidationError):
             TopicAutomationUpdate(approval_mode='unknown')
+
+    def test_new_growth_plans_use_shared_cards_without_changing_explicit_legacy_modes(self):
+        from app.schemas import TopicAutomationCreate
+        for overrides, expected in (({'automation_version': 2}, 'quote_card'),
+                                    ({'automation_version': 1}, 'reuse_last_upload'),
+                                    ({'automation_version': 2, 'image_mode': 'library_fixed'}, 'library_fixed')):
+            payload = TopicAutomationCreate(ig_account_id=1, name='New plan fixture', topic_prompt='patience',
+                                            approval_mode='needs_manual_approve', **overrides)
+            plan = automations.create_automation(payload, db=self.db, org_id=1)
+            self.assertEqual(plan.image_mode, expected)
