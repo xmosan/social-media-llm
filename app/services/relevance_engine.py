@@ -1,19 +1,14 @@
 # Copyright (c) 2026 Mohammed Hassan. All rights reserved.
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
-import json
 from typing import Dict, Any
-from app.services.llm import get_client
+from app.services.text_provider import generate_text, Relevance, TextGenerationError
 
 def validate_source_relevance(topic: str, content_text: str, reference: str = "") -> Dict[str, Any]:
     """
     Uses LLM to verify if a candidate piece of content is semantically relevant to a topic.
-    RELEVANCE GATE v2.0 (GPT-4o-Mini)
+    Rejects unverifiable matches, including provider outages.
     """
-    client = get_client()
-    if not client:
-        return {"accepted": True, "confidence": "low", "reason": "ai_offline_permissive"}
-
     # Optimization: If topic is very short, expand it slightly for the auditor
     audit_topic = topic
     if len(topic) < 15:
@@ -37,7 +32,7 @@ def validate_source_relevance(topic: str, content_text: str, reference: str = ""
     
     STRICT ACCEPTANCE RULES:
     1. ACCEPT only if a reader would immediately see the connection without needing a complex explanation.
-    2. ACCEPT if the verse is one of the "Golden Verses" for this topic (e.g. 2:153 for Patience, 2:186 for Supplication).
+    2. Judge only the supplied text. Do not rely on remembered wording or metadata for the reference.
 
     JSON OUTPUT:
     {{
@@ -48,13 +43,7 @@ def validate_source_relevance(topic: str, content_text: str, reference: str = ""
     """
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object"},
-            temperature=0
-        )
-        result = json.loads(response.choices[0].message.content)
+        result = generate_text(prompt, schema=Relevance, utility=True)
         # FORCE REJECTION if confidence is low to stay safe
         if result.get("confidence") == "low":
             result["accepted"] = False
@@ -62,6 +51,5 @@ def validate_source_relevance(topic: str, content_text: str, reference: str = ""
             
         print(f"🛡️ [RELEVANCE_GATE] topic='{topic}' ref='{reference}' -> {result['accepted']} ({result['confidence']})")
         return result
-    except Exception as e:
-        print(f"⚠️ [RELEVANCE_GATE] Error: {e}")
-        return {"accepted": False, "confidence": "low", "reason": f"error: {str(e)}"}
+    except TextGenerationError:
+        return {"accepted": False, "confidence": "low", "reason": "relevance_check_unavailable"}

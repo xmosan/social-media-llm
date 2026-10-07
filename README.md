@@ -1,5 +1,51 @@
 # Social Media LLM - SaaS
 
+## Text generation
+
+All runtime text calls use `app/services/text_provider.py` and the Responses API.
+Writing (captions, separate reflections, cards, drafts and rewrites) uses GPT-6
+Astra at low reasoning effort. Topic variations, source relevance checks and
+optional color selection use GPT-6 Luna with no reasoning. These defaults were
+checked against official OpenAI documentation and live account access on
+2026-10-07; availability and aliases can change.
+
+| Variable | Default |
+| --- | --- |
+| `OPENAI_TEXT_MODEL` | `gpt-6-astra` |
+| `OPENAI_TEXT_REASONING_EFFORT` | `low` |
+| `OPENAI_UTILITY_MODEL` | `gpt-6-luna` |
+| `OPENAI_UTILITY_REASONING_EFFORT` | `none` |
+| `TEXT_GENERATION_TIMEOUT_SECONDS` | `45` |
+
+Uses the existing `OPENAI_API_KEY`; no new key or schema migration is required.
+Override models only with tested Responses-compatible models and matching
+reasoning settings. Astra and GPT-6.1 Sol require at least low reasoning effort.
+Requests are stateless (`store=false`), bounded to 2,048 output tokens (including
+reasoning), and have no automatic retries or hidden fallback model. Structured
+outputs are schema-validated locally; refusal, truncation and invalid output
+are failures. Logs contain model, schema, elapsed time and output-token count,
+not provider response bodies or prompts.
+
+Canonical source fields are assembled by the application. Optional AI reflections
+may be omitted on failure; fake scripture, unrelated fallback captions and mock
+successes are not substituted. Generic “add Ayah/Hadith” rewriting is rejected:
+select a verified source in Studio instead. Source-relevance checks fail closed
+when unavailable. Existing deterministic topic and color fallbacks remain.
+
+Before changing either model, run the isolated backend and PostgreSQL suites,
+then bounded live checks of reflection, rewrite, structured caption/draft,
+relevance acceptance/rejection and utility output. The initial 12-case live pass
+succeeded (writing 2.63–8.67 seconds; utilities 1.41–3.32 seconds). This is a small
+application compatibility evaluation, not a general model benchmark. No test
+posts were published for this migration. Roll back to the previous deployment if
+a model/configuration change fails; do not silently reinstate retired model IDs.
+
+Official references: [GPT-6 migration](https://developers.openai.com/api/docs/guides/latest-model),
+[Responses API](https://developers.openai.com/api/docs/guides/migrate-to-responses),
+[structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs),
+[deprecations](https://developers.openai.com/api/docs/deprecations).
+
+
 > **NOTICE**: This repository contains proprietary software owned by Mohammed Hassan. It is shared strictly for academic grading purposes. Unauthorized copying, modification, distribution, or use is prohibited.
 
 ## Sabeel Vision model configuration

@@ -69,6 +69,36 @@ class Settings(BaseSettings):
     openai_api_key: str | None = Field(default=None, env="OPENAI_API_KEY")
     gemini_api_key: str | None = Field(default=None)
 
+    # Writing quality and small utility tasks have independent, replaceable models.
+    openai_text_model: str = "gpt-6-astra"
+    openai_utility_model: str = "gpt-6-luna"
+    openai_text_reasoning_effort: str = "low"
+    openai_utility_reasoning_effort: str = "none"
+    text_generation_timeout_seconds: int = Field(default=45, ge=5, le=120)
+
+    @field_validator("openai_text_model", "openai_utility_model")
+    @classmethod
+    def validate_text_model(cls, value: str) -> str:
+        value = value.strip()
+        if not value or any(c.isspace() for c in value):
+            raise ValueError("Text model must be a nonempty model ID")
+        return value
+
+    @field_validator("openai_text_reasoning_effort", "openai_utility_reasoning_effort")
+    @classmethod
+    def validate_text_reasoning_effort(cls, value: str) -> str:
+        if value not in {"none", "low", "medium", "high"}:
+            raise ValueError("Text reasoning effort must be none, low, medium or high")
+        return value
+
+    @model_validator(mode="after")
+    def validate_text_model_effort(self):
+        for model, effort in ((self.openai_text_model, self.openai_text_reasoning_effort),
+                              (self.openai_utility_model, self.openai_utility_reasoning_effort)):
+            if model.startswith(("gpt-6-astra", "gpt-6.1-sol")) and effort == "none":
+                raise ValueError("GPT-6 Astra and GPT-6.1 Sol require at least low reasoning effort")
+        return self
+
     # Sabeel Vision: explicit, replaceable models; legacy engine labels are aliases.
     openai_image_model: str = "gpt-image-2.5-sunburst"
     openai_image_fallback_model: str = "gpt-image-2.5-flare"

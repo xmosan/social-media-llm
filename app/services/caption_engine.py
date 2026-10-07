@@ -55,7 +55,6 @@ Only output the final caption.
 import requests
 import re
 import html
-from openai import OpenAI
 from app.config import settings
 from app.db import SessionLocal
 from app.models import ContentItem
@@ -129,15 +128,6 @@ def fetch_quran_verse(topic: str):
         return None
     finally:
         db.close()
-
-
-# -------------------------------
-# OpenAI Client
-# -------------------------------
-def get_openai_client():
-    if not settings.openai_api_key:
-        return None
-    return OpenAI(api_key=settings.openai_api_key)
 
 
 # -------------------------------

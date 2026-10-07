@@ -40,8 +40,7 @@ class CaptionIntegrityTests(unittest.TestCase):
         result = {"reference": "Wrong reference", "translation_text": "Rewritten fixture", "arabic_text": "wrong",
                   "reflection": "A separate test reflection."}
         response = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(result)))])
-        with patch.object(settings, "openai_api_key", "fake-key"), patch.object(source_caption, "OpenAI") as client:
-            client.return_value.chat.completions.create.return_value = response
+        with patch.object(settings, "openai_api_key", "fake-key"), patch.object(source_caption, "generate_text", return_value=result):
             caption = quran_caption_service.generate_ai_caption_from_quran(FIXTURE)
         self.assertTrue(caption.startswith("\n\n".join(FIXTURE[k] for k in ("reference", "arabic_text", "translation_text"))))
         self.assertIn("Reflection: A separate test reflection.", caption)
@@ -52,7 +51,7 @@ class CaptionIntegrityTests(unittest.TestCase):
         expected = "\n\n".join(FIXTURE[k] for k in ("reference", "arabic_text", "translation_text"))
         with patch.object(settings, "openai_api_key", None):
             self.assertEqual(quran_caption_service.generate_ai_caption_from_quran(FIXTURE), expected)
-        with patch.object(settings, "openai_api_key", "fake-key"), patch.object(source_caption, "OpenAI", side_effect=RuntimeError):
+        with patch.object(settings, "openai_api_key", "fake-key"), patch.object(source_caption, "generate_text", side_effect=source_caption.TextGenerationError("provider_error")):
             self.assertEqual(quran_caption_service.generate_ai_caption_from_quran(FIXTURE), expected)
 
     def test_missing_source_data_fails_instead_of_substituting_scripture(self):
