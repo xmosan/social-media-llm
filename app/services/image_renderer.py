@@ -1472,13 +1472,14 @@ def render_minimal_quote_card(
     layout: str = "english_first",
     background_image=None,
     background_sink=None,
+    post_format="feed_4_5",
 ) -> str:
     """
     Render every source block with measured typography, or fail without clipping.
     """
     # Preflight all source blocks before any paid image-provider call.
     family = style if style in {"editorial", "quiet_photography", "minimal_paper"} else "legacy"
-    target_size, text_blocks = layout_card(segments, family=family, layout=layout)
+    target_size, text_blocks = layout_card(segments, family=family, layout=layout, post_format=post_format)
     W, H = target_size
     cx, cy = W // 2, H // 2
     base_dir    = os.path.dirname(

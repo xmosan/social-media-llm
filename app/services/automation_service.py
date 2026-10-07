@@ -679,6 +679,7 @@ def simulate_growth_plan(
 
         # 4. Generate Visual (Only for Sample 1 to stay fast)
         visual_url = None
+        preview_metadata = {}
         if i == 0:
             try:
                 from app.services.image_card import generate_quote_card
@@ -686,6 +687,7 @@ def simulate_growth_plan(
                 # Preview and production share the measured source-card service.
                 # No punctuation cleanup, uppercasing or Arabic omission here.
                 visual_url = generate_quote_card(
+                    render_metadata=preview_metadata, allow_sequence=True,
                     card_message={"eyebrow": item_ref or "", "headline": primary_item.text,
                                   "arabic_text": primary_item.arabic_text or ""},
                     style=FAMILY_TO_RENDER_STYLE.get(family, "quran"),
@@ -704,6 +706,7 @@ def simulate_growth_plan(
                 logger.error(f"Visual preview generation failed: {ve}")
 
         results.append({
+            "media_manifest": preview_metadata.get("media_manifest"),
             "sample_index": i + 1,
             "topic": topic,
             "style_name": style.name if hasattr(style, "name") else "Dark Sacred",

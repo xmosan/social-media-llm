@@ -12,7 +12,7 @@ const openModal = source.slice(source.indexOf('    window.openEditPostModal ='),
 function fixture(fetch) {
   const elements = {editPostId: {value: '1523'}, editPostCaption: {value: 'Reviewed fixture caption'},
     savePostBtn: {disabled: false}, postNowBtn: {disabled: false, innerText: 'SHARE NOW'}};
-  for (const id of ['editPostModal', 'editPostTitle', 'editPostDescription', 'editPostEnhancements', 'editPostDiscard', 'deleteConfirmActions', 'editPostActions']) elements[id] = {};
+  for (const id of ['exportSavedPostBtn', 'resumeStoriesBtn', 'reconcileStoriesBtn', 'reopenStudioBtn', 'editPostModal', 'editPostTitle', 'editPostDescription', 'editPostEnhancements', 'editPostDiscard', 'deleteConfirmActions', 'editPostActions']) elements[id] = {};
   for (const element of Object.values(elements)) {
     const classes = new Set();
     element.style = {};

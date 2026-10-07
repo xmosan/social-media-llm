@@ -53,6 +53,29 @@ class PostgresChecks(unittest.TestCase):
         self.db.commit()
         return post.id
 
+    def test_concurrent_studio_recovery_key_creates_one_ordered_draft(self):
+        from app.routes.studio import studio_create_post
+        from app.services.media_sequence import seal_manifest, card_digest
+        card = {"eyebrow":"Fixture", "headline":"Exact synthetic text", "arabic_text":""}
+        pages = [{"index":i,"url":CDN+str(i),"width":1080,"height":1350,"quality":{"status":"passed"},
+                  "slices":[{"role":"source_translation","start":i*10,"end":10 if i==0 else len(card["headline"])}]} for i in range(2)]
+        manifest=seal_manifest({"version":1,"format":"carousel_4_5","card_digest":card_digest(card),"pages":pages},1)
+        payload={"ig_account_id":1,"draft_key":"11111111-1111-4111-8111-111111111111","card_message":card,
+                 "visual_design":{"media_manifest":manifest},"media_url":pages[0]["url"],"caption":"Separate caption"}
+        barrier=threading.Barrier(2)
+        def save():
+            with Session(engine) as db:
+                barrier.wait(timeout=10)
+                return studio_create_post(payload,db,1,None).id
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            ids=list(pool.map(lambda _:save(),range(2)))
+        self.assertEqual(ids[0],ids[1])
+        self.assertEqual(self.db.query(Post).count(),1)
+        self.db.expire_all()
+        post=self.db.get(Post,ids[0])
+        self.assertEqual(post.flags['media_manifest'],manifest)
+        self.assertEqual(post.card_message,card)
+
     def test_schema_readiness_detects_missing_column_without_migrating(self):
         tree = ast.parse((ROOT / "app/db.py").read_text())
         function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "validate_database_schema")

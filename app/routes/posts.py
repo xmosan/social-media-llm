@@ -437,6 +437,8 @@ def update_post(
     post = get_mutable_post(db, post_id, org_id)
     
     data = payload.dict(exclude_unset=True)
+    if (post.flags or {}).get("media_manifest") and any(key in data for key in ("media_url", "media_asset_id", "post_format", "card_message")):
+        raise HTTPException(status_code=422, detail="Edit the complete sequence in Studio so its source and pages stay together")
     try:
         validate_source_edit(post, data)
     except ValueError as error:
@@ -445,7 +447,7 @@ def update_post(
         raise HTTPException(status_code=422, detail="This status is controlled by the publishing service")
     if "flags" in data:
         incoming = dict(data["flags"] or {})
-        protected = {"publication", "relevance_check", "automation_error", "rotation_topic", "rotation_style_id", "rotation_pillar", "rotation_used_at", "scheduled_occurrence"}
+        protected = {"publication", "media_manifest", "reviewed_manifest", "visual_design", "draft_key", "relevance_check", "automation_error", "rotation_topic", "rotation_style_id", "rotation_pillar", "rotation_used_at", "scheduled_occurrence"}
         for key in protected:
             incoming.pop(key, None)
             if key in (post.flags or {}):
@@ -551,6 +553,9 @@ def regenerate_image(
 ):
     post = get_mutable_post(db, post_id, org_id)
     
+    if (post.flags or {}).get("media_manifest"):
+        raise HTTPException(status_code=422, detail="Rebuild the complete sequence in Studio; individual pages cannot be replaced")
+
     mode = image_mode or "ai_nature_photo"
     
     # Use the new robust resolver
@@ -578,6 +583,9 @@ def attach_media(
 ):
     post = get_mutable_post(db, post_id, org_id)
     
+    if (post.flags or {}).get("media_manifest"):
+        raise HTTPException(status_code=422, detail="Rebuild the complete sequence in Studio; individual pages cannot be replaced")
+
     _ensure_uploads_dir()
     if image.content_type not in {"image/png", "image/jpeg", "image/jpg", "image/webp"}:
         raise HTTPException(status_code=400, detail="Use a PNG, JPG, or WEBP image")
@@ -607,7 +615,7 @@ def approve_post(
             status_code=400,
             detail="Flagged. Set approve_anyway=true or edit first."
         )
-    if not post.caption or not post.media_url:
+    if (post.post_format != "story_9_16" and not post.caption) or not post.media_url:
         post.status = "failed"
         post.flags = {**(post.flags or {}), "reason": "missing_content"}
         db.commit()
@@ -680,6 +688,9 @@ def recover_post_media(
     """Triggers visual regeneration if the asset is stale."""
     post = get_mutable_post(db, post_id, org_id)
     
+    if (post.flags or {}).get("media_manifest"):
+        raise HTTPException(status_code=422, detail="Rebuild the complete sequence in Studio; individual pages cannot be replaced")
+
     from app.services.automation_runner import recover_stale_media
     success = recover_stale_media(post, db)
     
@@ -706,7 +717,7 @@ def delete_post(
             raise HTTPException(status_code=403, detail="Forbidden: This post belongs to a different organization.")
         raise HTTPException(status_code=404, detail="Post not found")
     
-    if post.status in {"publishing", "publish_unknown"}:
+    if post.status in {"publishing", "publish_unknown", "publish_partial"}:
         raise HTTPException(status_code=409, detail="Reconcile the publishing attempt before deleting this post")
 
     try:
@@ -732,3 +743,18 @@ def delete_post(
         db.rollback()
         print(f"!!! [CRITICAL] Delete failed for post {post_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database error during deletion: {str(e)}")
+
+
+@router.get("/{post_id}/export")
+def export_saved_post(post_id: int, db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
+    from fastapi.responses import StreamingResponse
+    from app.services.media_sequence import export_post
+    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
+    if post is None:
+        raise HTTPException(status_code=404, detail="Post not found")
+    try:
+        archive = export_post(post)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from None
+    return StreamingResponse(archive, media_type="application/zip", headers={
+        "Content-Disposition": f'attachment; filename="sabeel-post-{post_id}.zip"', "Cache-Control": "no-store"})

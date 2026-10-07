@@ -86,10 +86,10 @@ DESIGN_FAMILIES = {"editorial", "quiet_photography", "minimal_paper"}
 FEED_LAYOUTS = {"english_first", "bilingual"}
 
 
-def layout_card(segments, *, serif=False, family="editorial", layout="english_first"):
-    """Measured 4:5 feed compositions. Never shrink source text below the floor.
+def layout_card(segments, *, serif=False, family="editorial", layout="english_first", post_format="feed_4_5"):
+    """Measured feed and Story compositions with safe text areas.
 
-    Long sources need a sequence (not implemented by this single-card renderer).
+    The sequence planner partitions sources that exceed this single-card layout.
     All incoming blocks survive reordering, including legacy untyped blocks.
     """
     if layout not in FEED_LAYOUTS:
@@ -103,11 +103,16 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
     if layout == "bilingual":
         order[:2] = ["source_arabic", "source_translation"]
     segments.sort(key=lambda s: order.index(s["role"]) if s["role"] in order else 3)
-    width, height, margin = 1080, 1350, 88
+    if post_format not in {"feed_4_5", "carousel_4_5", "story_9_16"}:
+        raise CardTypographyError("Choose a feed post or Story sequence")
+    story = post_format == "story_9_16"
+    width, height, margin = 1080, 1920 if story else 1350, 88
+    top_margin = 250 if story else margin
+    bottom_margin = 310 if story else margin
     short = all(len(s["text"]) <= (80 if s["role"] == "source_arabic" else 100) for s in segments)
     # A photograph occupies a separate, full-width area, never a box behind text.
     photo_height = (430 if short else 280) if family == "quiet_photography" else 0
-    available_bottom = height - (photo_height + 64 if photo_height else margin)
+    available_bottom = min(height-bottom_margin, height-photo_height-64) if photo_height else height-bottom_margin
     for scale in (1, .92, .84):
         blocks = []
         fits = True
@@ -121,7 +126,7 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
             leading = round(size * (.36 if contains_arabic(text) else .30))
             block_height = sum(line["height"] for line in lines) + max(0, len(lines)-1) * leading
             label = None
-            label_text = "Reflection" if role == "reflection" else seg.get("label")
+            label_text = seg.get("label") or ("Reflection" if role == "reflection" else None)
             if label_text:
                 label_font = load_font(label_text, 34)
                 label = {**measure(label_text, label_font), "font": label_font}
@@ -137,10 +142,10 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
         footer_height = sum(b["height"] for b in references) + max(0, len(references)-1)*gap
         body_bottom = available_bottom - (footer_height + 64 if references else 0)
         total = sum(b["height"] for b in body) + max(0, len(body)-1)*gap
-        if fits and total <= body_bottom - margin:
+        if fits and total <= body_bottom - top_margin:
             # Short cards use deliberate negative space; reference anchors the
             # footer. Medium sources get the full reading column.
-            y = margin + min(240 if short else 120, max(0, (body_bottom-margin-total)//(2 if short else 3)))
+            y = top_margin + min(240 if short else 120, max(0, (body_bottom-top_margin-total)//(2 if short else 3)))
             for block in body:
                 block["y"] = y
                 block["bounds"] = (margin, y, width-margin, y+block["height"])
@@ -152,6 +157,99 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
                 y += block["height"] + gap
             return (width, height), body + references
     raise CardTypographyError("This source and reflection are too long for a readable feed card. Choose a shorter complete source or remove the optional reflection. Nothing has been shortened or hidden; long sources need a multi-card sequence.")
+
+
+def plan_sequence(segments, *, family="editorial", layout="english_first", post_format="feed_4_5"):
+    """Exact contiguous source slices, never AI excerpts or inferred alignment.
+
+    Short cards keep both languages together. Long records use complete language
+    chapters in the chosen reading order, followed by optional reflection. Every
+    page repeats the reference and is explicitly part of the full sequence.
+    Offsets include whitespace so concatenating slices reproduces the input.
+    """
+    import re
+    options = dict(family=family, layout=layout, post_format=post_format)
+    if sum(len(str(s.get("text", ""))) for s in segments) > 24000:
+        raise CardTypographyError("This complete source exceeds the current ten-page sequence limit. Choose a shorter complete source.")
+    try:
+        layout_card(segments, **options)
+        return [{"segments": segments, "slices": [{"role": s["role"], "start": 0, "end": len(s["text"])}
+                for s in segments if s["role"] != "reference"], "label": "Complete source"}]
+    except CardTypographyError as error:
+        if "too long" not in str(error):
+            raise
+    refs = [dict(s, label="Page 10 of 10 · Read all pages") for s in segments if s["role"] == "reference"]
+    order = ["source_translation", "source_arabic", "source", "reflection"]
+    if layout == "bilingual":
+        order[:2] = ["source_arabic", "source_translation"]
+    body = sorted((s for s in segments if s["role"] != "reference"),
+                  key=lambda s: order.index(s["role"]) if s["role"] in order else 2)
+    pages = []
+    for seg in body:
+        text, start = seg["text"], 0
+        chapter = {"source_translation": "Translation", "source_arabic": "Arabic source", "reflection": "Reflection"}.get(seg["role"], "Source")
+        parts = []
+        while start < len(text):
+            ends = [m.end() for m in re.finditer(r"\S+\s*", text[start:])]
+            if not ends:
+                raise CardTypographyError("This source contains an empty or unrenderable passage")
+            low, high, best = 0, len(ends)-1, None
+            while low <= high:
+                mid = (low+high)//2
+                end = start+ends[mid]
+                trial = [dict(seg, text=text[start:end], label=chapter+" · part 10 of 10"), *refs]
+                try:
+                    layout_card(trial, **options)
+                    best, low = end, mid+1
+                except CardTypographyError as error:
+                    if "too long" not in str(error):
+                        raise
+                    high = mid-1
+            if best is None:
+                raise CardTypographyError("A source word cannot fit at a readable size. The source has not been shortened.")
+            # Prefer sentence boundaries when doing so does not create tiny pages.
+            if best < len(text):
+                boundaries = [start+m.end() for m in re.finditer(r'[.!?؟۔][\"”’\)]*\s+', text[start:best])]
+                suitable = [end for end in boundaries if end-start >= (best-start)*.6]
+                if suitable:
+                    best = suitable[-1]
+            parts.append((start, best))
+            start = best
+            if len(pages)+len(parts) > 10:
+                raise CardTypographyError("This complete source needs more than ten readable pages. Choose a shorter complete source; no text was omitted.")
+        if len(parts) > 1:
+            # Balance a language chapter so its last page is not a few stranded
+            # words. This only moves exact whitespace boundaries. Keep the
+            # measured original partition if the balanced candidates do not fit.
+            boundaries = [m.end() for m in re.finditer(r"\S+\s*", text)]
+            clauses = [m.end() for m in re.finditer(r"[.!?؟۔،,;؛:]\s+", text)]
+            balanced, start = [], 0
+            for part_index in range(len(parts)):
+                remaining = len(parts)-part_index
+                target = start+(len(text)-start)/remaining
+                end = len(text) if remaining == 1 else min(
+                    (end for end in boundaries if start < end < len(text)), key=lambda end: abs(end-target))
+                nearby_clauses = [end for end in clauses if start < end < len(text)
+                                  and abs(end-target) <= (target-start)*.22]
+                if remaining > 1 and nearby_clauses:
+                    end = min(nearby_clauses, key=lambda end: abs(end-target))
+                balanced.append((start, end))
+                start = end
+            try:
+                for start, end in balanced:
+                    layout_card([dict(seg, text=text[start:end], label=chapter+" · part 10 of 10"), *refs], **options)
+                parts = balanced
+            except CardTypographyError:
+                pass
+        for i, (start, end) in enumerate(parts):
+            label = f"{chapter} · part {i+1} of {len(parts)}" if len(parts)>1 else chapter+" · complete"
+            pages.append({"segments": [dict(seg, text=text[start:end], label=label), *refs],
+                          "slices": [{"role": seg["role"], "start": start, "end": end}], "label": label})
+    for i, page in enumerate(pages):
+        page["segments"] = [dict(s, label=f"Page {i+1} of {len(pages)} · Read all pages") if s["role"] == "reference" else s
+                            for s in page["segments"]]
+        layout_card(page["segments"], **options)
+    return pages
 
 
 def _ink_mask(size, block, alignment):

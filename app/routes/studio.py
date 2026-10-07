@@ -156,6 +156,7 @@ def studio_generate_visual(data: dict, org_id: int = Depends(get_current_org_id)
         layout=data.get("layout", "english_first"),
         background_token=data.get("background_token"),
         owner_id=org_id,
+        post_format=data.get("post_format", "feed_4_5"),
     )
 
     res = generate_visual(req)
@@ -270,7 +271,41 @@ def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = 
     if final_status not in {"drafted", "needs_review", "scheduled"}:
         raise HTTPException(status_code=422, detail="Invalid initial post status")
 
-    post = Post(
+    from app.services.media_sequence import validate_manifest
+    design = data.get("visual_design") or {}
+    if not isinstance(design, dict):
+        raise HTTPException(status_code=422, detail="Invalid visual design")
+    manifest = design.get("media_manifest")
+    if manifest is not None:
+        try:
+            validate_manifest(manifest, card_msg, org_id)
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from None
+        if data.get("media_url") != manifest["pages"][0]["url"]:
+            raise HTTPException(status_code=422, detail="The preview and sequence cover do not match")
+    elif data.get("post_format") in {"carousel_4_5", "story_9_16"}:
+        raise HTTPException(status_code=422, detail="Generate a complete sequence before saving this format")
+
+    # A stable editor key recovers an accepted save after a lost HTTP response.
+    # The transaction lock closes the duplicate-create race in PostgreSQL.
+    draft_key = data.get("draft_key")
+    existing = None
+    if draft_key:
+        from uuid import UUID
+        from sqlalchemy import text
+        try:
+            draft_key = str(UUID(draft_key))
+        except (ValueError, TypeError, AttributeError):
+            raise HTTPException(status_code=422, detail="Invalid draft recovery key") from None
+        if db.get_bind().dialect.name == "postgresql":
+            db.execute(text("SELECT pg_advisory_xact_lock(hashtext(:key))"), {"key": f"studio:{org_id}:{draft_key}"})
+        existing = db.query(Post).filter(Post.org_id == org_id, Post.flags["draft_key"].as_string() == draft_key).first()
+    if data.get("post_id"):
+        existing = get_mutable_post(db, data["post_id"], org_id)
+    elif existing:
+        existing = get_mutable_post(db, existing.id, org_id)
+
+    values = dict(
         org_id=org_id,
         ig_account_id=ig_account_id,
         status=final_status,
@@ -284,14 +319,25 @@ def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = 
         card_message=card_msg,
         caption=caption_msg.get("caption", "") if isinstance(caption_msg, dict) else caption_msg,
         caption_message=caption_msg if isinstance(caption_msg, dict) else {"caption": caption_msg},
-        post_format=data.get("post_format"),
+        post_format=manifest["format"] if manifest else data.get("post_format"),
         visual_style=data.get("visual_style"),
-        flags={"visual_design": data["visual_design"]} if isinstance(data.get("visual_design"), dict) else {},
+        flags={**(existing.flags or {} if existing else {}), "visual_design": design,
+               **({"media_manifest": manifest} if manifest else {}),
+               **({"draft_key": draft_key} if draft_key else {})},
         # Intelligence fields
         intent_type=data.get("intent_type"),
         message_hint=data.get("message_hint"),
         source_foundation=source_foundation,
     )
+    post = existing or Post()
+    # The editor can replace a draft's complete visual, never a partially sent Story.
+    values["flags"].pop("publication", None)
+    if manifest is None:
+        values["flags"].pop("media_manifest", None)
+    from app.services.media_sequence import card_digest
+    values["flags"]["reviewed_manifest"] = card_digest(manifest) if manifest and data.get("reviewed") is True else None
+    for field, value in values.items():
+        setattr(post, field, value)
 
     if final_status == "scheduled":
         if not scheduled_time:

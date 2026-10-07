@@ -8,7 +8,7 @@ function setup(fetch) {
   const nodes = {};
   const el = id => nodes[id] ||= {value: '', disabled: false, src: '', textContent: '', classList: {add(){},remove(){}}};
   el('studioStyle').value = 'quiet_photography'; el('studioLayout').value = 'english_first';
-  const context = {window: {}, document: {getElementById: el}, fetch, AbortController, setTimeout, clearTimeout,
+  const context = {window: {showStudioPage(){},rememberStudio(){}}, studioViewedPages:new Set(), studioSequenceReviewed:false, document: {getElementById: el}, fetch, AbortController, setTimeout, clearTimeout,
     studioCardMessage: {headline: 'Exact fixture'}, studioGalleryImage: null, studioEngine: 'openai',
     currentQuoteCardUrl: null, isQuoteCardOutOfDate: true, alert: () => {throw Error('unexpected alert');}};
   vm.runInNewContext(code, context);
