@@ -38,6 +38,18 @@ def manifest(card=None, fmt='story_9_16', count=2, owner=1):
 
 
 class SequenceLayoutTests(unittest.TestCase):
+    def test_honorific_keeps_translation_font_consistent_across_pages(self):
+        record=json.loads((Path(__file__).resolve().parents[1]/'fixtures/hadith_bukhari_1.json').read_text())
+        segments=[{'role':role,'text':record[key]} for role,key in [('reference','reference'),('source_translation','translation_text'),('source_arabic','arabic_text')]]
+        pages=type_service.plan_sequence(segments,family='quiet_photography')
+        fonts=[]
+        for page in pages:
+            _,blocks=type_service.layout_card(page['segments'],family='quiet_photography')
+            fonts.extend(str(b['font'].path) for b in blocks if b['role']=='source_translation')
+        self.assertGreater(len(fonts),1)
+        self.assertEqual(len(set(fonts)),1)
+        self.assertTrue(fonts[0].endswith('Amiri-Regular.ttf'))
+
     def test_actual_review_records_keep_complete_exact_slices_and_story_safe_areas(self):
         for fixture in ('quran_94_6','quran_21_37','hadith_bukhari_1'):
             record=json.loads((Path(__file__).resolve().parents[1]/'fixtures'/f'{fixture}.json').read_text())
@@ -148,6 +160,17 @@ class SequenceLifecycleTests(DatabaseCase):
         post.flags={**post.flags,'reviewed_manifest':None};self.db.commit()
         with patch.object(publisher,'publish_to_instagram') as send:
             self.assertEqual(self.client.post(f'/posts/{id}/publish').status_code,422);send.assert_not_called()
+
+    def test_render_measurements_survive_browser_json_number_normalization(self):
+        m=manifest()
+        m['pages'][0]['quality']['blocks']=[{'font_at_390px':13.0,'minimum_contrast':7.62}]
+        m=media.seal_manifest(m,1)
+        # Actual Node JSON.parse/stringify reproduction: 13.0 returns as 13.
+        browser_copy=json.loads(json.dumps(m),parse_float=lambda s: int(float(s)) if float(s).is_integer() else float(s))
+        self.assertIs(type(browser_copy['pages'][0]['quality']['blocks'][0]['font_at_390px']),int)
+        media.validate_manifest(browser_copy,CARD,1)
+        browser_copy['pages'][0]['quality']['blocks'][0]['font_at_390px']=12
+        with self.assertRaises(ValueError):media.validate_manifest(browser_copy,CARD,1)
     def test_carousel_and_legacy_single_share_same_publish_claim(self):
         id,_=self.save('carousel_4_5')
         def send(**kw):
