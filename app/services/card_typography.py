@@ -121,9 +121,10 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
             base, minimum = {"reference": (38, 36), "source_arabic": (82 if short else 68, 56),
                              "reflection": (46, 42)}.get(role, (104 if short else 80, 52))
             size = max(minimum, round(base * scale))
-            font = load_font(text, size, serif=serif or family == "minimal_paper")
+            needs_arabic_font = contains_arabic(text) or seg.get("use_arabic_font", False)
+            font = load_font(text, size, serif=serif or family == "minimal_paper" or needs_arabic_font)
             lines = wrap(text, font, width - 2 * margin)
-            leading = round(size * (.36 if contains_arabic(text) else .30))
+            leading = round(size * (.36 if needs_arabic_font else .30))
             block_height = sum(line["height"] for line in lines) + max(0, len(lines)-1) * leading
             label = None
             label_text = seg.get("label") or ("Reflection" if role == "reflection" else None)
@@ -168,6 +169,9 @@ def plan_sequence(segments, *, family="editorial", layout="english_first", post_
     Offsets include whitespace so concatenating slices reproduces the input.
     """
     import re
+    # An English narration may include ﷺ. Choose its supporting font once for
+    # the whole chapter; subsequent pages without that glyph must not switch face.
+    segments = [dict(seg, use_arabic_font=contains_arabic(seg["text"])) for seg in segments]
     options = dict(family=family, layout=layout, post_format=post_format)
     if sum(len(str(s.get("text", ""))) for s in segments) > 24000:
         raise CardTypographyError("This complete source exceeds the current ten-page sequence limit. Choose a shorter complete source.")

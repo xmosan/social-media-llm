@@ -38,6 +38,18 @@ def manifest(card=None, fmt='story_9_16', count=2, owner=1):
 
 
 class SequenceLayoutTests(unittest.TestCase):
+    def test_honorific_keeps_translation_font_consistent_across_pages(self):
+        record=json.loads((Path(__file__).resolve().parents[1]/'fixtures/hadith_bukhari_1.json').read_text())
+        segments=[{'role':role,'text':record[key]} for role,key in [('reference','reference'),('source_translation','translation_text'),('source_arabic','arabic_text')]]
+        pages=type_service.plan_sequence(segments,family='quiet_photography')
+        fonts=[]
+        for page in pages:
+            _,blocks=type_service.layout_card(page['segments'],family='quiet_photography')
+            fonts.extend(str(b['font'].path) for b in blocks if b['role']=='source_translation')
+        self.assertGreater(len(fonts),1)
+        self.assertEqual(len(set(fonts)),1)
+        self.assertTrue(fonts[0].endswith('Amiri-Regular.ttf'))
+
     def test_actual_review_records_keep_complete_exact_slices_and_story_safe_areas(self):
         for fixture in ('quran_94_6','quran_21_37','hadith_bukhari_1'):
             record=json.loads((Path(__file__).resolve().parents[1]/'fixtures'/f'{fixture}.json').read_text())
