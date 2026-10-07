@@ -19,7 +19,7 @@ from app.routes import studio
 from app.security.auth import require_user, get_current_user
 from app.security.rbac import get_current_org_id
 from app.services.brand_kit import normalize_brand, workspace_brand, editorial_context, PALETTES, composition_for
-from app.services.source_display import arabic_display_options, display_range
+from app.services.source_display import arabic_display_options, display_range, narration_boundary
 from app.services.source_grounding import validate_source_card
 from app.services import media_sequence as media, quote_message_service as messages
 from app.services.card_typography import layout_card, plan_sequence, paint_card_text, CardTypographyError
@@ -78,6 +78,13 @@ class BrandRoutesTests(DatabaseCase):
         with self.assertRaises(ValueError):editorial_context('unknown','learn')
 
 class SourceDisplayTests(unittest.TestCase):
+    def test_narration_hierarchy_requires_the_exact_reference_and_source_revision(self):
+        for field, boundary in (("arabic_text",429),("headline",38)):
+            self.assertEqual(narration_boundary(CARD,field),boundary)
+            for changed in (dict(CARD,eyebrow="Other source"), {**CARD,field:CARD[field]+" "}):
+                self.assertIsNone(narration_boundary(changed,field))
+        self.assertIsNone(narration_boundary(CARD,"supporting_text"))
+
     def test_short_chain_keeps_the_canonical_arabic_and_every_remaining_character(self):
         card=deepcopy(CARD);card['arabic_display']=arabic_display_options(card)[0]
         validate_source_card(card,FIXTURE,'hadith')
@@ -116,6 +123,31 @@ class SourceDisplayTests(unittest.TestCase):
             self.assertIsNone(result['hadith_grade'])
 
 class BrandLayoutTests(unittest.TestCase):
+    def test_hadith_chain_is_secondary_and_never_occupies_a_separate_leading_page(self):
+        for family in ('editorial','quiet_photography','minimal_paper'):
+            for fmt in ('feed_4_5','story_9_16'):
+                for excerpt in (False,True):
+                    with self.subTest(family=family,fmt=fmt,excerpt=excerpt):
+                        start=286 if excerpt else 0
+                        segments=[{'role':'reference','text':CARD['eyebrow']},
+                            {'role':'source_translation','text':CARD['headline'],'narration_end':38},
+                            {'role':'source_arabic','text':CARD['arabic_text'][start:],'narration_end':429-start,
+                             'label':'Arabic excerpt' if excerpt else None}]
+                        kit=normalize_brand({'signature':'@sabeel_studio','series_name':'A moment to reflect'})
+                        pages=plan_sequence(segments,family=family,post_format=fmt,brand_kit=kit)
+                        self.assertEqual(len(pages),2)
+                        for role,expected in (('source_translation',CARD['headline']),('source_arabic',CARD['arabic_text'][start:])):
+                            source_segments=[s for p in pages for s in p['segments'] if s['role']==role]
+                            self.assertEqual(len(source_segments),1)
+                            self.assertEqual(source_segments[0]['text'],expected)
+                        for page in pages:
+                            _,blocks=layout_card(page['segments'],family=family,post_format=fmt,brand_kit=kit)
+                            chain=next(b for b in blocks if b['role']=='narration_context')
+                            message=next(b for b in blocks if b['role'] in ('source_arabic','source_translation'))
+                            self.assertGreaterEqual(chain['size'],42)
+                            self.assertGreater(message['size'],chain['size']*1.25)
+                            self.assertLess(chain['bounds'][3],message['bounds'][1])
+
     def test_brand_and_photo_do_not_strand_a_few_source_words_on_a_continuation(self):
         segments=[{'role':role,'text':FIXTURE[field]} for role,field in
                   [('reference','reference'),('source_translation','translation_text'),('source_arabic','arabic_text')]]

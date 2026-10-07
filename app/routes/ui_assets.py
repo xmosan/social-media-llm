@@ -2906,7 +2906,7 @@ STUDIO_COMPONENTS_HTML = """
                           <option value="full">Full narration and chain</option><option value="short_chain">Begin with Umar · labeled Arabic excerpt</option>
                         </select>
                       </label>
-                      <p class="text-brand/70">For this exact Bukhari 1 record only: start at Umar's name and keep his report of the Prophet's words in full. Earlier narrators are omitted from the image, not the saved source or caption. Review the excerpt in context; it has not received qualified source review.</p>
+                      <p class="text-brand/70">The narration uses smaller, readable type; the quoted Hadith receives the larger type. You can keep the full chain or, for this exact Bukhari 1 record, begin at Umar's name. Choosing the excerpt omits earlier narrators from the image only. The full source and caption remain unchanged. Review the excerpt in context; it has not received qualified source review.</p>
                       <p id="arabicExcerptPreview" lang="ar" dir="rtl" class="text-xl leading-loose"></p>
                     </div>
                     <div class="space-y-2">

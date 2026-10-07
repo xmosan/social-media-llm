@@ -10,6 +10,24 @@ import hashlib
 BUKHARI_ONE = "e71c0c2136abd43aa7513403c094a72eacd7daa77c17b94b401e3905cb568b61"
 
 
+def narration_boundary(card, field):
+    """Exact provider-text boundary before the quoted speech, never a parser.
+
+    Typography can subordinate the chain without editing or removing it. A new
+    source revision must be inspected before receiving this treatment.
+    """
+    pins = {
+        "arabic_text": (BUKHARI_ONE, 429),
+        "headline": ("58a1cf29609a701e2fcf8c9bc8013ad01ca823aeeb342d111ad2bdb586a85dcf", 38),
+    }
+    text = card.get(field) or ""
+    pin = pins.get(field)
+    if (card.get("eyebrow") == "Sahih al-Bukhari 1" and pin
+            and hashlib.sha256(text.encode()).hexdigest() == pin[0]):
+        return pin[1]
+    return None
+
+
 def arabic_display_options(card):
     text = card.get("arabic_text") or ""
     if (card.get("eyebrow") == "Sahih al-Bukhari 1" and

@@ -28,6 +28,15 @@ narrator, grade or translator is shown as missing. No guessed attribution is add
 
 ## Arabic display excerpts
 
+For the exact Bukhari 1 Arabic and English source revisions, a hash-pinned boundary
+separates narration from quoted speech for typography only. Narration stays at
+42–44 px (15–16 px at a 390 px phone width), with larger type for the Hadith itself.
+Source characters and order do not change. A compact footer and smaller photo band
+let the full Arabic chain and full message share one page; the full translation
+occupies another. There are no chain-only introductory slides in this example.
+Unknown records retain the existing complete-source layout until their boundaries
+are inspected. No punctuation heuristic or language model labels Prophet's speech.
+
 The full provider Arabic is always stored in `card_message.arabic_text` and source
 metadata. A separate `arabic_display` contains the exact display range and source
 hash. The initial optional boundary is **only** the reviewed fixture revision of

@@ -97,11 +97,13 @@ def generate_quote_card(
         
         # 1.5 Arabic Text (Specific to Quranic content or if provided in payload)
         if card_message.get("arabic_text"):
-            from app.services.source_display import display_range
+            from app.services.source_display import display_range, narration_boundary
             start, end = display_range(card_message)
+            boundary = narration_boundary(card_message, "arabic_text")
             segments.append({
                 "text": card_message["arabic_text"][start:end],
                 "role": "source_arabic",
+                "narration_end": max(0, boundary-start) if boundary is not None else None,
                 "label": (card_message.get("arabic_display") or {}).get("label"),
                 "size": sizes[1],
                 "is_arabic": True,
@@ -110,9 +112,11 @@ def generate_quote_card(
 
         # 2. Headline (The Quote/Verse)
         if card_message.get("headline"):
+            from app.services.source_display import narration_boundary
             segments.append({
                 "text": card_message["headline"],
                 "role": "source_translation",
+                "narration_end": narration_boundary(card_message, "headline"),
                 "label": "Translation excerpt" if is_hadith and card_message.get("was_excerpted") else None,
                 "size": sizes[1] if not card_message.get("arabic_text") else sizes[2],
                 "is_arabic": is_arabic_segment(card_message["headline"]),

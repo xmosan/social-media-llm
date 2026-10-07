@@ -86,6 +86,17 @@ DESIGN_FAMILIES = {"editorial", "quiet_photography", "minimal_paper"}
 FEED_LAYOUTS = {"english_first", "bilingual"}
 
 
+def _source_slice(segment, start, end, label):
+    result = dict(segment, text=segment["text"][start:end], label=label)
+    boundary = segment.get("narration_end")
+    if boundary is not None:
+        result["narration_end"] = max(0, min(end, boundary)-start)
+        # The footer identifies the language/excerpt once, leaving room for the
+        # source itself. Do not repeat a chapter heading above the narration.
+        result["label"] = None
+    return result
+
+
 def layout_card(segments, *, serif=False, family="editorial", layout="english_first", post_format="feed_4_5", brand_kit=None):
     """Measured feed and Story compositions with safe text areas.
 
@@ -119,6 +130,11 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
     short = not any(s.get("sequence_page") for s in segments) and all(len(s["text"]) <= (80 if s["role"] == "source_arabic" else 100) for s in segments)
     # A photograph occupies a separate, full-width area, never a box behind text.
     photo_height = (430 if short else 280) if family == "quiet_photography" else 0
+    # Dense, exactly identified narration receives a smaller photo allocation;
+    # the chain must not push the Hadith itself onto a later page.
+    hierarchy = any(s.get("narration_end") is not None for s in segments)
+    if photo_height and hierarchy and not story:
+        photo_height = 120
     available_bottom = min(height-bottom_margin, height-photo_height-64) if photo_height else height-bottom_margin
     if brand_kit is not None:
         for key, role, position in (("series_name", "series_title", "top"), ("signature", "creator_signature", "bottom")):
@@ -136,15 +152,26 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
                 "bounds": (margin, y, width-margin, y+h), "photo_height": photo_height,
                 "alignment": "Right" if paragraph_direction(text) == "rtl" else "Left"})
             if position == "top":
-                top_margin += h+48
+                top_margin += h+(24 if hierarchy else 48)
             else:
                 available_bottom -= h+32
     for scale in (1, .92, .84):
         blocks = []
         fits = True
+        typeset_segments = []
         for seg in segments:
+            boundary = seg.get("narration_end") or 0
+            if boundary:
+                typeset_segments.append(dict(seg, text=seg["text"][:boundary], role="narration_context",
+                                             source_role=seg["role"]))
+                if boundary < len(seg["text"]):
+                    typeset_segments.append(dict(seg, text=seg["text"][boundary:], label=None))
+            else:
+                typeset_segments.append(seg)
+        for seg in typeset_segments:
             text, role = str(seg["text"]), seg["role"]
             base, minimum = {"reference": (38, 36), "source_arabic": (82 if short else 68, 56),
+                             "narration_context": (44, 42),
                              "reflection": (46, 42)}.get(role, (104 if short else 80, 52))
             size = max(minimum, round(base * scale))
             needs_arabic_font = contains_arabic(text) or seg.get("use_arabic_font", False)
@@ -163,13 +190,13 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
             fits &= all(line["width"] <= width - 2 * margin for line in lines)
             blocks.append({"role": role, "lines": lines, "font": font, "leading": leading,
                            "height": block_height, "label": label, "size": size,
-                           "alignment": "Right" if role == "source_arabic" else "Left",
+                           "alignment": "Right" if seg.get("source_role", role) == "source_arabic" else "Left",
                            "photo_height": photo_height})
-        gap = 72 if short else 38
+        gap = 28 if hierarchy else 72 if short else 38
         references = [b for b in blocks if b["role"] == "reference"]
         body = [b for b in blocks if b["role"] != "reference"]
         footer_height = sum(b["height"] for b in references) + max(0, len(references)-1)*gap
-        body_bottom = available_bottom - (footer_height + 64 if references else 0)
+        body_bottom = available_bottom - (footer_height + (40 if hierarchy else 64) if references else 0)
         total = sum(b["height"] for b in body) + max(0, len(body)-1)*gap
         if fits and total <= body_bottom - top_margin:
             # Short cards use deliberate negative space; reference anchors the
@@ -223,6 +250,7 @@ def plan_sequence(segments, *, family="editorial", layout="english_first", post_
     for seg in body:
         text, start = seg["text"], 0
         chapter = seg.get("label") or {"source_translation": "Translation", "source_arabic": "Arabic source", "reflection": "Reflection"}.get(seg["role"], "Source")
+        chapter_refs = [dict(s, label=chapter+" · 10/10 · Read all pages") for s in refs] if seg.get("narration_end") is not None else refs
         parts = []
         while start < len(text):
             ends = [m.end() for m in re.finditer(r"\S+\s*", text[start:])]
@@ -232,7 +260,7 @@ def plan_sequence(segments, *, family="editorial", layout="english_first", post_
             while low <= high:
                 mid = (low+high)//2
                 end = start+ends[mid]
-                trial = [dict(seg, text=text[start:end], label=chapter+" · part 10 of 10"), *refs]
+                trial = [_source_slice(seg, start, end, chapter+" · part 10 of 10"), *chapter_refs]
                 try:
                     layout_card(trial, **options)
                     best, low = end, mid+1
@@ -242,10 +270,13 @@ def plan_sequence(segments, *, family="editorial", layout="english_first", post_
                     high = mid-1
             if best is None:
                 raise CardTypographyError("A source word cannot fit at a readable size. The source has not been shortened.")
+            if start == 0 and seg.get("narration_end") and best <= seg["narration_end"]:
+                raise CardTypographyError("The narration would fill a page before the Hadith begins. Choose the available labeled Arabic excerpt or a roomier layout; no source text was removed.")
             # Prefer sentence boundaries when doing so does not create tiny pages.
             if best < len(text):
                 boundaries = [start+m.end() for m in re.finditer(r'[.!?؟۔][\"”’\)]*\s+', text[start:best])]
-                suitable = [end for end in boundaries if end-start >= (best-start)*.6]
+                suitable = [end for end in boundaries if end-start >= (best-start)*.6
+                            and (start > 0 or end > (seg.get("narration_end") or 0))]
                 if suitable:
                     best = suitable[-1]
             parts.append((start, best))
@@ -272,16 +303,20 @@ def plan_sequence(segments, *, family="editorial", layout="english_first", post_
                 start = end
             try:
                 for start, end in balanced:
-                    layout_card([dict(seg, text=text[start:end], label=chapter+" · part 10 of 10"), *refs], **options)
+                    if start == 0 and end <= (seg.get("narration_end") or 0):
+                        raise CardTypographyError("Balancing would strand the narration")
+                    layout_card([_source_slice(seg, start, end, chapter+" · part 10 of 10"), *chapter_refs], **options)
                 parts = balanced
             except CardTypographyError:
                 pass
         for i, (start, end) in enumerate(parts):
             label = f"{chapter} · part {i+1} of {len(parts)}" if len(parts)>1 else chapter if seg.get("label") else chapter+" · complete"
-            pages.append({"segments": [dict(seg, text=text[start:end], label=label), *refs],
-                          "slices": [{"role": seg["role"], "start": start, "end": end}], "label": label})
+            pages.append({"segments": [_source_slice(seg, start, end, label), *chapter_refs],
+                          "slices": [{"role": seg["role"], "start": start, "end": end}], "label": label,
+                          "hierarchy_chapter": chapter if seg.get("narration_end") is not None else None})
     for i, page in enumerate(pages):
-        page["segments"] = [dict(s, label=f"Page {i+1} of {len(pages)} · Read all pages") if s["role"] == "reference" else s
+        footer = f"{page['hierarchy_chapter']} · {i+1}/{len(pages)} · Read all pages" if page.get("hierarchy_chapter") else f"Page {i+1} of {len(pages)} · Read all pages"
+        page["segments"] = [dict(s, label=footer) if s["role"] == "reference" else s
                             for s in page["segments"]]
         layout_card(page["segments"], **options)
     return pages
