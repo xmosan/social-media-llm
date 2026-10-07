@@ -378,11 +378,16 @@ def list_system_presets(db: Session = None) -> list[dict]:
     ]
 
 
-def seed_style_dna(db: Session) -> None:
-    """
-    Phase 2: Safely seed the 6 core system presets into the DB.
+def seed_style_dna(db: Session, *, families: set[str] | None = None) -> int:
+    """Add missing reference presets, preserving every existing row and ID.
+
+    Normal startup supplies only the three creator families. The complete legacy
+    seed remains behind the explicit maintenance flag. Serialize across replicas.
     """
     from app.models import StyleDNA
+    from sqlalchemy import text
+    db.execute(text("SELECT pg_advisory_xact_lock(hashtext('sabeel:style-presets'))"))
+    created = 0
     
     # Pre-defined mapping of key -> name since the dict keys are technically identifiers
     preset_names = {
@@ -405,9 +410,11 @@ def seed_style_dna(db: Session) -> None:
     }
     
     for key, spec in SYSTEM_STYLE_DNA_PRESETS.items():
+        if families is not None and spec.family not in families:
+            continue
         name = preset_names.get(key, key)
         # Check if exists
-        exists = db.query(StyleDNA).filter(StyleDNA.name == name, StyleDNA.is_system_preset == True).first()
+        exists = db.query(StyleDNA).filter(StyleDNA.name == name, StyleDNA.is_system_preset == True, StyleDNA.org_id.is_(None)).first()
         if not exists:
             new_dna = StyleDNA(
                 org_id=None,
@@ -422,7 +429,9 @@ def seed_style_dna(db: Session) -> None:
                 is_system_preset=True
             )
             db.add(new_dna)
+            created += 1
     db.commit()
+    return created
 
 
 def get_automation_history(db: Session, automation_id: int,

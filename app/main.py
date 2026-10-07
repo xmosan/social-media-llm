@@ -440,6 +440,12 @@ def on_startup():
         run_startup_tasks()
     from .db import validate_database_schema
     validate_database_schema()
+    # Creator reference data only: no table/column changes or legacy reseeding.
+    from .services.automation_service import seed_style_dna
+    from .services.card_typography import DESIGN_FAMILIES
+    with SessionLocal() as db:
+        created = seed_style_dna(db, families=DESIGN_FAMILIES)
+    log_startup(f"CREATOR_PRESETS: Ready; {created} new presets added.")
     bootstrap_saas()
     if settings.scheduler_enabled:
         app.state.scheduler = start_scheduler(SessionLocal)

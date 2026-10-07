@@ -43,7 +43,7 @@ def run_worker(suite_directory="unit", postgres_socket=None):
     stub("app.services.email", send_email=AsyncMock(return_value=True), send_contact_acknowledgment=AsyncMock(return_value=True))
     stub("app.services.caption_engine", generate_islamic_caption=Mock(return_value="Test caption"))
     stub("app.services.scheduler", reload_automation_jobs=Mock(), publish_due_posts=Mock(return_value=0))
-    stub("app.services.automation_service", run_automation=Mock(), get_automation_history=Mock(), list_system_presets=Mock())
+    stub("app.services.automation_service", run_automation=Mock(), get_automation_history=Mock(), list_system_presets=Mock(), seed_style_dna=Mock(return_value=0))
     stub("app.services.llm", **{name: Mock() for name in (
         "generate_topic_caption", "generate_caption_from_content_item", "generate_ai_image",
         "generate_topic_variations", "generate_draft", "get_client", "generate_card_framing_from_source",

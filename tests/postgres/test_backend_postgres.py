@@ -255,3 +255,29 @@ class PostgresChecks(unittest.TestCase):
             self.assertFalse(second.execute(statement).scalar())
             first.rollback()
             self.assertTrue(second.execute(statement).scalar())
+
+
+    def test_creator_preset_setup_is_concurrent_idempotent_and_preserves_existing_data(self):
+        from app.models import StyleDNA
+        from app.services.card_typography import DESIGN_FAMILIES
+        spec = importlib.util.spec_from_file_location("pg_creator_presets", ROOT / "app/services/automation_service.py")
+        module = importlib.util.module_from_spec(spec); sys.modules[spec.name] = module; spec.loader.exec_module(module)
+        existing = StyleDNA(name="Existing creator style", family="sacred_black", atmosphere="quiet", ornament_level="none", tone_style="calm", variation_pool=[], locked_traits={}, is_system_preset=True)
+        self.db.add(existing); self.db.commit()
+        existing_id = existing.id
+        post_id = self.post()
+        def seed():
+            with Session(engine) as session:
+                return module.seed_style_dna(session, families=DESIGN_FAMILIES)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda _: seed(), range(2)))
+        self.assertEqual(sorted(results), [0, 3])
+        self.assertEqual(seed(), 0)
+        rows = self.db.query(StyleDNA).all()
+        self.assertEqual(len(rows), 4)
+        self.assertEqual({row.family for row in rows if row.id != existing_id}, DESIGN_FAMILIES)
+        self.db.expire_all()
+        self.assertEqual(self.db.get(StyleDNA, existing_id).family, 'sacred_black')
+        self.assertEqual(self.db.get(Post, post_id).media_url, CDN)
+        visible = module.list_system_presets(self.db)
+        self.assertEqual(sum(p['family'] in DESIGN_FAMILIES for p in visible), 3)

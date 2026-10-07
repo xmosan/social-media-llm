@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from test_security import ROOT, DatabaseCase
 from app.config import settings, Settings
@@ -35,7 +35,7 @@ class StartupChecks(unittest.TestCase):
             "__package__": "app", "app": SimpleNamespace(state=SimpleNamespace()),
             "settings": SimpleNamespace(run_startup_migrations=False, scheduler_enabled=True, openai_api_key=None),
             "log_startup": Mock(), "run_admin_library_migration": Mock(), "run_startup_tasks": Mock(),
-            "bootstrap_saas": Mock(), "start_scheduler": Mock(), "SessionLocal": Mock(), "engine": Mock(), "JSONResponse": JSONResponse,
+            "bootstrap_saas": Mock(), "start_scheduler": Mock(), "SessionLocal": MagicMock(), "engine": Mock(), "JSONResponse": JSONResponse,
         })
 
     def test_startup_checks_schema_without_migrations_and_shutdown_stops_jobs(self):
