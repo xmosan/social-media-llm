@@ -275,17 +275,29 @@ def compact_scene_blocks(blocks, post_format):
 
 def check_encoded_contrast(image, background, blocks, quality):
     """Check decoded delivery JPEG against its actual repaired background."""
-    import numpy as np
     amount = quality["wash_opacity"]
     backing = background.convert("RGB")
     if amount:
         backing = Image.blend(backing, Image.new("RGB", backing.size, (248, 246, 239)), amount)
-    def luminance(pixels):
-        values = np.asarray(pixels, dtype=float)/255
-        return np.where(values <= .04045, values/12.92, ((values+.055)/1.055)**2.4) @ np.array([.2126, .7152, .0722])
-    ink, under = luminance(image.convert("RGB")), luminance(backing)
-    contrast = (np.maximum(ink, under)+.05)/(np.minimum(ink, under)+.05)
-    scores = [float(contrast[np.asarray(_ink_mask(image.size, block, "Left")) >= 240].min()) for block in blocks]
+    encoded = image.convert("RGB")
+    scores = []
+    for block in blocks:
+        mask = _ink_mask(image.size, block, "Left")
+        box = mask.getbbox()
+        if box is None:
+            raise CardTypographyError("The final image contains text that could not be checked")
+        minimum = None
+        # Crop each glyph footprint rather than scanning the full image. Use the
+        # same cached sRGB luminance conversion as pre-encoding checks, with no
+        # additional runtime dependency or changed contrast threshold.
+        for alpha, ink, under in zip(mask.crop(box).getdata(), encoded.crop(box).getdata(), backing.crop(box).getdata()):
+            if alpha >= 240:
+                a, b = _luminance(ink), _luminance(under)
+                ratio = (max(a, b)+.05)/(min(a, b)+.05)
+                minimum = ratio if minimum is None else min(minimum, ratio)
+        if minimum is None:
+            raise CardTypographyError("The final image contains text that could not be checked")
+        scores.append(minimum)
     if min(scores) < 4.5:
         raise CardTypographyError("The final image failed its readability check. Choose a quieter background or another design family.")
     quality["encoded_minimum_contrast"] = round(min(scores), 3)
