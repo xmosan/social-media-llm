@@ -37,11 +37,11 @@ class CreatorDiscoveryTests(unittest.TestCase):
         def search(db,term,limit):
             self.assertEqual(limit,24)
             return early if term=='ease' else [stronger]
-        with patch.object(discovery,'generate_text',side_effect=[{'terms':['ease','patience']},{'indices':[0,1,2,3,4,5]}]), patch('app.services.quran_service.search_quran',side_effect=search) as lookup, patch.object(discovery,'resolve_selected_source',side_effect=lambda db,org,kind,payload,user:{**payload,'translation_text':'Exact fixture'}):
+        with patch.object(discovery,'generate_text',side_effect=[{'terms':['ease','patience']},{'indices':[0,1,2]}]), patch('app.services.quran_service.search_quran',side_effect=search) as lookup, patch.object(discovery,'resolve_selected_source',side_effect=lambda db,org,kind,payload,user:{**payload,'translation_text':'Exact fixture'}):
             result=discovery.discover_sources(None,2,7,'Finding ease in a hard week','quran')
         self.assertEqual(lookup.call_count,2)
         self.assertEqual(result['sources'][0]['id'],7)
-        self.assertEqual(len(result['sources']),6)
+        self.assertEqual(len(result['sources']),3)
 
     def test_invalid_briefs_never_call_paid_provider(self):
         for idea, source in [(None, 'quran'), ('  ', 'quran'), ('x'*601, 'quran'), ('patience', 'invented')]:
@@ -84,7 +84,7 @@ class CreatorDiscoveryTests(unittest.TestCase):
         self.assertEqual(selected,[sources[1]]);self.assertIs(selected[0],sources[1])
         with patch.object(discovery,'generate_text',return_value={'indices':[]}):
             self.assertEqual(discovery.select_candidate_sources('Unrelated brief',sources),[])
-        for response in ({'indices':[9]}, {'indices':[0],'quotation':'Invented'}, {'indices':[-1]}):
+        for response in ({'indices':[9]}, {'indices':[0],'quotation':'Invented'}, {'indices':[-1]}, {'indices':[0,1,2,3]}):
             with patch.object(discovery,'generate_text',return_value=response),self.assertRaises(ValueError):
                 discovery.select_candidate_sources('A useful reminder',sources)
 
