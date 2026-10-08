@@ -801,7 +801,7 @@ STUDIO_SCRIPTS_JS = r"""
             isQuoteCardOutOfDate = false;
             window.showStudioPage(0); window.rememberStudio(); window.onCreatorVisualReady?.();
             if (note) note.textContent = (studioVisualDesign?.background_reused ? 'Your photograph was reused. ' : '') +
-                (studioVisualDesign?.quality?.background_repaired ? 'The background was softened for readability. ' : '') +
+                (studioVisualDesign?.quality?.background_repaired ? 'Lighting was adjusted behind the text for readability. ' : '') +
                 'Check every page before continuing.';
         } catch (e) {
             if (epoch === studioVisualEpoch && note) note.textContent = e.name === 'AbortError'

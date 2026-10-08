@@ -1692,7 +1692,8 @@ def render_minimal_quote_card(
             background_sink(raw_photo)
     final_img = paint_card_text(bg, text_blocks, quality=quality, brand_kit=brand_kit,
                                wash_limit=.2 if family in SCENE_FAMILIES else 1,
-                               strong_ink=family in SCENE_FAMILIES)
+                               strong_ink=family in SCENE_FAMILIES,
+                               **({"photographic": True, "repair_bounds": scene_bounds} if family in SCENE_FAMILIES else {}))
     if render_metadata is not None:
         render_metadata["quality"] = quality
         render_metadata["card_layout"] = {
@@ -1710,21 +1711,22 @@ def render_minimal_quote_card(
     print(f"!!! [RENDERER] WRITING TO: {final_path}")
     final_img.save(final_path, format="JPEG", quality=95)
     if family in SCENE_FAMILIES:
-        from app.services.card_typography import check_encoded_contrast
+        from app.services.card_typography import check_encoded_contrast, CardReadabilityError, EXPOSURE_STEPS
         try:
             while True:
                 try:
                     with Image.open(final_path) as encoded:
                         check_encoded_contrast(encoded, bg, text_blocks, quality)
                     break
-                except CardTypographyError:
+                except CardReadabilityError:
                     # JPEG can reduce contrast at thin glyph edges. Try the
                     # next bounded repair on the SAME original photograph.
-                    next_wash = next((n for n in (.1, .2) if n > quality["wash_opacity"]), None)
-                    if next_wash is None:
+                    next_exposure = next((n for n in EXPOSURE_STEPS if n > quality["reading_exposure"]["amount"]), None)
+                    if next_exposure is None:
                         raise
                     final_img = paint_card_text(bg, text_blocks, quality=quality, brand_kit=brand_kit,
-                                                wash_limit=.2, strong_ink=True, minimum_wash=next_wash)
+                                                wash_limit=.2, strong_ink=True, photographic=True,
+                                                minimum_exposure=next_exposure, repair_bounds=scene_bounds)
                     final_img.save(final_path, format="JPEG", quality=95)
         except Exception:
             os.remove(final_path)
