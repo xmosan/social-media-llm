@@ -19,7 +19,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT));sys.path.insert(0,str(ROOT/'scripts'))
 
 
-def run(output,env_file):
+def run(output,env_file,formats=('feed_4_5','story_9_16'),families=None):
     output.mkdir(parents=True,exist_ok=True);os.chdir(output)
     from dotenv import dotenv_values
     os.environ['SECRET_KEY']='isolated-live-vision-validation-0001'
@@ -37,8 +37,8 @@ def run(output,env_file):
     with contextlib.redirect_stdout(io.StringIO()):
         card=build_quote_card_message(source['type'],source['record'],include_reflection=False)
     validate_source_card(card,source['record'],source['type'])
-    for family in SCENE_FAMILIES:
-        for fmt in ('feed_4_5','story_9_16'):
+    for family in families or SCENE_FAMILIES:
+        for fmt in formats:
             identity=family+'_'+fmt;record_path=output/(identity+'.json')
             if record_path.exists():continue
             row={'id':identity,'family':family,'format':fmt,'source_key':source['key'],'source_sha256':source['record_sha256'],
@@ -87,6 +87,8 @@ def run(output,env_file):
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output',required=True,type=Path);parser.add_argument('--env-file',required=True,type=Path)
+    parser.add_argument('--formats',nargs='+',choices=['feed_4_5','story_9_16'],default=['feed_4_5','story_9_16'])
+    parser.add_argument('--families',nargs='+',choices=['luxury_editorial','desert_glow','midnight_oasis','emerald_forest'])
     args=parser.parse_args()
     if args.output.resolve().is_relative_to(ROOT):raise SystemExit('Keep output outside repository')
-    run(args.output.resolve(),args.env_file.resolve())
+    run(args.output.resolve(),args.env_file.resolve(),tuple(dict.fromkeys(args.formats)),args.families)

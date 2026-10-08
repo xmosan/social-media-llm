@@ -54,17 +54,19 @@ class VisionFamilyTests(unittest.TestCase):
             self.assertLessEqual(page['quality']['wash_opacity'],.2)
             self.assertTrue(page['quality']['review_required'])
 
-    def test_bad_scene_is_retained_but_never_uploaded_as_a_finished_card(self):
+    def test_busy_scene_is_repaired_with_one_generation_and_original_is_retained(self):
         renderer=load_real_service('image_renderer')
         raw=Image.new('RGB',(1080,1350),'white'); draw=ImageDraw.Draw(raw)
         for x in range(0,1080,16):draw.rectangle((x,0,x+7,1349),fill='black')
-        sink=Mock()
+        sink=Mock(); metadata={}
         with tempfile.TemporaryDirectory() as directory, patch.object(renderer,'generate_background',return_value=raw), \
-             patch('app.config.build_public_media_url') as upload:
-            with self.assertRaisesRegex(typography.CardTypographyError,'readability'):
-                renderer.render_minimal_quote_card([{'role':'source_translation','text':'Complete synthetic source.'}],directory,
-                    style='luxury_editorial',mode='scene',background_sink=sink)
-            sink.assert_called_once();upload.assert_not_called()
+             patch('app.config.build_public_media_url',return_value='https://res.cloudinary.com/fixture/image/upload/card.jpg') as upload:
+            renderer.render_minimal_quote_card([{'role':'source_translation','text':'Complete synthetic source.'}],directory,
+                style='luxury_editorial',mode='scene',background_sink=sink,render_metadata=metadata)
+            sink.assert_called_once_with(raw);upload.assert_called_once()
+        self.assertTrue(metadata['quality']['background_repaired'])
+        self.assertGreaterEqual(metadata['quality']['encoded_minimum_contrast'],4.5)
+        self.assertEqual(metadata['quality']['additional_generation_calls'],0)
 
     def test_delivery_gate_catches_corrupted_text_after_encoding(self):
         size,blocks=typography.layout_card([{'role':'source_translation','text':'Synthetic readability fixture'}])
@@ -77,21 +79,63 @@ class VisionFamilyTests(unittest.TestCase):
     def test_encoding_repair_is_bounded_and_never_buys_another_background(self):
         renderer=load_real_service('image_renderer');metadata={}
         with tempfile.TemporaryDirectory() as directory, patch.object(renderer,'generate_background',return_value=Image.new('RGB',(1080,1350),'white')) as provider, \
-             patch.object(typography,'check_encoded_contrast',side_effect=[typography.CardTypographyError('Encoding failed'),None]) as check, \
+             patch.object(typography,'check_encoded_contrast',side_effect=[typography.CardReadabilityError('Encoding failed'),None]) as check, \
              patch('app.config.build_public_media_url',return_value='https://res.cloudinary.com/fixture/image/upload/card.jpg'):
             renderer.render_minimal_quote_card([{'role':'source_translation','text':'Synthetic complete source.'}],directory,
                 style='luxury_editorial',mode='scene',render_metadata=metadata)
         provider.assert_called_once();self.assertEqual(check.call_count,2)
-        self.assertEqual(metadata['quality']['wash_opacity'],.1)
+        self.assertEqual(metadata['quality']['reading_exposure']['amount'],.1)
         with tempfile.TemporaryDirectory() as directory, patch.object(renderer,'generate_background',return_value=Image.new('RGB',(1080,1350),'white')) as provider, \
-             patch.object(typography,'check_encoded_contrast',side_effect=typography.CardTypographyError('Encoding failed')) as check, \
+             patch.object(typography,'check_encoded_contrast',side_effect=typography.CardReadabilityError('Encoding failed')) as check, \
              patch('app.config.build_public_media_url') as upload:
             with self.assertRaises(typography.CardTypographyError):
                 renderer.render_minimal_quote_card([{'role':'source_translation','text':'Synthetic complete source.'}],directory,
                     style='luxury_editorial',mode='scene',render_metadata=metadata)
             self.assertFalse(list(Path(directory).glob('*.jpg')))
-        provider.assert_called_once();upload.assert_not_called();self.assertEqual(check.call_count,3)
-        self.assertEqual(metadata['quality']['wash_opacity'],.2)
+        provider.assert_called_once();upload.assert_not_called();self.assertEqual(check.call_count,len(typography.EXPOSURE_STEPS))
+        self.assertEqual(metadata['quality']['reading_exposure']['amount'],.65)
+
+    def test_exposure_repairs_keep_scenery_original_source_scale_and_night_mood(self):
+        from PIL import ImageChops
+        from io import BytesIO
+        segments=[{'role':'source_translation','text':'Synthetic complete source with mixed light behind it.'},
+                  {'role':'source_arabic','text':'نص تجريبي فقط'}, {'role':'reference','text':'Fixture reference'}]
+        size,blocks=typography.layout_card(segments,family='midnight_oasis')
+        original_lines=[[line['text'] for line in b['lines']] for b in blocks]
+        raw=Image.new('RGB',size,(22,35,56))
+        draw=ImageDraw.Draw(raw)
+        for x in range(0,size[0],25): draw.line((x,0,x,size[1]),fill=(245,243,225),width=3)
+        before=raw.tobytes();quality={}
+        final=typography.paint_card_text(raw,blocks,quality=quality,photographic=True,strong_ink=True,wash_limit=.2)
+        self.assertEqual(quality['reading_exposure']['tone'],'dark')
+        self.assertLessEqual(quality['reading_exposure']['amount'],.65)
+        self.assertTrue(quality['review_required'])
+        self.assertEqual(raw.tobytes(),before)
+        self.assertEqual(original_lines,[[line['text'] for line in b['lines']] for b in blocks])
+        backing=typography.repaired_background(raw,quality)
+        end=quality['reading_exposure']['fade_end']
+        self.assertLess(end,size[1])
+        self.assertIsNone(ImageChops.difference(raw.crop((0,end,size[0],size[1])),backing.crop((0,end,size[0],size[1]))).getbbox())
+        buffer=BytesIO();final.save(buffer,format='JPEG',quality=95);buffer.seek(0)
+        typography.check_encoded_contrast(Image.open(buffer),raw,blocks,quality)
+        with self.assertRaises(typography.CardReadabilityError):
+            typography.check_encoded_contrast(backing,raw,blocks,quality)
+
+    def test_clean_photo_is_unchanged_and_noncontrast_faults_are_not_retried(self):
+        size,blocks=typography.layout_card([{'role':'source_translation','text':'Synthetic source'}])
+        raw=Image.new('RGB',size,(235,231,219));quality={}
+        typography.paint_card_text(raw,blocks,quality=quality,photographic=True,strong_ink=True)
+        self.assertFalse(quality['background_repaired'])
+        self.assertEqual(quality['reading_exposure']['amount'],0)
+        renderer=load_real_service('image_renderer')
+        with tempfile.TemporaryDirectory() as directory, patch.object(renderer,'generate_background',return_value=raw) as provider, \
+             patch.object(typography,'check_encoded_contrast',side_effect=typography.CardTypographyError('Missing glyph')) as check, \
+             patch('app.config.build_public_media_url') as upload:
+            with self.assertRaisesRegex(typography.CardTypographyError,'Missing glyph'):
+                renderer.render_minimal_quote_card([{'role':'source_translation','text':'Synthetic source'}],directory,
+                    style='luxury_editorial',mode='scene')
+            self.assertFalse(list(Path(directory).glob('*.jpg')))
+        provider.assert_called_once();check.assert_called_once();upload.assert_not_called()
 
     def test_history_rotates_variants_and_exhaustion_uses_least_recent(self):
         bounds=[(80,80,1000,950)];history={}

@@ -110,3 +110,30 @@ Started attempts are never retried automatically. The development run retained a
 passed after prompt refinements. All passed pages preserve canonical source slices
 and meet final-JPEG contrast checks. Visual judgments are Codex assessments, not
 creator, scholar or physical-device validation. The broader release gate stays held.
+
+## Readability recovery — 2026-10-08
+
+The four generated photographic families now repair lighting locally after a
+failed glyph-contrast check. The original photograph stays reusable. A full-width
+exposure adjustment remains constant through the measured reading area, then
+fades smoothly into the scenery. A dark reading area receives darkening; a light
+one receives lightening. No panels, halo, blur, source edits, smaller type, or
+extra image-provider request is used. Sequence pages use their combined bounds.
+
+Repair is bounded at 65% through the reading area, with the least sufficient step
+chosen from 0–65%. This replaces the scene-only 20% global pale-wash limit; it does
+not reduce the 4.8 glyph-contrast requirement or the 4.5 delivery-JPEG requirement.
+The decoded JPEG is checked against the exact repaired backing. Only contrast
+failures advance the repair; missing glyphs, source or layout errors still stop.
+An exhausted repair produces no publishable manifest or final upload. Metadata
+records the exposure, minimum contrast and continued manual-review requirement.
+
+`scripts/evaluate_readability_recovery.py` replays recorded photographs through
+the canonical Studio/automation renderer with source-integrity audits and no
+network/provider calls. Use a fresh external output directory for each code
+revision; existing case records are resumed rather than repeated. Incident
+photos and canonical source snapshots may be supplied explicitly in that output
+directory. This tests recovery, not global image uniqueness or creator approval.
+
+No database migration, provider change, automatic paid retry, MCP integration or
+multi-model loop is introduced. Saved signed photo receipts remain compatible.

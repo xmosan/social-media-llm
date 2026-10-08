@@ -9,6 +9,10 @@ class CardTypographyError(ValueError):
     """A safe, actionable card validation error for the Studio UI."""
 
 
+class CardReadabilityError(CardTypographyError):
+    """Contrast failed; the same photograph can receive another local repair."""
+
+
 FONT_DIR = Path(__file__).resolve().parents[2] / "assets" / "fonts"
 ARABIC_FONT = FONT_DIR / "Amiri-Regular.ttf"
 LATIN_FONT = FONT_DIR / "Inter.ttf"
@@ -275,10 +279,7 @@ def compact_scene_blocks(blocks, post_format):
 
 def check_encoded_contrast(image, background, blocks, quality):
     """Check decoded delivery JPEG against its actual repaired background."""
-    amount = quality["wash_opacity"]
-    backing = background.convert("RGB")
-    if amount:
-        backing = Image.blend(backing, Image.new("RGB", backing.size, (248, 246, 239)), amount)
+    backing = repaired_background(background, quality)
     encoded = image.convert("RGB")
     scores = []
     for block in blocks:
@@ -299,7 +300,7 @@ def check_encoded_contrast(image, background, blocks, quality):
             raise CardTypographyError("The final image contains text that could not be checked")
         scores.append(minimum)
     if min(scores) < 4.5:
-        raise CardTypographyError("The final image failed its readability check. Choose a quieter background or another design family.")
+        raise CardReadabilityError("The final image could not pass its readability check. Your photograph is kept; try another layout.")
     quality["encoded_minimum_contrast"] = round(min(scores), 3)
     quality["encoded_check"] = "jpeg_opaque_glyph_contrast"
 
@@ -446,8 +447,39 @@ def _contrast_at_ink(background, mask, color):
     return min(values)
 
 
+# Bounded local processing, never another image-provider request. The highest
+# step is reserved for difficult light/dark transitions through real glyphs.
+EXPOSURE_STEPS = (0, .1, .2, .3, .4, .5, .6, .65)
+
+
+def repaired_background(background, quality):
+    """Reconstruct the exact backing used for delivery-JPEG validation.
+
+    Scene repair is a full-width photographic exposure gradient: no rectangle,
+    halo, blur, crop or loss of the original reusable photograph. It is constant
+    through the reading area and fades smoothly to untouched scenery below.
+    """
+    backing = background.convert("RGB")
+    exposure = quality.get("reading_exposure")
+    if exposure and exposure["amount"]:
+        stop, end = exposure["full_until"], exposure["fade_end"]
+        amount = exposure["amount"]
+        rows = []
+        for y in range(backing.height):
+            t = min(1, max(0, (y-stop)/max(1, end-stop)))
+            rows.append(round(255*amount*(1-t*t*(3-2*t))))
+        mask = Image.new("L", (1, backing.height))
+        mask.putdata(rows)
+        mask = mask.resize(backing.size)
+        tone = (0, 0, 0) if exposure["tone"] == "dark" else (248, 246, 239)
+        return Image.composite(Image.new("RGB", backing.size, tone), backing, mask)
+    amount = quality.get("wash_opacity", 0)
+    return Image.blend(backing, Image.new("RGB", backing.size, (248, 246, 239)), amount) if amount else backing
+
+
 def paint_card_text(background, blocks, *, alignment="Left", quality=None, brand_kit=None,
-                    wash_limit=1.0, strong_ink=False, minimum_wash=0):
+                    wash_limit=1.0, strong_ink=False, minimum_wash=0,
+                    photographic=False, minimum_exposure=0, repair_bounds=None):
     """Check the actual opaque glyph footprint, repair globally, then paint.
 
     No average-brightness proxy and no shadows/panels behind lettering. A 4.8:1
@@ -468,8 +500,23 @@ def paint_card_text(background, blocks, *, alignment="Left", quality=None, brand
     if minimum_wash not in amounts:
         raise CardTypographyError("Unsupported background repair minimum")
     amounts = tuple(amount for amount in amounts if amount >= minimum_wash)
-    for amount in amounts:
-        candidate = background if amount == 0 else Image.blend(background, Image.new("RGB", background.size, (248, 246, 239)), amount)
+    if photographic:
+        if minimum_exposure not in EXPOSURE_STEPS:
+            raise CardTypographyError("Unsupported photographic repair minimum")
+        # Regional lightness chooses a mood-preserving exposure direction ONLY.
+        # Acceptance still measures every actual opaque glyph, never an average.
+        from PIL import ImageStat
+        bounds = repair_bounds or [b["bounds"] for b in blocks]
+        stop = min(background.height-1, int(max(b[3] for b in bounds))+32)
+        end = min(background.height, stop+round(background.height*.18))
+        mean = ImageStat.Stat(background.crop((0, 0, background.width, stop)).convert("L")).mean[0]
+        tone = "dark" if mean < 140 else "light"
+        candidates = [(0, {"amount": n, "tone": tone, "full_until": stop, "fade_end": end})
+                      for n in EXPOSURE_STEPS if n >= minimum_exposure]
+    else:
+        candidates = [(n, None) for n in amounts]
+    for amount, exposure in candidates:
+        candidate = repaired_background(background, {"wash_opacity": amount, "reading_exposure": exposure})
         choices = []
         for block, mask in zip(blocks, masks):
             preferred = palette["accent" if block["role"] == "series_title" else "ink"] if palette else None
@@ -477,10 +524,10 @@ def paint_card_text(background, blocks, *, alignment="Left", quality=None, brand
             scores = [(_contrast_at_ink(candidate, mask, color), color) for color in (dark, light)]
             choices.append((preferred_score, preferred) if preferred_score >= 4.8 else max(scores, key=lambda pair: pair[0]))
         if all(score >= 4.8 for score, _ in choices):
-            repaired = amount > 0
+            repaired = amount > 0 or bool(exposure and exposure["amount"])
             break
     else:
-        raise CardTypographyError("This composition failed its readability check. Try a quieter background.")
+        raise CardReadabilityError("This composition could not pass its readability check. Your photograph is kept; try another layout.")
     final = candidate.copy()
     for block, (_, color) in zip(blocks, choices):
         if block["role"] == "reference":
@@ -497,4 +544,9 @@ def paint_card_text(background, blocks, *, alignment="Left", quality=None, brand
                                     "font_size": b["size"], "font_at_390px": round(b["size"]*390/1080, 1)}
                                    for b, (score, _) in zip(blocks, choices)],
                         "review_required": True})
+        if photographic:
+            quality["reading_exposure"] = exposure
+            quality["reading_exposure_limit"] = EXPOSURE_STEPS[-1]
+            quality["repair_method"] = "reading_exposure" if repaired else "none"
+            quality["additional_generation_calls"] = 0
     return final
