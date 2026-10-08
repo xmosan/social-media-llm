@@ -530,6 +530,13 @@ button:disabled {
   font-size: 14px;
   line-height: 1.6;
 }
+/* The placeholder must leave the flex layout at every viewport size. */
+#newPostModal #cardPreviewContainer:has(#quoteCardPreview:not(.hidden)) .cw-preview-empty {
+  display: none;
+}
+#newPostModal #cardPreviewContainer:has(#cardLoader:not(.hidden)) .cw-preview-empty {
+  visibility: hidden;
+}
 #newPostModal {
   background: #193e3044;
 }
@@ -757,16 +764,6 @@ button:disabled {
     max-height: 170px;
     width: 100%;
     max-width: 100%;
-  }
-  #newPostModal
-    #cardPreviewContainer:has(#quoteCardPreview:not(.hidden))
-    .cw-preview-empty {
-    display: none;
-  }
-  #newPostModal
-    #cardPreviewContainer:has(#cardLoader:not(.hidden))
-    .cw-preview-empty {
-    visibility: hidden;
   }
   #newPostModal .cw-save-row > span {
     width: 100%;

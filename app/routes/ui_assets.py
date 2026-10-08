@@ -3579,7 +3579,7 @@ APP_LAYOUT_HTML = """<!doctype html>
     .text-brand {{ color: var(--brand) !important; }}
     .border-brand {{ border-color: var(--brand) !important; }}
   </style>
-<link rel="stylesheet" href="/static/creator-workspace.css?v=1">
+<link rel="stylesheet" href="/static/creator-workspace.css?v=2">
 </head>
 <body class="min-h-screen">
 <header class="cw-topbar"><a class="cw-wordmark" href="/app">sabeel<span> studio</span></a><a href="/app?view=you" aria-label="Your workspace">Your space ↗</a></header>
