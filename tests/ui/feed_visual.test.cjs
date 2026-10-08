@@ -6,7 +6,7 @@ const source = fs.readFileSync(require('node:path').join(__dirname, '../../app/r
 const code = source.slice(source.indexOf('    // Feed visual requests:'), source.indexOf('    // End feed visual requests.'));
 function setup(fetch) {
   const nodes = {};
-  const el = id => nodes[id] ||= {value: '', disabled: false, src: '', textContent: '', classList: {add(){},remove(){}}};
+  const el = id => nodes[id] ||= {value: '', disabled: false, src: '', textContent: '', querySelector: () => null, classList: {add(){},remove(){}}};
   el('studioStyle').value = 'quiet_photography'; el('studioLayout').value = 'english_first';
   const context = {window: {showStudioPage(){},rememberStudio(){}}, studioViewedPages:new Set(), studioSequenceReviewed:false, document: {getElementById: el}, fetch, AbortController, setTimeout, clearTimeout,
     studioCardMessage: {headline: 'Exact fixture'}, studioGalleryImage: null, studioEngine: 'openai',
