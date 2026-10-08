@@ -132,13 +132,20 @@ STUDIO_SCRIPTS_JS = r"""
     };
 
     window.switchStudioSection = function(stepIndex) {
-        if (stepIndex === 2 && !studioCardMessage) {
+        if ((stepIndex === 2 || stepIndex === 3) && !studioCardMessage) {
             alert("Please build your card message first.");
+            return;
+        }
+        if (stepIndex === 4 && (!studioSequenceReviewed || isQuoteCardOutOfDate)) {
+            window.switchStudioSection(2);
+            if(window.studioNotice)window.studioNotice('Review every page and confirm the latest version before sharing.');
+            else alert('Review the latest version before sharing.');
             return;
         }
         if (stepIndex === 4) {
             const manualCaption = document.getElementById('studioCaption')?.value || "";
-            if (!currentQuoteCardUrl || (!studioCaptionMessage && !manualCaption)) {
+            const story = (studioVisualDesign?.media_manifest?.format || '') === 'story_9_16';
+            if (!currentQuoteCardUrl || (!story && !manualCaption)) {
                 alert("Please ensure your visual and caption are ready before moving to Share.");
                 return;
             }
@@ -177,6 +184,9 @@ STUDIO_SCRIPTS_JS = r"""
            }
         }
 
+        document.getElementById('newPostModal')?.setAttribute('data-step', String(stepIndex));
+        for(let i=1;i<=4;i++) document.getElementById('navStep'+i)?.setAttribute('aria-current',i===stepIndex?'step':'false');
+        window.onCreatorSection?.(stepIndex);
         if (stepIndex === 4) window.prepareShare();
 
         // Phase 3: wire mini card thumbnail and re-render grounding badge
@@ -215,12 +225,14 @@ STUDIO_SCRIPTS_JS = r"""
         selectedHadithId = null;
         studioCardMessage = null;
         studioCaptionMessage = null;
+        window.resetCreatorEntry?.();
         window.selectedAyahMetadata = null;
         window.selectedHadithMetadata = null;
         window.studioSourceContext = null;
 
         const setVal = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
         setVal('studioTopic', '');
+        setVal('studioCustomPrompt', '');
         setVal('editEyebrow', '');
         setVal('editHeadline', '');
         setVal('editSupporting', '');
@@ -309,7 +321,9 @@ STUDIO_SCRIPTS_JS = r"""
 
     window.switchSourceTab = function(tab) {
         if (tab !== activeSourceTab) {
+            const brief = window.readCreatorBrief?.();
             window.resetStudioSession();
+            window.restoreCreatorBrief?.(brief);
             window.loadStudioBrand?.();
         }
         activeSourceTab = tab;
@@ -340,7 +354,7 @@ STUDIO_SCRIPTS_JS = r"""
         const btn = document.getElementById('btnBuildMessage');
         if (!btn) return;
         const topic = document.getElementById('studioTopic')?.value || '';
-        if (selectedAyahId || selectedHadithId || topic) {
+        if (selectedAyahId || selectedHadithId) {
             btn.classList.remove('opacity-50', 'cursor-not-allowed', 'grayscale');
             btn.classList.add('hover:scale-[1.01]', 'shadow-brand/20');
             btn.disabled = false;
@@ -494,7 +508,7 @@ STUDIO_SCRIPTS_JS = r"""
         const topicIn = document.getElementById('studioTopic');
         if(topicIn) topicIn.value = meta.reference || '';
         
-        window.updateBuildButtonState();
+        window.updateBuildButtonState(); window.rememberStudio();
 
         // Arabic preview (first ~60 chars of arabic_text)
         const arabicEl = document.getElementById('selectedHadithArabicPreview');
@@ -511,49 +525,35 @@ STUDIO_SCRIPTS_JS = r"""
     };
 
 
+    // Latest-query-only source search; selected records never come from an older request.
+    let quranSearchEpoch=0, quranSearchController=null;
     window.searchQuran = async function() {
-        const topicEl = document.getElementById('studioTopic');
-        const query = topicEl ? topicEl.value : '';
-        const resultsArea = document.getElementById('quranSearchResults');
-        if (!resultsArea) return;
-        if (query.length < 2) {
-            resultsArea.classList.add('hidden');
-            return;
-        }
-        resultsArea.innerHTML = '<div class="p-4 text-center text-[8px] font-bold text-brand animate-pulse uppercase tracking-widest">Searching Foundation...</div>';
-        resultsArea.classList.remove('hidden');
+        const query=(document.getElementById('studioTopic')?.value || '').trim();
+        const resultsArea=document.getElementById('quranSearchResults');
+        const epoch=++quranSearchEpoch, session=studioSessionEpoch;
+        quranSearchController?.abort();
+        if(!resultsArea || activeSourceTab!=='quran') return;
+        resultsArea.replaceChildren();
+        if(query.length<2){resultsArea.classList.add('hidden');return;}
+        quranSearchController=new AbortController();const controller=quranSearchController;
+        const timer=setTimeout(()=>controller.abort(),20000);
+        resultsArea.textContent='Searching the connected library…';resultsArea.classList.remove('hidden');
+        const current=()=>epoch===quranSearchEpoch && session===studioSessionEpoch && activeSourceTab==='quran' && document.getElementById('studioTopic')?.value.trim()===query;
         try {
-            const res = await fetch(`/api/quran/search?q=${encodeURIComponent(query)}`);
-            if (!res.ok) {
-                const err = await res.json().catch(()=>({}));
-                resultsArea.innerHTML = `<div class="p-4 text-center text-[10px] font-bold text-red-500 uppercase tracking-widest">Error: ${err.detail || res.statusText}</div>`;
-                return;
+            const res=await fetch('/api/quran/search?q='+encodeURIComponent(query),{signal:controller.signal});
+            const data=await res.json();if(!current())return;
+            if(!res.ok)throw Error(data.detail || 'Source search unavailable. Try again.');
+            resultsArea.replaceChildren();
+            if(!Array.isArray(data)||!data.length){resultsArea.textContent='No sources found. Try a keyword or an exact verse reference.';return;}
+            for(const v of data){
+                const button=document.createElement('button');button.type='button';button.className='w-full text-left p-4 border-b border-brand/10';
+                button.setAttribute('data-meta',JSON.stringify(v));button.onclick=()=>window.selectAyahFromEl(button);
+                const ref=document.createElement('strong');ref.textContent=v.reference||v.title||'';
+                const text=document.createElement('p');text.textContent=v.translation_text||v.text||'';text.className='text-sm mt-2';
+                button.append(ref,text);resultsArea.append(button);
             }
-            const data = await res.json();
-            if (!Array.isArray(data) || data.length === 0) { resultsArea.classList.add('hidden'); return; }
-            resultsArea.innerHTML = data.map(v => {
-                const ref = v.reference || v.title || '';
-                const txt = v.translation_text || v.text || '';
-                
-                const metaJson = JSON.stringify({
-                    id: v.id,
-                    reference: ref,
-                    translation_text: txt,
-                    arabic_text: v.arabic_text || ''
-                }).replace(/"/g, '&quot;');
-                
-                return `
-                <div data-meta="${metaJson}" onclick="selectAyahFromEl(this)" class="p-4 border-b border-brand/5 hover:bg-brand/5 cursor-pointer transition-all">
-                    <div class="flex justify-between items-start mb-1">
-                        <span class="text-[8px] font-black text-brand uppercase tracking-widest">${ref}</span>
-                    </div>
-                    <div class="text-[10px] text-text-muted font-medium italic line-clamp-2">${txt}</div>
-                </div>`;
-            }).join('');
-        } catch (e) {
-            console.error('[STUDIO_QURAN] fetch/parse error:', e);
-            resultsArea.innerHTML = `<div class="p-4 text-center text-[10px] font-bold text-red-500 uppercase tracking-widest">Error loading results</div>`;
-        }
+        }catch(e){if(current())resultsArea.textContent=e.name==='AbortError'?'Search timed out. Your query is kept; try again.':e.message;}
+        finally{clearTimeout(timer);}
     };
 
     window.selectedAyahMetadata = null;
@@ -589,7 +589,7 @@ STUDIO_SCRIPTS_JS = r"""
         const topicIn = document.getElementById('studioTopic');
         if(topicIn) topicIn.value = title;
         
-        window.updateBuildButtonState();
+        window.updateBuildButtonState(); window.rememberStudio();
     };
 
     window.buildCardMessage = async function() {
@@ -601,8 +601,8 @@ STUDIO_SCRIPTS_JS = r"""
         const icon = btn.querySelector('.btn-icon');
         const text = btn.querySelector('.btn-text');
 
-        if (!topic && !selectedAyahId && !selectedHadithId) {
-            alert('Please define a topic or select a source.');
+        if (!selectedAyahId && !selectedHadithId) {
+            alert('Choose a source from the results before continuing.');
             return;
         }
 
@@ -688,6 +688,8 @@ STUDIO_SCRIPTS_JS = r"""
     window.resetStudioSourceOutput = function() {
         studioSourceEpoch++;
         window.clearReflectionBusy?.();
+        window.clearCreatorSuggestion?.();
+        const captionButton=document.getElementById('btnGenerateCaption'); if(captionButton) { captionButton.disabled=false; const label=captionButton.querySelector('.btn-text'); if(label)label.textContent='Generate Caption'; }
         const reflectionButton=document.getElementById('draftReflectionButton'); if(reflectionButton) {reflectionButton.disabled=false;reflectionButton.textContent='Draft a reflection';}
         document.getElementById('arabicExcerptControls')?.classList.add('hidden');
         cancelStudioVisual();
@@ -777,7 +779,7 @@ STUDIO_SCRIPTS_JS = r"""
             document.getElementById('cardActions')?.classList.remove('hidden');
             document.getElementById('outOfSyncBanner')?.classList.add('hidden');
             isQuoteCardOutOfDate = false;
-            window.showStudioPage(0); window.rememberStudio();
+            window.showStudioPage(0); window.rememberStudio(); window.onCreatorVisualReady?.();
             if (note) note.textContent = (studioVisualDesign?.background_reused ? 'Your photograph was reused. ' : '') +
                 (studioVisualDesign?.quality?.background_repaired ? 'The background was softened for readability. ' : '') +
                 'Review the full source, Arabic and reflection at phone size before continuing.';
@@ -866,6 +868,7 @@ STUDIO_SCRIPTS_JS = r"""
             studioBrandRevision=data.revision;
             if(data.brand_kit && JSON.stringify(snapshot)===JSON.stringify(window.studioBrandSnapshot())) setBrandControls(data.brand_kit);
             status.textContent='Saved for new Studio drafts and automation artwork. Existing drafts retain their own designs.';
+            window.onCreatorBrandSaved?.(snapshot);
         } catch(e) { if(epoch===studioSessionEpoch) status.textContent=e.message; }
         finally { if(epoch===studioSessionEpoch) { studioBrandSaveBusy=false; button.disabled=false; } }
     };
@@ -917,6 +920,7 @@ STUDIO_SCRIPTS_JS = r"""
             if(!response.ok) throw Error(data.detail || data.error || 'Reflection unavailable');
             if(document.getElementById('editSupporting').value!==before) throw Error('You edited the reflection while it was being drafted. Your edit was kept.');
             if(data.card_message.headline!==studioCardMessage.headline || data.card_message.arabic_text!==studioCardMessage.arabic_text) throw Error('The source changed. Select it again before drafting a reflection.');
+            if(window.offerCreatorSuggestion) { window.offerCreatorSuggestion('reflection', before, data.card_message.supporting_text || ''); return; }
             document.getElementById('editSupporting').value=data.card_message.supporting_text || '';
             window.updateStudioCardFromUI(); window.rememberStudio();
         } catch(e) { if(epoch===studioSourceEpoch && session===studioSessionEpoch) alert(e.message); }
@@ -953,10 +957,29 @@ STUDIO_SCRIPTS_JS = r"""
             reviewed: studioSequenceReviewed && !isQuoteCardOutOfDate};
     }
     window.rememberStudio = function() {
-        if (!studioCardMessage) return;
-        try { localStorage.setItem(recoveryKey(), JSON.stringify({payload: studioPayload(),
+        const entry = window.readCreatorBrief?.() || {};
+        if (!studioCardMessage && !entry.idea && !document.getElementById('studioTopic')?.value) return false;
+        try {
+            const previous=JSON.parse(localStorage.getItem(recoveryKey()) || 'null');
+            if(previous && previous.payload?.draft_key!==studioDraftKey) {
+                const archiveKey=recoveryKey()+':drafts';
+                const drafts=JSON.parse(localStorage.getItem(archiveKey) || '[]');
+                const key=previous.payload?.draft_key || 'legacy';
+                const kept=drafts.filter(d=>(d.payload?.draft_key || 'legacy')!==key && d.payload?.draft_key!==studioDraftKey);
+                kept.push(previous);
+                // Preserve the previous idea before replacing the active recovery slot.
+                // Storage failure leaves it intact and is reported to the creator.
+                localStorage.setItem(archiveKey,JSON.stringify(kept));
+            }
+            localStorage.setItem(recoveryKey(), JSON.stringify({payload: studioPayload(), entry, saved_at:new Date().toISOString(),
+            source_tab: typeof activeSourceTab === 'undefined' ? 'quran' : activeSourceTab,
+            custom_prompt:document.getElementById('studioCustomPrompt')?.value, tone:document.getElementById('studioTone')?.value,
+            include_reflection:document.getElementById('includeStudioReflection')?.checked,
+            schedule:{date:document.getElementById('scheduleDate')?.value,time:document.getElementById('scheduleTime')?.value},
             dirty: isQuoteCardOutOfDate, format: document.getElementById('studioFormat')?.value,
-            layout: document.getElementById('studioLayout')?.value, direction: document.getElementById('studioCustomDirection')?.value})); } catch (_) {}
+            layout: document.getElementById('studioLayout')?.value, direction: document.getElementById('studioCustomDirection')?.value}));
+            window.creatorRecoveryStatus?.(true); return true;
+        } catch (_) { window.creatorRecoveryStatus?.(false); return false; }
     };
     window.showStudioPage = function(index) {
         const pages = sequencePages();
@@ -998,10 +1021,15 @@ STUDIO_SCRIPTS_JS = r"""
         window.rememberStudio();
         window.switchStudioSection(3);
     };
-    function restoreStudioPayload(data, {dirty=false, format, layout, direction}={}) {
+    function restoreStudioPayload(data, {dirty=false, format, layout, direction, entry, source_tab, custom_prompt, tone, include_reflection, schedule}={}) {
+        if (source_tab && window.switchSourceTab) window.switchSourceTab(source_tab);
         studioPostId = data.post_id || null;
         studioDraftKey = data.draft_key || crypto.randomUUID();
         const set = (id, value) => { const el=document.getElementById(id); if(el) el.value=value || ''; };
+        window.restoreCreatorBrief?.(entry);
+        set('studioCustomPrompt', custom_prompt); set('studioTone', tone || 'calm');
+        set('scheduleDate',schedule?.date);set('scheduleTime',schedule?.time);
+        const reflectionToggle=document.getElementById('includeStudioReflection'); if(reflectionToggle) reflectionToggle.checked=!!include_reflection;
         const meta = data.source_metadata || {};
         const type = data.source_type;
         if (type === 'quran') {
@@ -1027,7 +1055,12 @@ STUDIO_SCRIPTS_JS = r"""
         window.restoreCreatorControls?.(data);
         document.querySelectorAll('.scene-card').forEach(c=>c.classList.toggle('active', c.dataset.family === document.getElementById('studioStyle').value));
         document.getElementById('photoDirectionControls')?.classList.toggle('hidden', document.getElementById('studioStyle').value !== 'quiet_photography');
-        document.getElementById('cardMessageWorkspace')?.classList.remove('hidden');
+        document.getElementById('cardMessageWorkspace')?.classList.toggle('hidden', !studioCardMessage);
+        window.updateBuildButtonState?.();
+        for(const [kind,titleId,badgeId] of [['quran','selectedAyahTitle','selectedAyahBadge'],['hadith','selectedHadithTitle','selectedHadithBadge']]) {
+            const badge=document.getElementById(badgeId); if(badge)badge.classList.toggle('hidden',type!==kind || !meta.reference);
+            const title=document.getElementById(titleId); if(title && type===kind)title.textContent=meta.reference || '';
+        }
         studioViewedPages = new Set(); studioSequenceReviewed = false;
         document.getElementById('sequenceReviewCheck').checked = false;
         isQuoteCardOutOfDate = dirty;
@@ -1035,13 +1068,14 @@ STUDIO_SCRIPTS_JS = r"""
         else if (currentQuoteCardUrl) { document.getElementById('quoteCardPreview').src=currentQuoteCardUrl; document.getElementById('quoteCardPreview').classList.remove('hidden'); }
         document.getElementById('cardActions')?.classList.toggle('hidden', !currentQuoteCardUrl || dirty);
         document.getElementById('outOfSyncBanner')?.classList.toggle('hidden', !dirty);
-        window.switchStudioSection(2);
+        window.switchStudioSection(studioCardMessage ? 2 : 1);
+        window.creatorRecoveryStatus?.(true);
         document.getElementById('visualQualityNote').textContent = 'Draft restored. Review every page before sharing. Source and caption remain separate.';
     }
-    window.restoreStudioRecovery = async function() {
+    window.restoreStudioRecovery = async function(draftKey=null) {
         const epoch = ++studioResumeEpoch;
         try {
-            const saved = JSON.parse(localStorage.getItem(recoveryKey()) || 'null');
+            const saved = draftKey ? JSON.parse(localStorage.getItem(recoveryKey()+':drafts') || '[]').find(d=>(d.payload?.draft_key || 'legacy')===draftKey) : JSON.parse(localStorage.getItem(recoveryKey()) || 'null');
             if (!saved) { alert('No recoverable Studio work on this device.'); return; }
             if (saved.payload.post_id) {
                 const res = await fetch(`/api/studio/post/${saved.payload.post_id}`, {signal:AbortSignal.timeout(15000)});
@@ -1091,6 +1125,7 @@ STUDIO_SCRIPTS_JS = r"""
             studioPostId = post.id;
             window.rememberStudio();
             document.getElementById('studioSaveStatus').textContent = `Draft #${post.id} saved · ${sequencePages().length || 1} page(s)`;
+            window.creatorCloudSaved?.();
             return post;
         } catch(e) {
             if (sessionEpoch !== studioSessionEpoch) return null;
@@ -1098,7 +1133,16 @@ STUDIO_SCRIPTS_JS = r"""
         } finally { if (sessionEpoch === studioSessionEpoch) studioSaveBusy = false; }
     }
     window.saveStudioDraft = async function() {
+        if (!studioCardMessage || !currentQuoteCardUrl || !document.getElementById('studioAccount')?.value) {
+            window.rememberStudio(); return;
+        }
         try { await persistStudioDraft(); } catch(e) { document.getElementById('studioSaveStatus').textContent=e.message; }
+    };
+    window.captionChanged = function() {
+        studioSequenceReviewed=false;
+        document.getElementById('sequenceReviewCheck').checked=false;
+        studioCaptionMessage={caption:document.getElementById('studioCaption')?.value || ''};
+        window.rememberStudio();
     };
     window.exportStudioSequence = async function() {
         try { const post=await persistStudioDraft(); if(post) window.location.href=`/posts/${post.id}/export`; }
@@ -1135,7 +1179,10 @@ STUDIO_SCRIPTS_JS = r"""
 
     window.generateSocialCaption = async function() {
         const sourceEpoch = studioSourceEpoch;
+        const sessionEpoch = studioSessionEpoch;
+        const before=document.getElementById('studioCaption')?.value || '';
         const btn = document.getElementById('btnGenerateCaption');
+        if(btn.disabled) return;
         const icon = btn.querySelector('.btn-icon');
         const text = btn.querySelector('.btn-text');
         const driftWarning = document.getElementById('presenceDriftWarning');
@@ -1179,10 +1226,11 @@ STUDIO_SCRIPTS_JS = r"""
             const res = await fetch('/api/studio/generate-caption', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload), signal:AbortSignal.timeout(60000)
             });
             const data = await res.json();
-            if (sourceEpoch !== studioSourceEpoch) return;
+            if (sourceEpoch !== studioSourceEpoch || sessionEpoch !== studioSessionEpoch) return;
+            if(!res.ok) throw Error(data.detail || 'Caption unavailable');
 
             // Handle both structured caption_message and plain caption string
             let captionText = '';
@@ -1196,7 +1244,10 @@ STUDIO_SCRIPTS_JS = r"""
 
             if (captionText) {
                 captionText = captionText.trim();
+                if(document.getElementById('studioCaption').value!==before) throw Error('Your caption changed while Sabeel was writing. Your edit was kept.');
+                if(window.offerCreatorSuggestion) { window.offerCreatorSuggestion('caption', before, captionText); return; }
                 document.getElementById('studioCaption').value = captionText;
+                window.captionChanged();
                 document.getElementById('captionResultArea').classList.remove('hidden');
 
                 // ── Render the premium caption preview ───────────────────────
@@ -1216,8 +1267,12 @@ STUDIO_SCRIPTS_JS = r"""
             }
         } catch (e) {
             console.error('[Studio Phase 3] Caption generation failed:', e);
-            alert('Caption generation failed. Please try again.');
+            if(sourceEpoch===studioSourceEpoch && sessionEpoch===studioSessionEpoch) {
+                if(window.studioNotice) window.studioNotice(e.message || 'Caption generation failed. Try again.');
+                else alert('Caption generation failed. Please try again.');
+            }
         } finally {
+            if(sourceEpoch!==studioSourceEpoch || sessionEpoch!==studioSessionEpoch) return;
             btn.disabled = false;
             if(icon) icon.classList.remove('animate-spin');
             if(text) text.innerText = 'Generate Caption';
@@ -1238,7 +1293,8 @@ STUDIO_SCRIPTS_JS = r"""
         if (lines.length > 3) {
             html += `<p class="text-[9px] font-bold text-accent/70 mt-4">${lines.slice(3).join('  ')}</p>`;
         }
-        preview.innerHTML = html;
+        preview.textContent = captionText;
+        preview.style.whiteSpace='pre-wrap';
         preview.closest('#captionPreviewContainer')?.classList.remove('hidden');
     }
 
@@ -2723,7 +2779,7 @@ STUDIO_COMPONENTS_HTML = """
 
 <!-- CONTENT STUDIO MODAL -->
 
-<div id="newPostModal" data-workspace="{workspace_key}" class="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[100] flex items-end md:items-center justify-center p-0 md:p-10 hidden">
+<div id="newPostModal" role="dialog" aria-modal="true" aria-label="Create a post" data-workspace="{workspace_key}" class="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[100] flex items-end md:items-center justify-center p-0 md:p-10 hidden">
     <div class="w-full h-[100dvh] md:h-full md:max-w-7xl rounded-none md:rounded-[3rem] overflow-hidden flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in duration-500 border-0 border-t md:border border-brand/5 shadow-2xl bg-white">
       
       <!-- Studio Sidebar -->
@@ -2734,22 +2790,22 @@ STUDIO_COMPONENTS_HTML = """
         </div>
         
         <div class="flex md:flex-col justify-between md:justify-start gap-3 md:gap-6 mt-4 md:mt-12 md:flex-1">
-          <div id="navStep1" class="studio-nav-step active flex flex-col md:flex-row items-center gap-1 md:gap-4 cursor-pointer" onclick="switchStudioSection(1)">
+          <button type="button" id="navStep1" class="studio-nav-step active flex flex-col md:flex-row items-center gap-1 md:gap-4 cursor-pointer" onclick="switchStudioSection(1)">
              <div class="w-8 h-8 rounded-full border-2 border-brand flex items-center justify-center text-[10px] font-bold text-white bg-brand shadow-lg shadow-brand/20 nav-num">1</div>
              <div class="text-[8px] md:text-xs font-bold uppercase text-brand tracking-widest nav-text">Source</div>
-          </div>
-          <div id="navStep2" class="studio-nav-step flex flex-col md:flex-row items-center gap-1 md:gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(2)">
+          </button>
+          <button type="button" id="navStep2" class="studio-nav-step flex flex-col md:flex-row items-center gap-1 md:gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(2)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">2</div>
              <div class="text-[8px] md:text-xs font-bold uppercase tracking-widest nav-text">Visual</div>
-          </div>
-          <div id="navStep3" class="studio-nav-step flex flex-col md:flex-row items-center gap-1 md:gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(3)">
+          </button>
+          <button type="button" id="navStep3" class="studio-nav-step flex flex-col md:flex-row items-center gap-1 md:gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(3)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">3</div>
              <div class="text-[8px] md:text-xs font-bold uppercase tracking-widest nav-text">Caption</div>
-          </div>
-          <div id="navStep4" class="studio-nav-step flex flex-col md:flex-row items-center gap-1 md:gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(4)">
+          </button>
+          <button type="button" id="navStep4" class="studio-nav-step flex flex-col md:flex-row items-center gap-1 md:gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(4)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">4</div>
              <div class="text-[8px] md:text-xs font-bold uppercase tracking-widest nav-text">Share</div>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -2767,16 +2823,16 @@ STUDIO_COMPONENTS_HTML = """
         <input type="hidden" id="studioTextStylePrompt">
 
         <div class="flex-1 overflow-y-auto p-6 md:p-12 pb-32 custom-scrollbar">
-          <div class="flex flex-wrap items-center gap-3 mb-6 text-sm">
+          <div class="cw-save-row flex flex-wrap items-center gap-3 mb-6 text-sm">
               <button type="button" onclick="saveStudioDraft()" class="px-4 py-2 border border-brand/20 rounded-xl">Save draft (unscheduled)</button>
               <button type="button" onclick="exportStudioSequence()" class="px-4 py-2 border border-brand/20 rounded-xl">Export images + source</button>
-              <span id="studioSaveStatus" role="status" aria-live="polite" class="text-brand/70"></span>
+              <span id="creatorSaveState" role="status" aria-live="polite"></span><span id="studioSaveStatus" role="status" aria-live="polite" class="text-brand/70"></span>
           </div>
           <div id="studioSection1" class="studio-section space-y-10 animate-in slide-in-from-right-8 duration-500">
             <button type="button" onclick="restoreStudioRecovery()" class="text-sm text-brand underline">Restore my last Studio session on this device</button>
             <div>
-              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 1</label>
-              <h4 class="text-3xl font-bold text-brand italic">Ignite the Spark</h4>
+
+              <h4 class="text-3xl font-bold text-brand italic">Choose your source</h4>
               <p class="text-xs text-text-muted mt-2 font-medium">Search the Qur'an or Hadith to build your card's central message.</p>
             </div>
 
@@ -2814,7 +2870,7 @@ STUDIO_COMPONENTS_HTML = """
                                <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                                <span id="selectedAyahTitle" class="text-[10px] font-black text-emerald-800 uppercase tracking-widest"></span>
                            </div>
-                           <button type="button" onclick="selectedAyahId=null; window.selectedAyahMetadata=null; document.getElementById('selectedAyahBadge').classList.add('hidden');" class="text-[8px] font-bold text-emerald-600 uppercase hover:underline">Change</button>
+                           <button type="button" onclick="clearCreatorSource()" class="text-[8px] font-bold text-emerald-600 uppercase hover:underline">Change</button>
                        </div>
 
                        <div id="selectedHadithBadge" class="hidden p-4 bg-accent/5 border border-accent/20 rounded-2xl shadow-sm mt-3">
@@ -2827,7 +2883,7 @@ STUDIO_COMPONENTS_HTML = """
                                  <span id="selectedHadithTextPreview" class="block text-[9px] text-brand/45 mt-0.5 italic line-clamp-2"></span>
                                </div>
                              </div>
-                             <button type="button" onclick="selectedHadithId=null; window.selectedHadithMetadata=null; document.getElementById('selectedHadithBadge').classList.add('hidden');" class="text-[8px] font-bold text-brand uppercase hover:underline shrink-0">Change</button>
+                             <button type="button" onclick="clearCreatorSource()" class="text-[8px] font-bold text-brand uppercase hover:underline shrink-0">Change</button>
                            </div>
                        </div>
                     </div>
@@ -2924,9 +2980,9 @@ STUDIO_COMPONENTS_HTML = """
                 <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
                 <span class="text-[9px] font-black text-amber-800 uppercase tracking-widest">Source, reflection or layout changed. Apply the changes before sharing.</span>
             </div>
-             <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                <div class="space-y-8">
-                    <details open class="p-5 border border-brand/15 rounded-xl space-y-4 text-sm">
+             <div class="cw-visual-grid">
+                <div class="cw-design-column space-y-8">
+                    <details id="creatorBrandKit" class="p-5 border border-brand/15 rounded-xl space-y-4 text-sm">
                       <summary class="font-semibold cursor-pointer">Your brand</summary>
                       <p class="text-brand/70">Palette, typography and signature stay consistent across your series. Each saved draft keeps its own design.</p>
                       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2976,11 +3032,11 @@ STUDIO_COMPONENTS_HTML = """
                     </div>
                     <button type="button" id="btnGenerateCard" onclick="generateQuoteCard()" class="w-full py-6 bg-brand text-white rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Create layout</button>
                 </div>
-                <div class="flex flex-col items-center gap-6">
+                <div class="cw-preview-column flex flex-col items-center gap-6">
                     <div id="cardPreviewContainer" class="w-full max-w-[390px] aspect-[4/5] bg-cream border border-brand/10 overflow-hidden relative shadow-2xl flex items-center justify-center">
                         <div id="storyPreviewTop" class="hidden absolute top-0 left-0 right-0 p-4 bg-black/40 text-white text-xs pointer-events-none" style="height:13%;z-index:1">▰ ▰ ▰<br>Your profile · Story preview</div>
                         <div id="storyPreviewBottom" class="hidden absolute bottom-0 left-0 right-0 p-4 text-white text-xs pointer-events-none" style="height:16%;background:linear-gradient(transparent,#0009);z-index:1">Reply…</div>
-                        <img id="quoteCardPreview" alt="Your complete source card" class="hidden w-full h-full object-contain">
+                        <p class="cw-preview-empty">Your source. Your signature.<br>Choose a design below, then create your layout.</p><img id="quoteCardPreview" alt="Your complete source card" class="hidden w-full h-full object-contain">
                         <div id="cardLoader" class="hidden absolute animate-spin w-12 h-12 border-4 border-t-brand rounded-full"></div>
                     </div>
                     <p id="visualQualityNote" role="status" aria-live="polite" class="text-sm leading-relaxed text-brand/70 max-w-[390px]"></p>
@@ -3079,7 +3135,7 @@ STUDIO_COMPONENTS_HTML = """
 
                   <!-- Editable Refinement Zone -->
                   <div class="relative">
-                      <textarea id="studioCaption" name="caption" oninput="rememberStudio()" class="w-full bg-brand/[0.02] border border-brand/10 rounded-[2rem] px-8 py-7 text-[11px] font-medium text-brand min-h-[200px] outline-none leading-relaxed custom-scrollbar focus:border-brand/30 focus:bg-white transition-all resize-none" placeholder="Your generated caption will appear here. You can edit it before publishing."></textarea>
+                      <textarea id="studioCaption" name="caption" oninput="captionChanged()" class="w-full bg-brand/[0.02] border border-brand/10 rounded-[2rem] px-8 py-7 text-[11px] font-medium text-brand min-h-[200px] outline-none leading-relaxed custom-scrollbar focus:border-brand/30 focus:bg-white transition-all resize-none" placeholder="Your generated caption will appear here. You can edit it before publishing."></textarea>
                   </div>
 
                   <!-- Continue -->
@@ -3102,7 +3158,7 @@ STUDIO_COMPONENTS_HTML = """
               <div class="space-y-5">
                 <div class="text-[9px] font-black uppercase tracking-widest text-brand/30 ml-1">Reminder Preview</div>
                 <div class="w-full aspect-square bg-cream rounded-[3rem] border-4 border-brand/5 overflow-hidden relative shadow-2xl">
-                  <img id="finalPreviewImage" class="w-full h-full object-contain">
+                  <img id="finalPreviewImage" alt="First page of your reviewed sequence" class="w-full h-full object-contain">
                   <div id="sharePreviewEmpty" class="absolute inset-0 flex items-center justify-center flex-col gap-3 opacity-20">
                     <svg class="w-10 h-10 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                     <div class="text-[10px] font-black text-brand uppercase tracking-widest">Visual pending</div>
@@ -3403,7 +3459,7 @@ APP_LAYOUT_HTML = """<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0F3D2E" />
   <title>{title} | Sabeel Studio</title>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -3487,18 +3543,17 @@ APP_LAYOUT_HTML = """<!doctype html>
     .text-brand {{ color: var(--brand) !important; }}
     .border-brand {{ border-color: var(--brand) !important; }}
   </style>
+<link rel="stylesheet" href="/static/creator-workspace.css?v=1">
 </head>
 <body class="min-h-screen">
+<header class="cw-topbar"><a class="cw-wordmark" href="/app">sabeel<span> studio</span></a><a href="/app?view=you" aria-label="Your workspace">Your space ↗</a></header>
   <nav class="border-b border-brand/5 bg-white/80 backdrop-blur-md sticky top-0 z-50 hidden md:block">
     <div class="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
       <div class="flex items-center gap-8">
         <div class="text-xl font-bold tracking-tight text-brand">Sabeel <span class="text-accent font-normal">Studio</span></div>
         <div class="hidden md:flex gap-6">
           <a href="/app" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_dashboard}">Home</a>
-          <a href="/app/calendar" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_calendar}">Plan</a>
-          <a href="/app/automations" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_automations}">Reminder Streams</a>
-          <a href="/app/library" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_library}">Knowledge Library</a>
-          <a href="/app/media" class="text-[10px] font-bold uppercase tracking-widest nav-link py-5 {active_media}">Visual Library</a>
+          <a href="/app?view=posts" class="nav-link py-5">Posts</a><a href="/app/calendar" class="nav-link py-5 {active_calendar}">Plan</a><a href="/app?view=you" class="nav-link py-5">Your workspace</a>
           {admin_link}
         </div>
       </div>
@@ -3507,20 +3562,14 @@ APP_LAYOUT_HTML = """<!doctype html>
         <div id="navbarAccountSwitcher" class="relative">
             {navbar_account_switcher}
         </div>
-        <button onclick="logout()" class="p-2 text-text-muted hover:text-brand transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button>
+        <button aria-label="Sign out" onclick="logout()" class="p-2 text-text-muted hover:text-brand transition-colors"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button>
       </div>
     </div>
   </nav>
   <main class="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-10 space-y-6 md:space-y-10 pb-24 md:pb-10">
     {content}
   </main>
-  <nav class="md:hidden fixed bottom-8 left-1/2 -translate-x-1/2 w-[92%] max-w-[400px] bg-white border border-brand/10 p-2 flex justify-between items-center z-50 shadow-2xl rounded-[2.5rem] backdrop-blur-xl bg-white/90">
-    <a href="/app" class="flex-1 flex flex-col items-center gap-1 py-1 mobile-tab {active_dashboard}"><span class="text-[8px] font-bold uppercase tracking-widest">Home</span></a>
-    <a href="/app/calendar" class="flex-1 flex flex-col items-center py-3 mobile-tab {active_calendar}"><span class="text-[9px] font-bold">Plan</span></a>
-    <a href="/app/automations" class="flex-1 flex flex-col items-center py-3 mobile-tab {active_automations}"><span class="text-[9px] font-bold">Streams</span></a>
-    <a href="/app/media" class="flex-1 flex flex-col items-center py-3 mobile-tab {active_media}"><span class="text-[9px] font-bold">Visuals</span></a>
-    <a href="/app/library" class="flex-1 flex flex-col items-center gap-1 py-1 mobile-tab {active_library}"><span class="text-[8px] font-bold uppercase tracking-widest">Library</span></a>
-  </nav>
+<nav class="cw-bottom-nav" aria-label="Main navigation"><a href="/app"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 10l9-7 9 7v11h-6v-7H9v7H3z" stroke-linecap="round" stroke-linejoin="round"/></svg>Home</a><a href="/app?view=posts"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 3h14v18H5z M8 7h8 M8 11h8 M8 15h5" stroke-linecap="round" stroke-linejoin="round"/></svg>Posts</a><button type="button" class="cw-create-tab" onclick="openNewPostModal()"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14 M5 12h14" stroke-linecap="round" stroke-linejoin="round"/></svg>Create</button><a href="/app/calendar"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 5h16v16H4z M4 10h16 M8 3v4 M16 3v4" stroke-linecap="round" stroke-linejoin="round"/></svg>Plan</a><a href="/app?view=you"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 21v-2a7 7 0 00-14 0v2 M16 7a4 4 0 11-8 0 4 4 0 018 0" stroke-linecap="round" stroke-linejoin="round"/></svg>You</a></nav>
   <script>
     async function logout() {{ await fetch('/auth/logout', {{ method: 'POST' }}); window.location.href = '/'; }}
   </script>

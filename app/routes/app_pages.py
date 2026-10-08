@@ -647,12 +647,8 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
     active_acc = None
     fallback_avatar_base = "https://ui-avatars.com/api/?background=0F3D2E&color=fff&bold=true&name="
     if db and user:
-        # Get all orgs the user belongs to to ensure we find their connected accounts
-        user_orgs = db.query(OrgMember.org_id).filter(OrgMember.user_id == user.id).all()
-        user_org_ids = [o[0] for o in user_orgs]
-        
-        # Query accounts across all those orgs
-        accs = db.query(IGAccount).filter(IGAccount.org_id.in_(user_org_ids)).order_by(IGAccount.active.desc()).all()
+        # Studio saves and publishes only within the active workspace.
+        accs = db.query(IGAccount).filter(IGAccount.org_id == org.id).order_by(IGAccount.active.desc()).all()
         
         active_acc = next((a for a in accs if a.active), accs[0] if accs else None)
         
@@ -770,7 +766,7 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
         active_library=active_map["library"],
         active_media=active_map["media"],
         studio_modal=STUDIO_COMPONENTS_HTML.replace("{account_options}", account_options).replace("{workspace_key}", f"{org.id}:{user.id}"),
-        studio_js=STUDIO_SCRIPTS_JS,
+        studio_js=STUDIO_SCRIPTS_JS + '<script src="/static/creator-workspace.js?v=1"></script>',
         connected_account_info=(extras.get("connected_account_info", "") if extras else ""),
         connect_instagram_modal=CONNECT_INSTAGRAM_MODAL_HTML,
         navbar_account_switcher=switcher_html,
@@ -782,7 +778,8 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
 @router.get("/app", response_class=HTMLResponse)
 async def app_dashboard_page(
     user: User = Depends(require_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    view: str = "home",
 ):
     # REDIRECT LOGIC
     # REMOVED FORCED ONBOARDING REDIRECT
@@ -812,341 +809,11 @@ async def app_dashboard_page(
     active_acc, all_accs, is_connected = get_active_context(db, user, org_id)
     active_acc_id = active_acc.id if active_acc else 0
     
-    # Stats Calculation (Filtered by Active Account)
-    weekly_post_count = db.query(func.count(Post.id)).filter(
-        Post.org_id == org_id,
-        Post.ig_account_id == active_acc_id,
-        Post.created_at >= datetime.now(timezone.utc) - timedelta(days=7)
-    ).scalar() or 0
-    
-    account_count = len(all_accs)
-    
-    # Accounts for modal
-    accounts = db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
-    account_options = "".join([f'<option value="{a.id}">{a.name} (@{a.ig_user_id})</option>' for a in accounts])
-    if not accounts:
-        account_options = '<option value="">No accounts connected</option>'
-    
-    # Next Post (Filtered by Active Account)
-    now_utc = datetime.now(timezone.utc)
-    next_post = db.query(Post).filter(
-        Post.org_id == org_id,
-        Post.ig_account_id == active_acc_id,
-        Post.status == "scheduled",
-        Post.scheduled_time > now_utc
-    ).order_by(Post.scheduled_time.asc()).first()
-
-    next_post_countdown = "No posts scheduled"
-    next_post_time = "--:--"
-    next_post_caption = "Nothing scheduled yet. Schedule a saved draft or create a reminder."
-    next_post_media = '<div class="w-full h-full flex items-center justify-center text-muted font-black text-xs uppercase italic">No Media</div>'
-    
-    next_post_id = ""
-    next_post_caption_json = "null"
-    next_post_time_iso = ""
-    next_post_actions_class = "hidden"
-    
-    if next_post:
-        diff = next_post.scheduled_time - now_utc
-        hours, remainder = divmod(diff.seconds, 3600)
-        minutes, _ = divmod(remainder, 60)
-        next_post_countdown = f"{diff.days}d {hours}h {minutes}m"
-        next_post_time = next_post.scheduled_time.strftime("%b %d, %H:%M")
-        next_post_caption = html.escape(next_post.caption) if next_post.caption else "No caption generated."
-        
-        next_post_id = str(next_post.id)
-        next_post_caption_json = html.escape(json.dumps(next_post.caption or ""), quote=True)
-        next_post_time_iso = next_post.scheduled_time.isoformat()
-        next_post_actions_class = ""
-        
-        if next_post.media_url:
-            next_post_media = f'<img src="{next_post.media_url}" class="w-full h-full object-contain">'
-
-    # Content Pipeline (Next 7 Days)
-    calendar_headers = ""
-    calendar_days = ""
-    today = datetime.now(timezone.utc)
-    for i in range(7):
-        day = today + timedelta(days=i)
-        is_today = (i == 0)
-        day_label = day.strftime("%a")
-        
-        calendar_headers += f'<div class="py-3 text-[9px] font-black text-center uppercase tracking-[0.3em] {"text-brand" if is_today else "text-text-muted/40"}">{day_label}</div>'
-        
-        # Count posts for this day (Filtered by Active Account)
-        day_start = datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
-        day_end = day_start + timedelta(days=1)
-        post_count = db.query(func.count(Post.id)).filter(
-            Post.org_id == org_id,
-            Post.ig_account_id == active_acc_id,
-            or_(
-                and_(Post.scheduled_time >= day_start, Post.scheduled_time < day_end),
-                and_(Post.published_time >= day_start, Post.published_time < day_end)
-            )
-        ).scalar() or 0
-        
-        state_html = ""
-        if post_count > 0:
-            state_html = f"""
-            <div class="flex flex-col items-center gap-1.5">
-                <div class="text-[14px] font-black text-brand">{post_count}</div>
-                <div class="w-full h-1.5 rounded-full bg-brand shadow-sm shadow-brand/20"></div>
-            </div>
-            """
-        else:
-            state_html = f"""
-            <div class="flex flex-col items-center gap-1.5 opacity-10">
-                <div class="text-[14px] font-black text-brand">0</div>
-                <div class="w-full h-1.5 rounded-full bg-brand/20"></div>
-            </div>
-            """
-            
-        calendar_days += f"""
-        <div class="flex flex-col items-center justify-center p-3 rounded-2xl transition-all {"bg-brand/[0.03] border border-brand/5 shadow-inner" if is_today else "hover:bg-brand/[0.01]"}">
-          <span class="text-[8px] font-black {"text-brand" if is_today else "text-text-muted/30"} uppercase tracking-widest mb-3">{day.day}</span>
-          {state_html}
-        </div>
-        """
-
-    # Intelligence Feed (Dashboard Sections)
-    posts = db.query(Post).filter(
-        Post.org_id == org_id,
-        Post.ig_account_id == active_acc_id
-    ).order_by(Post.created_at.desc()).limit(30).all()
-    
-    sections = {
-        "Needs Attention": {"posts": [], "icon": '<svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>'},
-        "Drafts & Ideas": {"posts": [], "icon": '<svg class="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>'},
-        "Scheduled Queue": {"posts": [], "icon": '<svg class="w-4 h-4 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>'},
-        "Recently Shared": {"posts": [], "icon": '<svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'}
-    }
-    
-    for p in posts:
-        if p.status in ["failed", "needs_review", "publishing", "publish_unknown", "publish_partial"]:
-            sections["Needs Attention"]["posts"].append(p)
-        elif p.status in ["draft", "drafted", "ready"]:
-            sections["Drafts & Ideas"]["posts"].append(p)
-        elif p.status == "scheduled":
-            sections["Scheduled Queue"]["posts"].append(p)
-        elif p.status in ["published", "shared"]:
-            sections["Recently Shared"]["posts"].append(p)
-            
-    dashboard_feed_sections = ""
-    for sec_title, sec_data in sections.items():
-        if not sec_data["posts"]:
-            continue
-            
-        cards_html = ""
-        for p in sec_data["posts"][:6]: # Limit 6 per section for UI balance
-            # Determine Type
-            cap = p.caption or ""
-            p_type = "REFLECTION"
-            if any(x in cap for x in ["Surah", "Verse", "Ayah", "Quran"]): p_type = "QURAN"
-            elif any(x in cap for x in ["Hadith", "Prophet", "Sahih", "Bukhari", "Muslim"]): p_type = "HADITH"
-            
-            status_color = "text-text-muted"
-            status_bg = "bg-brand/5"
-            status_label = {"publish_partial": "Stories partly shared", "publish_unknown": "Check publish outcome", "publishing": "Publishing"}.get(p.status, "Reflection Draft" if p.status == "draft" else p.status.capitalize())
-            
-            if p.status in ["published", "shared"]: 
-                status_color = "text-emerald-600"
-                status_bg = "bg-emerald-50"
-                status_label = "Shared"
-            elif p.status == "scheduled": 
-                status_color = "text-brand"
-                status_bg = "bg-brand/10"
-                status_label = "Planned"
-            elif p.status == "ready":
-                status_color = "text-accent"
-                status_bg = "bg-accent/10"
-                status_label = "Review Ready"
-            elif p.status in ["failed", "needs_review", "publishing", "publish_unknown", "publish_partial"]:
-                status_color = "text-rose-600"
-                status_bg = "bg-rose-50"
-            
-            caption_json = html.escape(json.dumps(p.caption or ""), quote=True)
-            date_str = p.created_at.strftime("%b %d")
-            
-            # Action Buttons based on status
-            actions_html = ""
-            refine_btn = f"""<button onclick="openEditPostModal('{p.id}', {caption_json}, '{p.scheduled_time.isoformat() if p.scheduled_time else ''}', {html.escape(json.dumps(p.status))})" class="flex-1 py-3 bg-white border border-brand/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-text-muted hover:text-brand hover:border-brand/30 transition-all shadow-sm">Refine</button>"""
-            
-            share_btn = f"""<button onclick="approvePost('{p.id}', event)" class="flex-1 py-3 bg-brand text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:scale-[1.02] transition-all shadow-xl shadow-brand/20">Share Now</button>"""
-            
-            retry_btn = f"""<button onclick="approvePost('{p.id}', event)" class="flex-1 py-3 bg-rose-500 text-white rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-rose-600 transition-all shadow-xl shadow-rose-500/20">Retry Share</button>"""
-            
-            delete_btn = f"""<button onclick="deletePost('{p.id}', event)" class="p-3 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-transparent hover:border-rose-100">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-            </button>"""
-            
-            manifest = (p.flags or {}).get("media_manifest")
-            if manifest:
-                p_type = ("STORIES" if p.post_format == "story_9_16" else "CAROUSEL" if p.post_format == "carousel_4_5" else "FEED") + f" · {len(manifest['pages'])} PAGE(S)"
-            if p.status in {"publishing", "publish_unknown", "publish_partial"}:
-                actions_html = refine_btn.replace('>Refine</button>', '>View publishing progress</button>')
-            elif manifest and sec_title in {"Needs Attention", "Drafts & Ideas"}:
-                actions_html = refine_btn.replace('>Refine</button>', '>Review sequence</button>') + delete_btn
-            elif sec_title == "Needs Attention":
-                actions_html = refine_btn + retry_btn + delete_btn
-            elif sec_title == "Drafts & Ideas":
-                schedule_btn = f"""<button onclick="openScheduleModal('{p.id}', event)" class="flex-1 py-3 bg-brand/5 border border-brand/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-brand hover:bg-brand hover:text-white transition-all shadow-sm">Schedule</button>"""
-                actions_html = refine_btn + schedule_btn + share_btn + delete_btn
-            elif sec_title == "Scheduled Queue":
-                actions_html = refine_btn + delete_btn
-            else: # Published
-                actions_html = delete_btn
-                
-            # Card UI
-            cards_html += f"""
-            <div class="card bg-white border border-brand/5 shadow-sm hover:shadow-xl hover:shadow-brand/[0.02] transition-all duration-300 flex flex-col group overflow-hidden">
-                <!-- Visual Banner -->
-                <div class="h-32 w-full bg-cream relative border-b border-brand/5 overflow-hidden flex items-center justify-center">
-                    {f'<img src="{p.media_url}" class="w-full h-full object-contain">' if p.media_url else '<svg class="w-8 h-8 text-brand/10" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.058-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>'}
-                    <div class="absolute top-4 right-4 px-2.5 py-1 {status_bg} {status_color} backdrop-blur-md rounded-lg text-[8px] font-black uppercase tracking-[0.2em] shadow-sm">{status_label}</div>
-                </div>
-                
-                <div class="p-6 flex flex-col flex-1 gap-5">
-                    <!-- Header -->
-                    <div class="flex items-center justify-between">
-                        <div class="badge-premium !text-[9px]">{p_type}</div>
-                        <div class="text-[9px] font-bold text-text-muted uppercase tracking-[0.2em]">{date_str}</div>
-                    </div>
-                    
-                    <!-- Content -->
-                    <div class="flex-1">
-                        <p class="text-[13px] font-medium text-text-main leading-relaxed line-clamp-3 italic opacity-90">
-                            "{html.escape(p.caption[:120]) if p.caption else "Suggested Reminder"}"
-                        </p>
-                    </div>
-                    
-                    <!-- Actions -->
-                    <div class="flex flex-wrap items-center gap-2 pt-4 border-t border-brand/5 mt-auto">
-                        {actions_html}
-                    </div>
-                </div>
-            </div>
-            """
-            
-        dashboard_feed_sections += f"""
-        <div class="space-y-6">
-            <div class="flex items-center gap-3 border-b border-brand/5 pb-4">
-                {sec_data['icon']}
-                <h2 class="text-[11px] font-black uppercase tracking-[0.3em] text-brand/80">{sec_title}</h2>
-                <span class="ml-2 px-2 py-0.5 bg-brand/5 rounded-md text-[9px] font-bold text-brand">{len(sec_data['posts'])}</span>
-            </div>
-            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                {cards_html}
-            </div>
-        </div>
-        """
-        
-    if not dashboard_feed_sections:
-        dashboard_feed_sections = '<div class="text-center py-16 text-[10px] font-black uppercase text-text-muted italic border-dashed border-2 border-brand/10 rounded-[2rem] bg-brand/[0.01]">No recent activity in your studio</div>'
-    
-    # Connection CTA for empty states
-    connection_cta = ""
-    if account_count == 0:
-        connection_cta = f"""
-        <div class="card p-16 text-center space-y-10 animate-in slide-in-from-bottom-6 duration-1000 border-dashed border-2 border-brand/10 bg-brand/[0.01]">
-          <div class="w-24 h-24 bg-brand/5 rounded-[2.5rem] flex items-center justify-center text-brand mx-auto border border-brand/5 shadow-inner">
-            <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-          </div>
-          <div class="space-y-4">
-            <h3 class="heading-premium text-4xl">Connect <span class="text-accent">Instagram</span></h3>
-            <p class="text-premium-muted max-w-lg mx-auto opacity-70">Your studio is ready to manifest. Link your Professional Meta account to begin automated guidance cycles.</p>
-          </div>
-          <button onclick="openConnectInstagramModal()" class="px-12 py-5 bg-brand rounded-2xl font-black text-[11px] uppercase tracking-[0.3em] text-white shadow-2xl shadow-brand/40 hover:bg-brand-hover hover:scale-[1.02] transition-all">Link Foundation Now</button>
-        </div>
-        """
-    
-    # Check if superadmin for admin link and prominent CTA
-    admin_link = ""
-    # --- GET STARTED CHECKLIST LOGIC ---
-    automation_count = db.query(func.count(TopicAutomation.id)).filter(TopicAutomation.org_id == org_id).scalar() or 0
-    primary_acc = db.query(IGAccount).filter(IGAccount.org_id == org_id).first()
-    is_connected = primary_acc is not None
-    
-    # Update user flags if they have activity
-    if weekly_post_count > 0 and not user.has_created_first_post:
-        user.has_created_first_post = True
-    if automation_count > 0 and not user.has_created_first_automation:
-        user.has_created_first_automation = True
-    if is_connected and not user.has_connected_instagram:
-        user.has_connected_instagram = True
-    
-    # Connected account info for header (Shows Active Account)
-    if is_connected and active_acc:
-        connected_account_info = f"""
-            <div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2">
-                <span class="text-brand font-black text-[10px] tracking-tighter uppercase">@{active_acc.username}</span>
-                <button onclick="disconnectMetaAccount()" class="hover:text-rose-500 transition-colors opacity-60 hover:opacity-100">
-                    <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            <script>
-                async function disconnectMetaAccount() {{
-                    if (!confirm("Are you sure you want to disconnect this Instagram account (@{active_acc.username})?")) return;
-                    const res = await fetch('/ig-accounts/{active_acc.id}', {{ method: 'DELETE' }});
-                    const data = await res.json();
-                    if (data.ok) window.location.reload();
-                    else alert(data.error || "Failed to disconnect");
-                }}
-            </script>
-        """
-    else:
-        connected_account_info = f"""
-            <div class="flex items-center gap-2 border-l border-brand/10 pl-4 ml-2 opacity-60 italic">
-                <span>No account linked</span>
-            </div>
-        """
-
-    # Hide checklist if all items are complete
-    all_done = user.has_created_first_post and user.has_created_first_automation and user.has_connected_instagram
-    show_checklist = not user.dismissed_getting_started and not all_done
-    
-    get_started_card = ""
-    if show_checklist:
-        get_started_card = GET_STARTED_CARD_HTML.replace("{user_name}", user.name or user.email)
-
-    if user.is_superadmin:
-        admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>'
-
-    content = APP_DASHBOARD_CONTENT.replace("{connection_cta}", connection_cta)\
-                                   .replace("{get_started_card}", get_started_card)\
-                                   .replace("{connected_account_info}", connected_account_info)\
-                                   .replace("{weekly_post_count}", str(weekly_post_count))\
-                                   .replace("{account_count}", str(account_count))\
-                                   .replace("{next_post_countdown}", next_post_countdown)\
-                                   .replace("{next_post_time}", next_post_time)\
-                                   .replace("{next_post_caption}", next_post_caption)\
-                                   .replace("{next_post_media}", next_post_media)\
-                                   .replace("{calendar_headers}", calendar_headers)\
-                                   .replace("{calendar_days}", calendar_days)\
-                                   .replace("{dashboard_feed_sections}", dashboard_feed_sections)\
-                                   .replace("{next_post_id}", str(next_post_id))\
-                                   .replace("{next_post_caption_json}", str(next_post_caption_json))\
-                                   .replace("{next_post_time_iso}", str(next_post_time_iso))\
-                                   .replace("{next_post_actions_class}", next_post_actions_class)\
-                                   .replace("{org_id}", str(org_id))
-    
-    # --- GET ACCOUNT OPTIONS FOR STUDIO MODAL ---
-    accs = db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
-    account_options = "".join([f'<option value="{a.id}" {"selected" if a.id == active_acc_id else ""}>@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in accs])
-    if not accs:
-        account_options = '<option value="">No accounts connected</option>'
-
-    return render_app_page(
-        title="Dashboard",
-        content=content,
-        user=user,
-        org=org,
-        active_tab="dashboard",
-        db=db,
-        extras={
-            "connected_account_info": connected_account_info,
-            "extra_js": f'<script>window.hasConnectedInstagram = {"true" if is_connected else "false"};</script>'
-        }
-    )
+    from .creator_workspace import render_creator_workspace
+    posts = db.query(Post).filter(Post.org_id == org_id, Post.ig_account_id == active_acc_id).order_by(Post.created_at.desc()).limit(30).all()
+    return render_app_page(title={"home": "Home", "posts": "Posts", "you": "Your workspace"}.get(view, "Home"),
+        content=render_creator_workspace(user, org, posts, active_acc, view, all_accs), user=user, org=org,
+        active_tab="dashboard", db=db)
 
 @router.get("/app/select-account", response_class=HTMLResponse)
 @router.get("/select-account", response_class=HTMLResponse)
@@ -1370,7 +1037,7 @@ async def app_calendar_page(
         
         <div class="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start">
             <!-- Main Calendar Area -->
-            <div class="xl:col-span-3 space-y-4">
+            <div class="cw-calendar-grid xl:col-span-3 space-y-4">
                 <!-- Calendar Grid -->
                 <div class="grid grid-cols-7 gap-3">
                     {calendar_html}
@@ -1378,7 +1045,7 @@ async def app_calendar_page(
             </div>
             
             <!-- Side Agenda Panel -->
-            <div class="xl:col-span-1 space-y-6 sticky top-8">
+            <div class="cw-calendar-agenda xl:col-span-1 space-y-6 sticky top-8">
                 <div class="bg-white rounded-[2rem] border border-brand/5 p-6 shadow-sm flex flex-col min-h-[500px]">
                     <div class="flex items-center justify-between mb-8">
                         <div class="flex items-center gap-3">

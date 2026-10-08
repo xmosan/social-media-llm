@@ -69,3 +69,35 @@ test('a late save from an older Studio session cannot replace the new draft or c
   finish({ok:true,json:async()=>({id:51})});await pending;
   assert.equal(f.run('studioPostId'),99);assert.equal(f.run('studioSaveBusy'),true);
 });
+
+test('an idea is recoverable before a source, card, image, or Instagram account exists',async()=>{
+ const f=setup(()=>{throw Error('Early recovery must not call a production route')});
+ f.c.studioCardMessage=null;f.c.studioVisualDesign=null;f.c.currentQuoteCardUrl=null;f.el('studioAccount').value='';f.el('studioTopic').value='';
+ f.c.window.readCreatorBrief=()=>({idea:'A reminder for difficult days',mode:'guided',sourceType:'quran'});
+ let restored;f.c.window.restoreCreatorBrief=e=>restored=e;
+ await f.c.window.saveStudioDraft();const saved=JSON.parse([...f.storage.values()][0]);assert.equal(saved.entry.idea,'A reminder for difficult days');assert.equal(saved.payload.card_message,null);
+ await f.c.window.restoreStudioRecovery();assert.equal(restored.idea,saved.entry.idea);assert.equal(f.phase(),1);
+});
+test('storage failure is reported instead of claiming that early work is safe',()=>{
+ const f=setup();let success;f.c.window.creatorRecoveryStatus=ok=>success=ok;
+ f.c.localStorage.setItem=()=>{throw Error('Quota');};assert.equal(f.c.window.rememberStudio(),false);assert.equal(success,false);
+});
+test('editing a caption clears prior publishing approval without invalidating the background',()=>{
+ const f=setup();f.run('studioSequenceReviewed=true');f.el('sequenceReviewCheck').checked=true;
+ f.el('studioCaption').value='My edited caption';f.c.window.captionChanged();
+ assert.equal(f.run('studioSequenceReviewed'),false);assert.equal(f.el('sequenceReviewCheck').checked,false);assert.equal(f.c.isQuoteCardOutOfDate,false);
+ assert.equal(JSON.parse([...f.storage.values()][0]).payload.caption_message.caption,'My edited caption');
+});
+test('starting another idea preserves the previous local draft and can recover it',async()=>{
+ const f=setup();f.run("studioDraftKey='first'");f.el('studioCaption').value='First draft';f.c.window.rememberStudio();
+ f.run("studioDraftKey='second'");f.el('studioCaption').value='Second draft';f.c.window.rememberStudio();
+ const archive=JSON.parse(f.storage.get('sabeel-studio-v2:1:2:drafts'));
+ assert.equal(archive.length,1);assert.equal(archive[0].payload.caption_message.caption,'First draft');
+ await f.c.window.restoreStudioRecovery('first');assert.equal(f.el('studioCaption').value,'First draft');
+ f.c.window.rememberStudio();assert.equal(JSON.parse(f.storage.get('sabeel-studio-v2:1:2:drafts'))[0].payload.caption_message.caption,'Second draft');
+});
+test('recovery keeps planned date and time as editor preferences, never as a scheduling command',async()=>{
+ const f=setup();f.el('scheduleDate').value='2026-12-20';f.el('scheduleTime').value='09:15';f.c.window.rememberStudio();
+ const saved=JSON.parse(f.storage.get('sabeel-studio-v2:1:2'));assert.equal(saved.schedule.date,'2026-12-20');assert.equal(saved.payload.scheduled_at,undefined);
+ f.el('scheduleDate').value='';await f.c.window.restoreStudioRecovery();assert.equal(f.el('scheduleDate').value,'2026-12-20');assert.equal(f.el('scheduleTime').value,'09:15');
+});

@@ -44,6 +44,24 @@ def _parse_scheduled_at(value: str | None) -> datetime | None:
 router = APIRouter(prefix="/api/studio", tags=["studio"])
 
 
+@router.post("/discover-sources")
+def studio_discover_sources(data: dict, db: Session = Depends(get_db),
+                           org_id: int = Depends(get_current_org_id), user: User = Depends(require_user)):
+    from app.services.creator_discovery import discover_sources
+    from app.services.text_provider import TextGenerationError
+    try:
+        return discover_sources(db, org_id, user.id, data.get("idea"), data.get("source_type", "quran"))
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from None
+    except TextGenerationError:
+        raise HTTPException(503, "Sabeel could not prepare suggestions. Your idea is kept. Retry or choose a source directly.") from None
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Creator source discovery failed")
+        raise HTTPException(503, "Source search is unavailable. Your idea is kept; try again shortly.") from None
+
+
 @router.get("/brand-kit", dependencies=[Depends(require_user)])
 def get_brand_kit(db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
     from app.services.brand_kit import workspace_brand
