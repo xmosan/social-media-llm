@@ -1,0 +1,3 @@
+# Optional offline visual evaluator dependency; not required by production.
+fonttools==4.60.1
+numpy==2.3.3
