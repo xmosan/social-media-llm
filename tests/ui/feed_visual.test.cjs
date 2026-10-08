@@ -68,3 +68,17 @@ test('rejected scene retains its raw background for a free layout retry but neve
   assert.equal(f.el('btnGenerateCard').disabled,false);
   assert.match(f.el('visualQualityNote').textContent,/quieter layout/);
 });
+
+test('direction changes drop the receipt and update the generation action', async () => {
+  const requests=[];
+  const f=setup(async(url,opts)=>{requests.push(JSON.parse(opts.body));return response({image_url:'https://cdn.test/card.jpg',visual_design:{background_token:'old-photo'}});});
+  f.context.window.invalidateQuoteCard=()=>{};
+  await f.generate();
+  f.el('studioCustomDirection').value='night light';
+  f.context.window.changeStudioBackground();
+  assert.equal(f.el('btnGenerateCard').innerText,'Generate background & design');
+  assert.equal(f.el('newStudioPhotoButton').hidden,true);
+  await f.generate();
+  assert.equal(requests[1].background_token,null);
+  assert.equal(requests[1].visual_prompt,'night light');
+});

@@ -14,7 +14,7 @@ Signature/title must fit at readable size; unsupported symbols or overwide names
 are rejected instead of reduced or clipped. Arabic and English passages containing
 Arabic honorifics use the bundled Arabic-supporting serif face in either type style.
 
-Studio edits are per draft until **Save workspace brand** is selected. The endpoint
+Studio edits are per draft until **Save brand preferences** is selected. The endpoint
 is organization scoped, requires login, locks the workspace row, and compares a
 revision digest to prevent concurrent overwrites. Existing drafts retain the kit
 in their signed media manifest; caption-only edits and export keep that snapshot.
@@ -71,3 +71,42 @@ report uses the three original source fixtures, an existing genuine OpenAI photo
 and actual final JPEGs. Phone-size visual assessment is by Codex, not creator or
 qualified source review. The 36-output release matrix and creator testing belong
 to Stage 4 and subsequent work. No creator permissions are provisioned in Stage 3.
+
+## Personal backgrounds and mobile editor — 8 October 2026
+
+The workspace kit also accepts optional `visual_identity` (up to 400 characters).
+Empty values are omitted: existing v1 signed snapshots and receipt bindings remain
+valid. Nonempty preferences are included in each new draft/automation snapshot.
+This uses the existing JSON column; no additional migration or backfill is needed.
+A rollback must retain support for this optional field rather than stripping it
+from saved brands or signed drafts.
+
+For the four revised Vision families and quiet photography, background generation
+uses these preferences; per-post direction takes priority. Scene prompts contain
+visual preferences and measured typography rectangles, never source quotations or
+account identifiers. Readability constraints remain mandatory. Generation is fresh,
+without a cross-account image cache. Four revised families each vary six scenes,
+four material choices and four framings; compatible saved compositions are avoided
+using the workspace's last 100 posts, with least-recent choice on exhaustion. This
+is recipe diversity, not a guarantee of globally unique or aesthetically distinct
+images. Unsaved discarded generations are not a durable history.
+
+Raw Cloudinary receipts bind owner, direction, format, family and visual identity.
+Layout/type/palette changes reuse a valid photograph. Changed visual preferences
+require an explicit new generation; no paid retry occurs silently. Existing
+photographs are not regenerated on deployment. Legacy family behavior is retained.
+
+On phones the preview precedes two editing tools (Design; Source & reflection).
+Caption has one process step. Format and family use compact native selects; the
+background direction and generation action stay together. Brand/default details
+and reading settings are collapsed, with default family edited only from the
+workspace brand screen. Below 350px the two selectors stack to avoid clipped labels.
+
+`scripts/evaluate_personal_vision.py` performs bounded real-provider comparisons
+with the verified Qur'an 94:6 fixture. Place the prior deployed catalog module in
+its external output directory as `baseline_prompt.py` for the before comparison.
+Started attempts are never retried automatically. The development run retained all
+11 requests, including five rejected compositions; later night and warm examples
+passed after prompt refinements. All passed pages preserve canonical source slices
+and meet final-JPEG contrast checks. Visual judgments are Codex assessments, not
+creator, scholar or physical-device validation. The broader release gate stays held.

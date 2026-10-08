@@ -62,6 +62,13 @@ class VisualBackgroundReuseTests(unittest.TestCase):
         self.assertFalse(get.call_args.kwargs['allow_redirects'])
         self.assertTrue(get.call_args.kwargs['stream'])
 
+    def test_changed_visual_identity_rejects_reuse_before_network(self):
+        with patch('requests.get') as get:
+            for token in [self.token(),self.token(identity=visual._hash_prompt('Old preference'))]:
+                with self.assertRaises(CardTypographyError):
+                    visual._load_background(token,self.request(brand_kit={'visual_identity':'New preference'}))
+            get.assert_not_called()
+
     def test_missing_saved_background_does_not_silently_buy_a_replacement(self):
         response = Mock(status_code=302)
         response.__enter__ = Mock(return_value=response); response.__exit__ = Mock(return_value=False)
@@ -83,8 +90,8 @@ class VisualBackgroundReuseTests(unittest.TestCase):
                 {'index':0,'url':'https://res.cloudinary.com/fixture/image/upload/card.jpg','width':1080,'height':1350,'quality':{'status':'passed'},'slices':[]}]}
             return 'https://res.cloudinary.com/fixture/image/upload/card.jpg'
         with patch.object(visual, '_load_background', return_value=Image.new('RGB',(10,10))), patch('app.services.image_card.generate_quote_card', side_effect=render):
-            result = visual.generate_visual(self.request(background_token='signed-fixture', layout='bilingual', card_message=card))
+            result = visual.generate_visual(self.request(background_token=self.token(prompt_signature='saved-composition'), layout='bilingual', card_message=card))
         self.assertTrue(result.ok)
-        self.assertEqual(result.design['background_token'], 'signed-fixture')
+        self.assertEqual(result.design['prompt_signature'], 'saved-composition')
         self.assertTrue(result.design['background_reused'])
         self.assertEqual(card, original)

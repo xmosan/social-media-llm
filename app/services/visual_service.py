@@ -55,6 +55,7 @@ class VisualRequest:
     owner_id: Optional[int] = None
     post_format: str = "feed_4_5"
     brand_kit: Optional[dict] = None
+    visual_history: Optional[dict] = None
 
 
 @dataclass
@@ -129,7 +130,8 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
     def retain_background(image):
         nonlocal background_token
         background_token = store_background(image, request.owner_id, request.custom_prompt or "",
-                                             family=request.style, post_format=request.post_format)
+                                             family=request.style, post_format=request.post_format,
+                                             visual_identity=(brand or {}).get("visual_identity", ""))
 
 
 
@@ -148,7 +150,7 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
             layout=request.layout, background_image=background_image,
             background_sink=retain_background if request.style in REUSABLE_FAMILIES else None,
             post_format=request.post_format, allow_sequence=True,
-            brand_kit=brand,
+            brand_kit=brand, visual_history=request.visual_history,
         )
     except CardTypographyError as error:
         # Only a raw-background receipt survives a failed composition. Never
@@ -159,6 +161,23 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
                     "background_token": background_token if request.style in REUSABLE_FAMILIES else None,
                     "recipe": recipe_binding(request.style, request.post_format),
                     "quality": {"status": "rejected", "review_required": True}})
+
+    # Keep the signed composition identity through free re-layouts so saved
+    # drafts remain part of account-wide variation history.
+    signature = generation_metadata.get("prompt_signature")
+    if background_token:
+        from itsdangerous import BadData
+        try:
+            receipt = _background_signer().loads(background_token)
+            if signature:
+                receipt["prompt_signature"] = signature
+                background_token = _background_signer().dumps(receipt)
+            else:
+                signature = receipt.get("prompt_signature")
+        except BadData:
+            # Invalid production receipts are rejected by _load_background.
+            # A renderer without a signed receipt simply has no scene history.
+            pass
 
     from app.services.media_sequence import seal_manifest, validate_manifest
     manifest = seal_manifest(generation_metadata["media_manifest"], request.owner_id)
@@ -177,11 +196,12 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
                 "recipe": recipe_binding(request.style, request.post_format),
                 "direction": request.custom_prompt or "", "quality": generation_metadata.get("quality", {}),
                 "media_manifest": manifest,
-                "background_reused": generation_metadata.get("background_reused", False)},
+                "background_reused": generation_metadata.get("background_reused", False),
+                "prompt_signature": signature},
     )
 
 
-def store_background(image, owner_id, prompt="", *, family="quiet_photography", post_format="feed_4_5"):
+def store_background(image, owner_id, prompt="", *, family="quiet_photography", post_format="feed_4_5", visual_identity=""):
     """Persist one raw photograph for Studio and automation draft re-layout."""
     from tempfile import TemporaryDirectory
     from pathlib import Path
@@ -195,7 +215,7 @@ def store_background(image, owner_id, prompt="", *, family="quiet_photography", 
     if not is_durable_media_url(url):
         raise CardTypographyError("The photograph could not be saved for reuse. Please try again.")
     return _background_signer().dumps({"url": url, "owner": owner_id, "prompt": _hash_prompt(prompt),
-                                       "recipe": recipe_binding(family, post_format)})
+                                       "recipe": recipe_binding(family, post_format), "identity": _hash_prompt(visual_identity) if visual_identity else ""})
 
 
 def _generate_background_only(request: VisualRequest) -> VisualResult:
@@ -276,6 +296,7 @@ def _load_background(token, request):
         if (not isinstance(data, dict) or data.get("owner") != request.owner_id
                 or data.get("prompt") != _hash_prompt(request.custom_prompt or "")
                 or data.get("recipe") != recipe_binding(request.style, request.post_format)
+                or data.get("identity", "") != (_hash_prompt(request.brand_kit["visual_identity"]) if (request.brand_kit or {}).get("visual_identity") else "")
                 or not is_durable_media_url(data.get("url"))):
             raise ValueError("Invalid receipt")
         with requests.get(data["url"], timeout=(5, 20), allow_redirects=False, stream=True) as response:
