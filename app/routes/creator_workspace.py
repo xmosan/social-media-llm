@@ -26,8 +26,9 @@ def post_card(post):
     direct = post.status in {'draft', 'drafted', 'ready'} and bool(getattr(post, 'card_message', None)) and bool(pages)
     handler = f'resumeStudioPost({post.id})' if direct else f'openEditPostModal(...{arguments})'
     action = "Continue editing" if post.status in {"draft", "drafted", "ready"} else "View post"
+    page_label = f" · {len(pages)} {'page' if len(pages) == 1 else 'pages'}" if pages else ""
     return f'''<button type="button" class="cw-post" onclick="{handler}">
-        <span class="cw-post-image">{image}</span><span class="cw-post-copy"><span class="cw-status">{status} · {format_label}{f" · {len(pages)} pages" if pages else ""}</span>
+        <span class="cw-post-image">{image}</span><span class="cw-post-copy"><span class="cw-status">{status} · {format_label}{page_label}</span>
         <strong>{escape(title)}</strong><span>{escape((post.caption or 'Source and caption stay separate.')[:110])}</span><b>{action} →</b></span></button>'''
 
 
