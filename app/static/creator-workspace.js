@@ -68,6 +68,12 @@
   const visual = byId("studioSection2"),
     design = visual.querySelector(".cw-design-column"),
     words = byId("cardMessageWorkspace");
+  const editDesign = document.createElement("button");
+  editDesign.type = "button";
+  editDesign.className = "cw-edit-design";
+  editDesign.textContent = "Edit design ↓";
+  editDesign.onclick = () => { showTool("design"); toolbar.scrollIntoView({block:"start",behavior:"smooth"}); };
+  visual.querySelector(".cw-preview-column").prepend(editDesign);
   visual
     .querySelector(".cw-visual-grid")
     .prepend(visual.querySelector(".cw-preview-column"));
@@ -78,37 +84,26 @@
   words.dataset.editorPane = "words";
   words.hidden = true;
   design.append(words);
-  const ask = document.createElement("div");
-  ask.dataset.editorPane = "ask";
-  ask.hidden = true;
-  ask.innerHTML =
-    '<h4 class="text-lg font-semibold">A second pair of hands.</h4><p class="cw-note">Sabeel can draft a separate reflection or caption. Compare the suggestion, keep your version, or apply and undo. The source stays unchanged.</p><button type="button" class="cw-primary" onclick="draftStudioReflection()">Suggest a reflection</button><button type="button" class="cw-secondary" onclick="switchStudioSection(3); generateSocialCaption()">Suggest a caption</button>';
-  design.append(ask);
   const toolbar = document.createElement("div");
   toolbar.className = "cw-editor-toolbar";
   toolbar.setAttribute("aria-label", "Editing tools");
   for (const [key, label] of [
     ["design", "Design"],
-    ["words", "Words"],
-    ["caption", "Caption"],
-    ["ask", "Ask Sabeel"],
+    ["words", "Source & reflection"],
   ]) {
     const b = document.createElement("button");
     b.type = "button";
     b.dataset.creatorTool = key;
     b.textContent = label;
     b.onclick = () => {
-      if (key === "caption") window.switchStudioSection(3);
-      else {
-        showTool(key);
-        design
-          .querySelector('[data-editor-pane="' + key + '"]')
-          .scrollIntoView({ block: "start", behavior: "smooth" });
-      }
+      showTool(key);
+      design
+        .querySelector('[data-editor-pane="' + key + '"]')
+        .scrollIntoView({ block: "start", behavior: "smooth" });
     };
     toolbar.append(b);
   }
-  visual.prepend(toolbar);
+  design.prepend(toolbar);
   function showTool(key) {
     for (const pane of design.querySelectorAll("[data-editor-pane]"))
       pane.hidden = pane.dataset.editorPane !== key;
@@ -118,8 +113,25 @@
   }
   showTool("design");
   const brand = byId("creatorBrandKit"),
-    brandParent = brand.parentNode,
-    brandNext = brand.nextSibling;
+    brandParent = brand.parentNode;
+  // Per-post essentials come first. Workspace defaults live in the home brand editor.
+  designPane.append(brand);
+  const reading = byId("creatorReadingOptions");
+  if(reading) designPane.append(reading);
+  window.onCreatorDesignChanged = () => {
+    const picker = byId("studioFamilyPicker"), family = byId("studioStyle").value;
+    for (const option of [...picker.options]) if(option.dataset.legacy) option.remove();
+    if(family && ![...picker.options].some(option => option.value === family)) {
+      const saved = document.createElement("option");
+      saved.value = family; saved.textContent = "Saved design"; saved.dataset.legacy = "true";
+      picker.append(saved);
+    }
+    picker.value = family;
+    const identity = byId("brandVisualIdentity").value.trim();
+    byId("creatorVisualIdentityHint").textContent = identity
+      ? "Your visual preferences apply. This direction takes priority."
+      : "A fresh image each time. Set your visual preferences in Brand & typography.";
+  };
   const brandHolder = document.createElement("div");
   brandHolder.hidden = true;
   section.append(brandHolder);
@@ -127,7 +139,8 @@
     modal.setAttribute("aria-label", "Create a post");
     delete modal.dataset.brandOnly;
     if (brandOnly) {
-      brandParent.insertBefore(brand, brandNext);
+      brandParent.insertBefore(brand, byId("creatorReadingOptions"));
+      brand.open = false;
       brandOnly = false;
       brandHolder.hidden = true;
     }
@@ -244,7 +257,7 @@
   window.onCreatorSection = (step) => {
     notice.classList.add("hidden");
     if (brandOnly && step !== 1) restoreBrand();
-    if (step === 2) showTool("design");
+    if (step === 2) { showTool("design"); brand.open = false; window.updateStudioVisualAction?.(); }
     if (step === 3) byId("captionResultArea").classList.remove("hidden");
     byId("composerForm").querySelector(".custom-scrollbar").scrollTop = 0;
   };

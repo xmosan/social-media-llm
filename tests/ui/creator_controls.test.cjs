@@ -67,3 +67,14 @@ test('late AI reflection cannot overwrite the creator edit or the chosen Arabic 
  assert.equal(f.el('editSupporting').value,'My own words');assert.equal(f.c.studioCardMessage.arabic_display.start,2);
  assert.match(f.alerts[0],/Your edit was kept/);assert.equal(f.el('draftReflectionButton').disabled,false);
 });
+
+test('visual identity survives draft snapshots and clears only the photograph on a preference edit',()=>{
+ const f=setup(async()=>{});f.c.studioBackgroundToken='receipt';
+ f.c.window.restoreCreatorControls({brand_kit:{...kit,visual_identity:'Coastal dusk'}});
+ assert.equal(f.c.window.studioBrandSnapshot().visual_identity,'Coastal dusk');
+ f.c.window.changeStudioBrand();assert.equal(f.c.studioBackgroundToken,'receipt');
+ f.el('brandVisualIdentity').value='Warm plaster';f.c.window.changeStudioBrand(true);
+ assert.equal(f.c.studioBackgroundToken,null);
+ f.c.window.restoreCreatorControls({brand_kit:kit});assert.equal(f.el('brandVisualIdentity').value,'');
+ assert.equal(f.c.window.studioBrandSnapshot().visual_identity,undefined);
+});

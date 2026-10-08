@@ -751,11 +751,9 @@ button:disabled {
     line-height: 1.5;
   }
   #newPostModal .cw-editor-toolbar {
-    position: sticky;
-    top: -16px;
+    position: static;
     background: #fff;
-    padding: 10px 0;
-    z-index: 3;
+    padding: 0;
   }
   #newPostModal .cw-preview-empty {
     padding: 18px;
@@ -868,4 +866,38 @@ button:disabled {
   border: 1px solid var(--cw-line);
   border-radius: 12px;
   margin-top: 8px;
+}
+
+/* One primary path: preview, essential design choices, optional detail. */
+#newPostModal .cw-design-essentials { display:grid; gap:16px; }
+#newPostModal .cw-design-pickers { display:grid; grid-template-columns:minmax(0, .8fr) minmax(0, 1.2fr); gap:12px; }
+#newPostModal .cw-design-pickers label { min-width:0; font-size:13px; font-weight:600; }
+#newPostModal .cw-design-pickers select { margin-top:6px; width:100%; min-height:48px; padding:10px 8px; border:1px solid var(--cw-line); border-radius:12px; background:white; color:var(--cw-ink); }
+#newPostModal [data-editor-pane="design"] { display:grid; gap:16px; }
+#newPostModal [data-editor-pane="design"] > * { margin-top:0; }
+#newPostModal .cw-editor-toolbar button { flex:1; }
+#newPostModal .cw-edit-design { align-self:flex-end; font-size:13px; text-decoration:underline; }
+#newPostModal:not([data-brand-only]) .cw-workspace-default { display:none; }
+#newPostModal #newStudioPhotoButton[hidden] { display:none; }
+#newPostModal .cw-preferences, #newPostModal #creatorBrandKit { padding:14px 16px; border:1px solid var(--cw-line); border-radius:14px; background:#fafbf7; }
+#newPostModal summary { display:flex; align-items:center; min-height:32px; font-size:14px; }
+#newPostModal summary::after { content:'+'; margin-left:auto; font-size:20px; }
+#newPostModal details[open] > summary::after { content:'−'; }
+#newPostModal #creatorBrandKit label { display:block; }
+#newPostModal #btnGenerateCard { min-height:52px; font-size:15px; border-radius:14px; text-transform:none; letter-spacing:0; }
+@media (max-width:767px) {
+  #newPostModal .cw-design-column { margin-top:0; }
+  #newPostModal #cardPreviewContainer { max-width:270px; }
+  #newPostModal .cw-preview-column:has(#quoteCardPreview.hidden) .cw-edit-design { display:none; }
+}
+
+#newPostModal:not([data-brand-only]) #creatorBrandKit .cw-workspace-default { display:none; }
+#newPostModal .cw-preview-column:has(#quoteCardPreview.hidden) #sequenceNavigation,
+#newPostModal .cw-preview-column:has(#quoteCardPreview.hidden) #sequenceReviewLabel { display:none; }
+
+#newPostModal .cw-preview-column:has(#quoteCardPreview.hidden) > div:has(#sequencePrevious),
+#newPostModal .cw-preview-column:has(#quoteCardPreview.hidden) > label:has(#sequenceReviewCheck) { display:none; }
+
+@media (max-width:350px) {
+  #newPostModal .cw-design-pickers { grid-template-columns:minmax(0,1fr); }
 }

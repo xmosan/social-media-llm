@@ -723,9 +723,19 @@ STUDIO_SCRIPTS_JS = r"""
 
     window.sabeelPhotoFamilies = ['quiet_photography', 'luxury_editorial', 'desert_glow', 'midnight_oasis', 'emerald_forest'];
 
+    window.updateStudioVisualAction = function() {
+        const photo = window.sabeelPhotoFamilies.includes(document.getElementById('studioStyle')?.value);
+        const button = document.getElementById('btnGenerateCard');
+        if(button && !studioVisualController) button.innerText = studioBackgroundToken ? 'Apply design changes' : photo ? 'Generate background & design' : 'Create design';
+        const fresh = document.getElementById('newStudioPhotoButton');
+        if(fresh) fresh.hidden = !studioBackgroundToken || !photo;
+        window.onCreatorDesignChanged?.();
+    };
+
     window.changeStudioBackground = function() {
         studioBackgroundToken = null;
         window.invalidateQuoteCard();
+        window.updateStudioVisualAction();
     };
 
     window.newStudioPhotograph = function() {
@@ -792,7 +802,7 @@ STUDIO_SCRIPTS_JS = r"""
             window.showStudioPage(0); window.rememberStudio(); window.onCreatorVisualReady?.();
             if (note) note.textContent = (studioVisualDesign?.background_reused ? 'Your photograph was reused. ' : '') +
                 (studioVisualDesign?.quality?.background_repaired ? 'The background was softened for readability. ' : '') +
-                'Review the full source, Arabic and reflection at phone size before continuing.';
+                'Check every page before continuing.';
         } catch (e) {
             if (epoch === studioVisualEpoch && note) note.textContent = e.name === 'AbortError'
                 ? 'This took too long. Your source is safe; please retry.' : e.message;
@@ -802,7 +812,7 @@ STUDIO_SCRIPTS_JS = r"""
                 studioVisualController = null;
                 loader?.classList.add('hidden');
                 btn.disabled = false;
-                btn.innerText = studioBackgroundToken ? 'Apply layout with this photograph' : 'Create layout';
+                window.updateStudioVisualAction();
             }
         }
     };
@@ -819,9 +829,12 @@ STUDIO_SCRIPTS_JS = r"""
     window.studioBrandSnapshot = function() {
         const kit = {...brandDefaults};
         for (const [key,id] of Object.entries(brandFields)) kit[key] = document.getElementById(id)?.value ?? kit[key];
+        const identity = document.getElementById('brandVisualIdentity')?.value?.trim();
+        if(identity) kit.visual_identity = identity;
         return kit;
     };
     function setBrandControls(kit) {
+        const identity = document.getElementById('brandVisualIdentity'); if(identity) identity.value = kit.visual_identity || '';
         for (const [key,id] of Object.entries(brandFields)) { const el=document.getElementById(id); if(el) el.value=kit[key] ?? brandDefaults[key]; }
     }
     window.acceptRenderedBrand = function(kit) { if(kit) {setBrandControls(kit);studioBrandReady=true;} };
@@ -850,20 +863,24 @@ STUDIO_SCRIPTS_JS = r"""
                 return;
             }
             if(apply || (!studioBrandTouched && !studioPostId && !currentQuoteCardUrl)) {
+                const previousIdentity=window.studioBrandSnapshot().visual_identity || '';
                 setBrandControls(data.brand_kit); studioBrandReady=true;
+                if(previousIdentity !== (data.brand_kit.visual_identity || '')) studioBackgroundToken=null;
                 const family=document.getElementById('studioStyle');
                 if(family && family.value!==data.brand_kit.family) studioBackgroundToken=null;
                 if(family) family.value=data.brand_kit.family;
                 document.querySelectorAll('.scene-card').forEach(c=>c.classList.toggle('active',c.dataset.family===data.brand_kit.family));
                 document.getElementById('photoDirectionControls')?.classList.toggle('hidden',!(window.sabeelPhotoFamilies || ['quiet_photography']).includes(data.brand_kit.family));
                 if(apply) window.invalidateQuoteCard();
+                window.updateStudioVisualAction?.();
             }
-            if(status) status.textContent='Workspace brand loaded. Draft changes stay here until you save them as the workspace default.';
-        } catch(e) { if(epoch===studioSessionEpoch && status) status.textContent='Could not load the workspace brand. Use “Load workspace brand” to retry. Your draft is safe.'; }
+            if(status) status.textContent='Using your saved brand.';
+        } catch(e) { if(epoch===studioSessionEpoch && status) status.textContent='Could not load the workspace brand. Use “Reset to saved brand” to retry. Your draft is safe.'; }
     };
-    window.changeStudioBrand = function() {
+    window.changeStudioBrand = function(backgroundChanged=false) {
+        if(backgroundChanged) studioBackgroundToken=null;
         studioBrandTouched=true; studioBrandReady=true;
-        window.invalidateQuoteCard(); window.rememberStudio();
+        window.invalidateQuoteCard(); window.rememberStudio(); window.updateStudioVisualAction?.();
     };
     window.requireStudioBrand = function() { if(!studioBrandReady) throw Error('Load the workspace brand before creating the layout.'); };
     window.saveWorkspaceBrand = async function() {
@@ -879,7 +896,7 @@ STUDIO_SCRIPTS_JS = r"""
             if(!response.ok) throw Error(data.detail || 'Brand could not be saved');
             studioBrandRevision=data.revision;
             if(data.brand_kit && JSON.stringify(snapshot)===JSON.stringify(window.studioBrandSnapshot())) setBrandControls(data.brand_kit);
-            status.textContent='Saved for new Studio drafts and automation artwork. Existing drafts retain their own designs.';
+            status.textContent='Saved for new posts and automations.';
             window.onCreatorBrandSaved?.(snapshot);
         } catch(e) { if(epoch===studioSessionEpoch) status.textContent=e.message; }
         finally { if(epoch===studioSessionEpoch) { studioBrandSaveBusy=false; button.disabled=false; } }
@@ -1034,7 +1051,7 @@ STUDIO_SCRIPTS_JS = r"""
         if (preview) preview.style.aspectRatio = story ? '9 / 16' : '4 / 5';
         for (const id of ['storyPreviewTop', 'storyPreviewBottom', 'storyCaptionNote']) document.getElementById(id)?.classList.toggle('hidden', !story);
         const help = document.getElementById('sequenceFormatHelp');
-        if (help) help.textContent = story ? 'Stories · 9:16. Text stays clear of profile and reply controls. Publish every frame in order. Business account required for direct publishing; export is also available. Caption stays in your notes.' : 'Feed · 4:5. Long sources become a carousel of up to ten pages. Review and publish every page in order; English and Arabic chapters are labeled separately.';
+        if (help) help.textContent = story ? 'Story · 9:16. Profile and reply areas shown in preview.' : 'Feed · 4:5. Longer sources continue across pages.';
     };
     window.changeStudioFormat = function() {
         const scene = (window.sabeelPhotoFamilies || []).includes(document.getElementById('studioStyle')?.value) && document.getElementById('studioStyle')?.value !== 'quiet_photography';
@@ -1342,6 +1359,7 @@ STUDIO_SCRIPTS_JS = r"""
             if(banner) banner.classList.remove('hidden');
         }
         window.rememberStudio();
+        window.updateStudioVisualAction?.();
     };
 
     window.setStudioIntent = function(intent, el) {
@@ -3016,56 +3034,50 @@ STUDIO_COMPONENTS_HTML = """
              <div class="cw-visual-grid">
                 <div class="cw-design-column space-y-8">
                     <details id="creatorBrandKit" class="p-5 border border-brand/15 rounded-xl space-y-4 text-sm">
-                      <summary class="font-semibold cursor-pointer">Your brand</summary>
-                      <p class="text-brand/70">Palette, typography and signature stay consistent across your series. Each saved draft keeps its own design.</p>
+                      <summary class="font-semibold cursor-pointer">Brand & typography</summary>
+                      <p class="text-brand/70">Your saved identity, with changes for this draft.</p>
                       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <label>Palette<select id="brandPalette" onchange="changeStudioBrand()" class="w-full mt-1 p-2 border rounded-lg bg-white"><option value="olive">Olive & chalk</option><option value="ink">Ink & mist</option><option value="clay">Clay & cream</option><option value="night">Night & linen</option></select></label>
                         <label>Typography<select id="brandTypography" onchange="changeStudioBrand()" class="w-full mt-1 p-2 border rounded-lg bg-white"><option value="modern">Modern sans</option><option value="classic">Classic serif</option></select></label>
                         <label>Creator signature<input id="brandSignature" maxlength="48" oninput="changeStudioBrand()" placeholder="@yourname" class="w-full mt-1 p-2 border rounded-lg"></label>
                         <label>Series name<input id="brandSeries" maxlength="48" oninput="changeStudioBrand()" placeholder="e.g. A moment to reflect" class="w-full mt-1 p-2 border rounded-lg"></label>
-                        <label>Default design family<select id="brandFamily" onchange="changeStudioBrand()" class="w-full mt-1 p-2 border rounded-lg bg-white"><option value="editorial">Editorial typography</option><option value="quiet_photography">Quiet photography</option><option value="minimal_paper">Minimal paper</option><!-- VISION_BRAND_OPTIONS --></select></label>
+                        <label class="cw-workspace-default">Default design family<select id="brandFamily" onchange="changeStudioBrand()" class="w-full mt-1 p-2 border rounded-lg bg-white"><option value="editorial">Editorial typography</option><option value="quiet_photography">Quiet photography</option><option value="minimal_paper">Minimal paper</option><!-- VISION_BRAND_OPTIONS --></select></label>
                         <label>Composition<select id="brandComposition" onchange="changeStudioBrand()" class="w-full mt-1 p-2 border rounded-lg bg-white"><option value="varied">Vary with each source</option><option value="airy">Open & spacious</option><option value="anchored">Top-aligned reading column</option></select></label>
                       </div>
-                      <p class="text-xs text-brand/70">Arabic uses the same shaped typeface in both choices. Narrations containing Arabic honorifics use a supporting serif face. Signatures support English and Arabic.</p>
-                      <div class="flex flex-wrap gap-3"><button id="saveBrandButton" type="button" onclick="saveWorkspaceBrand()" class="px-3 py-2 bg-brand text-white rounded-lg">Save workspace brand</button><button type="button" onclick="loadStudioBrand(true)" class="underline">Load workspace brand</button></div>
+                      <label class="block">Your visual preferences <span class="text-brand/60">(optional)</span>
+                        <textarea id="brandVisualIdentity" maxlength="400" rows="3" oninput="changeStudioBrand(true)" placeholder="e.g. Coastal landscapes, muted blue tones, evening light. Avoid buildings." class="w-full mt-2 p-3 border rounded-lg"></textarea>
+                      </label>
+                      <p class="text-xs text-brand/70">Save once for future backgrounds. This post’s direction can override it.</p>
+                      <div class="flex flex-wrap gap-3"><button id="saveBrandButton" type="button" onclick="saveWorkspaceBrand()" class="px-3 py-2 bg-brand text-white rounded-lg">Save brand preferences</button><button type="button" onclick="loadStudioBrand(true)" class="underline">Reset to saved brand</button></div>
                       <p id="brandStatus" role="status" class="text-brand/70"></p>
                     </details>
-                    <div class="space-y-5">
-                        <label class="block text-sm text-brand">Where will this appear?
-                            <select id="studioFormat" onchange="changeStudioFormat()" class="mt-2 w-full p-3 border border-brand/15 rounded-xl bg-white">
-                                <option value="feed_4_5">Feed · 4:5 post or carousel</option>
-                                <option value="story_9_16">Stories · 9:16 sequence</option>
-                            </select>
-                        </label>
-                        <p id="sequenceFormatHelp" class="text-sm text-brand/70">Feed · 4:5. Long sources flow across readable pages. Review and publish every page in order.</p>
-                        <p class="text-sm text-brand/70">Sabeel Vision · fresh AI backgrounds composed around your source. Review each result before publishing.</p>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="presetModeContainer">
-                            <!-- VISION_FAMILY_CARDS -->
-                            <button type="button" data-family="editorial" onclick="setStudioScene('editorial', this)" class="style-card scene-card active p-4 text-left border border-brand/15 rounded-xl">
-                                <span class="block text-sm font-semibold text-brand">Editorial typography</span><span class="block text-xs text-brand/60 mt-2">Clear ink, generous space.</span>
-                            </button>
-                            <button type="button" data-family="quiet_photography" onclick="setStudioScene('quiet_photography', this)" class="style-card scene-card p-4 text-left border border-brand/15 rounded-xl">
-                                <span class="block text-sm font-semibold text-brand">Quiet photography</span><span class="block text-xs text-brand/60 mt-2">Natural light, a separate text area.</span>
-                            </button>
-                            <button type="button" data-family="minimal_paper" onclick="setStudioScene('minimal_paper', this)" class="style-card scene-card p-4 text-left border border-brand/15 rounded-xl">
-                                <span class="block text-sm font-semibold text-brand">Minimal paper</span><span class="block text-xs text-brand/60 mt-2">Warm paper, restrained type.</span>
-                            </button>
+                    <div class="cw-design-essentials">
+                        <div class="cw-design-pickers">
+                          <label>Format<select id="studioFormat" onchange="changeStudioFormat()">
+                            <option value="feed_4_5">Feed · 4:5</option><option value="story_9_16">Story · 9:16</option>
+                          </select></label>
+                          <label>Visual family<select id="studioFamilyPicker" onchange="setStudioScene(this.value, null)">
+                            <optgroup label="Sabeel Vision · AI backgrounds"><!-- VISION_FAMILY_OPTIONS --></optgroup>
+                            <optgroup label="Typography & paper"><option value="editorial">Editorial typography</option><option value="quiet_photography">Quiet photography</option><option value="minimal_paper">Minimal paper</option></optgroup>
+                          </select></label>
                         </div>
-                        <label class="block text-sm text-brand">Reading order
-                            <select id="studioLayout" onchange="invalidateQuoteCard()" class="mt-2 w-full p-3 border border-brand/15 rounded-xl bg-white">
-                                <option value="english_first">English first · Arabic preserved</option>
-                                <option value="bilingual">Arabic first · full English follows</option>
-                            </select>
-                        </label>
-                        <p class="text-xs leading-relaxed text-brand/60">Changing the layout keeps your source and photograph. Long sources flow across labeled pages with complete English and Arabic chapters. Text is never shortened to fit. A chosen Arabic chain excerpt is explicitly labeled.</p>
-                        <div id="photoDirectionControls" class="hidden space-y-3">
-                            <label class="block text-sm text-brand">Background direction (optional)
-                                <input type="text" id="studioCustomDirection" oninput="changeStudioBackground()" placeholder="e.g. soft daylight, warm stone, restrained colour" class="mt-2 w-full p-3 border border-brand/15 rounded-xl text-sm">
+                        <div id="photoDirectionControls" class="hidden">
+                            <label class="block">This background <span class="text-brand/60">(optional)</span>
+                                <textarea id="studioCustomDirection" maxlength="600" rows="2" oninput="changeStudioBackground()" placeholder="Describe the scene, colours or lighting you want." class="w-full mt-2 p-3 border rounded-xl"></textarea>
                             </label>
-                            <button type="button" onclick="newStudioPhotograph()" class="text-sm text-brand underline">Create a new photograph</button>
+                            <p id="creatorVisualIdentityHint" class="cw-note">A fresh image each time. Your saved visual preferences apply.</p>
                         </div>
+                        <button type="button" id="btnGenerateCard" onclick="generateQuoteCard()" class="cw-primary w-full">Create design</button>
+                        <button type="button" id="newStudioPhotoButton" hidden onclick="newStudioPhotograph()" class="cw-secondary w-full">Generate a different background</button>
                     </div>
-                    <button type="button" id="btnGenerateCard" onclick="generateQuoteCard()" class="w-full py-6 bg-brand text-white rounded-[2rem] font-black text-xs uppercase tracking-widest shadow-xl shadow-brand/20 hover:bg-brand-hover transition-all">Create layout</button>
+                    <details id="creatorReadingOptions" class="cw-preferences">
+                      <summary>Reading order & format details</summary>
+                      <label class="block">Reading order<select id="studioLayout" onchange="invalidateQuoteCard()" class="mt-2 w-full p-3 border rounded-xl bg-white">
+                        <option value="english_first">English first · Arabic preserved</option><option value="bilingual">Arabic first · full English follows</option>
+                      </select></label>
+                      <p id="sequenceFormatHelp" class="cw-note">Longer sources continue across pages.</p>
+                      <p class="cw-note">The full source stays intact. Layout edits reuse your background. Changing its direction or format creates a new image.</p>
+                    </details>
                 </div>
                 <div class="cw-preview-column flex flex-col items-center gap-6">
                     <div id="cardPreviewContainer" class="w-full max-w-[390px] aspect-[4/5] bg-cream border border-brand/10 overflow-hidden relative shadow-2xl flex items-center justify-center">
@@ -3076,12 +3088,12 @@ STUDIO_COMPONENTS_HTML = """
                     </div>
                     <p id="visualQualityNote" role="status" aria-live="polite" class="text-sm leading-relaxed text-brand/70 max-w-[390px]"></p>
                     <button type="button" id="studioImageRetry" onclick="retryStudioImage()" class="hidden px-4 py-2 border rounded-xl">Retry loading this page</button>
-                    <div class="flex items-center justify-between gap-3 text-sm w-full max-w-[390px]">
+                    <div id="sequenceNavigation" class="flex items-center justify-between gap-3 text-sm w-full max-w-[390px]">
                         <button type="button" id="sequencePrevious" onclick="moveStudioPage(-1)" disabled class="p-3 border rounded-xl">Previous</button>
                         <span id="sequencePageLabel" role="status" class="text-center text-xs"></span>
                         <button type="button" id="sequenceNext" onclick="moveStudioPage(1)" disabled class="p-3 border rounded-xl">Next</button>
                     </div>
-                    <label class="flex items-start gap-2 text-sm max-w-[390px]"><input type="checkbox" id="sequenceReviewCheck" disabled> I reviewed every page, the full source, Arabic and separate reflection.</label>
+                    <label id="sequenceReviewLabel" class="flex items-start gap-2 text-sm max-w-[390px]"><input type="checkbox" id="sequenceReviewCheck" disabled> I reviewed every page, the full source, Arabic and separate reflection.</label>
                     <div id="cardActions" class="hidden flex gap-3">
                         <button type="button" onclick="confirmStudioSequence()" class="px-8 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Confirm Visual &rarr;</button>
                     </div>
@@ -3579,7 +3591,7 @@ APP_LAYOUT_HTML = """<!doctype html>
     .text-brand {{ color: var(--brand) !important; }}
     .border-brand {{ border-color: var(--brand) !important; }}
   </style>
-<link rel="stylesheet" href="/static/creator-workspace.css?v=2">
+<link rel="stylesheet" href="/static/creator-workspace.css?v=3">
 </head>
 <body class="min-h-screen">
 <header class="cw-topbar"><a class="cw-wordmark" href="/app">sabeel<span> studio</span></a><a href="/app?view=you" aria-label="Your workspace">Your space ↗</a></header>
@@ -3675,9 +3687,6 @@ from app.services.vision_families import SCENE_FAMILIES as _VISION_FAMILIES
 from html import escape as _escape
 STUDIO_COMPONENTS_HTML = STUDIO_COMPONENTS_HTML.replace("<!-- VISION_BRAND_OPTIONS -->", "".join(
     f'<option value="{key}">{_escape(spec["label"])}</option>' for key, spec in _VISION_FAMILIES.items())).replace(
-    "<!-- VISION_FAMILY_CARDS -->", "".join(
-        f"<button type=\"button\" data-family=\"{key}\" onclick=\"setStudioScene('{key}', this)\" "
-        f'class="style-card scene-card p-4 text-left border border-brand/15 rounded-xl">'
-        f'<span class="block text-sm font-semibold text-brand">{_escape(spec["label"])}</span>'
-        f'<span class="block text-xs text-brand/60 mt-2">{_escape(spec["description"])}</span></button>'
+    "<!-- VISION_FAMILY_OPTIONS -->", "".join(
+        f'<option value="{key}">{_escape(spec["label"])}</option>'
         for key, spec in _VISION_FAMILIES.items()))
