@@ -5,6 +5,7 @@ snapshot is independent of the current workspace default.
 """
 import hashlib
 import unicodedata
+from app.services.vision_families import DESIGN_FAMILIES
 
 PALETTES = {
     "olive": {"paper": (245, 247, 241), "ink": (29, 48, 39), "accent": (72, 99, 63)},
@@ -27,7 +28,7 @@ def normalize_brand(value=None):
         raise ValueError("Choose a valid brand kit")
     result = {**DEFAULT_BRAND, **value}
     enums = {"palette": PALETTES, "typography": {"modern", "classic"},
-             "family": {"editorial", "quiet_photography", "minimal_paper"},
+             "family": DESIGN_FAMILIES,
              "composition": {"varied", "airy", "anchored"}}
     if type(result["version"]) is not int or result["version"] != 1:
         raise ValueError("This brand kit version is unsupported")

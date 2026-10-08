@@ -179,6 +179,33 @@ class CardTypographyTests(unittest.TestCase):
         self.assertTrue(all(b['minimum_contrast'] >= 4.8 for b in quality['blocks']))
         self.assertEqual(result.size, size)
 
+    def test_scene_repair_limit_rejects_busy_photo_without_erasing_it(self):
+        from PIL import ImageDraw
+        size, blocks = typography.layout_card([{'text':'Synthetic readability fixture', 'role':'source_translation'}])
+        background = Image.new('RGB', size, (255,255,255))
+        draw = ImageDraw.Draw(background)
+        for x in range(0, size[0], 12):
+            draw.rectangle((x, 0, x+5, size[1]), fill=(0,0,0))
+        original = background.tobytes()
+        with self.assertRaisesRegex(typography.CardTypographyError, 'readability'):
+            typography.paint_card_text(background, blocks, wash_limit=.2)
+        self.assertEqual(background.tobytes(), original)
+        quality = {}
+        typography.paint_card_text(Image.new('RGB', size, (24,32,41)), blocks, quality=quality, wash_limit=.2)
+        self.assertEqual(quality['wash_opacity'], 0)
+        self.assertTrue(quality['review_required'])
+
+    def test_stronger_scene_ink_can_pass_without_a_background_wash(self):
+        size, blocks = typography.layout_card([{'text':'Synthetic contrast fixture', 'role':'source_translation'}])
+        background = Image.new('RGB', size, (138,138,138))
+        with self.assertRaises(typography.CardTypographyError):
+            typography.paint_card_text(background, blocks, wash_limit=0)
+        quality = {}
+        typography.paint_card_text(background, blocks, wash_limit=0, strong_ink=True, quality=quality)
+        self.assertEqual(quality['wash_opacity'], 0)
+        self.assertTrue(quality['strong_ink'])
+        self.assertGreaterEqual(quality['blocks'][0]['minimum_contrast'], 4.8)
+
     def test_both_reading_orders_keep_every_verified_source_character(self):
         import json
         record = json.loads((Path(__file__).resolve().parents[1] / 'fixtures/quran_94_6.json').read_text())

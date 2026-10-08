@@ -11,6 +11,7 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import Optional
 from app.services.card_typography import CardTypographyError
+from app.services.vision_families import DESIGN_FAMILIES, REUSABLE_FAMILIES, recipe_binding
 
 logger = logging.getLogger(__name__)
 
@@ -117,36 +118,47 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
     except ValueError as error:
         raise CardTypographyError(str(error)) from None
 
-    effective_prompt = request.custom_prompt or (None if request.style in {"editorial", "minimal_paper", "quiet_photography"} else request.theme)
+    effective_prompt = request.custom_prompt or (None if request.style in DESIGN_FAMILIES else request.theme)
     effective_mode = "custom" if request.custom_prompt else request.mode
     generation_metadata = {}
     background_image = None
     background_token = request.background_token
-    if background_token and request.style == "quiet_photography":
+    if background_token and request.style in REUSABLE_FAMILIES:
         background_image = _load_background(background_token, request)
 
     def retain_background(image):
         nonlocal background_token
-        background_token = store_background(image, request.owner_id, request.custom_prompt or "")
+        background_token = store_background(image, request.owner_id, request.custom_prompt or "",
+                                             family=request.style, post_format=request.post_format)
 
 
 
-    url = generate_quote_card(
-        style=request.style,
-        visual_prompt=effective_prompt,
-        mode=effective_mode,
-        text_style_prompt=request.text_style_prompt,
-        readability_priority=request.readability_priority,
-        experimental_mode=request.experimental_mode,
-        engine=request.engine,
-        glossy=request.glossy,
-        card_message=request.card_message,
-        render_metadata=generation_metadata,
-        layout=request.layout, background_image=background_image,
-        background_sink=retain_background if request.style == "quiet_photography" else None,
-        post_format=request.post_format, allow_sequence=True,
-        brand_kit=brand,
-    )
+    try:
+        url = generate_quote_card(
+            style=request.style,
+            visual_prompt=effective_prompt,
+            mode=effective_mode,
+            text_style_prompt=request.text_style_prompt,
+            readability_priority=request.readability_priority,
+            experimental_mode=request.experimental_mode,
+            engine=request.engine,
+            glossy=request.glossy,
+            card_message=request.card_message,
+            render_metadata=generation_metadata,
+            layout=request.layout, background_image=background_image,
+            background_sink=retain_background if request.style in REUSABLE_FAMILIES else None,
+            post_format=request.post_format, allow_sequence=True,
+            brand_kit=brand,
+        )
+    except CardTypographyError as error:
+        # Only a raw-background receipt survives a failed composition. Never
+        # return partial pages or a publishable manifest from this branch.
+        return VisualResult(url="", error=str(error), error_status=422,
+            design={"version": 1, "family": request.style, "layout": request.layout,
+                    "brand_kit": brand, "direction": request.custom_prompt or "",
+                    "background_token": background_token if request.style in REUSABLE_FAMILIES else None,
+                    "recipe": recipe_binding(request.style, request.post_format),
+                    "quality": {"status": "rejected", "review_required": True}})
 
     from app.services.media_sequence import seal_manifest, validate_manifest
     manifest = seal_manifest(generation_metadata["media_manifest"], request.owner_id)
@@ -161,14 +173,15 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
         error=None if url else "generate_quote_card returned empty URL",
         design={"version": 1, "family": request.style, "layout": request.layout,
                 "brand_kit": brand,
-                "background_token": background_token if request.style == "quiet_photography" else None,
+                "background_token": background_token if request.style in REUSABLE_FAMILIES else None,
+                "recipe": recipe_binding(request.style, request.post_format),
                 "direction": request.custom_prompt or "", "quality": generation_metadata.get("quality", {}),
                 "media_manifest": manifest,
                 "background_reused": generation_metadata.get("background_reused", False)},
     )
 
 
-def store_background(image, owner_id, prompt=""):
+def store_background(image, owner_id, prompt="", *, family="quiet_photography", post_format="feed_4_5"):
     """Persist one raw photograph for Studio and automation draft re-layout."""
     from tempfile import TemporaryDirectory
     from pathlib import Path
@@ -181,7 +194,8 @@ def store_background(image, owner_id, prompt=""):
         url = upload_to_cloudinary(str(path))
     if not is_durable_media_url(url):
         raise CardTypographyError("The photograph could not be saved for reuse. Please try again.")
-    return _background_signer().dumps({"url": url, "owner": owner_id, "prompt": _hash_prompt(prompt)})
+    return _background_signer().dumps({"url": url, "owner": owner_id, "prompt": _hash_prompt(prompt),
+                                       "recipe": recipe_binding(family, post_format)})
 
 
 def _generate_background_only(request: VisualRequest) -> VisualResult:
@@ -261,6 +275,7 @@ def _load_background(token, request):
         data = _background_signer().loads(token)
         if (not isinstance(data, dict) or data.get("owner") != request.owner_id
                 or data.get("prompt") != _hash_prompt(request.custom_prompt or "")
+                or data.get("recipe") != recipe_binding(request.style, request.post_format)
                 or not is_durable_media_url(data.get("url"))):
             raise ValueError("Invalid receipt")
         with requests.get(data["url"], timeout=(5, 20), allow_redirects=False, stream=True) as response:

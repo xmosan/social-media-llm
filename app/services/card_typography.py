@@ -103,7 +103,7 @@ def wrap(text, font, width):
     return lines
 
 
-DESIGN_FAMILIES = {"editorial", "quiet_photography", "minimal_paper"}
+from app.services.vision_families import DESIGN_FAMILIES, SCENE_FAMILIES
 FEED_LAYOUTS = {"english_first", "bilingual"}
 
 
@@ -131,6 +131,10 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
         raise CardTypographyError("Card text is required")
     for i, seg in enumerate(segments):
         seg.setdefault("role", "reference" if i == 0 and len(segments) > 1 else "source")
+    if family in SCENE_FAMILIES and any(len(s["text"]) > (80 if s["role"] == "source_arabic" else 100) for s in segments):
+        # Established continuation sizes (67px English / 57px Arabic), never a
+        # shrink-to-fit loop. Attribution stays beside the source, above scenery.
+        segments = [dict(s, sequence_page=True) for s in segments]
     order = ["source_translation", "source_arabic", "source", "reflection", "reference"]
     if layout == "bilingual":
         order[:2] = ["source_arabic", "source_translation"]
@@ -236,8 +240,56 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
                 block["y"] = y
                 block["bounds"] = (margin, y, width-margin, y+block["height"])
                 y += block["height"] + gap
-            return (width, height), body + references + brand_blocks
+            result = body + references + brand_blocks
+            if family in SCENE_FAMILIES:
+                result = compact_scene_blocks(result, post_format)
+                if family == "emerald_forest" and max(b["bounds"][3] for b in result) > height * (.65 if story else .75):
+                    raise CardTypographyError("Quiet Nature needs more open space below the text. Choose Material Editorial, Quiet Night or Editorial typography for this source; all source text is preserved.")
+            return (width, height), result
     raise CardTypographyError("This source and reflection are too long for a readable feed card. Choose a shorter complete source or remove the optional reflection. Nothing has been shortened or hidden; long sources need a multi-card sequence.")
+
+
+def compact_scene_blocks(blocks, post_format):
+    """Move attribution beneath the source without changing a single glyph."""
+    result = [dict(block) for block in blocks]
+    series = next((b for b in result if b["role"] == "series_title"), None)
+    body = [b for b in result if b["role"] not in {"series_title", "reference", "creator_signature"}]
+    footer = [b for role in ("reference", "creator_signature") for b in result if b["role"] == role]
+    if not body:
+        return blocks
+    y = series["bounds"][3]+48 if series else min(b["bounds"][1] for b in body)
+    gap = 28 if any(b["role"] == "narration_context" for b in body) else 38
+    for block in body:
+        left, _, right, _ = block["bounds"]
+        block.update(y=y, bounds=(left, y, right, y+block["height"]))
+        y += block["height"]+gap
+    y += 26
+    for block in footer:
+        left, _, right, _ = block["bounds"]
+        block.update(y=y, bounds=(left, y, right, y+block["height"]))
+        y += block["height"]+24
+    if max(b["bounds"][3] for b in result) > (1610 if post_format == "story_9_16" else 1270):
+        return blocks
+    return result
+
+
+def check_encoded_contrast(image, background, blocks, quality):
+    """Check decoded delivery JPEG against its actual repaired background."""
+    import numpy as np
+    amount = quality["wash_opacity"]
+    backing = background.convert("RGB")
+    if amount:
+        backing = Image.blend(backing, Image.new("RGB", backing.size, (248, 246, 239)), amount)
+    def luminance(pixels):
+        values = np.asarray(pixels, dtype=float)/255
+        return np.where(values <= .04045, values/12.92, ((values+.055)/1.055)**2.4) @ np.array([.2126, .7152, .0722])
+    ink, under = luminance(image.convert("RGB")), luminance(backing)
+    contrast = (np.maximum(ink, under)+.05)/(np.minimum(ink, under)+.05)
+    scores = [float(contrast[np.asarray(_ink_mask(image.size, block, "Left")) >= 240].min()) for block in blocks]
+    if min(scores) < 4.5:
+        raise CardTypographyError("The final image failed its readability check. Choose a quieter background or another design family.")
+    quality["encoded_minimum_contrast"] = round(min(scores), 3)
+    quality["encoded_check"] = "jpeg_opaque_glyph_contrast"
 
 
 def plan_sequence(segments, *, family="editorial", layout="english_first", post_format="feed_4_5", brand_kit=None):
@@ -382,7 +434,8 @@ def _contrast_at_ink(background, mask, color):
     return min(values)
 
 
-def paint_card_text(background, blocks, *, alignment="Left", quality=None, brand_kit=None):
+def paint_card_text(background, blocks, *, alignment="Left", quality=None, brand_kit=None,
+                    wash_limit=1.0, strong_ink=False, minimum_wash=0):
     """Check the actual opaque glyph footprint, repair globally, then paint.
 
     No average-brightness proxy and no shadows/panels behind lettering. A 4.8:1
@@ -392,10 +445,18 @@ def paint_card_text(background, blocks, *, alignment="Left", quality=None, brand
     background = background.convert("RGB")
     masks = [_ink_mask(background.size, b, alignment) for b in blocks]
     dark, light = (25, 43, 39), (255, 253, 247)
+    if strong_ink:
+        dark = (8, 16, 13)  # Stronger ink preserves more of a photographic plate.
     from app.services.brand_kit import PALETTES
     palette = PALETTES[brand_kit["palette"]] if brand_kit is not None else None
     repaired = False
-    for amount in (0, .35, .60, .80, 1):
+    if wash_limit not in {0, .2, 1.0}:
+        raise CardTypographyError("Unsupported background repair limit")
+    amounts = (0, .35, .60, .80, 1) if wash_limit == 1 else (0, .1, .2) if wash_limit == .2 else (0,)
+    if minimum_wash not in amounts:
+        raise CardTypographyError("Unsupported background repair minimum")
+    amounts = tuple(amount for amount in amounts if amount >= minimum_wash)
+    for amount in amounts:
         candidate = background if amount == 0 else Image.blend(background, Image.new("RGB", background.size, (248, 246, 239)), amount)
         choices = []
         for block, mask in zip(blocks, masks):
@@ -418,6 +479,8 @@ def paint_card_text(background, blocks, *, alignment="Left", quality=None, brand
     if quality is not None:
         quality.update({"status": "passed", "check": "opaque_glyph_contrast", "minimum_required": 4.8,
                         "background_repaired": repaired, "wash_opacity": amount,
+                        "wash_limit": wash_limit,
+                        "strong_ink": strong_ink,
                         "blocks": [{"role": b["role"], "minimum_contrast": round(score, 3),
                                     "font_size": b["size"], "font_at_390px": round(b["size"]*390/1080, 1)}
                                    for b, (score, _) in zip(blocks, choices)],

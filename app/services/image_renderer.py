@@ -12,7 +12,7 @@ import random
 import json
 from typing import Optional
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageOps
-from app.services.card_typography import layout_card, paint_card_text, display_text
+from app.services.card_typography import CardTypographyError, layout_card, paint_card_text, display_text
 from app.services.text_provider import generate_text, Glow, TextGenerationError
 from app.config import settings
 from app.services.image_provider import generate_configured_image, configured_image_cache_key
@@ -737,11 +737,12 @@ def generate_background(
     engine: str = "dalle",
     vs_spec=None,
     render_metadata: dict = None,
+    provider_size: str = "1024x1024",
 ) -> Optional[Image.Image]:
     """Shared Sabeel Vision background path for Studio and automations."""
     if engine not in {"dalle", "openai", "gemini"}:
         raise ValueError("The selected visual engine is unavailable. Use Sabeel Vision.")
-    cache_key = configured_image_cache_key()
+    cache_key = configured_image_cache_key() + "_" + provider_size
     if cache_dir and vs_spec and vs_load_cache:
         cached = vs_load_cache(vs_spec, cache_dir, engine=cache_key)
         if cached is not None:
@@ -753,7 +754,7 @@ def generate_background(
     # Scene prompts are already composed; do not reinterpret them as abstract textures.
     prompt = vs_compose(vs_spec, raw_prompt=visual_prompt) if vs_spec and vs_compose else visual_prompt
     prompt += " Background only. No text, letters, calligraphy, symbols or logos. Leave clear space for separately rendered typography."
-    result = generate_configured_image(prompt, engine=engine)
+    result = generate_configured_image(prompt, engine=engine, size=provider_size)
     image = ImageOps.fit(result.image, target_size, method=Image.Resampling.LANCZOS)
     if render_metadata is not None:
         render_metadata.update(image_provider=result.provider, image_model=result.model,
@@ -1474,12 +1475,14 @@ def render_minimal_quote_card(
     background_sink=None,
     post_format="feed_4_5",
     brand_kit=None,
+    scene_bounds=None,
 ) -> str:
     """
     Render every source block with measured typography, or fail without clipping.
     """
     # Preflight all source blocks before any paid image-provider call.
-    family = style if style in {"editorial", "quiet_photography", "minimal_paper"} else "legacy"
+    from app.services.vision_families import DESIGN_FAMILIES, SCENE_FAMILIES, scene_prompt
+    family = style if style in DESIGN_FAMILIES else "legacy"
     target_size, text_blocks = layout_card(segments, family=family, layout=layout, post_format=post_format, brand_kit=brand_kit)
     from app.services.brand_kit import PALETTES
     brand_palette = PALETTES[brand_kit["palette"]] if brand_kit is not None else None
@@ -1517,7 +1520,22 @@ def render_minimal_quote_card(
     if mode == "scene" or (style in _SCENE_KEYS and mode not in {"custom"}):
         mode = "scene"
 
-    if family in {"editorial", "minimal_paper"}:
+    if family in SCENE_FAMILIES:
+        mode = "designed"
+        raw_photo = background_image
+        if raw_photo is None:
+            prompt, recipe = scene_prompt(family, target_size, scene_bounds or [b["bounds"] for b in text_blocks],
+                                          direction=visual_prompt, history=visual_history)
+            if render_metadata is not None:
+                render_metadata.update(recipe)
+            raw_photo = generate_background(prompt, target_size, engine=engine, render_metadata=render_metadata,
+                provider_size="1152x2048" if post_format == "story_9_16" else "1088x1360")
+        if raw_photo is None:
+            raise ValueError("Sabeel Vision could not generate this background")
+        bg = ImageOps.fit(raw_photo.convert("RGB"), target_size, method=Image.Resampling.LANCZOS)
+        if render_metadata is not None:
+            render_metadata["background_reused"] = background_image is not None
+    elif family in {"editorial", "minimal_paper"}:
         mode = "designed"
         bg = Image.new("RGB", target_size, brand_palette["paper"] if brand_palette else (248, 246, 239) if family == "minimal_paper" else (244, 246, 243))
         if family == "minimal_paper":
@@ -1664,9 +1682,14 @@ def render_minimal_quote_card(
     # The shared final quality gate checks the actual glyph footprints. Legacy
     # gallery/scene choices remain usable, but no extra glow is added to them.
     quality = {}
-    final_img = paint_card_text(bg, text_blocks, quality=quality, brand_kit=brand_kit)
-    if family == "quiet_photography" and background_sink and background_image is None:
-        background_sink(raw_photo)
+    # Save the reusable original before contrast validation. A rejected layout
+    # must not force another paid generation merely to try a different layout.
+    if family in SCENE_FAMILIES or family == "quiet_photography":
+        if background_sink and background_image is None:
+            background_sink(raw_photo)
+    final_img = paint_card_text(bg, text_blocks, quality=quality, brand_kit=brand_kit,
+                               wash_limit=.2 if family in SCENE_FAMILIES else 1,
+                               strong_ink=family in SCENE_FAMILIES)
     if render_metadata is not None:
         render_metadata["quality"] = quality
         render_metadata["card_layout"] = {
@@ -1683,6 +1706,26 @@ def render_minimal_quote_card(
     # Force JPEG format to ensure Magic Bytes match the extension for Meta's crawler
     print(f"!!! [RENDERER] WRITING TO: {final_path}")
     final_img.save(final_path, format="JPEG", quality=95)
+    if family in SCENE_FAMILIES:
+        from app.services.card_typography import check_encoded_contrast
+        try:
+            while True:
+                try:
+                    with Image.open(final_path) as encoded:
+                        check_encoded_contrast(encoded, bg, text_blocks, quality)
+                    break
+                except CardTypographyError:
+                    # JPEG can reduce contrast at thin glyph edges. Try the
+                    # next bounded repair on the SAME original photograph.
+                    next_wash = next((n for n in (.1, .2) if n > quality["wash_opacity"]), None)
+                    if next_wash is None:
+                        raise
+                    final_img = paint_card_text(bg, text_blocks, quality=quality, brand_kit=brand_kit,
+                                                wash_limit=.2, strong_ink=True, minimum_wash=next_wash)
+                    final_img.save(final_path, format="JPEG", quality=95)
+        except Exception:
+            os.remove(final_path)
+            raise
     
     # ZERO-TRUST VERIFICATION
     if os.path.exists(final_path):

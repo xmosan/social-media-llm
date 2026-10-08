@@ -19,46 +19,8 @@ from app.services.image_card import create_quote_card
 from app.services.image_renderer import render_quote_card, render_minimal_quote_card
 
 # Maps Style DNA family string → renderer style preset (shared with Studio/scheduled-post system)
-FAMILY_TO_RENDER_STYLE: dict[str, str] = {
-    "editorial": "editorial",
-    "quiet_photography": "quiet_photography",
-    "minimal_paper": "minimal_paper",
-    "sacred_black":         "quran",
-    "emerald_forest":       "fajr",
-    "celestial_night":      "laylulqadr",
-    "parchment_manuscript": "scholar",
-    "luxury_marble":        "kaaba",
-    "sacred_desert":        "madinah",
-    # New extended families
-    "royal_velvet":         "midnight",
-    "midnight_ink":         "kaaba",
-    "dawn_horizon":         "madinah",
-    "obsidian_stone":       "quran",
-    "ocean_depth":          "fajr",
-    "warm_copper":          "desert",
-}
-
-# Maps Style DNA family → scene key in SCENE_PROMPT_TEMPLATES.
-# Scene mode generates a unique AI background per post (DALL-E / Gemini),
-# cycling through themed variations — identical to the Studio rendering pipeline.
-FAMILY_TO_SCENE_KEY: dict[str, str] = {
-    "editorial": "editorial",
-    "quiet_photography": "quiet_photography",
-    "minimal_paper": "minimal_paper",
-    "sacred_black":         "sacred_black",
-    "emerald_forest":       "emerald_forest",
-    "celestial_night":      "celestial_night",
-    "parchment_manuscript": "parchment_manuscript",
-    "luxury_marble":        "luxury_marble",
-    "sacred_desert":        "sacred_desert",
-    # New extended families
-    "royal_velvet":         "royal_velvet",
-    "midnight_ink":         "midnight_ink",
-    "dawn_horizon":         "dawn_horizon",
-    "obsidian_stone":       "obsidian_stone",
-    "ocean_depth":          "ocean_depth",
-    "warm_copper":          "warm_copper",
-}
+from app.services.vision_families import (FAMILY_TO_RENDER_STYLE, FAMILY_TO_SCENE_KEY,
+    SCENE_FAMILIES, REUSABLE_FAMILIES, recipe_binding)
 from app.services.relevance_engine import validate_source_relevance
 from app.config import settings
 import pytz
@@ -654,7 +616,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 def retain_automation_photo(image):
                     from app.services.visual_service import store_background
                     generation_metadata["background_token"] = store_background(
-                        image, automation.org_id, style_dna_spec.visual_prompt if _has_prompt else "")
+                        image, automation.org_id, style_dna_spec.visual_prompt if _has_prompt else "", family=_scene_key)
 
                 from app.services.brand_kit import workspace_brand
                 brand_kit = workspace_brand(db, automation.org_id)
@@ -674,7 +636,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                     visual_history=prior_visuals,
                     render_metadata=generation_metadata,
                     allow_sequence=True, brand_kit=brand_kit,
-                    background_sink=retain_automation_photo if _scene_key == "quiet_photography" else None,
+                    background_sink=retain_automation_photo if _scene_key in REUSABLE_FAMILIES else None,
                 )
 
                 # Source mismatch guardrail
@@ -765,6 +727,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                    "visual_review_required": visual_review_required,
                    **({"media_manifest": manifest, "visual_design": {"family": _scene_key,
                        "layout": "english_first", "brand_kit": manifest.get("brand_kit"),
+                       "version": 1, "recipe": recipe_binding(_scene_key, "feed_4_5"),
                        "direction": style_dna_spec.visual_prompt if _has_prompt else "",
                        "background_token": generation_metadata.get("background_token"), "media_manifest": manifest}}
                        if manifest else {})}

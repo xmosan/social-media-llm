@@ -721,6 +721,8 @@ STUDIO_SCRIPTS_JS = r"""
         document.getElementById('cardLoader')?.classList.add('hidden');
     }
 
+    window.sabeelPhotoFamilies = ['quiet_photography', 'luxury_editorial', 'desert_glow', 'midnight_oasis', 'emerald_forest'];
+
     window.changeStudioBackground = function() {
         studioBackgroundToken = null;
         window.invalidateQuoteCard();
@@ -766,7 +768,15 @@ STUDIO_SCRIPTS_JS = r"""
             });
             const data = await res.json();
             if (epoch !== studioVisualEpoch) return;
-            if (!res.ok || !data.image_url) throw new Error(data.error || data.detail || 'The card could not be created. Please retry.');
+            if (!res.ok || !data.image_url) {
+                if (data.visual_design?.background_token) {
+                    studioBackgroundToken = data.visual_design.background_token;
+                    studioVisualDesign = data.visual_design;
+                    isQuoteCardOutOfDate = true; studioSequenceReviewed = false;
+                    window.rememberStudio();
+                }
+                throw new Error(data.error || data.detail || 'The card could not be created. Please retry.');
+            }
             currentQuoteCardUrl = data.image_url;
             document.getElementById('finalMediaUrl').value = data.image_url;
             studioVisualDesign = data.visual_design || null;
@@ -841,9 +851,11 @@ STUDIO_SCRIPTS_JS = r"""
             }
             if(apply || (!studioBrandTouched && !studioPostId && !currentQuoteCardUrl)) {
                 setBrandControls(data.brand_kit); studioBrandReady=true;
-                const family=document.getElementById('studioStyle'); if(family) family.value=data.brand_kit.family;
+                const family=document.getElementById('studioStyle');
+                if(family && family.value!==data.brand_kit.family) studioBackgroundToken=null;
+                if(family) family.value=data.brand_kit.family;
                 document.querySelectorAll('.scene-card').forEach(c=>c.classList.toggle('active',c.dataset.family===data.brand_kit.family));
-                document.getElementById('photoDirectionControls')?.classList.toggle('hidden',data.brand_kit.family!=='quiet_photography');
+                document.getElementById('photoDirectionControls')?.classList.toggle('hidden',!(window.sabeelPhotoFamilies || ['quiet_photography']).includes(data.brand_kit.family));
                 if(apply) window.invalidateQuoteCard();
             }
             if(status) status.textContent='Workspace brand loaded. Draft changes stay here until you save them as the workspace default.';
@@ -946,7 +958,7 @@ STUDIO_SCRIPTS_JS = r"""
             ig_account_id: Number(document.getElementById('studioAccount')?.value),
             source_type: type, source_metadata: meta, source_reference: meta?.reference,
             topic: document.getElementById('studioTopic')?.value || '',
-            card_message: studioCardMessage, visual_design: studioVisualDesign,
+            card_message: studioCardMessage, visual_design: studioVisualDesign ? {...studioVisualDesign, background_token:studioBackgroundToken} : null,
             brand_kit: window.studioBrandSnapshot?.(),
             audience: document.getElementById('studioAudience')?.value || 'english_muslims',
             purpose: document.getElementById('studioPurpose')?.value || 'reminder',
@@ -1025,10 +1037,12 @@ STUDIO_SCRIPTS_JS = r"""
         if (help) help.textContent = story ? 'Stories · 9:16. Text stays clear of profile and reply controls. Publish every frame in order. Business account required for direct publishing; export is also available. Caption stays in your notes.' : 'Feed · 4:5. Long sources become a carousel of up to ten pages. Review and publish every page in order; English and Arabic chapters are labeled separately.';
     };
     window.changeStudioFormat = function() {
+        const scene = (window.sabeelPhotoFamilies || []).includes(document.getElementById('studioStyle')?.value) && document.getElementById('studioStyle')?.value !== 'quiet_photography';
+        if(scene) studioBackgroundToken = null;
         window.invalidateQuoteCard();
         // Preview dimensions describe the existing card until the new render completes.
         const help = document.getElementById('sequenceFormatHelp');
-        if (help) help.textContent = 'Apply this format to preview the new layout. Your source and photograph will be retained.';
+        if (help) help.textContent = scene ? 'Your source is retained. Create a background composed for the new format.' : 'Apply this format to preview the new layout. Your source and photograph will be retained.';
     };
     window.confirmStudioSequence = function() {
         if (isQuoteCardOutOfDate || studioVisualController) { alert('Apply the latest changes first.'); return; }
@@ -1072,7 +1086,7 @@ STUDIO_SCRIPTS_JS = r"""
         set('studioCustomDirection', direction ?? studioVisualDesign?.direction);
         window.restoreCreatorControls?.(data);
         document.querySelectorAll('.scene-card').forEach(c=>c.classList.toggle('active', c.dataset.family === document.getElementById('studioStyle').value));
-        document.getElementById('photoDirectionControls')?.classList.toggle('hidden', document.getElementById('studioStyle').value !== 'quiet_photography');
+        document.getElementById('photoDirectionControls')?.classList.toggle('hidden', !(window.sabeelPhotoFamilies || ['quiet_photography']).includes(document.getElementById('studioStyle').value));
         document.getElementById('cardMessageWorkspace')?.classList.toggle('hidden', !studioCardMessage);
         window.updateBuildButtonState?.();
         for(const [kind,titleId,badgeId] of [['quran','selectedAyahTitle','selectedAyahBadge'],['hadith','selectedHadithTitle','selectedHadithBadge']]) {
@@ -1358,7 +1372,7 @@ STUDIO_SCRIPTS_JS = r"""
     window.setStudioScene = function(sceneKey, el) {
         studioGalleryImage = null;
         studioBackgroundToken = null;
-        document.getElementById('photoDirectionControls')?.classList.toggle('hidden', sceneKey !== 'quiet_photography');
+        document.getElementById('photoDirectionControls')?.classList.toggle('hidden', !window.sabeelPhotoFamilies.includes(sceneKey));
         document.querySelectorAll('.gallery-thumb').forEach(c => c.classList.remove('border-brand', 'ring-2', 'ring-brand/20'));
         const input = document.getElementById('studioStyle');
         if (input) input.value = sceneKey;
@@ -1672,7 +1686,7 @@ STUDIO_SCRIPTS_JS = r"""
                     </div>
                     `;
                 };
-                const recommended = p => ['editorial', 'quiet_photography', 'minimal_paper'].includes(p.family);
+                const recommended = p => ['editorial', 'minimal_paper', ...(window.sabeelPhotoFamilies || ['quiet_photography'])].includes(p.family);
                 container.innerHTML = v2DnaPresets.filter(recommended).map(renderPreset).join('') +
                     '<details class="col-span-full"><summary class="text-sm text-brand/60 cursor-pointer">Earlier styles</summary><div class="grid grid-cols-2 gap-3 mt-3">' +
                     v2DnaPresets.filter(p => !recommended(p)).map(renderPreset).join('') + '</div></details>';
@@ -3009,7 +3023,7 @@ STUDIO_COMPONENTS_HTML = """
                         <label>Typography<select id="brandTypography" onchange="changeStudioBrand()" class="w-full mt-1 p-2 border rounded-lg bg-white"><option value="modern">Modern sans</option><option value="classic">Classic serif</option></select></label>
                         <label>Creator signature<input id="brandSignature" maxlength="48" oninput="changeStudioBrand()" placeholder="@yourname" class="w-full mt-1 p-2 border rounded-lg"></label>
                         <label>Series name<input id="brandSeries" maxlength="48" oninput="changeStudioBrand()" placeholder="e.g. A moment to reflect" class="w-full mt-1 p-2 border rounded-lg"></label>
-                        <label>Default design family<select id="brandFamily" onchange="changeStudioBrand()" class="w-full mt-1 p-2 border rounded-lg bg-white"><option value="editorial">Editorial typography</option><option value="quiet_photography">Quiet photography</option><option value="minimal_paper">Minimal paper</option></select></label>
+                        <label>Default design family<select id="brandFamily" onchange="changeStudioBrand()" class="w-full mt-1 p-2 border rounded-lg bg-white"><option value="editorial">Editorial typography</option><option value="quiet_photography">Quiet photography</option><option value="minimal_paper">Minimal paper</option><!-- VISION_BRAND_OPTIONS --></select></label>
                         <label>Composition<select id="brandComposition" onchange="changeStudioBrand()" class="w-full mt-1 p-2 border rounded-lg bg-white"><option value="varied">Vary with each source</option><option value="airy">Open & spacious</option><option value="anchored">Top-aligned reading column</option></select></label>
                       </div>
                       <p class="text-xs text-brand/70">Arabic uses the same shaped typeface in both choices. Narrations containing Arabic honorifics use a supporting serif face. Signatures support English and Arabic.</p>
@@ -3024,7 +3038,9 @@ STUDIO_COMPONENTS_HTML = """
                             </select>
                         </label>
                         <p id="sequenceFormatHelp" class="text-sm text-brand/70">Feed · 4:5. Long sources flow across readable pages. Review and publish every page in order.</p>
+                        <p class="text-sm text-brand/70">Sabeel Vision · fresh AI backgrounds composed around your source. Review each result before publishing.</p>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3" id="presetModeContainer">
+                            <!-- VISION_FAMILY_CARDS -->
                             <button type="button" data-family="editorial" onclick="setStudioScene('editorial', this)" class="style-card scene-card active p-4 text-left border border-brand/15 rounded-xl">
                                 <span class="block text-sm font-semibold text-brand">Editorial typography</span><span class="block text-xs text-brand/60 mt-2">Clear ink, generous space.</span>
                             </button>
@@ -3043,8 +3059,8 @@ STUDIO_COMPONENTS_HTML = """
                         </label>
                         <p class="text-xs leading-relaxed text-brand/60">Changing the layout keeps your source and photograph. Long sources flow across labeled pages with complete English and Arabic chapters. Text is never shortened to fit. A chosen Arabic chain excerpt is explicitly labeled.</p>
                         <div id="photoDirectionControls" class="hidden space-y-3">
-                            <label class="block text-sm text-brand">Photograph direction
-                                <input type="text" id="studioCustomDirection" oninput="changeStudioBackground()" placeholder="e.g. natural daylight, olive-tree shadows, pale stone" class="mt-2 w-full p-3 border border-brand/15 rounded-xl text-sm">
+                            <label class="block text-sm text-brand">Background direction (optional)
+                                <input type="text" id="studioCustomDirection" oninput="changeStudioBackground()" placeholder="e.g. soft daylight, warm stone, restrained colour" class="mt-2 w-full p-3 border border-brand/15 rounded-xl text-sm">
                             </label>
                             <button type="button" onclick="newStudioPhotograph()" class="text-sm text-brand underline">Create a new photograph</button>
                         </div>
@@ -3653,3 +3669,15 @@ CONNECT_INSTAGRAM_MODAL_HTML = """<div id="connectInstagramModal" class="fixed i
     </div>
   </div>
 </div>"""
+
+# Catalog-driven labels and choices; IDs remain compatible with saved drafts.
+from app.services.vision_families import SCENE_FAMILIES as _VISION_FAMILIES
+from html import escape as _escape
+STUDIO_COMPONENTS_HTML = STUDIO_COMPONENTS_HTML.replace("<!-- VISION_BRAND_OPTIONS -->", "".join(
+    f'<option value="{key}">{_escape(spec["label"])}</option>' for key, spec in _VISION_FAMILIES.items())).replace(
+    "<!-- VISION_FAMILY_CARDS -->", "".join(
+        f"<button type=\"button\" data-family=\"{key}\" onclick=\"setStudioScene('{key}', this)\" "
+        f'class="style-card scene-card p-4 text-left border border-brand/15 rounded-xl">'
+        f'<span class="block text-sm font-semibold text-brand">{_escape(spec["label"])}</span>'
+        f'<span class="block text-xs text-brand/60 mt-2">{_escape(spec["description"])}</span></button>'
+        for key, spec in _VISION_FAMILIES.items()))

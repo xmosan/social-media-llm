@@ -48,14 +48,19 @@ def decode_image(encoded: str) -> Image.Image:
 
 
 def generate_openai_image(prompt: str, *, api_key: str, model: str,
-                          quality: str = "medium", timeout: float = 120) -> GeneratedImage:
+                          quality: str = "medium", timeout: float = 120,
+                          size: str = "1024x1024") -> GeneratedImage:
+    # Validate before a paid request. Portrait sizes are explicit; old callers
+    # retain their square output until their composition pipeline is migrated.
+    if size not in {"1024x1024", "1024x1536", "1536x1024", "1088x1360", "1152x2048"}:
+        raise ImageGenerationError("unsupported_image_size")
     if not api_key:
         raise ImageGenerationError("provider_not_configured")
     try:
         # Paid image requests are never automatically retried after an uncertain result.
         with OpenAI(api_key=api_key, timeout=timeout, max_retries=0) as client:
             response = client.images.generate(
-                model=model, prompt=prompt, size="1024x1024", quality=quality,
+                model=model, prompt=prompt, size=size, quality=quality,
                 output_format="png", n=1,
             )
     except Exception as exc:
@@ -100,7 +105,7 @@ def configured_image_cache_key() -> str:
     return f"openai:{settings.openai_image_model}:{settings.openai_image_quality}"
 
 
-def generate_configured_image(prompt: str, *, engine: str = "dalle") -> GeneratedImage:
+def generate_configured_image(prompt: str, *, engine: str = "dalle", size: str = "1024x1024") -> GeneratedImage:
     """The production path is OpenAI only, including historical saved engine labels.
 
     Fallback is restricted to explicit model-unavailable/rate-limit/overload errors.
@@ -115,6 +120,7 @@ def generate_configured_image(prompt: str, *, engine: str = "dalle") -> Generate
         result = generate_openai_image(
             prompt, api_key=settings.openai_api_key, model=primary,
             quality=settings.openai_image_quality, timeout=settings.image_generation_timeout_seconds,
+            size=size,
         )
     except ImageGenerationError as exc:
         logger.warning("[VISION] model=%s code=%s status=%s", primary, exc.code, exc.status)
@@ -123,6 +129,7 @@ def generate_configured_image(prompt: str, *, engine: str = "dalle") -> Generate
         result = generate_openai_image(
             prompt, api_key=settings.openai_api_key, model=fallback,
             quality=settings.openai_image_quality, timeout=settings.image_generation_timeout_seconds,
+            size=size,
         )
     logger.info("[VISION] provider=%s model=%s quality=%s", result.provider, result.model, settings.openai_image_quality)
     return result

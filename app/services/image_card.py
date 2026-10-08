@@ -167,6 +167,14 @@ def generate_quote_card(
     if allow_sequence and render_metadata is None:
         raise ValueError("Sequence generation requires a manifest destination")
     pages = plan_sequence(segments, family=style, layout=layout, post_format=post_format, brand_kit=brand_kit) if allow_sequence and style in DESIGN_FAMILIES else [{"segments": segments, "slices": [], "label": "Complete source"}]
+    from app.services.vision_families import SCENE_FAMILIES
+    scene_bounds = None
+    if style in SCENE_FAMILIES:
+        from app.services.card_typography import layout_card
+        # Preflight every page before a paid request, and compose one reusable
+        # background for their combined reading area, not just the first page.
+        scene_bounds = [block["bounds"] for page in pages for block in
+            layout_card(page["segments"], family=style, layout=layout, post_format=post_format, brand_kit=brand_kit)[1]]
     if card_message and card_message.get("arabic_display"):
         from app.services.source_display import display_range
         start, _ = display_range(card_message)
@@ -194,6 +202,7 @@ def generate_quote_card(
             render_metadata=metadata, layout=layout, background_image=retained,
             background_sink=keep_photo, post_format=post_format,
             brand_kit=brand_kit,
+            **({"scene_bounds": scene_bounds} if scene_bounds is not None else {}),
         )
         rendered.append({"index": i, "url": url, "label": page["label"], "slices": page["slices"],
                          "quality": metadata.get("quality", {}),

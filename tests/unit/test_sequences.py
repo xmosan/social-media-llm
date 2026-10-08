@@ -58,6 +58,10 @@ class SequenceLayoutTests(unittest.TestCase):
                 for family in type_service.DESIGN_FAMILIES:
                     for order in type_service.FEED_LAYOUTS:
                         with self.subTest(fixture=fixture,fmt=fmt,family=family,order=order):
+                            if family == 'emerald_forest' and fixture == 'hadith_bukhari_1':
+                                with self.assertRaisesRegex(type_service.CardTypographyError, 'Quiet Nature needs more open space'):
+                                    type_service.plan_sequence(segments,family=family,layout=order,post_format=fmt)
+                                continue
                             pages=type_service.plan_sequence(segments,family=family,layout=order,post_format=fmt)
                             self.assertLessEqual(len(pages),10)
                             for segment in segments:
