@@ -119,11 +119,6 @@ def get_quran_ayah_exact(surah: int, ayah: int, db: Session) -> dict:
         logger.error(f"❌ [QURAN][ERROR] Verse not found: {surah}:{ayah}")
         raise ValueError(f"Verse not found: {surah}:{ayah}")
     
-    # Extract translator from meta if available
-    translator = item.meta.get("translation_id", "Unknown")
-    if translator == "131":
-        translator = "Sahih International"
-    
     payload = normalize_quran_verse(item)
     
     if not payload["translation_text"]:

@@ -10,6 +10,16 @@ from test_image_provider import load_real_service
 
 
 class CardTypographyTests(unittest.TestCase):
+    def test_default_reading_order_is_arabic_first_and_explicit_english_still_works(self):
+        from app.services.visual_service import VisualRequest
+        self.assertEqual(VisualRequest().layout,'bilingual')
+        segments=[{'role':'source_translation','text':'Synthetic body'}, {'role':'source_arabic','text':'نص اختباري'}]
+        for fmt in ('feed_4_5','story_9_16'):
+            _,blocks=typography.layout_card(segments,post_format=fmt)
+            self.assertEqual(blocks[0]['role'],'source_arabic')
+            _,legacy=typography.layout_card(segments,post_format=fmt,layout='english_first')
+            self.assertEqual(legacy[0]['role'],'source_translation')
+
     def test_pause_marks_cannot_be_stranded_by_line_or_page_breaks(self):
         import json
         import unicodedata

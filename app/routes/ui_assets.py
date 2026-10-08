@@ -240,7 +240,7 @@ STUDIO_SCRIPTS_JS = r"""
         setVal('finalMediaUrl', '');
         setVal('studioVisualPrompt', '');
         setVal('studioStyle', 'editorial');
-        setVal('studioLayout', 'english_first');
+        setVal('studioLayout', 'bilingual');
         setVal('studioFormat', 'feed_4_5');
         document.getElementById('cardPreviewContainer').style.aspectRatio = '4 / 5';
         setVal('studioCustomDirection', '');
@@ -692,6 +692,7 @@ STUDIO_SCRIPTS_JS = r"""
         const captionButton=document.getElementById('btnGenerateCaption'); if(captionButton) { captionButton.disabled=false; const label=captionButton.querySelector('.btn-text'); if(label)label.textContent='Generate Caption'; }
         const reflectionButton=document.getElementById('draftReflectionButton'); if(reflectionButton) {reflectionButton.disabled=false;reflectionButton.textContent='Draft a reflection';}
         document.getElementById('arabicExcerptControls')?.classList.add('hidden');
+        document.getElementById('sourceTranslationNotesBlock')?.classList.add('hidden');
         cancelStudioVisual();
         studioCardMessage = null;
         studioCaptionMessage = null;
@@ -765,7 +766,7 @@ STUDIO_SCRIPTS_JS = r"""
                 card_message: studioCardMessage,
                 brand_kit: window.studioBrandSnapshot?.(),
                 style: studioGalleryImage || document.getElementById('studioStyle').value,
-                layout: document.getElementById('studioLayout')?.value || 'english_first',
+                layout: document.getElementById('studioLayout')?.value || 'bilingual',
                 post_format: document.getElementById('studioFormat')?.value || 'feed_4_5',
                 visual_prompt: document.getElementById('studioCustomDirection')?.value || '',
                 background_token: studioBackgroundToken,
@@ -842,8 +843,9 @@ STUDIO_SCRIPTS_JS = r"""
         studioBrandRevision=null; studioBrandTouched=false; studioBrandReady=false; studioBrandSaveBusy=false; studioReflectionBusy=false;
         setBrandControls(brandDefaults);
         for (const [id,value] of [['studioAudience','english_muslims'],['studioPurpose','reminder']]) { const el=document.getElementById(id); if(el) el.value=value; }
-        for (const id of ['brandStatus','sourceAttribution','sourceArabicFull','sourceProviderDetails','arabicExcerptPreview']) { const el=document.getElementById(id); if(el) el.textContent=''; }
+        for (const id of ['brandStatus','sourceAttribution','sourceArabicFull','sourceProviderDetails','sourceTranslationNotes','arabicExcerptPreview']) { const el=document.getElementById(id); if(el) el.textContent=''; }
         document.getElementById('arabicExcerptControls')?.classList.add('hidden');
+        document.getElementById('sourceTranslationNotesBlock')?.classList.add('hidden');
         const add=document.getElementById('includeStudioReflection'); if(add) add.checked=false;
         const save=document.getElementById('saveBrandButton'); if(save) save.disabled=false;
         const reflect=document.getElementById('draftReflectionButton'); if(reflect) {reflect.disabled=false;reflect.textContent='Draft a reflection';}
@@ -916,7 +918,12 @@ STUDIO_SCRIPTS_JS = r"""
             ['Translator (returned)',meta.translator || meta.translation_name]];
         if(out) out.textContent=lines.map(([label,value])=>label+': '+(value==null || value==='' ? 'Not returned by the source' : typeof value==='object' ? JSON.stringify(value) : value)).join('\n');
         const arabic=document.getElementById('sourceArabicFull'); if(arabic) arabic.textContent=meta.arabic_text || studioCardMessage?.arabic_text || 'No Arabic returned.';
-        const raw=document.getElementById('sourceProviderDetails'); if(raw) raw.textContent=JSON.stringify(meta.provider_metadata || {translator:meta.translator ?? null,provenance:meta.provenance ?? null},null,2);
+        const notes=Array.isArray(meta.translation_footnotes) ? meta.translation_footnotes : [];
+        const noteBlock=document.getElementById('sourceTranslationNotesBlock');
+        if(noteBlock) noteBlock.classList.toggle('hidden', !notes.length);
+        const noteText=document.getElementById('sourceTranslationNotes');
+        if(noteText) noteText.textContent=notes.map(n=>n.marker+': '+(n.text || 'Note text was not returned by the provider. Review the source in context.')).join('\n\n');
+        const raw=document.getElementById('sourceProviderDetails'); if(raw) raw.textContent=JSON.stringify(meta.provider_metadata || {translator:meta.translator ?? null,provenance:meta.provenance ?? null,translation:meta.translation_provenance ?? null},null,2);
         const options=studioCardMessage?.arabic_display_options || [];
         document.getElementById('arabicExcerptControls')?.classList.toggle('hidden',!options.length);
         const select=document.getElementById('arabicDisplayMode'); if(select) select.value=studioCardMessage?.arabic_display ? 'short_chain' : 'full';
@@ -3008,6 +3015,7 @@ STUDIO_COMPONENTS_HTML = """
                       <p class="mt-3 text-brand/70">Review the original record and context. Missing attribution is shown as missing; Sabeel does not infer it.</p>
                       <pre id="sourceAttribution" class="mt-3 whitespace-pre-wrap font-sans text-sm break-words"></pre>
                       <p id="sourceArabicFull" lang="ar" dir="rtl" class="mt-4 text-xl leading-loose whitespace-pre-wrap"></p>
+                      <details id="sourceTranslationNotesBlock" class="hidden mt-3"><summary>Translator notes · separate from the verse</summary><p class="mt-2 text-brand/70">Footnote numbers are kept off the card. The provider’s notes are preserved here for context; they are not part of the verse or an AI reflection.</p><pre id="sourceTranslationNotes" class="mt-3 whitespace-pre-wrap font-sans text-sm break-words"></pre></details>
                       <details class="mt-3"><summary>Provider metadata</summary><pre id="sourceProviderDetails" class="mt-2 whitespace-pre-wrap text-xs break-words"></pre></details>
                     </details>
                     <div id="arabicExcerptControls" class="hidden text-sm space-y-3">
@@ -3073,7 +3081,7 @@ STUDIO_COMPONENTS_HTML = """
                     <details id="creatorReadingOptions" class="cw-preferences">
                       <summary>Reading order & format details</summary>
                       <label class="block">Reading order<select id="studioLayout" onchange="invalidateQuoteCard()" class="mt-2 w-full p-3 border rounded-xl bg-white">
-                        <option value="english_first">English first · Arabic preserved</option><option value="bilingual">Arabic first · full English follows</option>
+                        <option value="bilingual">Arabic first · English follows</option><option value="english_first">English first · Arabic preserved</option>
                       </select></label>
                       <p id="sequenceFormatHelp" class="cw-note">Longer sources continue across pages.</p>
                       <p class="cw-note">The full source stays intact. Layout edits reuse your background. Changing its direction or format creates a new image.</p>

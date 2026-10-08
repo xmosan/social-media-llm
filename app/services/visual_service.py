@@ -50,7 +50,7 @@ class VisualRequest:
 
     # Context for DALL-E prompt (used in variation engine)
     topic_hint: Optional[str] = None
-    layout: str = "english_first"
+    layout: str = "bilingual"
     background_token: Optional[str] = None
     owner_id: Optional[int] = None
     post_format: str = "feed_4_5"

@@ -39,7 +39,7 @@ def generate_quote_card(
     card_message: dict = None,
     visual_history: dict = None,
     render_metadata: dict = None,
-    layout: str = "english_first",
+    layout: str = "bilingual",
     background_image=None,
     background_sink=None,
     post_format: str = "feed_4_5",

@@ -101,7 +101,7 @@ def get_translations_catalog() -> list:
 def get_surah_verses(chapter_number: int, translation_ids: str = "20") -> list:
     """
     Fetches all verses for a specific chapter (Surah), handling pagination.
-    Default translation: Sahih International (ID 131).
+    Default translation: Saheeh International (resource ID 20).
     """
     all_verses = []
     current_page = 1
@@ -129,6 +129,17 @@ def get_surah_verses(chapter_number: int, translation_ids: str = "20") -> list:
         
     return all_verses
 
+
+def get_translation_resource(resource_id: str = "20", chapter_number: int = None) -> dict:
+    """Fetch exact translation HTML and its separate provider notes together."""
+    params = {"fields": "verse_key,resource_name", "foot_notes": "true"}
+    if chapter_number is not None:
+        params["chapter_number"] = chapter_number
+    data = qf_get(f"/quran/translations/{int(resource_id)}", params=params)
+    if not data.get("translations"):
+        raise ValueError("The requested Quran translation is unavailable from the provider")
+    return data
+
 def get_verse_by_key(verse_key: str, translation_ids: str = "20") -> dict:
     """
     Fetches a specific verse by key (e.g. '70:5').
@@ -145,7 +156,7 @@ def get_verse_by_key(verse_key: str, translation_ids: str = "20") -> dict:
 if __name__ == "__main__":
     # Fix: Define local variables to avoid NameError
     chapter_number = 70
-    translation_ids = "131" # Sahih International
+    translation_ids = "20" # Saheeh International
     
     print(f"📖 [QF Test] Fetching Verse by Key 70:5...")
     v = get_verse_by_key("70:5", translation_ids)

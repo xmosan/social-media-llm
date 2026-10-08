@@ -122,7 +122,7 @@ def _source_slice(segment, start, end, label):
     return result
 
 
-def layout_card(segments, *, serif=False, family="editorial", layout="english_first", post_format="feed_4_5", brand_kit=None):
+def layout_card(segments, *, serif=False, family="editorial", layout="bilingual", post_format="feed_4_5", brand_kit=None):
     """Measured feed and Story compositions with safe text areas.
 
     The sequence planner partitions sources that exceed this single-card layout.
@@ -305,7 +305,7 @@ def check_encoded_contrast(image, background, blocks, quality):
     quality["encoded_check"] = "jpeg_opaque_glyph_contrast"
 
 
-def plan_sequence(segments, *, family="editorial", layout="english_first", post_format="feed_4_5", brand_kit=None):
+def plan_sequence(segments, *, family="editorial", layout="bilingual", post_format="feed_4_5", brand_kit=None):
     """Exact contiguous source slices, never AI excerpts or inferred alignment.
 
     Short cards keep both languages together. Long records use complete language

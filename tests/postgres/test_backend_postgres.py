@@ -53,6 +53,35 @@ class PostgresChecks(unittest.TestCase):
         self.db.commit()
         return post.id
 
+    def test_quran_annotation_repair_preview_apply_and_guarded_rollback(self):
+        import json
+        from types import SimpleNamespace
+        spec=importlib.util.spec_from_file_location('quran_annotation_repair',ROOT/'scripts/repair_quran_annotations.py')
+        repair=importlib.util.module_from_spec(spec);spec.loader.exec_module(repair)
+        self.db.add(ContentSource(id=1,org_id=None,name='Provider fixture',source_type='quran_foundation'))
+        self.db.flush()
+        old={'verse_key':'2:3','translation_id':'131'}
+        self.db.add(ContentItem(id=1,source_id=1,item_type='quran',title='Surah 2, Verse 3',text='Synthetic body.1',arabic_text='نص',meta=old))
+        self.db.commit()
+        with tempfile.TemporaryDirectory() as d, patch.dict(os.environ,{'DATABASE_URL':engine.url.render_as_string(hide_password=False)}):
+            root=Path(d);t=root/'translations.json';a=root/'arabic.json';backup=root/'rollback.json'
+            t.write_text(json.dumps({'translations':[{'verse_key':'2:3','resource_id':20,'text':'Synthetic body.<sup foot_note=9>1</sup>','foot_notes':{'9':'Exact note'}}],'meta':{'translation_name':'Returned name'}}))
+            a.write_text(json.dumps({'verses':[{'verse_key':'2:3','text_uthmani':'نص'}]}))
+            args=SimpleNamespace(translations=str(t),arabic=str(a),backup=str(backup),rollback=None,apply=False)
+            repair.run(args);self.db.expire_all()
+            self.assertEqual(self.db.get(ContentItem,1).text,'Synthetic body.1');self.assertFalse(backup.exists());self.db.rollback()
+            args.apply=True;repair.run(args);self.db.expire_all()
+            self.assertEqual(self.db.get(ContentItem,1).text,'Synthetic body.')
+            self.assertEqual(backup.stat().st_mode & 0o777,0o600)
+            self.db.rollback()
+            # Refuse to overwrite the only rollback copy.
+            with self.assertRaises(FileExistsError):repair.run(args)
+            args.rollback=str(backup);args.apply=False;repair.run(args)
+            args.apply=True;repair.run(args);self.db.expire_all()
+            self.assertEqual(self.db.get(ContentItem,1).text,'Synthetic body.1')
+            self.assertEqual(self.db.get(ContentItem,1).meta,old);self.db.rollback()
+            with self.assertRaises(ValueError):repair.run(args)
+
     def test_brand_migration_is_additive_and_repeatable_on_existing_workspaces(self):
         spec=importlib.util.spec_from_file_location('brand_migration', ROOT/'scripts/migrate_brand_kit.py')
         migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(migration)

@@ -137,3 +137,75 @@ directory. This tests recovery, not global image uniqueness or creator approval.
 
 No database migration, provider change, automatic paid retry, MCP integration or
 multi-model loop is introduced. Saved signed photo receipts remain compatible.
+
+## Arabic-first and translation notes — 2026-10-08
+
+New Studio and automation designs now use the existing `bilingual` (Arabic-first)
+layout by default. Explicit English-first layouts and legacy saved-draft fallbacks
+retain their original order. Typography sizes, source coverage, background reuse,
+review requirements and publishing validation are unchanged.
+
+The previous `repair_quran_translations` command stripped HTML tags but left the
+contents of `<sup foot_note=…>` inside the translation. It fetched resource 20
+while the library metadata still said 131. Live Quran Foundation evidence matches
+all 6,236 global imported verses exactly, including Arabic. Resource 20 returns
+Saheeh International attribution. The old command is retired.
+
+`quran_translation.py` separates only provider-identified superscripts. Plain
+numbers and inline explanations are preserved. Canonical body, original provider
+HTML, note IDs, returned note HTML/text, resource identity and body digest are
+stored together using the existing JSON metadata column. Source review exposes
+the notes separately using textContent. Empty provider notes stay explicitly
+unavailable. On 2026-10-08 there were 1,904 markers across 1,613 verses; 291 note
+bodies were empty, including 14:34's second note (also checked via the individual
+footnote endpoint). Sabeel neither reconstructs nor silently invents these notes.
+
+The audited repair command is `scripts/repair_quran_annotations.py`. Default is a
+read-only preview; evidence files must contain exact provider translations and
+Arabic. Apply requires a new restricted, fsynced rollback file before updating
+any row. It touches only global Quran Foundation content items, in one transaction.
+Rollback checks every repaired row against its recorded after-digest before
+restoring anything. No schema migration or saved-post update occurs. A stale
+selected translation receives a specific source-refresh error rather than being
+silently rewritten. Published posts retain their saved source snapshots.
+
+Validation: 277 isolated backend tests, 55 UI tests and 16 disposable PostgreSQL /
+startup checks passed. The PostgreSQL suite covers preview, apply, protected backup,
+rollback and refusing a changed record. 37 photographic replays / 43 pages passed
+with Arabic first and zero image-generation calls. The full 36-case source-length
+matrix produced 79 pages: 29 cases passed; the same seven extremely long-source
+combinations as the prior baseline exceeded ten readable pages. Those cases remain
+blocked; no source is truncated. Engineering checks are not creator or qualified
+source approval. Evidence lives outside the repository in
+`Sabeel Model Evaluation/2026-10-08-arabic-source-notes/`.
+
+### Series assistant recommendation (proposal, not implemented)
+
+Develop an invite-only beta alongside the core editor; do not make an autonomous
+multi-agent series maker a launch dependency. Start with one structured planner
+inside the existing FastAPI stack. Tools invoke canonical source lookup and
+validation, card/caption services, visual recipes/history, durable media, draft
+persistence and the existing scheduling/publishing service. No model may supply
+scripture from memory or assign unreturned Hadith grades.
+
+A creator's brief should become an editable plan: dates, verified references,
+formats, families, locations, time of day and composition variation. Confirm the
+plan and estimated generation budget before a small initial batch. Persist each
+post/step with idempotency keys, progress, cancellation, budget limits and bounded
+retries. Resume failed steps without regenerating already successful photographs.
+Present a phone-size contact sheet, allow changing one item, and require review
+before scheduling. A planning prompt is not authorization to publish.
+
+Keep image variety practical: generate fresh photographs, honor the creator's
+explicit directions, rotate recipes and track workspace history. Do not promise
+absolute uniqueness across all creators. MCP can expose integrations later; it
+is a tool-connection protocol, not an image-quality engine. Direct calls to our
+own services suffice initially. Add specialist agents only if measured results
+justify their latency, cost and added failure modes. Public release requires real
+creator usability evidence, source review, interrupted-batch recovery, duplicate
+and schedule protections, and measured cost/completion rates.
+
+References: OpenAI agent orchestration guidance
+https://developers.openai.com/api/docs/guides/agents/orchestration
+and Quran Foundation translation/footnote schema
+https://api-docs.quran.com/docs/content_apis_versioned/4.0.0/translation/ .
