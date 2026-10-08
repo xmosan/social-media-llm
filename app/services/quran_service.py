@@ -2,6 +2,7 @@
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
 import logging
+import re
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, text
@@ -220,6 +221,34 @@ TOPIC_ALIAS_MAP = {
     "death": ["hereafter", "soul", "resurrection", "mortality"],
 }
 
+def quran_search_terms(query: str) -> list[str]:
+    query = query.strip().lower()
+    terms = [query, *TOPIC_ALIAS_MAP.get(query, [])]
+    for word in query.split():
+        terms.extend(TOPIC_ALIAS_MAP.get(word, []))
+    return list(dict.fromkeys(term for term in terms if term))
+
+
+def quran_search_score(item, query: str) -> int:
+    """Rank lexical matches, never religious suitability. Preserve source text."""
+    fields = [getattr(item, "text", "") or "", getattr(item, "title", "") or ""]
+    fields.extend(getattr(item, "topics_slugs", None) or [])
+    haystack = " ".join(str(field) for field in fields).casefold()
+    query = query.strip().lower()
+    matches = []
+    for term in quran_search_terms(query):
+        # English whole words avoid ease/disease, test/testimony and similar
+        # substring collisions. Keep the existing Arabic substring behavior.
+        if term.isascii():
+            pattern = r"(?<![a-z])" + re.escape(term) + r"(?![a-z])"
+            found = re.search(pattern, haystack) is not None
+        else:
+            found = term in haystack
+        if found:
+            matches.append(term)
+    return len(matches) + (4 if query in matches else 0)
+
+
 def search_quran(db: Session, query: str, limit: int = 15) -> List[ContentItem]:
     """
     Searches for verses by keyword in English text or within topic slugs.
@@ -230,18 +259,7 @@ def search_quran(db: Session, query: str, limit: int = 15) -> List[ContentItem]:
     if not query:
         return []
 
-    search_terms = [query]
-    if query in TOPIC_ALIAS_MAP:
-        search_terms.extend(TOPIC_ALIAS_MAP[query])
-    
-    # Also check if any word in the query has an alias
-    words = query.split()
-    for w in words:
-        if w in TOPIC_ALIAS_MAP:
-            search_terms.extend(TOPIC_ALIAS_MAP[w])
-            
-    # Deduplicate
-    search_terms = list(set(search_terms))
+    search_terms = quran_search_terms(query)
     
     # 2. Build Query
     # Use OR across all terms for maximum discovery
@@ -263,6 +281,7 @@ def search_quran(db: Session, query: str, limit: int = 15) -> List[ContentItem]:
     # 3. Arabic Recovery & Source Prioritization
     source = get_quran_source(db)
     final_results = []
+    seen = set()
     for item in results:
         # Arabic Recovery (if needed)
         if not item.arabic_text:
@@ -279,14 +298,16 @@ def search_quran(db: Session, query: str, limit: int = 15) -> List[ContentItem]:
                 if better_item:
                     item = better_item
         
-        final_results.append(item)
+        if item.id not in seen and quran_search_score(item, query):
+            final_results.append(item)
+            seen.add(item.id)
     
-    # 4. Final Sort: Official source first, then by Surah:Ayah
+    # Official source first, then lexical relevance, then stable source order.
     def final_sort_key(it):
         is_global = 0 if source and it.source_id == source.id else 1
         s_num = it.meta.get("surah_number") or 999
         a_num = it.meta.get("verse_number") or 999
-        return (is_global, s_num, a_num)
+        return (is_global, -quran_search_score(it, query), s_num, a_num)
 
     final_results.sort(key=final_sort_key)
     
