@@ -14,7 +14,7 @@ class SearchTerms(Output):
 
 
 class CandidateSelection(Output):
-    indices: Annotated[list[Annotated[int, Field(ge=0, le=17)]], Field(max_length=6)]
+    indices: Annotated[list[Annotated[int, Field(ge=0, le=17)]], Field(max_length=3)]
 
 
 def select_candidate_sources(idea, candidates):
@@ -24,7 +24,10 @@ def select_candidate_sources(idea, candidates):
         {"index": index, "translation": source["translation_text"]}
         for index, source in enumerate(candidates)
     ]}, ensure_ascii=False), utility=True, schema=CandidateSelection, timeout=30,
-        instructions="Select up to six candidate indices in order of editorial relevance to the creator's idea. "
+        instructions="Select at most three strong candidate indices in order of editorial relevance to the creator's idea. "
+        "Do not fill the shortlist with weaker matches. For a general encouragement brief, exclude passages "
+        "about specific legal rulings or historical events merely sharing a keyword. Return fewer than three "
+        "when only one or two passages clearly fit the requested message. "
         "Evaluate each COMPLETE translation, not keyword overlap. A punishment or warning passage is not a "
         "comforting reminder merely because it includes ease or difficulty. Avoid passages whose meaning "
         "would be distorted by presenting them for this brief. Prefer directly relevant passages that can "
