@@ -226,7 +226,7 @@ def studio_generate_visual(data: dict, org_id: int = Depends(get_current_org_id)
 
     res = generate_visual(req)
     if not res.ok:
-        return JSONResponse(status_code=res.error_status, content={"error": res.error})
+        return JSONResponse(status_code=res.error_status, content={"error": res.error, "visual_design": res.design})
 
     return {
         "image_url": res.url,

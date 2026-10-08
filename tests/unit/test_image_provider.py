@@ -22,6 +22,25 @@ def fixture_image():
 
 
 class ImageProviderTests(unittest.TestCase):
+    def test_portrait_size_is_retained_through_provider_fallback(self):
+        result = provider.GeneratedImage(Image.new('RGB', (16, 16)), 'openai', settings.openai_image_fallback_model)
+        with patch.object(provider, 'generate_openai_image', side_effect=[provider.ImageGenerationError('unavailable', 404), result]) as generate:
+            provider.generate_configured_image('fixture', size='1152x2048')
+        self.assertEqual([call.kwargs['size'] for call in generate.call_args_list], ['1152x2048', '1152x2048'])
+
+    def test_invalid_dimensions_fail_before_a_paid_call(self):
+        with patch.object(provider, 'OpenAI') as client:
+            with self.assertRaisesRegex(provider.ImageGenerationError, 'unsupported_image_size'):
+                provider.generate_openai_image('fixture', api_key='fixture', model='fixture', size='99999x99999')
+        client.assert_not_called()
+
+    def test_openai_receives_exact_portrait_dimensions(self):
+        with patch.object(provider, 'OpenAI') as client:
+            api = client.return_value.__enter__.return_value
+            api.images.generate.return_value = SimpleNamespace(data=[SimpleNamespace(b64_json=fixture_image())], usage=None)
+            provider.generate_openai_image('fixture', api_key='fixture', model='fixture', size='1088x1360')
+        self.assertEqual(api.images.generate.call_args.kwargs['size'], '1088x1360')
+
     def test_openai_uses_gpt_image_bytes_and_disables_automatic_paid_retries(self):
         with patch.object(provider, "OpenAI") as client:
             api = client.return_value.__enter__.return_value

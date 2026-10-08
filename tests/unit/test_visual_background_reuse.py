@@ -8,6 +8,30 @@ from app.services.card_typography import CardTypographyError
 
 
 class VisualBackgroundReuseTests(unittest.TestCase):
+    def test_scene_receipt_binds_family_recipe_and_format_before_downloading(self):
+        from app.services.vision_families import recipe_binding
+        request = visual.VisualRequest(style='luxury_editorial', owner_id=7, custom_prompt='Soft daylight')
+        valid = recipe_binding(request.style, request.post_format)
+        invalid = [None, {**valid, 'family':'emerald_forest'}, {**valid, 'recipe':0}, {**valid, 'format':'story_9_16'}]
+        with patch('requests.get') as get:
+            for binding in invalid:
+                with self.assertRaises(CardTypographyError):
+                    visual._load_background(self.token(recipe=binding), request)
+            get.assert_not_called()
+
+    def test_rejected_composition_returns_raw_receipt_without_partial_publishable_media(self):
+        def render(**kw):
+            kw['background_sink'](Image.new('RGB',(16,20)))
+            kw['render_metadata']['media_manifest'] = {'pages':['partial page must not escape']}
+            raise CardTypographyError('Try a quieter background')
+        with patch.object(visual,'store_background',return_value='recovery-receipt') as store, patch('app.services.image_card.generate_quote_card',side_effect=render):
+            result=visual.generate_visual(visual.VisualRequest(style='midnight_oasis',owner_id=7,card_message={'headline':'Fixture'}))
+        self.assertEqual(result.error_status,422)
+        self.assertFalse(result.ok)
+        self.assertEqual(result.design['background_token'],'recovery-receipt')
+        self.assertNotIn('media_manifest',result.design)
+        self.assertEqual(store.call_args.kwargs['family'],'midnight_oasis')
+
     def request(self, **overrides):
         return visual.VisualRequest(style='quiet_photography', owner_id=7,
                                     custom_prompt='Soft daylight', **overrides)

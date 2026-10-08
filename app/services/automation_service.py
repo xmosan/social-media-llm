@@ -72,7 +72,11 @@ class StyleDNASpec:
 # Phase 2 will replace this with a database lookup.
 # ─────────────────────────────────────────────────────────────────────────────
 
+from app.services.vision_families import (FAMILY_TO_RENDER_STYLE, FAMILY_TO_SCENE_KEY,
+    SCENE_FAMILIES, REUSABLE_FAMILIES, recipe_binding)
+
 SYSTEM_STYLE_DNA_PRESETS: dict[str, StyleDNASpec] = {
+    **{key: StyleDNASpec(family=key, atmosphere="natural", ornament_level="none", tone_style="calm") for key in SCENE_FAMILIES},
     "editorial": StyleDNASpec(family="editorial", atmosphere="clear", ornament_level="none", tone_style="calm"),
     "quiet_photography": StyleDNASpec(family="quiet_photography", atmosphere="natural", ornament_level="none", tone_style="calm"),
     "minimal_paper": StyleDNASpec(family="minimal_paper", atmosphere="quiet", ornament_level="none", tone_style="calm"),
@@ -296,44 +300,7 @@ def get_automation_style_dna(db: Session, automation: TopicAutomation) -> StyleD
 
 
 # Maps Style DNA family string → renderer style param (unifies with Studio render system)
-FAMILY_TO_RENDER_STYLE: dict[str, str] = {
-    "editorial": "editorial",
-    "quiet_photography": "quiet_photography",
-    "minimal_paper": "minimal_paper",
-    "sacred_black":         "quran",
-    "emerald_forest":       "fajr",
-    "celestial_night":      "laylulqadr",
-    "parchment_manuscript": "scholar",
-    "luxury_marble":        "kaaba",
-    "sacred_desert":        "madinah",
-    # New extended families
-    "royal_velvet":         "midnight",
-    "midnight_ink":         "kaaba",
-    "dawn_horizon":         "madinah",
-    "obsidian_stone":       "quran",
-    "ocean_depth":          "fajr",
-    "warm_copper":          "desert",
-}
 
-# Maps family → Studio scene key (for frontend preview swatch display)
-FAMILY_TO_SCENE_KEY: dict[str, str] = {
-    "editorial": "editorial",
-    "quiet_photography": "quiet_photography",
-    "minimal_paper": "minimal_paper",
-    "sacred_black":         "sacred_script",
-    "emerald_forest":       "midnight_oasis",
-    "celestial_night":      "midnight_oasis",
-    "parchment_manuscript": "sacred_script",
-    "luxury_marble":        "luxury_editorial",
-    "sacred_desert":        "desert_glow",
-    # New extended families
-    "royal_velvet":         "royal_velvet",
-    "midnight_ink":         "midnight_ink",
-    "dawn_horizon":         "dawn_horizon",
-    "obsidian_stone":       "obsidian_stone",
-    "ocean_depth":          "ocean_depth",
-    "warm_copper":          "warm_copper",
-}
 
 
 def list_system_presets(db: Session = None) -> list[dict]:
@@ -350,7 +317,7 @@ def list_system_presets(db: Session = None) -> list[dict]:
                 {
                     "id": p.id,           # Integer — always set after seeding
                     "key": p.name.lower().replace(" ", "_"),
-                    "label": p.name,
+                    "label": SCENE_FAMILIES.get(p.family, {}).get("label", p.name),
                     "family": p.family,
                     "atmosphere": p.atmosphere,
                     "ornament_level": p.ornament_level,
@@ -366,7 +333,7 @@ def list_system_presets(db: Session = None) -> list[dict]:
         {
             "id": key,            # String key — safe, predictable, unique
             "key": key,
-            "label": key.replace("_", " ").title(),
+            "label": SCENE_FAMILIES.get(spec.family, {}).get("label", key.replace("_", " ").title()),
             "family": spec.family,
             "atmosphere": spec.atmosphere,
             "ornament_level": spec.ornament_level,
@@ -391,6 +358,7 @@ def seed_style_dna(db: Session, *, families: set[str] | None = None) -> int:
     
     # Pre-defined mapping of key -> name since the dict keys are technically identifiers
     preset_names = {
+        **{key: value["label"] for key, value in SCENE_FAMILIES.items()},
         "editorial": "Editorial Typography",
         "quiet_photography": "Quiet Photography",
         "minimal_paper": "Minimal Paper",
@@ -414,7 +382,8 @@ def seed_style_dna(db: Session, *, families: set[str] | None = None) -> int:
             continue
         name = preset_names.get(key, key)
         # Check if exists
-        exists = db.query(StyleDNA).filter(StyleDNA.name == name, StyleDNA.is_system_preset == True, StyleDNA.org_id.is_(None)).first()
+        identity = StyleDNA.family == spec.family if spec.family in SCENE_FAMILIES else StyleDNA.name == name
+        exists = db.query(StyleDNA).filter(identity, StyleDNA.is_system_preset == True, StyleDNA.org_id.is_(None)).first()
         if not exists:
             new_dna = StyleDNA(
                 org_id=None,

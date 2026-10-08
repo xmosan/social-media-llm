@@ -113,3 +113,17 @@ test('late image loading cannot approve a replacement visual',()=>{
  f.c.studioVisualDesign={media_manifest:{pages:[{url:'https://cdn.test/replacement.jpg'}]}};late();
  assert.equal(f.run('studioViewedPages.size'),0);assert.equal(f.el('sequenceReviewCheck').disabled,true);
 });
+
+test('format change clears a scene receipt while retaining source and requiring a new review',()=>{
+  const f=setup();
+  f.c.window.sabeelPhotoFamilies=['quiet_photography','luxury_editorial'];
+  f.c.window.invalidateQuoteCard=()=>{f.c.isQuoteCardOutOfDate=true};
+  f.el('studioStyle').value='luxury_editorial';f.el('studioFormat').value='story_9_16';
+  f.c.studioBackgroundToken='old-feed-receipt';
+  f.c.studioVisualDesign.background_token='old-feed-receipt';
+  f.c.window.changeStudioFormat();f.c.window.rememberStudio();
+  assert.equal(f.c.studioBackgroundToken,null);
+  assert.equal(JSON.parse([...f.storage.values()][0]).payload.visual_design.background_token,null);
+  assert.equal(f.c.studioCardMessage.headline,'Exact source');
+  assert.equal(f.c.isQuoteCardOutOfDate,true);
+});

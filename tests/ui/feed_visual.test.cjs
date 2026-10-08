@@ -53,3 +53,18 @@ test('changing the source clears its outputs and discards an in-flight visual', 
   assert.equal(f.context.currentQuoteCardUrl,null);
   assert.equal(f.el('finalMediaUrl').value,'');
 });
+
+test('rejected scene retains its raw background for a free layout retry but never a publishable manifest', async () => {
+  const requests=[];
+  const f=setup(async(url,opts)=>{
+    requests.push(JSON.parse(opts.body));
+    return {ok:false,json:async()=>({error:'Choose a quieter layout.',visual_design:{family:'luxury_editorial',background_token:'saved-raw',quality:{status:'rejected'}}})};
+  });
+  f.el('studioStyle').value='luxury_editorial';
+  await f.generate();f.el('studioLayout').value='bilingual';await f.generate();
+  assert.equal(requests[1].background_token,'saved-raw');
+  assert.equal(f.context.currentQuoteCardUrl,null);
+  assert.equal(f.context.isQuoteCardOutOfDate,true);
+  assert.equal(f.el('btnGenerateCard').disabled,false);
+  assert.match(f.el('visualQualityNote').textContent,/quieter layout/);
+});

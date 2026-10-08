@@ -352,13 +352,27 @@ class PostgresChecks(unittest.TestCase):
                 return module.seed_style_dna(session, families=DESIGN_FAMILIES)
         with ThreadPoolExecutor(max_workers=2) as pool:
             results = list(pool.map(lambda _: seed(), range(2)))
-        self.assertEqual(sorted(results), [0, 3])
+        self.assertEqual(sorted(results), [0, 7])
         self.assertEqual(seed(), 0)
         rows = self.db.query(StyleDNA).all()
-        self.assertEqual(len(rows), 4)
+        self.assertEqual(len(rows), 8)
         self.assertEqual({row.family for row in rows if row.id != existing_id}, DESIGN_FAMILIES)
         self.db.expire_all()
         self.assertEqual(self.db.get(StyleDNA, existing_id).family, 'sacred_black')
         self.assertEqual(self.db.get(Post, post_id).media_url, CDN)
         visible = module.list_system_presets(self.db)
-        self.assertEqual(sum(p['family'] in DESIGN_FAMILIES for p in visible), 3)
+        self.assertEqual(sum(p['family'] in DESIGN_FAMILIES for p in visible), 7)
+
+    def test_existing_nature_preset_keeps_its_id_and_does_not_gain_a_duplicate(self):
+        from app.models import StyleDNA
+        spec = importlib.util.spec_from_file_location("pg_vision_presets", ROOT / "app/services/automation_service.py")
+        module = importlib.util.module_from_spec(spec); sys.modules[spec.name] = module; spec.loader.exec_module(module)
+        old = StyleDNA(name="Emerald Calm", family="emerald_forest", atmosphere="quiet", ornament_level="none", tone_style="calm", variation_pool=[], locked_traits={}, is_system_preset=True)
+        self.db.add(old); self.db.commit(); old_id=old.id
+        self.assertEqual(module.seed_style_dna(self.db, families={'emerald_forest'}), 0)
+        self.assertEqual(self.db.query(StyleDNA).filter(StyleDNA.family=='emerald_forest').count(), 1)
+        self.db.expire_all()
+        self.assertEqual(self.db.get(StyleDNA,old_id).name,'Emerald Calm')
+        visible=next(p for p in module.list_system_presets(self.db) if p['id']==old_id)
+        self.assertEqual(visible['label'],'Quiet Nature')
+        self.assertEqual(visible['scene_key'],'emerald_forest')

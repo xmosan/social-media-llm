@@ -50,7 +50,7 @@ class AppStartupChecks(unittest.TestCase):
                         migrate.assert_not_called()
                         seed.assert_not_called()
                         creator_seed.assert_called_once()
-                        self.assertEqual(creator_seed.call_args.kwargs["families"], {"editorial", "quiet_photography", "minimal_paper"})
+                        self.assertEqual(creator_seed.call_args.kwargs["families"], {"editorial", "quiet_photography", "minimal_paper", "luxury_editorial", "desert_glow", "midnight_oasis", "emerald_forest"})
                         jobs.assert_not_called()
             finally:
                 actual_db.engine.dispose()
