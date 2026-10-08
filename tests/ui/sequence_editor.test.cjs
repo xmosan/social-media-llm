@@ -7,7 +7,7 @@ const source=fs.readFileSync(path.join(__dirname,'../../app/routes/ui_assets.py'
 const code=source.slice(source.indexOf('    // Sequence editor:'),source.indexOf('    // End sequence editor.'));
 function setup(fetch=async()=>({ok:true,json:async()=>({id:51})})) {
   const nodes={}, storage=new Map(),alerts=[];let phase=0;
-  const el=id=>nodes[id] ||= {value:'',checked:false,disabled:false,style:{},dataset:{workspace:'1:2'},classList:{add(){},remove(){},toggle(){}}};
+  const el=id=>nodes[id] ||= {value:'',complete:true,naturalWidth:1080,checked:false,disabled:false,style:{},dataset:{workspace:'1:2'},classList:{add(){},remove(){},toggle(){}}};
   el('studioAccount').value='7';el('studioStyle').value='editorial';el('studioFormat').value='feed_4_5';el('studioCaption').value='Social copy';
   const card={headline:'Exact source',arabic_text:'نص تجريبي',eyebrow:'Fixture reference'};
   const pages=[0,1,2].map(i=>({url:`https://cdn.test/${i}.jpg`,label:`Source part ${i+1}`}));
@@ -100,4 +100,16 @@ test('recovery keeps planned date and time as editor preferences, never as a sch
  const f=setup();f.el('scheduleDate').value='2026-12-20';f.el('scheduleTime').value='09:15';f.c.window.rememberStudio();
  const saved=JSON.parse(f.storage.get('sabeel-studio-v2:1:2'));assert.equal(saved.schedule.date,'2026-12-20');assert.equal(saved.payload.scheduled_at,undefined);
  f.el('scheduleDate').value='';await f.c.window.restoreStudioRecovery();assert.equal(f.el('scheduleDate').value,'2026-12-20');assert.equal(f.el('scheduleTime').value,'09:15');
+});
+test('a page counts as reviewed only after its image loads; failure blocks approval and retry recovers',()=>{
+ const f=setup();const image=f.el('quoteCardPreview');image.complete=false;
+ f.c.window.showStudioPage(0);assert.equal(f.run('studioViewedPages.size'),0);image.onload();assert.equal(f.run('studioViewedPages.size'),1);
+ f.c.window.showStudioPage(1);image.onload();f.c.window.showStudioPage(2);image.onerror();
+ assert.equal(f.el('sequenceReviewCheck').disabled,true);assert.equal(f.run('studioViewedPages.size'),2);
+ f.c.window.retryStudioImage();image.onload();assert.equal(f.el('sequenceReviewCheck').disabled,false);
+});
+test('late image loading cannot approve a replacement visual',()=>{
+ const f=setup();const image=f.el('quoteCardPreview');image.complete=false;f.c.window.showStudioPage(0);const late=image.onload;
+ f.c.studioVisualDesign={media_manifest:{pages:[{url:'https://cdn.test/replacement.jpg'}]}};late();
+ assert.equal(f.run('studioViewedPages.size'),0);assert.equal(f.el('sequenceReviewCheck').disabled,true);
 });

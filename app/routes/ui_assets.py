@@ -706,7 +706,7 @@ STUDIO_SCRIPTS_JS = r"""
         for (const id of ['finalMediaUrl', 'studioCaption', 'editEyebrow', 'editHeadline', 'editSupporting']) {
             const el = document.getElementById(id); if (el) el.value = '';
         }
-        for (const id of ['cardActions', 'quoteCardPreview', 'cardMessageWorkspace', 'captionResultArea']) {
+        for (const id of ['cardActions', 'quoteCardPreview', 'cardMessageWorkspace', 'captionResultArea', 'studioImageRetry']) {
             document.getElementById(id)?.classList.add('hidden');
         }
     };
@@ -985,9 +985,25 @@ STUDIO_SCRIPTS_JS = r"""
         const pages = sequencePages();
         if (!pages.length) return;
         studioPageIndex = Math.max(0, Math.min(index, pages.length-1));
-        studioViewedPages.add(studioPageIndex);
+        const viewingIndex=studioPageIndex;
         const page = pages[studioPageIndex];
         const image = document.getElementById('quoteCardPreview');
+        const review=document.getElementById('sequenceReviewCheck');
+        document.getElementById('studioImageRetry')?.classList.add('hidden');
+        image.onload=()=>{
+            if(pages!==sequencePages() || image.src!==page.url) return;
+            studioViewedPages.add(viewingIndex);
+            const note=document.getElementById('visualQualityNote');
+            if(note?.textContent?.startsWith('This page could not load.')) note.textContent='Image loaded. Review this page before continuing.';
+            review.disabled=studioViewedPages.size!==pages.length;
+        };
+        image.onerror=()=>{
+            if(pages!==sequencePages() || image.src!==page.url) return;
+            studioViewedPages.delete(viewingIndex);studioSequenceReviewed=false;
+            review.checked=false;review.disabled=true;
+            document.getElementById('studioImageRetry')?.classList.remove('hidden');
+            document.getElementById('visualQualityNote').textContent='This page could not load. Retry the image before confirming your review.';
+        };
         image.src = page.url;
         image.alt = `Page ${studioPageIndex+1} of ${pages.length}: ${page.label}`;
         image.classList.remove('hidden');
@@ -995,9 +1011,11 @@ STUDIO_SCRIPTS_JS = r"""
         document.getElementById('sequencePrevious').disabled = studioPageIndex === 0;
         document.getElementById('sequenceNext').disabled = studioPageIndex === pages.length-1;
         document.getElementById('sequenceReviewCheck').disabled = studioViewedPages.size !== pages.length;
+        if(image.complete && image.naturalWidth>0) image.onload();
         window.updateStudioFormatPreview();
     };
     window.moveStudioPage = function(delta) { window.showStudioPage(studioPageIndex+delta); };
+    window.retryStudioImage = function() { window.showStudioPage(studioPageIndex); };
     window.updateStudioFormatPreview = function() {
         const story = (studioVisualDesign?.media_manifest?.format || document.getElementById('studioFormat')?.value) === 'story_9_16';
         const preview = document.getElementById('cardPreviewContainer');
@@ -3040,6 +3058,7 @@ STUDIO_COMPONENTS_HTML = """
                         <div id="cardLoader" class="hidden absolute animate-spin w-12 h-12 border-4 border-t-brand rounded-full"></div>
                     </div>
                     <p id="visualQualityNote" role="status" aria-live="polite" class="text-sm leading-relaxed text-brand/70 max-w-[390px]"></p>
+                    <button type="button" id="studioImageRetry" onclick="retryStudioImage()" class="hidden px-4 py-2 border rounded-xl">Retry loading this page</button>
                     <div class="flex items-center justify-between gap-3 text-sm w-full max-w-[390px]">
                         <button type="button" id="sequencePrevious" onclick="moveStudioPage(-1)" disabled class="p-3 border rounded-xl">Previous</button>
                         <span id="sequencePageLabel" role="status" class="text-center text-xs"></span>
