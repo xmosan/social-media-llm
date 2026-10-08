@@ -1,5 +1,6 @@
 """Measured card typography. Logical source text is never rewritten or truncated."""
 from pathlib import Path
+import re
 import unicodedata
 
 from PIL import Image, ImageDraw, ImageFont, features
@@ -44,6 +45,26 @@ def paragraph_direction(text):
     return "ltr"
 
 
+def source_word_ends(text):
+    """Canonical offsets where wrapping may break, including trailing whitespace.
+
+    Providers sometimes separate Qur'anic combining pause marks with a space.
+    Keep those marks with their preceding word: a mark at the start of a shaped
+    line/page acquires a dotted-circle base. No source character is removed and
+    the original whitespace remains part of the exact sequence slices.
+    """
+    ends = [match.end() for match in re.finditer(r"\S+\s*", text)]
+    return [end for end in ends if end == len(text) or not unicodedata.category(text[end]).startswith("M")]
+
+
+def _wrap_words(text):
+    words, start = [], 0
+    for end in source_word_ends(text):
+        words.append(" ".join(text[start:end].split()))
+        start = end
+    return words
+
+
 def measure(text, font, direction=None):
     visual = display_text(text)
     direction = direction or paragraph_direction(text)
@@ -59,7 +80,7 @@ def wrap(text, font, width):
     for paragraph in text.splitlines():
         start = len(lines)
         current = ""
-        for word in paragraph.split():
+        for word in _wrap_words(paragraph):
             trial = f"{current} {word}" if current else word
             if current and measure(trial, font, direction)["width"] > width:
                 lines.append(measure(current, font, direction))
@@ -71,7 +92,7 @@ def wrap(text, font, width):
         # Avoid a stranded final Arabic word while preserving logical order and
         # every source character. Only line breaks change, never source text.
         if direction == "rtl" and len(lines)-start >= 2:
-            previous, last = lines[-2]["text"].split(), lines[-1]["text"].split()
+            previous, last = _wrap_words(lines[-2]["text"]), _wrap_words(lines[-1]["text"])
             while len(previous) > 1 and measure(" ".join(last), font, direction)["width"] < width*.45:
                 trial = [previous[-1], *last]
                 if (measure(" ".join(trial), font, direction)["width"] > width or
@@ -155,7 +176,11 @@ def layout_card(segments, *, serif=False, family="editorial", layout="english_fi
                 top_margin += h+(24 if hierarchy else 48)
             else:
                 available_bottom -= h+32
-    for scale in (1, .92, .84):
+    # The planner fits sequence slices at this same established reading scale.
+    # Do not enlarge shorter continuations afterwards: that makes a reader's
+    # type size jump between pages in one language chapter.
+    scales = (.84,) if any(s.get("sequence_page") for s in segments) else (1, .92, .84)
+    for scale in scales:
         blocks = []
         fits = True
         typeset_segments = []
@@ -223,7 +248,6 @@ def plan_sequence(segments, *, family="editorial", layout="english_first", post_
     page repeats the reference and is explicitly part of the full sequence.
     Offsets include whitespace so concatenating slices reproduces the input.
     """
-    import re
     # An English narration may include ﷺ. Choose its supporting font once for
     # the whole chapter; subsequent pages without that glyph must not switch face.
     segments = [dict(seg, use_arabic_font=contains_arabic(seg["text"])) for seg in segments]
@@ -253,7 +277,7 @@ def plan_sequence(segments, *, family="editorial", layout="english_first", post_
         chapter_refs = [dict(s, label=chapter+" · 10/10 · Read all pages") for s in refs] if seg.get("narration_end") is not None else refs
         parts = []
         while start < len(text):
-            ends = [m.end() for m in re.finditer(r"\S+\s*", text[start:])]
+            ends = source_word_ends(text[start:])
             if not ends:
                 raise CardTypographyError("This source contains an empty or unrenderable passage")
             low, high, best = 0, len(ends)-1, None
@@ -274,7 +298,8 @@ def plan_sequence(segments, *, family="editorial", layout="english_first", post_
                 raise CardTypographyError("The narration would fill a page before the Hadith begins. Choose the available labeled Arabic excerpt or a roomier layout; no source text was removed.")
             # Prefer sentence boundaries when doing so does not create tiny pages.
             if best < len(text):
-                boundaries = [start+m.end() for m in re.finditer(r'[.!?؟۔][\"”’\)]*\s+', text[start:best])]
+                boundaries = [start+m.end() for m in re.finditer(r'[.!?؟۔][\"”’\)]*\s+', text[start:best])
+                              if m.end() in ends]
                 suitable = [end for end in boundaries if end-start >= (best-start)*.6
                             and (start > 0 or end > (seg.get("narration_end") or 0))]
                 if suitable:
@@ -287,8 +312,8 @@ def plan_sequence(segments, *, family="editorial", layout="english_first", post_
             # Balance a language chapter so its last page is not a few stranded
             # words. This only moves exact whitespace boundaries. Keep the
             # measured original partition if the balanced candidates do not fit.
-            boundaries = [m.end() for m in re.finditer(r"\S+\s*", text)]
-            clauses = [m.end() for m in re.finditer(r"[.!?؟۔،,;؛:]\s+", text)]
+            boundaries = source_word_ends(text)
+            clauses = [m.end() for m in re.finditer(r"[.!?؟۔،,;؛:]\s+", text) if m.end() in boundaries]
             balanced, start = [], 0
             for part_index in range(len(parts)):
                 remaining = len(parts)-part_index

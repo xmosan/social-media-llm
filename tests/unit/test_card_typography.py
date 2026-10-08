@@ -10,6 +10,42 @@ from test_image_provider import load_real_service
 
 
 class CardTypographyTests(unittest.TestCase):
+    def test_pause_marks_cannot_be_stranded_by_line_or_page_breaks(self):
+        import json
+        import unicodedata
+        source = next(s for s in json.loads((Path(__file__).resolve().parents[1]/'quality/sources.json').read_text())
+                      if s['key']=='quran_medium')['record']['arabic_text']
+        font = typography.load_font(source, 68)
+        for width in (500, 872, 920):
+            lines = typography.wrap(source,font,width)
+            self.assertEqual(' '.join(line['text'] for line in lines), source)
+            self.assertFalse(any(unicodedata.category(line['text'][0]).startswith('M') for line in lines))
+        # The source remains exact, including the provider's space before ۚ.
+        for end in typography.source_word_ends(source):
+            self.assertTrue(end==len(source) or not unicodedata.category(source[end]).startswith('M'))
+        self.assertIn(' ۚ ',source)
+
+    def test_sequence_keeps_combining_marks_with_previous_source_slice(self):
+        import unicodedata
+        source = 'نَصٌّ تَجْرِيبِيٌّ ۚ غَيْرُ قُرْآنِيٍّ. ' * 30
+        segments=[{'role':'reference','text':'Synthetic fixture only'}, {'role':'source_arabic','text':source}]
+        pages=typography.plan_sequence(segments,post_format='feed_4_5')
+        parts=[source[s['start']:s['end']] for page in pages for s in page['slices']]
+        self.assertGreater(len(parts),1)
+        self.assertEqual(''.join(parts),source)
+        self.assertFalse(any(unicodedata.category(part[0]).startswith('M') for part in parts))
+
+    def test_sequence_continuations_keep_one_type_size_despite_different_lengths(self):
+        segments=[{'role':'reference','text':'Synthetic fixture only'},
+                  {'role':'source_translation','text':'A synthetic paragraph with changing page lengths. '*30}]
+        pages=typography.plan_sequence(segments,post_format='story_9_16')
+        self.assertGreater(len(pages),1)
+        sizes=set()
+        for page in pages:
+            _,blocks=typography.layout_card(page['segments'],post_format='story_9_16')
+            sizes.update(block['size'] for block in blocks if block['role']=='source_translation')
+        self.assertEqual(sizes,{67})
+
     def test_honorific_uses_a_real_glyph_without_reversing_english(self):
         text = 'Synthetic English (ﷺ) typography fixture.'
         font = typography.load_font(text, 42)

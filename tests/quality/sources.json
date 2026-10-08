@@ -1,0 +1,212 @@
+[
+  {
+    "key": "quran_short",
+    "length": "short",
+    "type": "quran",
+    "record": {
+      "id": 951,
+      "type": "quran_verse",
+      "surah_number": 94,
+      "surah_name_en": "Ash-Sharh",
+      "surah_name_ar": "الشرح",
+      "ayah_number": 6,
+      "verse_key": "94:6",
+      "reference": "Qur'an 94:6",
+      "arabic_text": "إِنَّ مَعَ ٱلْعُسْرِ يُسْرًا",
+      "translation_text": "Indeed, with hardship [will be] ease.",
+      "translator": null,
+      "translation_id": "131",
+      "topics": [
+        "Surah 94"
+      ]
+    },
+    "provenance": "Connected production Qur’an library, read-only canonical resolution",
+    "fetched_at": "2026-10-08T13:33:31.827650+00:00",
+    "record_sha256": "ac09ac8c86b4b385e86ecbb0f63f2b63783d3383676747692b443c8321bbec31"
+  },
+  {
+    "key": "quran_medium",
+    "length": "medium",
+    "type": "quran",
+    "record": {
+      "id": 1220,
+      "type": "quran_verse",
+      "surah_number": 2,
+      "surah_name_en": "Al-Baqarah",
+      "surah_name_ar": "البقرة",
+      "ayah_number": 153,
+      "verse_key": "2:153",
+      "reference": "Qur'an 2:153",
+      "arabic_text": "يَـٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوا۟ ٱسْتَعِينُوا۟ بِٱلصَّبْرِ وَٱلصَّلَوٰةِ ۚ إِنَّ ٱللَّهَ مَعَ ٱلصَّـٰبِرِينَ",
+      "translation_text": "O you who have believed, seek help through patience and prayer. Indeed, Allāh is with the patient.",
+      "translator": null,
+      "translation_id": "131",
+      "topics": [
+        "Surah 2"
+      ]
+    },
+    "provenance": "Connected production Qur’an library, read-only canonical resolution",
+    "fetched_at": "2026-10-08T13:33:32.139318+00:00",
+    "record_sha256": "9e76c022b8593a4ad9b16f034e839311fb97860492e180888083089117366720"
+  },
+  {
+    "key": "quran_long",
+    "length": "long",
+    "type": "quran",
+    "record": {
+      "id": 1349,
+      "type": "quran_verse",
+      "surah_number": 2,
+      "surah_name_en": "Al-Baqarah",
+      "surah_name_ar": "البقرة",
+      "ayah_number": 282,
+      "verse_key": "2:282",
+      "reference": "Qur'an 2:282",
+      "arabic_text": "يَـٰٓأَيُّهَا ٱلَّذِينَ ءَامَنُوٓا۟ إِذَا تَدَايَنتُم بِدَيْنٍ إِلَىٰٓ أَجَلٍ مُّسَمًّى فَٱكْتُبُوهُ ۚ وَلْيَكْتُب بَّيْنَكُمْ كَاتِبٌۢ بِٱلْعَدْلِ ۚ وَلَا يَأْبَ كَاتِبٌ أَن يَكْتُبَ كَمَا عَلَّمَهُ ٱللَّهُ ۚ فَلْيَكْتُبْ وَلْيُمْلِلِ ٱلَّذِى عَلَيْهِ ٱلْحَقُّ وَلْيَتَّقِ ٱللَّهَ رَبَّهُۥ وَلَا يَبْخَسْ مِنْهُ شَيْـًٔا ۚ فَإِن كَانَ ٱلَّذِى عَلَيْهِ ٱلْحَقُّ سَفِيهًا أَوْ ضَعِيفًا أَوْ لَا يَسْتَطِيعُ أَن يُمِلَّ هُوَ فَلْيُمْلِلْ وَلِيُّهُۥ بِٱلْعَدْلِ ۚ وَٱسْتَشْهِدُوا۟ شَهِيدَيْنِ مِن رِّجَالِكُمْ ۖ فَإِن لَّمْ يَكُونَا رَجُلَيْنِ فَرَجُلٌ وَٱمْرَأَتَانِ مِمَّن تَرْضَوْنَ مِنَ ٱلشُّهَدَآءِ أَن تَضِلَّ إِحْدَىٰهُمَا فَتُذَكِّرَ إِحْدَىٰهُمَا ٱلْأُخْرَىٰ ۚ وَلَا يَأْبَ ٱلشُّهَدَآءُ إِذَا مَا دُعُوا۟ ۚ وَلَا تَسْـَٔمُوٓا۟ أَن تَكْتُبُوهُ صَغِيرًا أَوْ كَبِيرًا إِلَىٰٓ أَجَلِهِۦ ۚ ذَٰلِكُمْ أَقْسَطُ عِندَ ٱللَّهِ وَأَقْوَمُ لِلشَّهَـٰدَةِ وَأَدْنَىٰٓ أَلَّا تَرْتَابُوٓا۟ ۖ إِلَّآ أَن تَكُونَ تِجَـٰرَةً حَاضِرَةً تُدِيرُونَهَا بَيْنَكُمْ فَلَيْسَ عَلَيْكُمْ جُنَاحٌ أَلَّا تَكْتُبُوهَا ۗ وَأَشْهِدُوٓا۟ إِذَا تَبَايَعْتُمْ ۚ وَلَا يُضَآرَّ كَاتِبٌ وَلَا شَهِيدٌ ۚ وَإِن تَفْعَلُوا۟ فَإِنَّهُۥ فُسُوقٌۢ بِكُمْ ۗ وَٱتَّقُوا۟ ٱللَّهَ ۖ وَيُعَلِّمُكُمُ ٱللَّهُ ۗ وَٱللَّهُ بِكُلِّ شَىْءٍ عَلِيمٌ",
+      "translation_text": "O you who have believed, when you contract a debt for a specified term, write it down. And let a scribe write [it] between you in justice. Let no scribe refuse to write as Allāh has taught him. So let him write and let the one who has the obligation [i.e., the debtor] dictate. And let him fear Allāh, his Lord, and not leave anything out of it. But if the one who has the obligation is of limited understanding or weak or unable to dictate himself, then let his guardian dictate in justice. And bring to witness two witnesses from among your men. And if there are not two men [available], then a man and two women from those whom you accept as witnesses - so that if one of them [i.e., the women] errs, then the other can remind her. And let not the witnesses refuse when they are called upon. And do not be [too] weary to write it, whether it is small or large, for its [specified] term. That is more just in the sight of Allāh and stronger as evidence and more likely to prevent doubt between you, except when it is an immediate transaction which you conduct among yourselves. For [then] there is no blame upon you if you do not write it. And take witnesses when you conclude a contract. Let no scribe be harmed or any witness. For if you do so, indeed, it is [grave] disobedience in you. And fear Allāh. And Allāh teaches you. And Allāh is Knowing of all things.",
+      "translator": null,
+      "translation_id": "131",
+      "topics": [
+        "Surah 2"
+      ]
+    },
+    "provenance": "Connected production Qur’an library, read-only canonical resolution",
+    "fetched_at": "2026-10-08T13:33:32.446928+00:00",
+    "record_sha256": "0d517a5daaf951f22641bbd3be74f36a185593b133d17adaaf055d8f502aa1da"
+  },
+  {
+    "key": "hadith_medium",
+    "length": "medium",
+    "type": "hadith",
+    "record": {
+      "source_type": "hadith",
+      "collection": "Sahih al-Bukhari",
+      "collection_key": "bukhari",
+      "book": "Sahih al-Bukhari",
+      "chapter": "How the Divine Revelation started being revealed to Allah's Messenger",
+      "hadith_number": 1,
+      "reference": "Sahih al-Bukhari 1",
+      "arabic_text": "حَدَّثَنَا الْحُمَيْدِيُّ عَبْدُ اللَّهِ بْنُ الزُّبَيْرِ ، قَالَ : حَدَّثَنَا سُفْيَانُ ، قَالَ : حَدَّثَنَا يَحْيَى بْنُ سَعِيدٍ الْأَنْصَارِيُّ ، قَالَ : أَخْبَرَنِي مُحَمَّدُ بْنُ إِبْرَاهِيمَ التَّيْمِيُّ ، أَنَّهُ سَمِعَ عَلْقَمَةَ بْنَ وَقَّاصٍ اللَّيْثِيَّ ، يَقُولُ : سَمِعْتُ عُمَرَ بْنَ الْخَطَّابِ رَضِيَ اللَّهُ عَنْهُ عَلَى الْمِنْبَرِ، قَالَ : سَمِعْتُ رَسُولَ اللَّهِ صَلَّى اللَّهُ عَلَيْهِ وَسَلَّمَ، يَقُولُ : \" إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ، وَإِنَّمَا لِكُلِّ امْرِئٍ مَا نَوَى، فَمَنْ كَانَتْ هِجْرَتُهُ إِلَى دُنْيَا يُصِيبُهَا أَوْ إِلَى امْرَأَةٍ يَنْكِحُهَا، فَهِجْرَتُهُ إِلَى مَا هَاجَرَ إِلَيْهِ \"",
+      "translation_text": "I heard Allah's Messenger (ﷺ) saying, \"The reward of deeds depends upon the intentions and every person will get the reward according to what he has intended. So whoever emigrated for worldly benefits or for a woman to marry, his emigration was for what he emigrated for.\"",
+      "card_text": "I heard Allah's Messenger (ﷺ) saying, \"The reward of deeds depends upon the intentions and every person will get the reward according to what he has intended. So whoever emigrated for worldly benefits or for a woman to marry, his emigration was for what he emigrated for.\"",
+      "was_excerpted": false,
+      "narrator": "Narrated 'Umar bin Al-Khattab:",
+      "grade": null,
+      "provider_metadata": {
+        "volume": {
+          "id": 1
+        },
+        "chapter": {
+          "id": 1,
+          "language": {
+            "en": {
+              "text": "How the Divine Revelation started being revealed to Allah's Messenger"
+            },
+            "ar": {
+              "text": "باب كَيْفَ كَانَ بَدْءُ الْوَحْىِ إِلَى رَسُولِ اللَّهِ صلى الله عليه وسلم"
+            },
+            "al": {
+              "text": ""
+            }
+          }
+        }
+      },
+      "topics": [],
+      "api_source": "sunnah.now/api/early-access",
+      "provider_page": 1
+    },
+    "provenance": "sunnah.now collection-scoped bukhari page 1, original record retained",
+    "fetched_at": "2026-10-08T13:33:33.911581+00:00",
+    "record_sha256": "d1fe7d8923df308df84556c3f1e6078382f6cba22cc483ff6a0d697116300852"
+  },
+  {
+    "key": "hadith_long",
+    "length": "long",
+    "type": "hadith",
+    "record": {
+      "source_type": "hadith",
+      "collection": "Sahih al-Bukhari",
+      "collection_key": "bukhari",
+      "book": "Sahih al-Bukhari",
+      "chapter": null,
+      "hadith_number": 3,
+      "reference": "Sahih al-Bukhari 3",
+      "arabic_text": "حَدَّثَنَا يَحْيَى بْنُ بُكَيْرٍ، قَالَ حَدَّثَنَا اللَّيْثُ، عَنْ عُقَيْلٍ، عَنِ ابْنِ شِهَابٍ، عَنْ عُرْوَةَ بْنِ الزُّبَيْرِ، عَنْ عَائِشَةَ أُمِّ الْمُؤْمِنِينَ، أَنَّهَا قَالَتْ أَوَّلُ مَا بُدِئَ بِهِ رَسُولُ اللَّهِ صلى الله عليه وسلم مِنَ الْوَحْىِ الرُّؤْيَا الصَّالِحَةُ فِي النَّوْمِ، فَكَانَ لاَ يَرَى رُؤْيَا إِلاَّ جَاءَتْ مِثْلَ فَلَقِ الصُّبْحِ، ثُمَّ حُبِّبَ إِلَيْهِ الْخَلاَءُ، وَكَانَ يَخْلُو بِغَارِ حِرَاءٍ فَيَتَحَنَّثُ فِيهِ ـ وَهُوَ التَّعَبُّدُ ـ اللَّيَالِيَ ذَوَاتِ الْعَدَدِ قَبْلَ أَنْ يَنْزِعَ إِلَى أَهْلِهِ، وَيَتَزَوَّدُ لِذَلِكَ، ثُمَّ يَرْجِعُ إِلَى خَدِيجَةَ، فَيَتَزَوَّدُ لِمِثْلِهَا، حَتَّى جَاءَهُ الْحَقُّ وَهُوَ فِي غَارِ حِرَاءٍ، فَجَاءَهُ الْمَلَكُ فَقَالَ اقْرَأْ‏.‏ قَالَ ‏\"‏ مَا أَنَا بِقَارِئٍ ‏\"‏‏.‏ قَالَ ‏\"‏ فَأَخَذَنِي فَغَطَّنِي حَتَّى بَلَغَ مِنِّي الْجَهْدَ، ثُمَّ أَرْسَلَنِي فَقَالَ اقْرَأْ‏.‏ قُلْتُ مَا أَنَا بِقَارِئٍ‏.‏ فَأَخَذَنِي فَغَطَّنِي الثَّانِيَةَ حَتَّى بَلَغَ مِنِّي الْجَهْدَ، ثُمَّ أَرْسَلَنِي فَقَالَ اقْرَأْ‏.‏ فَقُلْتُ مَا أَنَا بِقَارِئٍ‏.‏ فَأَخَذَنِي فَغَطَّنِي الثَّالِثَةَ، ثُمَّ أَرْسَلَنِي فَقَالَ ‏{‏اقْرَأْ بِاسْمِ رَبِّكَ الَّذِي خَلَقَ * خَلَقَ الإِنْسَانَ مِنْ عَلَقٍ * اقْرَأْ وَرَبُّكَ الأَكْرَمُ‏}‏ ‏\"‏‏.‏ فَرَجَعَ بِهَا رَسُولُ اللَّهِ صلى الله عليه وسلم يَرْجُفُ فُؤَادُهُ، فَدَخَلَ عَلَى خَدِيجَةَ بِنْتِ خُوَيْلِدٍ رضى الله عنها فَقَالَ ‏\"‏ زَمِّلُونِي زَمِّلُونِي ‏\"‏‏.‏ فَزَمَّلُوهُ حَتَّى ذَهَبَ عَنْهُ الرَّوْعُ، فَقَالَ لِخَدِيجَةَ وَأَخْبَرَهَا الْخَبَرَ ‏\"‏ لَقَدْ خَشِيتُ عَلَى نَفْسِي ‏\"‏‏.‏ فَقَالَتْ خَدِيجَةُ كَلاَّ وَاللَّهِ مَا يُخْزِيكَ اللَّهُ أَبَدًا، إِنَّكَ لَتَصِلُ الرَّحِمَ، وَتَحْمِلُ الْكَلَّ، وَتَكْسِبُ الْمَعْدُومَ، وَتَقْرِي الضَّيْفَ، وَتُعِينُ عَلَى نَوَائِبِ الْحَقِّ‏.‏ فَانْطَلَقَتْ بِهِ خَدِيجَةُ حَتَّى أَتَتْ بِهِ وَرَقَةَ بْنَ نَوْفَلِ بْنِ أَسَدِ بْنِ عَبْدِ الْعُزَّى ابْنَ عَمِّ خَدِيجَةَ ـ وَكَانَ امْرَأً تَنَصَّرَ فِي الْجَاهِلِيَّةِ، وَكَانَ يَكْتُبُ الْكِتَابَ الْعِبْرَانِيَّ، فَيَكْتُبُ مِنَ الإِنْجِيلِ بِالْعِبْرَانِيَّةِ مَا شَاءَ اللَّهُ أَنْ يَكْتُبَ، وَكَانَ شَيْخًا كَبِيرًا قَدْ عَمِيَ ـ فَقَالَتْ لَهُ خَدِيجَةُ يَا ابْنَ عَمِّ اسْمَعْ مِنَ ابْنِ أَخِيكَ‏.‏ فَقَالَ لَهُ وَرَقَةُ يَا ابْنَ أَخِي مَاذَا تَرَى فَأَخْبَرَهُ رَسُولُ اللَّهِ صلى الله عليه وسلم خَبَرَ مَا رَأَى‏.‏ فَقَالَ لَهُ وَرَقَةُ هَذَا النَّامُوسُ الَّذِي نَزَّلَ اللَّهُ عَلَى مُوسَى صلى الله عليه وسلم يَا لَيْتَنِي فِيهَا جَذَعًا، لَيْتَنِي أَكُونُ حَيًّا إِذْ يُخْرِجُكَ قَوْمُكَ‏.‏ فَقَالَ رَسُولُ اللَّهِ صلى الله عليه وسلم ‏\"‏ أَوَمُخْرِجِيَّ هُمْ ‏\"‏‏.‏ قَالَ نَعَمْ، لَمْ يَأْتِ رَجُلٌ قَطُّ بِمِثْلِ مَا جِئْتَ بِهِ إِلاَّ عُودِيَ، وَإِنْ يُدْرِكْنِي يَوْمُكَ أَنْصُرْكَ نَصْرًا مُؤَزَّرًا‏.‏ ثُمَّ لَمْ يَنْشَبْ وَرَقَةُ أَنْ تُوُفِّيَ وَفَتَرَ الْوَحْىُ‏.‏",
+      "translation_text": "The commencement of the Divine Inspiration to Allah's Messenger (ﷺ) was in the form of good dreams which came true like bright daylight, and then the love of seclusion was bestowed upon him. He used to go in seclusion in the cave of Hira where he used to worship (Allah alone) continuously for many days before his desire to see his family. He used to take with him the journey food for the stay and then come back to (his wife) Khadija to take his food likewise again till suddenly the Truth descended upon him while he was in the cave of Hira. The angel came to him and asked him to read. The Prophet (ﷺ) replied, \"I do not know how to read.\" The Prophet (ﷺ) added, \"The angel caught me (forcefully) and pressed me so hard that I could not bear it any more. He then released me and again asked me to read and I replied, 'I do not know how to read.' Thereupon he caught me again and pressed me a second time till I could not bear it any more. He then released me and again asked me to read but again I replied, 'I do not know how to read (or what shall I read)?' Thereupon he caught me for the third time and pressed me, and then released me and said, 'Read in the name of your Lord, who has created (all that exists), created man from a clot. Read! And your Lord is the Most Generous.\" (96.1, 96.2, 96.3) Then Allah's Messenger (ﷺ) returned with the Inspiration and with his heart beating severely. Then he went to Khadija bint Khuwailid and said, \"Cover me! Cover me!\" They covered him till his fear was over and after that he told her everything that had happened and said, \"I fear that something may happen to me.\" Khadija replied, \"Never! By Allah, Allah will never disgrace you. You keep good relations with your kith and kin, help the poor and the destitute, serve your guests generously and assist the deserving calamity-afflicted ones.\" Khadija then accompanied him to her cousin Waraqa bin Naufal bin Asad bin 'Abdul 'Uzza, who, during the pre-Islamic Period became a Christian and used to write the writing with Hebrew letters. He would write from the Gospel in Hebrew as much as Allah wished him to write. He was an old man and had lost his eyesight. Khadija said to Waraqa, \"Listen to the story of your nephew, O my cousin!\" Waraqa asked, \"O my nephew! What have you seen?\" Allah's Messenger (ﷺ) described whatever he had seen. Waraqa said, \"This is the same one who keeps the secrets (angel Gabriel) whom Allah had sent to Moses. I wish I were young and could live up to the time when your people would turn you out.\" Allah's Messenger (ﷺ) asked, \"Will they drive me out?\" Waraqa replied in the affirmative and said, \"Anyone (man) who came with something similar to what you have brought was treated with hostility; and if I should remain alive till the day when you will be turned out then I would support you strongly.\" But after a few days Waraqa died and the Divine Inspiration was also paused for a while.",
+      "card_text": "The commencement of the Divine Inspiration to Allah's Messenger (ﷺ) was in the form of good dreams which came true like bright daylight, and then the love of seclusion was bestowed upon him. He used to go in seclusion in the cave of Hira where he used to worship (Allah alone) continuously for many days before his desire to see his family.",
+      "was_excerpted": true,
+      "narrator": "Narrated 'Aisha (the mother of the faithful believers):",
+      "grade": null,
+      "provider_metadata": {
+        "volume": {
+          "id": 1
+        },
+        "chapter": {
+          "id": 3,
+          "language": {
+            "en": {
+              "text": ""
+            },
+            "ar": {
+              "text": "باب"
+            },
+            "al": {
+              "text": ""
+            }
+          }
+        }
+      },
+      "topics": [],
+      "api_source": "sunnah.now/api/early-access",
+      "provider_page": 1
+    },
+    "provenance": "sunnah.now collection-scoped bukhari page 1, original record retained",
+    "fetched_at": "2026-10-08T13:33:33.911758+00:00",
+    "record_sha256": "18af84f5993765001fcf00ef60f2f218834c69cc44faf1041e9e3ea1c2fdaf20"
+  },
+  {
+    "key": "hadith_short",
+    "length": "short",
+    "type": "hadith",
+    "record": {
+      "source_type": "hadith",
+      "collection": "Sahih al-Bukhari",
+      "collection_key": "bukhari",
+      "book": "Sahih al-Bukhari",
+      "chapter": "To feed (others) is a part of Islam",
+      "hadith_number": 12,
+      "reference": "Sahih al-Bukhari 12",
+      "arabic_text": "حَدَّثَنَا عَمْرُو بْنُ خَالِدٍ، قَالَ حَدَّثَنَا اللَّيْثُ، عَنْ يَزِيدَ، عَنْ أَبِي الْخَيْرِ، عَنْ عَبْدِ اللَّهِ بْنِ عَمْرٍو ـ رضى الله عنهما ـ أَنَّ رَجُلاً، سَأَلَ النَّبِيَّ صلى الله عليه وسلم أَىُّ الإِسْلاَمِ خَيْرٌ قَالَ ‏ \"‏ تُطْعِمُ الطَّعَامَ، وَتَقْرَأُ السَّلاَمَ عَلَى مَنْ عَرَفْتَ وَمَنْ لَمْ تَعْرِفْ ‏\"‏‏.‏",
+      "translation_text": "A man asked the Prophet (ﷺ) , \"What sort of deeds or (what qualities of) Islam are good?\" The Prophet (ﷺ) replied, 'To feed (the poor) and greet those whom you know and those whom you do not Know (See Hadith No. 27).",
+      "card_text": "A man asked the Prophet (ﷺ) , \"What sort of deeds or (what qualities of) Islam are good?\" The Prophet (ﷺ) replied, 'To feed (the poor) and greet those whom you know and those whom you do not Know (See Hadith No. 27).",
+      "was_excerpted": false,
+      "narrator": "Narrated 'Abdullah bin 'Amr:",
+      "grade": null,
+      "provider_metadata": {
+        "volume": {
+          "id": 2
+        },
+        "chapter": {
+          "id": 6,
+          "language": {
+            "en": {
+              "text": "To feed (others) is a part of Islam"
+            },
+            "ar": {
+              "text": "باب إِطْعَامُ الطَّعَامِ مِنَ الإِسْلاَمِ"
+            },
+            "al": {
+              "text": ""
+            }
+          }
+        }
+      },
+      "topics": [],
+      "api_source": "sunnah.now/api/early-access",
+      "provider_page": 1
+    },
+    "provenance": "sunnah.now collection-scoped bukhari page 1, original record retained",
+    "fetched_at": "2026-10-08T13:33:33.911860+00:00",
+    "record_sha256": "90b2c3c43cc480f688d2d594fdc27202cb191da0681a7937b8d6f58427e09717"
+  }
+]
