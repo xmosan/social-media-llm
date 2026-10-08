@@ -78,3 +78,13 @@ test('visual identity survives draft snapshots and clears only the photograph on
  f.c.window.restoreCreatorControls({brand_kit:kit});assert.equal(f.el('brandVisualIdentity').value,'');
  assert.equal(f.c.window.studioBrandSnapshot().visual_identity,undefined);
 });
+
+test('translator notes remain separate, plain text and honest about missing provider data',()=>{
+ const f=setup();
+ f.c.window.selectedAyahMetadata={reference:'Synthetic',translation_footnotes:[{marker:'1',text:'<img src=x> exact note'},{marker:'2',text:null}]};
+ f.c.window.renderSourceReview();
+ assert.match(f.el('sourceTranslationNotes').textContent,/<img src=x> exact note/);
+ assert.match(f.el('sourceTranslationNotes').textContent,/2: Note text was not returned/);
+ f.c.window.selectedAyahMetadata={reference:'No notes'};f.c.window.renderSourceReview();
+ assert.equal(f.el('sourceTranslationNotes').textContent,'');
+});

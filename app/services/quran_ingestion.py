@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from app.quran_foundation import get_surah_verses
+from app.quran_foundation import get_surah_verses, get_translation_resource
+from app.services.quran_translation import parse_translation
 from app.models import ContentSource, ContentItem
 from app.services.library_service import generate_topics_slugs
 import logging
@@ -9,7 +10,7 @@ import time
 
 logger = logging.getLogger(__name__)
 
-def sync_surah_to_library(db: Session, chapter_id: int, translation_id: str = "131") -> int:
+def sync_surah_to_library(db: Session, chapter_id: int, translation_id: str = "20") -> int:
     """
     Synchronizes an entire Surah (chapter) from Quran Foundation into the Global Library.
     Returns the number of new verses added.
@@ -49,6 +50,9 @@ def sync_surah_to_library(db: Session, chapter_id: int, translation_id: str = "1
         logger.error(f"❌ [SYNC] Max retries reached or no verses returned for chapter {chapter_id}")
         return 0
 
+    resource = get_translation_resource(translation_id, chapter_id)
+    translations_by_key = {t["verse_key"]: t for t in resource["translations"]}
+
     # 3. Optimized: Fetch all existing verses for THIS surah in one go
     existing_titles = {
         item.title for item in db.query(ContentItem.title).filter(
@@ -69,8 +73,13 @@ def sync_surah_to_library(db: Session, chapter_id: int, translation_id: str = "1
             continue
             
         # Extract English translation
-        translations = v.get("translations", [])
-        english_text = translations[0].get("text", "") if translations else ""
+        record = translations_by_key.get(v.get("verse_key"))
+        if not record or str(record["resource_id"]) != str(translation_id):
+            raise ValueError("The provider did not return the requested verse translation")
+        parsed = parse_translation(record)
+        name = record.get("resource_name") or resource.get("meta", {}).get("translation_name")
+        parsed["resource_name"] = name
+        english_text = parsed["body"]
         
         # Build Item
         item = ContentItem(
@@ -80,12 +89,15 @@ def sync_surah_to_library(db: Session, chapter_id: int, translation_id: str = "1
             title=title,
             text=english_text,
             arabic_text=v.get("text_uthmani"),
-            translation="Sahih International",
+            translation=name,
             meta={
                 "surah_number": chapter_id,
                 "verse_number": verse_number,
                 "verse_key": v.get("verse_key"),
                 "translation_id": translation_id,
+                "translation_name": name,
+                "translator": resource.get("meta", {}).get("author_name"),
+                "quran_translation": parsed,
                 "ingested_at": datetime.datetime.now().isoformat()
             },
             tags=["quran", f"surah_{chapter_id}"],

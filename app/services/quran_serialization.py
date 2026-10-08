@@ -203,5 +203,22 @@ def normalize_quran_verse(item: Any) -> Dict[str, Any]:
         "translation_id": trans_id,
         "topics": topics
     }
+    presentation = raw_meta.get("quran_translation")
+    if presentation:
+        # A stored presentation must still describe this exact canonical body.
+        # This is not a cleanup heuristic for legacy strings or client input.
+        from app.services.quran_translation import parse_translation
+        verified = parse_translation({"text": presentation["raw_html"],
+            "resource_id": presentation["resource_id"],
+            "foot_notes": {n["id"]: n.get("raw_html") for n in presentation["footnotes"]}})
+        if verified["body"] != translation_text or verified["body_sha256"] != presentation["body_sha256"]:
+            raise ValueError("Quran translation body and provider provenance do not match")
+        normalized["translation_footnotes"] = verified["footnotes"]
+        normalized["translation_provenance"] = {
+            "provider": "Quran Foundation", "resource_id": presentation["resource_id"],
+            "resource_name": presentation.get("resource_name"),
+            "raw_html": presentation["raw_html"], "body_sha256": presentation["body_sha256"],
+            "notes_presentation": "Provider footnote markers separated from the translation body",
+        }
     
     return normalized

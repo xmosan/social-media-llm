@@ -1470,7 +1470,7 @@ def render_minimal_quote_card(
     glossy: bool = False,
     visual_history: dict = None,
     render_metadata: dict = None,
-    layout: str = "english_first",
+    layout: str = "bilingual",
     background_image=None,
     background_sink=None,
     post_format="feed_4_5",

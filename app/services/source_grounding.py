@@ -50,6 +50,8 @@ def resolve_selected_source(db, org_id: int, source_type: str, payload: dict, us
         if supplied in (None, "") and canonical.get(field) in (None, ""):
             continue
         if supplied is not None and supplied != canonical.get(field):
+            if source_type == "quran" and field == "translation_text" and canonical.get("translation_provenance"):
+                raise ValueError("This verse has updated translator notes. Choose the verse again to load the corrected source. Your saved post has not been changed.")
             raise ValueError("Selected source data changed. Select the source again before continuing.")
     return canonical
 

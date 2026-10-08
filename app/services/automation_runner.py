@@ -729,7 +729,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             flags={"relevance_check": "fallback" if fallback_mode else "passed", "scheduled_occurrence": occurrence,
                    "visual_review_required": visual_review_required,
                    **({"media_manifest": manifest, "visual_design": {"family": _scene_key,
-                       "layout": "english_first", "brand_kit": manifest.get("brand_kit"),
+                       "layout": "bilingual", "brand_kit": manifest.get("brand_kit"),
                        "version": 1, "recipe": recipe_binding(_scene_key, "feed_4_5"),
                        "prompt_signature": generation_metadata.get("prompt_signature"),
                        "direction": style_dna_spec.visual_prompt if _has_prompt else "",

@@ -171,7 +171,7 @@ def delete_global_entry(
 @router.post("/sources/sync-qf", status_code=status.HTTP_201_CREATED)
 def sync_quran_foundation(
     chapter_id: int = Query(..., ge=1, le=114, description="Surah number to sync (1-114)"),
-    translation_id: str = Query("131", description="Translation ID (default Sahih International)"),
+    translation_id: str = Query("20", description="Translation resource ID (default Saheeh International)"),
     db: Session = Depends(get_db),
     admin: User = Depends(require_superadmin)
 ):

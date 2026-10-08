@@ -120,7 +120,7 @@ def release_decision(rows, human_reviews=None):
         'manual_review_required': True}
 
 
-def run(sources_path, backgrounds, output, shared_background=None):
+def run(sources_path, backgrounds, output, shared_background=None, layout="bilingual"):
     # Explicitly prevent accidental .env loading from a checkout.
     os.chdir(output)
     os.environ['SECRET_KEY'] = 'isolated-creator-quality-evaluation-only'
@@ -164,7 +164,7 @@ def run(sources_path, backgrounds, output, shared_background=None):
             for fmt in FORMATS:
                 identity = f"{source['key']}_{family}_{fmt}"
                 row = {'id': identity, 'source_key': source['key'], 'reference': record['reference'],
-                    'family': family, 'format': fmt, 'source_sha256': source['record_sha256'],
+                    'family': family, 'format': fmt, 'layout': layout, 'source_sha256': source['record_sha256'],
                     'card': card, 'pages': [], 'errors': [], 'agent_visual_assessment': None,
                     'human_creator_review': None, 'qualified_source_review': None}
                 captures, metadata = [], {}
@@ -199,7 +199,7 @@ def run(sources_path, backgrounds, output, shared_background=None):
                          patch.object(settings,'uploads_dir',str(output)), \
                          patch('app.config.build_public_media_url',side_effect=lambda filename,local_path:local_path), \
                          patch.object(image_renderer,'paint_card_text',side_effect=capture), contextlib.redirect_stdout(io.StringIO()):
-                        generate_quote_card(card_message=card,style=family,layout='english_first',mode='scene',
+                        generate_quote_card(card_message=card,style=family,layout=layout,mode='scene',
                             allow_sequence=True,post_format=fmt,render_metadata=metadata,brand_kit=brand,background_image=photo)
                     manifest = metadata['media_manifest']
                     validate_source_card(card, record, source['type'])
@@ -252,6 +252,7 @@ def run(sources_path, backgrounds, output, shared_background=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--sources',type=Path,default=ROOT/'tests/quality/sources.json')
+    parser.add_argument('--layout',choices=['bilingual','english_first'],default='bilingual')
     parser.add_argument('--backgrounds',type=Path)
     parser.add_argument('--shared-background',type=Path,help='Explicit typography-only replay; no photography diversity claim')
     parser.add_argument('--output',type=Path,required=True)
@@ -270,4 +271,4 @@ if __name__ == '__main__':
         raise SystemExit(0 if decision['release_ready'] else 1)
     if not args.backgrounds:
         parser.error('--backgrounds is required when rendering')
-    run(args.sources.resolve(),args.backgrounds.resolve(),output,args.shared_background.resolve() if args.shared_background else None)
+    run(args.sources.resolve(),args.backgrounds.resolve(),output,args.shared_background.resolve() if args.shared_background else None,args.layout)

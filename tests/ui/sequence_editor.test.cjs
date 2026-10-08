@@ -127,3 +127,10 @@ test('format change clears a scene receipt while retaining source and requiring 
   assert.equal(f.c.studioCardMessage.headline,'Exact source');
   assert.equal(f.c.isQuoteCardOutOfDate,true);
 });
+
+
+test('legacy drafts keep English-first while explicit Arabic-first drafts reopen unchanged',()=>{
+ const f=setup();const data={post_id:51,source_type:'quran',source_metadata:{reference:'Synthetic'},card_message:{headline:'Exact'},visual_design:{family:'editorial'},post_format:'feed_4_5'};
+ f.c.savedFixture=data;f.run('restoreStudioPayload(savedFixture)');assert.equal(f.el('studioLayout').value,'english_first');
+ data.visual_design.layout='bilingual';f.run('restoreStudioPayload(savedFixture)');assert.equal(f.el('studioLayout').value,'bilingual');
+});
