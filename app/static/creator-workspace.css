@@ -825,7 +825,7 @@ button:disabled {
     color: #74876c;
   }
   #newPostModal #cardPreviewContainer {
-    scroll-margin-top: 16px;
+    scroll-margin-top: 76px;
   }
 }
 #newPostModal [data-editor-pane] {

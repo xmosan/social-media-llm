@@ -1110,7 +1110,7 @@ STUDIO_SCRIPTS_JS = r"""
     window.resumeStudioPost = async function(id) {
         const epoch = ++studioResumeEpoch;
         try {
-            const res = await fetch(`/api/studio/post/${id}`);
+            const res = await fetch(`/api/studio/post/${id}`, {signal:AbortSignal.timeout(15000)});
             const post = await res.json();
             if (epoch !== studioResumeEpoch) return;
             if (!res.ok) throw Error(post.detail || 'Draft unavailable');
@@ -1123,6 +1123,7 @@ STUDIO_SCRIPTS_JS = r"""
                 visual_design:{...(post.flags?.visual_design || {}), media_manifest:post.flags?.media_manifest},
                 audience:post.target_audience,purpose:post.intent_type,
                 post_format:post.post_format, media_url:post.media_url, visual_style:post.visual_style, topic:post.topic});
+            window.creatorCloudSaved?.();
         } catch(e) { alert(e.message); }
     };
     async function persistStudioDraft(scheduledAt=null) {
