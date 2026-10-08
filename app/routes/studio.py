@@ -204,6 +204,12 @@ def studio_generate_visual(data: dict, org_id: int = Depends(get_current_org_id)
         brand = normalize_brand(data["brand_kit"]) if "brand_kit" in data else workspace_brand(db, org_id)
     except ValueError as error:
         raise HTTPException(422, str(error)) from None
+    direction = data.get("visual_prompt")
+    if direction is not None and (not isinstance(direction, str) or len(direction) > 600):
+        raise HTTPException(422, "Background direction must be up to 600 characters")
+    from app.services.rotation_engine import workspace_visual_history
+    from app.services.vision_families import SCENE_FAMILIES
+    history = workspace_visual_history(db, org_id) if data.get("style") in SCENE_FAMILIES and not data.get("background_token") else None
     req = VisualRequest(
         theme=data.get("theme", data.get("style", "sacred_black")),
         atmosphere=data.get("atmosphere", "contemplative"),
@@ -221,7 +227,7 @@ def studio_generate_visual(data: dict, org_id: int = Depends(get_current_org_id)
         background_token=data.get("background_token"),
         owner_id=org_id,
         post_format=data.get("post_format", "feed_4_5"),
-        brand_kit=brand,
+        brand_kit=brand, visual_history=history,
     )
 
     res = generate_visual(req)

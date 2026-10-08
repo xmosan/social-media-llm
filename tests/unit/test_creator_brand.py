@@ -40,6 +40,29 @@ class BrandRoutesTests(DatabaseCase):
         app.dependency_overrides[require_user]=lambda:User(id=1)
         app.dependency_overrides[get_current_user]=lambda:User(id=1)
         self.client=TestClient(app);self.addCleanup(self.client.close)
+    def test_visual_preferences_persist_without_changing_legacy_snapshots(self):
+        self.assertEqual(normalize_brand({**BRAND, 'visual_identity':'  '}), BRAND)
+        identity='Coastal scenes, muted blue, night lighting. No buildings.'
+        kit=normalize_brand({**BRAND,'visual_identity':identity})
+        revision=self.client.get('/api/studio/brand-kit').json()['revision']
+        response=self.client.put('/api/studio/brand-kit',json={'brand_kit':kit,'revision':revision})
+        self.assertEqual(response.status_code,200,response.text)
+        self.db.expire_all()
+        self.assertEqual(workspace_brand(self.db,1)['visual_identity'],identity)
+        self.assertNotIn('visual_identity',workspace_brand(self.db,2))
+        for value in [None, 12, 'x'*401, 'invisible\u202econtrol']:
+            with self.assertRaises(ValueError): normalize_brand({'visual_identity':value})
+
+    def test_recent_visual_history_is_tenant_scoped_and_includes_studio_and_automations(self):
+        from app.services.rotation_engine import workspace_visual_history
+        from datetime import datetime, timezone
+        for org, flags, meta in [(1, {'visual_design':{'prompt_signature':'studio-a'}}, {}),
+                                  (1, {}, {'visual_generation':{'prompt_signature':'auto-a'}}),
+                                  (2, {'visual_design':{'prompt_signature':'other-b'}}, {})]:
+            self.db.add(Post(org_id=org,ig_account_id=1,status='drafted',flags=flags,source_metadata=meta,created_at=datetime.now(timezone.utc)))
+        self.db.commit()
+        self.assertEqual(set(workspace_visual_history(self.db,1)), {'studio-a','auto-a'})
+
     def test_persistent_workspace_brand_rejects_stale_save_and_does_not_cross_tenants(self):
         original=self.client.get('/api/studio/brand-kit').json()
         result=self.client.put('/api/studio/brand-kit',json={'brand_kit':BRAND,'revision':original['revision']})

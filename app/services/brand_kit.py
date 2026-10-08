@@ -24,7 +24,7 @@ PURPOSES = {"reminder": "A gentle daily reminder", "learn": "Help readers unders
 def normalize_brand(value=None):
     if value is None:
         return dict(DEFAULT_BRAND)
-    if not isinstance(value, dict) or set(value) - set(DEFAULT_BRAND):
+    if not isinstance(value, dict) or set(value) - (set(DEFAULT_BRAND) | {"visual_identity"}):
         raise ValueError("Choose a valid brand kit")
     result = {**DEFAULT_BRAND, **value}
     enums = {"palette": PALETTES, "typography": {"modern", "classic"},
@@ -44,6 +44,13 @@ def normalize_brand(value=None):
         if any(not (c.isascii() or "ARABIC" in unicodedata.name(c, "") or "LATIN" in unicodedata.name(c, "")
                     or unicodedata.category(c).startswith("M") or 0x2010 <= ord(c) <= 0x2027) for c in text):
             raise ValueError("Creator signature and series name currently support English and Arabic lettering; remove unsupported symbols")
+    identity = result.pop("visual_identity", "")
+    if (not isinstance(identity, str) or len(identity) > 400 or
+            any(unicodedata.category(c).startswith("C") and c not in "\n\t" for c in identity)):
+        raise ValueError("Visual preferences must be up to 400 characters without hidden control characters")
+    if identity.strip():
+        result["visual_identity"] = identity.strip()
+    # Omit empty optional fields so existing v1 signed snapshots remain valid.
     return result
 
 

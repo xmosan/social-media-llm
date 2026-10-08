@@ -1525,7 +1525,8 @@ def render_minimal_quote_card(
         raw_photo = background_image
         if raw_photo is None:
             prompt, recipe = scene_prompt(family, target_size, scene_bounds or [b["bounds"] for b in text_blocks],
-                                          direction=visual_prompt, history=visual_history)
+                                          direction=visual_prompt, history=visual_history,
+                                          visual_identity=(brand_kit or {}).get("visual_identity"))
             if render_metadata is not None:
                 render_metadata.update(recipe)
             raw_photo = generate_background(prompt, target_size, engine=engine, render_metadata=render_metadata,
@@ -1549,7 +1550,9 @@ def render_minimal_quote_card(
             prompt = ("Quiet editorial photograph, credible natural light, real materials and restrained composition. "
                       "No text, lettering, calligraphy, symbols, decorative borders, gold filigree, glow or fantasy. "
                       "No people. Detail should remain convincing when cropped to a wide photograph. "
-                      + (visual_prompt or "Soft daylight across a pale stone courtyard and olive-tree shadows."))
+                      + "Account visual preferences: " + ((brand_kit or {}).get("visual_identity") or "No saved preferences.") + ". "
+                      + "This post takes priority over account preferences: "
+                      + (visual_prompt or ("Follow account preferences." if (brand_kit or {}).get("visual_identity") else "Soft daylight across a pale stone courtyard and olive-tree shadows.")))
             raw_photo = generate_background(prompt, (1080, 1080), cache_dir=None, engine=engine,
                                             render_metadata=render_metadata)
         if raw_photo is None:

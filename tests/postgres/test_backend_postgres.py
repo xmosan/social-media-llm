@@ -269,7 +269,7 @@ class PostgresChecks(unittest.TestCase):
         from app.services.brand_kit import normalize_brand
         from app.services.media_sequence import card_digest, validate_manifest
         self.automation_fixture()
-        kit=normalize_brand({'palette':'clay','signature':'@fixture','series_name':'Learning together'})
+        kit=normalize_brand({'palette':'clay','signature':'@fixture','series_name':'Learning together','visual_identity':'Coastal dusk, muted blue, no buildings.'})
         self.db.get(Org,1).brand_kit=kit
         self.db.get(TopicAutomation,1).approval_mode='auto_approve'
         self.db.commit()

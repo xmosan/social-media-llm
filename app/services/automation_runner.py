@@ -584,7 +584,9 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
         # Use early-defined ingredients
         from app.services.rotation_engine import visual_history
         generation_metadata = {}
-        prior_visuals = visual_history(db, automation.id)
+        from app.services.rotation_engine import workspace_visual_history
+        prior_visuals = workspace_visual_history(db, automation.org_id)
+        prior_visuals.update(visual_history(db, automation.id))
         card_message = None
         quote_text = quote_text_cleaned
         reference = final_reference
@@ -616,7 +618,8 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 def retain_automation_photo(image):
                     from app.services.visual_service import store_background
                     generation_metadata["background_token"] = store_background(
-                        image, automation.org_id, style_dna_spec.visual_prompt if _has_prompt else "", family=_scene_key)
+                        image, automation.org_id, style_dna_spec.visual_prompt if _has_prompt else "", family=_scene_key,
+                        visual_identity=brand_kit.get("visual_identity", ""))
 
                 from app.services.brand_kit import workspace_brand
                 brand_kit = workspace_brand(db, automation.org_id)
@@ -728,6 +731,7 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                    **({"media_manifest": manifest, "visual_design": {"family": _scene_key,
                        "layout": "english_first", "brand_kit": manifest.get("brand_kit"),
                        "version": 1, "recipe": recipe_binding(_scene_key, "feed_4_5"),
+                       "prompt_signature": generation_metadata.get("prompt_signature"),
                        "direction": style_dna_spec.visual_prompt if _has_prompt else "",
                        "background_token": generation_metadata.get("background_token"), "media_manifest": manifest}}
                        if manifest else {})}

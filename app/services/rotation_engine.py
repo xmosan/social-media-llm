@@ -115,6 +115,21 @@ def repetition_issues(db, post):
     return sorted(issues)
 
 
+def workspace_visual_history(db, org_id):
+    """Bounded, tenant-scoped scene history shared by Studio and automations."""
+    from app.models import Post
+    history = {}
+    rows = (db.query(Post.flags, Post.source_metadata, Post.created_at)
+            .filter(Post.org_id == org_id).order_by(Post.created_at.desc()).limit(100).all())
+    for flags, source_metadata, created_at in rows:
+        signature = ((flags or {}).get("visual_design") or {}).get("prompt_signature")
+        signature = signature or ((source_metadata or {}).get("visual_generation") or {}).get("prompt_signature")
+        if signature and created_at:
+            at = created_at.isoformat()
+            history[signature] = max(history.get(signature, at), at)
+    return history
+
+
 def visual_history(db, automation_id):
     history = {}
     for post in recent_posts(db, automation_id):

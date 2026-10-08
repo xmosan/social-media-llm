@@ -95,13 +95,28 @@ class VisionFamilyTests(unittest.TestCase):
 
     def test_history_rotates_variants_and_exhaustion_uses_least_recent(self):
         bounds=[(80,80,1000,950)];history={}
-        for i in range(3):
+        for i in range(96):
             prompt,meta=catalog.scene_prompt('luxury_editorial',(1080,1350),bounds,history=history)
             self.assertNotIn(meta['prompt_signature'],history)
-            history[meta['prompt_signature']]=f'2026-10-0{i+1}'
+            history[meta['prompt_signature']]=f'{i:03}'
             self.assertIn(str(meta['text_zones']),prompt)
         _,meta=catalog.scene_prompt('luxury_editorial',(1080,1350),bounds,history=history)
         self.assertEqual(meta['prompt_signature'],min(history,key=history.get))
+
+    def test_creator_lighting_precedes_defaults_and_preferences_are_separate_from_source(self):
+        for family in catalog.SCENE_FAMILIES:
+            prompt, meta = catalog.scene_prompt(family, (1080,1920), [(80,260,1000,800)],
+                direction="night light", visual_identity="Coastal views, muted blue. Avoid buildings.")
+            self.assertIn('"this_post": "night light"', prompt)
+            self.assertIn('Coastal views', prompt)
+            self.assertNotIn(catalog.SCENE_FAMILIES[family]['default_light'], prompt)
+            self.assertNotIn('evenly pale', prompt)
+            self.assertIn("this post's direction, then account preferences", prompt)
+            self.assertEqual(meta['prompt_version'], 3)
+        with patch.object(catalog.secrets, 'choice', side_effect=lambda options: options[0]):
+            _, first = catalog.scene_prompt('emerald_forest',(1080,1350),[(80,80,1000,750)], visual_identity='Coast')
+            _, second = catalog.scene_prompt('emerald_forest',(1080,1350),[(80,80,1000,750)], visual_identity='Woodlands')
+        self.assertNotEqual(first['prompt_signature'],second['prompt_signature'])
 
     def test_catalog_and_automation_routing_agree_and_brand_preserves_legacy(self):
         service=load_real_service('automation_service')
