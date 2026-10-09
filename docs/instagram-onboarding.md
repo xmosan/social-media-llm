@@ -35,11 +35,13 @@ reconnection and automatically saved a lone returned account.
   again; established account connections and posts remain in place.
 - The mobile selection screen renders returned names as text, requires an
   explicit choice, supports reconnect, prevents duplicate submission and restores
-  controls after failure. Account choices are disabled while saving. The request
+  controls after failure. Cancellation, missing accounts and provider failure return to
+  a visible recovery screen, with allowlisted messages rather than hidden dashboard
+  query text. Account choices are disabled while saving. The request
   timeout directs users to check their workspace before retrying an uncertain
   save. No publishing occurs during account connection.
 - Disconnect clears access and disables the existing account without deleting
-  rows referenced by posts. Reading the current account no longer reactivates it.
+  rows referenced by posts. Reading the current account or opening a dashboard no longer reactivates it.
   The legacy setup finalizer validates workspace membership, rejects manual
   tokens, skips automation creation without an account, and leaves any newly
   created plan disabled and requiring manual approval.
@@ -64,7 +66,7 @@ has been established by this audit.
 
 ## Evidence and limits
 
-- 320 isolated Python checks, 36 disposable PostgreSQL/startup checks and 68
+- 321 isolated Python checks, 36 disposable PostgreSQL/startup checks and 70
   JavaScript interaction checks passed locally. Coverage includes same-browser
   state, expiry/replay, workspace/user changes and revoked membership, cancellation,
   sanitized provider failures, real DB concurrency, migration repeatability,

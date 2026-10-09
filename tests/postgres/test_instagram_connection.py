@@ -99,6 +99,10 @@ class InstagramPostgresChecks(unittest.TestCase):
             db.expire_all();post=db.get(Post,post_id)
             self.assertEqual(post.ig_account_id,ids[0]);self.assertEqual(post.caption,'Synthetic saved caption')
             self.assertFalse(db.get(IGAccount,ids[0]).active)
+            from app.routes.app_pages import get_active_context
+            account,_,connected=get_active_context(db,user,1)
+            self.assertEqual(account.id,post.ig_account_id);self.assertFalse(connected)
+            db.commit();db.expire_all();self.assertFalse(db.get(IGAccount,ids[0]).active)
 
     def test_legacy_finalizer_without_account_does_not_make_broken_automation(self):
         from app.routes.app_pages import finalize_onboarding, OnboardingFinalize

@@ -107,8 +107,15 @@ class InstagramConnectionChecks(DatabaseCase):
     def test_provider_error_is_sanitized_and_existing_connection_survives(self):
         state=self.start();auth_ig.instagram_auth_service.exchange_code_for_token.side_effect=RuntimeError('private-token-and-code')
         r=self.client.get('/auth/instagram/callback',params={'state':state,'code':'fixture'})
-        self.assertEqual(r.status_code,303);self.assertNotIn('private',r.headers['location'])
+        self.assertEqual(r.status_code,303);self.assertEqual(r.headers['location'],'/select-account?connection=unavailable')
         self.assertEqual(self.db.query(Attempt).count(),0);self.assertTrue(self.existing.active)
+
+    def test_no_accounts_callback_offers_restart_without_changing_existing(self):
+        state=self.start();auth_ig.instagram_auth_service.discover_ig_business_account.return_value=[]
+        r=self.client.get('/auth/instagram/callback',params={'state':state,'code':'fixture'})
+        self.assertEqual(r.headers['location'],'/select-account?connection=no-accounts')
+        self.assertEqual(self.db.query(Attempt).count(),0);self.assertTrue(self.existing.active)
+
 
     def test_expired_callback_and_discovery_are_rejected(self):
         state=self.start();row=self.db.query(Attempt).one();row.expires_at=datetime.now(timezone.utc)-timedelta(seconds=1);self.db.commit()
@@ -184,6 +191,9 @@ class InstagramConnectionChecks(DatabaseCase):
         self.db.refresh(self.existing)
         self.assertEqual(self.existing.id,original_id);self.assertFalse(self.existing.active)
         self.assertEqual(self.existing.access_token,'');self.assertFalse(self.user.has_connected_instagram)
+        account,accounts,connected=app_pages.get_active_context(self.db,self.user,1)
+        self.assertEqual(account.id,original_id);self.assertFalse(connected)
+        self.assertFalse(account.active);self.assertEqual(len(accounts),1)
 
 
 class MetaProviderChecks(unittest.TestCase):
