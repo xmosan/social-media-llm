@@ -1,3 +1,4 @@
+from app.services.usage_limits import UsageLimitError
 import logging
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
@@ -42,6 +43,12 @@ def _parse_scheduled_at(value: str | None) -> datetime | None:
         return None
 
 router = APIRouter(prefix="/api/studio", tags=["studio"])
+
+
+@router.get("/usage", dependencies=[Depends(require_user)])
+def studio_usage(org_id: int = Depends(get_current_org_id)):
+    from app.services.usage_limits import usage_status
+    return usage_status(org_id)
 
 
 @router.post("/discover-sources")
@@ -158,6 +165,8 @@ def studio_generate_caption(data: dict, db: Session = Depends(get_db),
             from app.services.hadith_caption_service import generate_hadith_caption
             caption = generate_hadith_caption(source_payload, tone=tone, intent=intention, editorial_context=context)
             return {"caption": caption}
+        except UsageLimitError:
+            raise
         except Exception as e:
             logger.error(f"[STUDIO] Hadith caption generation failed: {e}")
             return JSONResponse(status_code=500, content={"error": str(e)})
@@ -173,6 +182,8 @@ def studio_generate_caption(data: dict, db: Session = Depends(get_db),
             caption = generate_ai_caption_from_quran(source_payload, style=tone, editorial_context=context)
             logger.info(f"[STUDIO] Quran caption grounded directly to: {source_payload.get('reference')}")
             return {"caption": caption}
+        except UsageLimitError:
+            raise
         except Exception as e:
             logger.error(f"[STUDIO] Quran grounded caption failed: {e}")
             raise HTTPException(status_code=422, detail="Could not generate a caption for the selected verse")
@@ -189,6 +200,8 @@ def studio_generate_caption(data: dict, db: Session = Depends(get_db),
     try:
         caption = generate_islamic_caption(intention, topic, tone)
         return {"caption": caption}
+    except UsageLimitError:
+        raise
     except Exception as e:
         logger.error(f"[STUDIO] Caption generation failed: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})

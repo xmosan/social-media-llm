@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Mohammed Hassan. All rights reserved.
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
+from app.services.usage_limits import UsageLimitError
 import os, shutil
 from uuid import uuid4
 from datetime import datetime, timezone, timedelta
@@ -313,6 +314,8 @@ async def preview_render(
             output_dir=settings.uploads_dir
         )
         return {"preview_url": render_url}
+    except UsageLimitError:
+        raise
     except Exception as e:
         print(f"PREVIEW RENDER FAILED: {e}")
         raise HTTPException(status_code=500, detail=f"Rendering failed: {str(e)}")
@@ -541,6 +544,8 @@ def refine_post(
         return {"caption": refined}
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
+    except UsageLimitError:
+        raise
     except Exception as e:
         print(f"❌ [REFINE_FAIL] {e}")
         raise HTTPException(status_code=500, detail=f"Refinement failed: {str(e)}")

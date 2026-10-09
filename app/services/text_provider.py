@@ -131,10 +131,16 @@ def request_text(*, api_key: str, model: str, effort: str, instructions: str,
 def generate_text(prompt: str, *, instructions: str = "", schema: type[Output] | None = None,
                   utility: bool = False, timeout: float | None = None) -> str | dict:
     from app.config import settings
-    return request_text(
-        api_key=settings.openai_api_key,
-        model=settings.openai_utility_model if utility else settings.openai_text_model,
-        effort=settings.openai_utility_reasoning_effort if utility else settings.openai_text_reasoning_effort,
-        instructions=CONTENT_RULES + "\n\n" + instructions, prompt=prompt, schema=schema,
-        timeout=timeout if timeout is not None else settings.text_generation_timeout_seconds,
-    )
+    from app.services.usage_limits import paid_call, UsageLimitError
+    if not settings.openai_api_key:
+        raise TextGenerationError("not_configured")
+    if len(prompt) + len(instructions) > 40000:
+        raise UsageLimitError("This request is too long for AI writing. Keep the full source and edit the reflection or caption manually.", 422)
+    with paid_call("text"):
+        return request_text(
+            api_key=settings.openai_api_key,
+            model=settings.openai_utility_model if utility else settings.openai_text_model,
+            effort=settings.openai_utility_reasoning_effort if utility else settings.openai_text_reasoning_effort,
+            instructions=CONTENT_RULES + "\n\n" + instructions, prompt=prompt, schema=schema,
+            timeout=min(timeout, settings.text_generation_timeout_seconds) if timeout is not None else settings.text_generation_timeout_seconds,
+        )

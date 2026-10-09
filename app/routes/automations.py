@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Mohammed Hassan. All rights reserved.
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
+from app.services.usage_limits import UsageLimitError
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
@@ -128,6 +129,8 @@ def debug_llm_test(
             res["grounding"] = {"item_type": "reflection", "source": "General Wisdom"}
             
         return res
+    except UsageLimitError:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -161,6 +164,8 @@ def simulate_v2_growth_plan(
             language=language
         )
         return results
+    except UsageLimitError:
+        raise
     except Exception as e:
         import traceback
         print(f"❌ [SIMULATION_ERROR] {e}\n{traceback.format_exc()}")
@@ -175,6 +180,8 @@ def run_scheduler_now(
     try:
         count = publish_due_posts(lambda: db)
         return {"ok": True, "published": count}
+    except UsageLimitError:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

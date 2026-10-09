@@ -38,3 +38,12 @@ test('reflection suggestion uses the visible source pane and explicit acceptance
  const actions=placement.children.at(-1);actions.children[1].onclick();assert.equal(el('editSupporting').value,'Optional suggestion');assert.equal(changed,1);
  placement.children[1].onclick();assert.equal(el('editSupporting').value,'My reflection');assert.equal(remembered,2);
 });
+test('allowance panel loads once while busy and recovers from failed requests',async()=>{
+ let toggle,resolve,calls=0;const panel={open:true,addEventListener:(_,fn)=>toggle=fn},status={textContent:''};
+ const c={byId:id=>id==='creatorUsage'?panel:status,Date,AbortSignal,fetch:()=>{calls++;return new Promise(r=>resolve=r)}};
+ vm.runInNewContext(workspace.slice(workspace.indexOf('  const usagePanel ='),workspace.indexOf('  let entryMode =')),c);
+ const first=toggle();await toggle();assert.equal(calls,1);assert.equal(status.textContent,'Checking allowance…');
+ resolve({ok:false,json:async()=>({detail:'Unavailable'})});await first;assert.match(status.textContent,/Close and reopen/);
+ c.fetch=async()=>({ok:true,json:async()=>({generation_enabled:true,images:{used:3,limit:20},text:{used:12,limit:200},reset_at:'2026-10-09T00:00:00Z'})});
+ await toggle();assert.match(status.textContent,/3 of 20 image attempts/);assert.match(status.textContent,/12 of 200 writing attempts/);
+});

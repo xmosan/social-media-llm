@@ -1,5 +1,6 @@
 """Synthetic inputs only; provider/production networking is forbidden by the runner."""
 import json
+from contextlib import nullcontext
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
@@ -16,6 +17,10 @@ def response(text='{"reflection":"A separate reflection."}', **changes):
 
 
 class TextProviderTests(unittest.TestCase):
+    def setUp(self):
+        for stub in (patch("app.services.usage_limits.paid_call", side_effect=lambda kind: nullcontext()), patch.object(settings, "openai_api_key", "fixture")):
+            stub.start(); self.addCleanup(stub.stop)
+
     def call(self, **kwargs):
         return provider.request_text(api_key="fixture-key", model="fixture-model", effort="low", instructions="Fixture instructions", prompt="Fixture prompt", **kwargs)
 
@@ -85,6 +90,8 @@ class TextProviderTests(unittest.TestCase):
 class TextFlowTests(unittest.TestCase):
     def setUp(self):
         self.llm = load_isolated_service('llm')
+        stub = patch('app.services.usage_limits.paid_call', side_effect=lambda kind: nullcontext())
+        stub.start(); self.addCleanup(stub.stop)
 
     def test_no_mock_draft_when_key_missing(self):
         with patch.object(settings, 'openai_api_key', None), self.assertRaises(provider.TextGenerationError):

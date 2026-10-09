@@ -29,6 +29,8 @@ from .api.routes import waitlist, contact, admin_panel
 from .services.scheduler import start_scheduler
 from .logging_setup import setup_logging, request_id_var, log_event
 from .security.rbac import get_current_org_id
+from .security.usage_context import UsageContextMiddleware
+from .services.usage_limits import UsageLimitError
 
 import logging
 logger = logging.getLogger(__name__)
@@ -186,6 +188,7 @@ app.add_middleware(
 app.add_middleware(ComingSoonMiddleware)
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+app.add_middleware(UsageContextMiddleware)
 
 # NO OP - Removing first duplicate handler to clean up.
 
@@ -268,6 +271,8 @@ async def api_build_quote_message(req: QuoteCardBuildRequest, db: Session = Depe
         custom_prompt = (req.custom_payload or {}).get("custom_prompt", "")
         msg = build_quote_card_message(req.source_type, source_payload, req.tone, req.intent, custom_prompt)
         return {"card_message": msg, "source_metadata": source_payload}
+    except UsageLimitError:
+        raise
     except Exception as e:
         logger.error(f"Error building card message: {e}")
         return JSONResponse(status_code=500, content={"detail": str(e)})
@@ -312,6 +317,8 @@ async def api_generate_caption(req: CaptionGenerateRequest, db: Session = Depend
             req.platform
         )
         return {"caption_message": caption}
+    except UsageLimitError:
+        raise
     except Exception as e:
         logger.error(f"Error generating caption: {e}")
         return JSONResponse(status_code=500, content={"detail": str(e)})
@@ -326,7 +333,8 @@ async def generate_caption(data: dict, db: Session = Depends(get_db),
     return studio_generate_caption(data, db=db, org_id=org_id, user=user)
 
 @app.post("/generate-quote-card", dependencies=[Depends(require_user)], summary="Generate a Cinematic Quote Card")
-async def api_generate_quote_card(data: dict):
+async def api_generate_quote_card(data: dict, db: Session = Depends(get_db),
+                                  org_id: int = Depends(get_current_org_id)):
     # Phase 3 Legacy Compat Wrapper
     from app.routes.studio import studio_generate_visual
     from fastapi.responses import JSONResponse
@@ -337,7 +345,9 @@ async def api_generate_quote_card(data: dict):
         data["card_message"] = {"headline": caption}
 
     try:
-        return studio_generate_visual(data)
+        return studio_generate_visual(data, org_id=org_id, db=db)
+    except UsageLimitError:
+        raise
     except Exception as e:
         import traceback
         print(f"\n❌ [API] generate-quote-card EXCEPTION:\n{traceback.format_exc()}")
@@ -477,4 +487,3 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": "Internal Server Error"}
     )
-

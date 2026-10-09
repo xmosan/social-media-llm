@@ -21,6 +21,8 @@ class LoginTests(DatabaseCase):
 
     def setUp(self):
         super().setUp()
+        throttle = patch.object(auth, "check_auth_attempt")
+        throttle.start(); self.addCleanup(throttle.stop)
         self.db.add(Org(id=1, name="Fixture workspace"))
         self.db.add_all([
             User(id=1, email="member@example.test", password_hash=self.password_hash, is_active=True),
@@ -79,3 +81,11 @@ class LoginTests(DatabaseCase):
         self.assertEqual(self.client.get("/auth/me").status_code, 401)
         self.assertEqual(self.submit("member@example.test", self.password).status_code, 200)
         self.assertEqual(self.client.get("/auth/me").status_code, 200)
+
+    def test_logout_clears_legacy_google_domain_and_current_host_cookies(self):
+        response=self.client.post('/auth/logout')
+        cookies=response.headers.get_list('set-cookie')
+        self.assertEqual(len(cookies),2)
+        self.assertTrue(any('Domain=app.sabeelstudio.com' in value for value in cookies))
+        self.assertTrue(any('Domain=' not in value for value in cookies))
+        self.assertTrue(all('Max-Age=0' in value for value in cookies))

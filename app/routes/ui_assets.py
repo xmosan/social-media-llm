@@ -814,6 +814,7 @@ STUDIO_SCRIPTS_JS = r"""
                 loader?.classList.add('hidden');
                 btn.disabled = false;
                 window.updateStudioVisualAction();
+                if (currentQuoteCardUrl && !isQuoteCardOutOfDate) document.getElementById('cardActions')?.classList.remove('hidden');
             }
         }
     };

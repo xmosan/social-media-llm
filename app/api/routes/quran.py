@@ -1,3 +1,4 @@
+from app.services.usage_limits import UsageLimitError
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -6,6 +7,7 @@ from app.services.quran_service import get_quran_ayah, search_quran, get_verse_b
 from app.services.quran_serialization import normalize_quran_verse
 from app.models import User
 from app.security.auth import require_user
+from app.security.rbac import get_current_org_id
 from typing import List, Optional
 
 logger = logging.getLogger(__name__)
@@ -86,7 +88,8 @@ async def api_search_quran(
 async def api_generate_quran_caption(
     data: dict, 
     db: Session = Depends(get_db),
-    user: User = Depends(require_user)
+    user: User = Depends(require_user),
+    org_id: int = Depends(get_current_org_id)
 ):
     item_id = data.get("item_id")
     style = data.get("style", "reflective")
@@ -112,6 +115,8 @@ async def api_generate_quran_caption(
             "reference": item.title,
             "item_id": item.id
         }
+    except UsageLimitError:
+        raise
     except Exception as e:
         import traceback
         logger.error(f"Generate caption failure: {e}\n{traceback.format_exc()}")

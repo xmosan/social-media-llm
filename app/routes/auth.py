@@ -8,8 +8,9 @@ from sqlalchemy import func
 from app.db import get_db
 from app.models import User, OrgMember, Org, ContentProfile
 from app.schemas import UserCreate
-from app.security.auth import verify_password, create_access_token, get_current_user, require_user, get_password_hash
+from app.security.auth import verify_password, create_access_token, get_current_user, require_user, get_password_hash, clear_legacy_domain_cookie
 from typing import Any
+from app.services.usage_limits import check_auth_attempt, require_signup_enabled
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -19,6 +20,7 @@ def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ) -> dict[str, Any]:
+    check_auth_attempt(form_data.username)
     user = db.query(User).filter(func.lower(User.email) == func.lower(form_data.username.strip())).first()
 
     # Never expose account existence, account state, or the user directory.
@@ -40,6 +42,7 @@ def login(
     access_token = create_access_token(data={"sub": str(user.id)})
     
     # Set HttpOnly cookie for web clients
+    clear_legacy_domain_cookie(response)
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -57,6 +60,8 @@ def register(
     response: Response,
     db: Session = Depends(get_db)
 ) -> dict[str, Any]:
+    require_signup_enabled()
+    check_auth_attempt(user_in.email)
     # 1. Check if user already exists
     existing_user = db.query(User).filter(func.lower(User.email) == func.lower(user_in.email.strip())).first()
     if existing_user:
@@ -102,6 +107,7 @@ def register(
     # 5. Automatically log them in (Session Cookie)
     access_token = create_access_token(data={"sub": str(new_user.id)})
     
+    clear_legacy_domain_cookie(response)
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -115,6 +121,7 @@ def register(
 
 @router.post("/logout")
 def logout(response: Response) -> dict[str, str]:
+    clear_legacy_domain_cookie(response)
     response.delete_cookie(
         key="access_token",
         httponly=True,

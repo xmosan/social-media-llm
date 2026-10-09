@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from authlib.integrations.starlette_client import OAuth
 from app.db import get_db
 from app.models import User, Org, OrgMember
-from app.security.auth import create_access_token
+from app.security.auth import create_access_token, clear_legacy_domain_cookie
 from app.config import settings
 from datetime import timedelta
 
@@ -30,149 +30,84 @@ oauth.register(
 
 @router.get("/login")
 async def google_login(request: Request):
-    """Redirects the user to the Google OAuth consent screen."""
+    """Existing creators can still sign in during private preview."""
+    from app.services.usage_limits import check_auth_attempt
+    check_auth_attempt()
+    if not oauth.google.client_id or not oauth.google.client_secret:
+        return RedirectResponse(url="/login?error=google_config_missing")
     try:
         from app.main import is_prod
-        print("AUTH DIAGNOSTIC: Initiating Google OAuth redirect...")
-        if not oauth.google.client_id or not oauth.google.client_secret:
-            print("AUTH DIAGNOSTIC: Google Client ID/Secret missing or empty")
-            return RedirectResponse(url="/login?error=google_config_missing")
-        
-        # 1. DYNAMIC REDIRECT RESOLUTION: Prefer explicit GOOGLE_REDIRECT_URI, fallback to Base URL + /auth/google/callback
         redirect_uri = settings.google_redirect_uri or f"{settings.public_base_url.rstrip('/')}/auth/google/callback"
-        
-        # 2. SCHEME STABILIZATION: Force HTTPS in production
-        if is_prod or request.headers.get("x-forwarded-proto") == "https":
+        if is_prod:
             redirect_uri = str(redirect_uri).replace("http://", "https://")
-            # This is critical for Authlib/Starlette session matching
             request.scope['scheme'] = 'https'
-        
-        print(f"AUTH DIAGNOSTIC: Final Google redirect_uri: {redirect_uri}")
-        response = await oauth.google.authorize_redirect(request, str(redirect_uri))
-        
-        # 3. DEBUG: Check if session state was actually set by Authlib
-        # Note: Authlib sets '_google_state' in the session during authorize_redirect
-        sess_state = request.session.get('_google_state')
-        print(f"AUTH DIAGNOSTIC: Google OAuth State generated: {sess_state}")
-        
-        return response
-    except Exception as e:
-        print(f"AUTH DIAGNOSTIC: Google Login start ERROR: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to start Google Auth: {str(e)}")
+        return await oauth.google.authorize_redirect(request, str(redirect_uri))
+    except Exception:
+        # Do not log OAuth state, tokens, email addresses or provider bodies.
+        raise HTTPException(503, "Google sign-in is unavailable. Please try again shortly.") from None
+
 
 @router.get("/callback")
 async def google_auth(request: Request, db: Session = Depends(get_db)):
-    """Handles the OAuth callback, provisions users/orgs, and sets the JWT cookie."""
     from app.main import is_prod
-    
-    # SAFE IMPORT: Handle different Authlib versions for state mismatch errors
-    try:
-        from authlib.integrations.base_client.errors import MismatchedStateError
-    except ImportError:
-        try:
-            from authlib.integrations.base_client.errors import MismatchingStateError as MismatchedStateError
-        except ImportError:
-            # Fallback to generic Exception if Authlib names have shifted
-            MismatchedStateError = Exception
-    
-    # 1. DYNAMIC REDIRECT RESOLUTION: Must match the one used in google_login
-    redirect_uri = settings.google_redirect_uri or f"{settings.public_base_url.rstrip('/')}/auth/google/callback"
-    
-    # 2. SCHEME STABILIZATION
-    if is_prod or request.headers.get("x-forwarded-proto") == "https":
-        redirect_uri = str(redirect_uri).replace("http://", "https://")
+    from app.services.usage_limits import check_auth_attempt
+    from sqlalchemy import func
+    from sqlalchemy.exc import IntegrityError
+    check_auth_attempt()
+    if is_prod:
         request.scope['scheme'] = 'https'
-
     try:
-        sess_state = request.session.get('_google_state')
-        returned_state = request.query_params.get('state')
-        
-        print(f"AUTH DIAGNOSTIC: Google OAuth callback received.")
-        print(f"AUTH DIAGNOSTIC: Session State: {sess_state}")
-        print(f"AUTH DIAGNOSTIC: Return State: {returned_state}")
-        print(f"AUTH DIAGNOSTIC: Using Redirect URI: {redirect_uri}")
-        
+        # Authlib verifies the OAuth state and signed OIDC identity.
         token = await oauth.google.authorize_access_token(request)
-        user_info = token.get('userinfo')
-        if not user_info:
-            print("AUTH DIAGNOSTIC: Google user_info is missing")
-            raise Exception("Failed to fetch user info from Google")
-        print(f"AUTH DIAGNOSTIC: Google user info: {user_info.get('email')}")
-    except MismatchedStateError:
-        print("AUTH DIAGNOSTIC: CSRF State Mismatch Detected")
-        fail_msg = "OAuth session expired or domain mismatch detected. Please ensure you are logging in from app.sabeelstudio.com and try again."
-        raise HTTPException(status_code=400, detail=fail_msg)
-    except Exception as e:
-        # LOGGING SENSITIVE DATA SAFELY FOR DIAGNOSTICS
-        diag_msg = f"OAuth verification failed: {str(e)}"
-        print(f"AUTH DIAGNOSTIC: {diag_msg}")
-        print(f"AUTH DIAGNOSTIC: Session keys present: {list(request.session.keys())}")
-        raise HTTPException(status_code=400, detail=diag_msg)
+        user_info = token.get('userinfo') or {}
+    except Exception:
+        raise HTTPException(400, "Google sign-in could not be verified. Please start again from the sign-in page.") from None
 
-    google_id = user_info.get("sub")
-    email = user_info.get("email")
-    name = user_info.get("name")
-
-    if not email:
-        raise HTTPException(status_code=400, detail="Email not provided by Google")
-
-    # 1. Match or Create User
-    user = db.query(User).filter((User.google_id == google_id) | (User.email == email)).first()
-    
+    google_id, email = user_info.get("sub"), user_info.get("email")
+    if (not isinstance(google_id, str) or not google_id.strip()
+            or not isinstance(email, str) or not email.strip()
+            or user_info.get("email_verified") is not True):
+        raise HTTPException(400, "A verified Google email is required to sign in.")
+    email = email.strip()
+    user = db.query(User).filter(User.google_id == google_id).first()
     if not user:
-        print(f"AUTH DIAGNOSTIC: Creating NEW user via Google: {email}")
-        # Create new User
-        user = User(
-            email=email,
-            name=name,
-            google_id=google_id,
-            onboarding_complete=False
-        )
-        db.add(user)
-        db.flush() # get user.id
-
-        # Provision personal Organization for the new User
-        org_name = f"{name}'s Workspace" if name else "Personal Workspace"
-        org = Org(name=org_name)
-        db.add(org)
-        db.flush() # get org.id
-        
-        # Link User as Owner
-        member = OrgMember(org_id=org.id, user_id=user.id, role="owner")
-        db.add(member)
-        
-        db.commit()
-        db.refresh(user)
-    else:
-        print(f"AUTH DIAGNOSTIC: Found existing user via Google: {user.email}")
-        # User exists, optionally synchronize google_id if matched via email
+        user = db.query(User).filter(func.lower(User.email) == email.lower()).first()
+    if user:
+        if not user.is_active or (user.google_id and user.google_id != google_id):
+            raise HTTPException(403, "This account cannot sign in. Please contact support.")
         if not user.google_id:
             user.google_id = google_id
-            db.commit()
-
-    # 2. Issue Cookie-based JWT
-    access_token_expires = timedelta(days=7)
-    access_token = create_access_token(
-        data={"sub": str(user.id)}, expires_delta=access_token_expires
-    )
-    
-    print(f"AUTH DIAGNOSTIC: Google login successful for {user.email}. Setting cookie...")
+    else:
+        if not settings.signup_enabled:
+            return RedirectResponse(url="/login?error=registration_closed", status_code=303)
+        name = user_info.get("name") or "Creator"
+        user = User(email=email, name=name, google_id=google_id,
+                    is_active=True, is_superadmin=False, onboarding_complete=False)
+        db.add(user)
+        try:
+            db.flush()
+            org = Org(name=f"{name}'s Workspace")
+            db.add(org)
+            db.flush()
+            db.add(OrgMember(org_id=org.id, user_id=user.id, role="owner"))
+            user.active_org_id = org.id
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(409, "Sign-in changed while processing. Please start again.") from None
+    if not user.active_org_id:
+        member = db.query(OrgMember).filter(OrgMember.user_id == user.id).first()
+        if member:
+            user.active_org_id = member.org_id
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(409, "Sign-in changed while processing. Please start again.") from None
+    expires = timedelta(days=7)
+    access_token = create_access_token(data={"sub": str(user.id)}, expires_delta=expires)
     response = RedirectResponse(url="/app")
-    
-    # 3. DOMAIN STABILIZATION: Extract domain for cookie
-    from urllib.parse import urlparse
-    domain = urlparse(settings.public_base_url).hostname if is_prod else None
-    
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        secure=is_prod, # MUST be True in production (HTTPS)
-        samesite="lax",
-        max_age=int(access_token_expires.total_seconds()),
-        path="/",
-        domain=domain
-    )
+    clear_legacy_domain_cookie(response)
+    # Match email login/logout's host-only secure cookie.
+    response.set_cookie(key="access_token", value=access_token, httponly=True,
+                        secure=True, samesite="lax", max_age=int(expires.total_seconds()), path="/")
     return response

@@ -4,6 +4,25 @@
   const byId = (id) => document.getElementById(id),
     modal = byId("newPostModal");
   if (!modal) return;
+  const usagePanel = byId("creatorUsage");
+  let usageLoading = false;
+  if (usagePanel) usagePanel.addEventListener("toggle", async () => {
+    if (!usagePanel.open || usageLoading) return;
+    usageLoading = true;
+    const status = byId("creatorUsageStatus");
+    status.textContent = "Checking allowance…";
+    try {
+      const response = await fetch("/api/studio/usage", { signal: AbortSignal.timeout(15000) });
+      const usage = await response.json();
+      if (!response.ok) throw new Error(usage.detail || "Could not check allowance.");
+      const reset = new Date(usage.reset_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" });
+      status.textContent = `${usage.generation_enabled ? "" : "AI generation is currently paused. "}${usage.images.used} of ${usage.images.limit} image attempts · ${usage.text.used} of ${usage.text.limit} writing attempts today. Resets ${reset}.`;
+    } catch (error) {
+      status.textContent = "Could not check allowance. Close and reopen this section to retry. Your saved work is available.";
+    } finally {
+      usageLoading = false;
+    }
+  });
   let entryMode = "guided",
     discovery = null,
     discoveryEpoch = 0,

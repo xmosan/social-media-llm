@@ -7,7 +7,7 @@ from app.db import get_db
 from app.models import User, OrgMember, Org
 from app.security.auth import get_current_user, require_user
 
-def get_current_org_id(
+def _resolve_current_org_id(
     request: Request,
     user: User | None = Depends(get_current_user),
     org_id: str | None = Header(default=None, alias="X-Org-Id"),
@@ -90,6 +90,16 @@ def get_current_org_id(
     user.active_org_id = first_membership.org_id
     db.commit()
     return first_membership.org_id
+
+def get_current_org_id(
+    request: Request,
+    user: User | None = Depends(get_current_user),
+    org_id: str | None = Header(default=None, alias="X-Org-Id"),
+    db: Session = Depends(get_db)
+) -> int:
+    from app.security.usage_context import bind_workspace
+    return bind_workspace(_resolve_current_org_id(request, user, org_id, db))
+
 
 def require_superadmin(user: User = Depends(require_user)) -> User:
     """

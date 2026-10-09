@@ -106,3 +106,10 @@ def require_user(user: User | None = Depends(get_current_user)) -> User:
 
 def optional_user(user: User | None = Depends(get_current_user)) -> User | None:
     return user
+
+
+def clear_legacy_domain_cookie(response):
+    from urllib.parse import urlparse
+    domain = urlparse(settings.public_base_url).hostname
+    if domain and domain not in {"localhost", "127.0.0.1"}:
+        response.delete_cookie("access_token", domain=domain, path="/", httponly=True, secure=True, samesite="lax")

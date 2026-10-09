@@ -18,6 +18,7 @@ This wrapper enables:
 
 from __future__ import annotations
 
+from app.services.usage_limits import UsageLimitError
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -243,6 +244,8 @@ def run_automation(db: Session, automation_id: int, force_publish: bool = False)
             status=status,
         )
 
+    except UsageLimitError:
+        raise
     except Exception as e:
         logger.error(f"[AutomationService] run_automation({automation_id}) failed: {e}",
                      exc_info=True)
@@ -634,6 +637,8 @@ def simulate_growth_plan(
             try:
                 caption = generate_ai_caption_from_quran(quran_payload, style="reflective")
                 llm_res = {"caption": caption, "hashtags": ["#Quran", "#IslamicReminder"]}
+            except UsageLimitError:
+                raise
             except Exception as e:
                 logger.error(f"Quran caption preview failed: {e}")
                 llm_res = {"caption": f"{item_ref}\n\n{primary_item.text}", "hashtags": []}
@@ -672,6 +677,8 @@ def simulate_growth_plan(
                     from app.config import build_public_media_url
                     visual_url = build_public_media_url(new_name)
                     
+            except UsageLimitError:
+                raise
             except Exception as ve:
                 logger.error(f"Visual preview generation failed: {ve}")
 
