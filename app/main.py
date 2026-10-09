@@ -416,6 +416,8 @@ app.include_router(admin_diag.router)
 app.include_router(auth.router)
 from .routes import tester_access
 app.include_router(tester_access.router)
+from .routes import creator_feedback
+app.include_router(creator_feedback.router)
 app.include_router(auth_google.router)
 app.include_router(auth_ig.router)
 app.include_router(auth_ig.meta_alias_router)

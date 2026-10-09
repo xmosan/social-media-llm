@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Share feedback · Sabeel Studio</title><link rel="stylesheet" href="/static/tester-access.css"><link rel="stylesheet" href="/static/creator-feedback.css"><script defer src="/static/creator-feedback.js"></script></head>
+<body><header><a class="wordmark" href="/app">Sabeel <span>Studio</span></a><a href="/app?view=you">Your space</a></header>
+<main class="join"><p class="eyebrow">Help shape Sabeel</p><h1>How did it feel?</h1><p class="intro">Tell us about one thing you tried. What worked, and what got in your way?</p>
+<form id="feedback-form" class="card">
+<label for="device">Phone and browser</label><input id="device" name="device" required minlength="2" maxlength="120" placeholder="e.g. iPhone 15, Safari" autocomplete="off">
+<label for="task">What were you trying to do?</label><select id="task" required><option value="">Choose a task</option><option value="join">Join and get started</option><option value="source">Choose a source</option><option value="design">Create a design</option><option value="edit">Edit a post or brand</option><option value="save">Save or reopen a draft</option><option value="export">Download images</option><option value="schedule">Schedule a post</option><option value="publish">Publish to Instagram</option><option value="other">Something else</option></select>
+<label for="outcome">How did it go?</label><select id="outcome" required><option value="">Choose an answer</option><option value="completed">I finished on my own</option><option value="needed_help">I finished with help</option><option value="could_not_finish">I couldn't finish</option></select>
+<label for="confidence">Would you post the result on your account?</label><select id="confidence" required><option value="">Choose an answer</option><option value="ready">Yes, as it is</option><option value="after_edits">After some edits</option><option value="not_ready">No, it isn't ready</option><option value="not_created">I haven't created an image yet</option></select>
+<label for="notes">What should we keep or improve?</label><textarea id="notes" rows="5" required minlength="3" maxlength="3000" aria-describedby="notes-help" placeholder="Tell us what happened and what you expected."></textarea>
+<p class="hint" id="notes-help">For a source concern, include the reference and what seems wrong. Please don't include passwords, API keys or private links.</p>
+<p class="hint">Your feedback is linked to your Sabeel account and visible only to the Sabeel admin team. This form does not send an email.</p>
+<button id="feedback-submit" type="submit">Send feedback</button></form>
+<p id="status" role="status" aria-live="polite" tabindex="-1"></p><p id="feedback-recovery" hidden><a href="/login">Sign in again</a>, then return here to retry.</p>
+<div id="feedback-saved" class="card" hidden><h2>Thank you for helping.</h2><p>Your answers are saved for the Sabeel team to review.</p><a class="button" href="/app">Back to creating</a></div>
+</main></body></html>

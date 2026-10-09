@@ -64,6 +64,19 @@ backups, source correctness, media availability, environment-secret recovery, or
 a production recovery time objective. Run after backup/schema changes and before
 public launch, recording snapshot timestamp, checksum, outcome and elapsed time.
 
+### 2026-10-09 production snapshot drill
+
+With the owner's approval, the 03:00:01 UTC S3 snapshot was downloaded into
+restricted temporary storage and restored to disposable PostgreSQL 17 at 20:29 UTC.
+It restored 1,408 posts, 6,249 content items, 12 Instagram accounts and 13 workspaces.
+There were zero orphan/mismatched post-account relationships, orphan post
+workspaces, unvalidated constraints or invalid indexes. Gzip integrity and
+downloaded size passed. This legacy object had no SHA-256 metadata, so the report
+explicitly records `checksum_verified=false`; no remote checksum comparison is
+claimed. The SQL restore passed and the private snapshot and cluster were removed.
+The application/scheduler never ran against restored production data. Total drill
+time was 2.5 seconds on this machine; this is not a production recovery-time promise.
+
 ## Real incident recovery
 
 1. Keep admission closed; pause publishing/automations and AI generation while
@@ -101,20 +114,33 @@ audit no project webhooks were configured. That alone does not establish whether
 native email alerts/monitors exist. The plugin cannot verify notification delivery,
 volume-backup settings or the text of the remaining Postgres warning. Axiom's token
 name is configured, but ingestion and notification delivery are not verified.
-Choose an owner-controlled destination and explicitly authorize a test notification
-before testing delivery. No destination was invented and no messages were sent.
+The owner selected an operational email destination. The existing local Axiom
+token received HTTP 403 on the monitor-management API; no permissions were changed
+and no notification was sent. Use the owner's dashboard to configure an external
+monitor and prove actual inbox delivery with a clearly labeled test. Do not treat
+an email sent manually, a console log or ingestion acceptance as that proof.
+
+The log shipper now checks HTTP status and the provider's accepted/failed counts.
+Rejected, partial or uncertain batches emit rate-limited `log_delivery_failed`
+notices directly to the Railway console, without recursing into the shipper or
+exposing log payloads, provider responses or tokens. Subsequent successful batches
+emit `log_delivery_recovered` with the earlier unconfirmed count; those earlier
+events are not retried or claimed delivered. The queue remains in-memory and is
+not a durable log spool. These console notices still need external monitoring.
+The email service returns false when unconfigured or when provider acceptance is
+unconfirmed; it no longer prints email contents or reports a console fallback as
+delivery. Provider acceptance is not inbox receipt.
 
 ## Controlled creator pilot
 
-Keep `SIGNUP_ENABLED=false`. Existing users have private workspaces/roles, but an
-invitation/redemption workflow does not currently exist. Do not describe public
-registration, an admin key, or a shared administrator account as tester access.
-Before admitting new testers, implement narrowly scoped, expiring single-use
-admission or provision specifically approved isolated accounts through a reviewed
-operator path. Do not widen public signup temporarily. Testers need their own
-workspace and Meta connection, normal AI allowances, and manual source/page review.
-No invitations or grants are issued by this release. Physical iOS/Android, fresh
-Meta onboarding and qualified source/context reviews remain launch conditions.
+Keep `SIGNUP_ENABLED=false`. The subsequent [tester-access release](tester-access.md)
+provides expiring, single-use invitations at `/admin/testers`, private creator
+workspaces and revocation. Do not use a shared administrator account or temporarily
+open registration. Testers need their own workspace and Meta connection, normal
+AI allowances and manual source/page review. Signed-in feedback is available at
+`/app/feedback` and only superadmins can read `/admin/feedback`. Physical iOS/Android,
+fresh Meta onboarding, alert delivery and qualified source/context review remain
+launch conditions; an invitation is not a readiness certification.
 
 ## Deployment / rollback
 
