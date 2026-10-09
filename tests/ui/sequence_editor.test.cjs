@@ -134,3 +134,12 @@ test('legacy drafts keep English-first while explicit Arabic-first drafts reopen
  f.c.savedFixture=data;f.run('restoreStudioPayload(savedFixture)');assert.equal(f.el('studioLayout').value,'english_first');
  data.visual_design.layout='bilingual';f.run('restoreStudioPayload(savedFixture)');assert.equal(f.el('studioLayout').value,'bilingual');
 });
+
+test('withdrawing a visual review revokes approval in the persisted payload until reconfirmed',()=>{
+ const f=setup();for(let i=0;i<3;i++)f.c.window.showStudioPage(i);
+ f.el('sequenceReviewCheck').checked=true;f.c.window.confirmStudioSequence();assert.equal(f.run('studioSequenceReviewed'),true);
+ f.el('sequenceReviewCheck').checked=false;f.c.window.changeStudioReview();assert.equal(f.run('studioSequenceReviewed'),false);
+ assert.equal(JSON.parse(f.storage.get('sabeel-studio-v2:1:2')).payload.reviewed,false);
+ f.el('sequenceReviewCheck').checked=true;f.c.window.changeStudioReview();assert.equal(f.run('studioSequenceReviewed'),false);
+ f.c.window.confirmStudioSequence();assert.equal(f.run('studioSequenceReviewed'),true);
+});
