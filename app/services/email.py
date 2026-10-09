@@ -1,26 +1,21 @@
 import resend
 import logging
+import asyncio
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 async def send_email(to: str, subject: str, body: str):
     """
-    Sends an email using Resend if configured, otherwise falls back to console logging.
+    Returns whether Resend accepted the message, not whether it reached an inbox.
     """
     api_key = settings.resend_api_key
     from_email = settings.resend_from_email
 
     # Check for configuration
     if not api_key:
-        print(f"\n{'='*60}")
-        print(f"⚠️  [EmailService] RESEND NOT CONFIGURED (Missing RESEND_API_KEY)")
-        print(f"   Falling back to Console Logging")
-        print(f"   To:      {to}")
-        print(f"   Subject: {subject}")
-        print(f"   Body:    {repr(body)[:100]}...")
-        print(f"{'='*60}\n")
-        return True
+        logger.warning("email_not_configured")
+        return False
 
     try:
         resend.api_key = api_key
@@ -33,16 +28,16 @@ async def send_email(to: str, subject: str, body: str):
         }
         
         # Async-safe send via SDK
-        r = resend.Emails.send(params)
+        r = await asyncio.to_thread(resend.Emails.send, params)
         
-        logger.info(f"✅ [EmailService] Email sent successfully via Resend to {to}")
+        if not isinstance(r, dict) or not r.get("id"):
+            logger.error("email_acceptance_unconfirmed")
+            return False
+        logger.info("email_accepted")
         return True
-    except Exception as e:
+    except Exception:
         # Graceful failure: Log it but don't crash the calling process (e.g. waitlist signup)
-        logger.error(f"❌ [EmailService] Failed to send email via Resend to {to}: {e}")
-        
-        # Internal diagnostic print for developers
-        print(f"❌ [EmailService] OUTBOUND ERROR: {e}")
+        logger.error("email_send_failed")
         
         return False
 
@@ -67,25 +62,11 @@ async def send_contact_acknowledgment(
         "— Sabeel Studio"
     )
 
-    html_body = f"""
-    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-        <h2 style="color: #0F3D2E;">Sabeel Studio</h2>
-        <p>{greeting}</p>
-        <p>Thank you for reaching out to us. We've <strong>received your message</strong> and our team will review it as soon as possible.</p>
-        <p>This is an automated confirmation that your submission was successful.</p>
-        <p style="color: #666; font-size: 12px; margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
-            Please do not reply to this email directly.<br>
-            &copy; 2026 Sabeel Studio
-        </p>
-    </div>
-    """
-
-    # We reuse the main send_email function which handlesResend vs Fallback
     success = await send_email(to=email, subject=msg_subject, body=text_body)
     
     if success:
-        logger.info(f"✅ [EmailService] Contact acknowledgment sent to {email}")
+        logger.info("contact_acknowledgment_accepted")
     else:
-        logger.warning(f"⚠️ [EmailService] Failed to send contact acknowledgment to {email}")
+        logger.warning("contact_acknowledgment_not_sent")
         
     return {"status": "success" if success else "failed"}

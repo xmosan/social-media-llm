@@ -7,6 +7,7 @@ from app.models.inbound_message import InboundMessage
 from app.schemas.inbound_message import ContactMessageRequest
 from app.services.email import send_contact_acknowledgment
 from app.config import settings
+from app.security.rbac import require_superadmin
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,8 @@ async def submit_contact(payload: ContactMessageRequest, db: Session = Depends(g
     Submits a new inbound message from the contact form.
     Saves to DB and optionally sends an auto-reply.
     """
+    if payload.source == "creator_pilot":
+        raise HTTPException(422, "Use the signed-in creator feedback form.")
     email_clean = payload.email.lower().strip()
     
     try:
@@ -33,7 +36,7 @@ async def submit_contact(payload: ContactMessageRequest, db: Session = Depends(g
         db.commit()
         db.refresh(new_msg)
         
-        logger.info(f"📬 [ContactAPI] Received message from {email_clean} (ID: {new_msg.id})")
+        logger.info("contact_message_saved id=%s", new_msg.id)
         
         # 2. Optional Auto-reply
         if settings.support_autoreply_enabled:
@@ -44,20 +47,20 @@ async def submit_contact(payload: ContactMessageRequest, db: Session = Depends(g
                     name=payload.name,
                     subject=payload.subject
                 )
-            except Exception as email_err:
-                logger.error(f"⚠️ [ContactAPI] Auto-reply failed for {email_clean}: {email_err}")
+            except Exception:
+                logger.error("contact_acknowledgment_failed")
         
         return {
             "ok": True,
             "message": "We received your message."
         }
-    except Exception as e:
+    except Exception:
         db.rollback()
-        logger.error(f"❌ [ContactAPI] Error processing message: {e}")
+        logger.error("contact_message_save_failed")
         raise HTTPException(status_code=500, detail="Internal server error while saving message.")
 
 @router.get("/all")
-def get_all_messages(db: Session = Depends(get_db)):
+def get_all_messages(db: Session = Depends(get_db), admin=Depends(require_superadmin)):
     """
     Retrieves all inbound messages ordered by newest first.
     """
