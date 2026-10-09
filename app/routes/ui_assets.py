@@ -1044,18 +1044,20 @@ STUDIO_SCRIPTS_JS = r"""
         image.alt = `Page ${studioPageIndex+1} of ${pages.length}: ${page.label}`;
         image.classList.remove('hidden');
         document.getElementById('sequencePageLabel').textContent = `${studioPageIndex+1} / ${pages.length} · ${page.label}`;
+        document.getElementById('sequenceNavigation').dataset.singlePage = String(pages.length === 1);
         document.getElementById('sequencePrevious').disabled = studioPageIndex === 0;
         document.getElementById('sequenceNext').disabled = studioPageIndex === pages.length-1;
         document.getElementById('sequenceReviewCheck').disabled = studioViewedPages.size !== pages.length;
         if(image.complete && image.naturalWidth>0) image.onload();
         window.updateStudioFormatPreview();
+        window.onCreatorPageChanged?.();
     };
     window.moveStudioPage = function(delta) { window.showStudioPage(studioPageIndex+delta); };
     window.retryStudioImage = function() { window.showStudioPage(studioPageIndex); };
     window.updateStudioFormatPreview = function() {
         const story = (studioVisualDesign?.media_manifest?.format || document.getElementById('studioFormat')?.value) === 'story_9_16';
         const preview = document.getElementById('cardPreviewContainer');
-        if (preview) preview.style.aspectRatio = story ? '9 / 16' : '4 / 5';
+        if (preview) { preview.style.aspectRatio = story ? '9 / 16' : '4 / 5'; preview.dataset.format = story ? 'story' : 'feed'; }
         for (const id of ['storyPreviewTop', 'storyPreviewBottom', 'storyCaptionNote']) document.getElementById(id)?.classList.toggle('hidden', !story);
         const help = document.getElementById('sequenceFormatHelp');
         if (help) help.textContent = story ? 'Story · 9:16. Profile and reply areas shown in preview.' : 'Feed · 4:5. Longer sources continue across pages.';
@@ -1173,6 +1175,7 @@ STUDIO_SCRIPTS_JS = r"""
         payload.scheduled_at = scheduledAt;
         payload.status = 'drafted';
         studioSaveBusy = true;
+        window.creatorSaveBusy?.(true);
         window.rememberStudio();
         try {
             const res = await fetch('/api/studio/create-post', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload),signal:AbortSignal.timeout(45000)});
@@ -1187,11 +1190,15 @@ STUDIO_SCRIPTS_JS = r"""
         } catch(e) {
             if (sessionEpoch !== studioSessionEpoch) return null;
             throw e;
-        } finally { if (sessionEpoch === studioSessionEpoch) studioSaveBusy = false; }
+        } finally { if (sessionEpoch === studioSessionEpoch) {studioSaveBusy = false; window.creatorSaveBusy?.(false);} }
     }
     window.saveStudioDraft = async function() {
         if (!studioCardMessage || !currentQuoteCardUrl || !document.getElementById('studioAccount')?.value) {
-            window.rememberStudio(); return;
+            const kept = window.rememberStudio();
+            if (kept) document.getElementById('studioSaveStatus').textContent = !document.getElementById('studioAccount')?.value
+                ? 'Kept on this device. Connect Instagram in Your workspace to save and export posts.'
+                : 'Kept on this device. Create your design to save it to your workspace.';
+            return;
         }
         try { await persistStudioDraft(); } catch(e) { document.getElementById('studioSaveStatus').textContent=e.message; }
     };
@@ -1450,7 +1457,19 @@ STUDIO_SCRIPTS_JS = r"""
         window.invalidateQuoteCard();
     };
 
+    window.setStudioShareTiming = function(timing) {
+        const now = timing === 'now';
+        document.getElementById('studioScheduleFields').hidden = now;
+        document.getElementById('studioSubmitBtn').hidden = now;
+        document.getElementById('studioShareNowBtn').hidden = !now;
+        document.querySelectorAll('[name="shareTiming"]').forEach(input => {input.checked = input.value === (now ? 'now' : 'later');});
+    };
     window.prepareShare = function() {
+        window.setStudioShareTiming('later');
+        const pages = sequencePages();
+        const story = studioVisualDesign?.media_manifest?.format === 'story_9_16';
+        const note = document.getElementById('studioShareFormatNote');
+        if (note) note.textContent = story ? 'Every reviewed Story is published in order. If interrupted, check the saved post before resuming.' : pages.length > 1 ? `All ${pages.length} reviewed pages will publish together as one carousel with your caption.` : 'Your reviewed image and caption will publish together.';
         const accountSel = document.getElementById('studioAccount');
         const accountId = accountSel ? accountSel.value : null;
         const accountText = accountSel
@@ -1467,12 +1486,15 @@ STUDIO_SCRIPTS_JS = r"""
             statusEl.innerHTML = '<span class="w-1 h-1 rounded-full bg-brand animate-pulse"></span> Verifying...';
             statusEl.className = 'flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-brand/5 text-[7px] font-black uppercase tracking-widest text-brand/50';
             
-            fetch(`/ig-accounts/${accountId}/health`)
+            const checkSession = studioSessionEpoch;
+            const stillCurrent = () => checkSession === studioSessionEpoch && document.getElementById('studioAccount')?.value === accountId;
+            fetch(`/ig-accounts/${accountId}/health`, {signal:AbortSignal.timeout(15000)})
                 .then(r => {
                     if (!r.ok) throw new Error('Account check unavailable');
                     return r.json();
                 })
                 .then(data => {
+                    if (!stillCurrent()) return;
                     if (data.healthy) {
                         statusEl.innerHTML = '<span class="w-1 h-1 rounded-full bg-emerald-500"></span> Connected';
                         statusEl.className = 'flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-[7px] font-black uppercase tracking-widest text-emerald-600';
@@ -1483,6 +1505,7 @@ STUDIO_SCRIPTS_JS = r"""
                     }
                 })
                 .catch(e => {
+                    if (!stillCurrent()) return;
                     statusEl.innerHTML = '<span class="w-1 h-1 rounded-full bg-amber-500"></span> Check unavailable';
                     statusEl.className = 'flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 text-[7px] font-black uppercase tracking-widest text-amber-600';
                 });
@@ -1538,6 +1561,8 @@ STUDIO_SCRIPTS_JS = r"""
             timePicker.value = '09:00';
         }
 
+        const timezoneLabel = document.getElementById('studioTimezoneLabel');
+        if (timezoneLabel) timezoneLabel.textContent = 'Timezone: ' + Intl.DateTimeFormat().resolvedOptions().timeZone + ' · this device';
         // ── Render confirmation line ──────────────────────────────────────────────
         window.updateScheduleConfirmation();
     };
@@ -1559,7 +1584,7 @@ STUDIO_SCRIPTS_JS = r"""
                     hour: '2-digit',
                     minute: '2-digit'
                 });
-                if (manifestT) manifestT.innerText = `Scheduled for: ${formatted}`;
+                if (manifestT) manifestT.innerText = `Will schedule for: ${formatted}`;
                 if (confirmLine) {
                     confirmLine.classList.remove('hidden');
                     confirmLine.classList.add('flex');
@@ -1574,6 +1599,7 @@ STUDIO_SCRIPTS_JS = r"""
 
     window.submitNewPost = async function(event) {
         if (event) event.preventDefault();
+        if (document.getElementById('studioSubmitBtn').hidden || studioSaveBusy) return;
         const btn = document.getElementById('studioSubmitBtn');
         const original = btn.innerHTML;
 
@@ -1601,10 +1627,11 @@ STUDIO_SCRIPTS_JS = r"""
         let scheduledAt = null;
         try {
             const localDt = new Date(`${dateVal}T${timeVal}`);
-            if (isNaN(localDt.getTime())) throw new Error('Invalid date');
+            if (isNaN(localDt.getTime()) || localDt <= new Date()) throw new Error('Choose a future date and time');
             scheduledAt = localDt.toISOString(); // UTC ISO string
         } catch(e) {
-            alert("Invalid date or time selected. Please try again.");
+            if(window.studioNotice) window.studioNotice('Choose a future date and time before scheduling.');
+            else alert('Choose a future date and time before scheduling.');
             return;
         }
 
@@ -2704,7 +2731,7 @@ STUDIO_SCRIPTS_JS = r"""
         const now = new Date();
         now.setHours(now.getHours() + 24);
         now.setMinutes(0);
-        const localISO = now.toISOString().slice(0, 16);
+        const localISO = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}T${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
         document.getElementById('schedulePostTime').value = localISO;
         
         const modal = document.getElementById('schedulePostModal');
@@ -2882,8 +2909,8 @@ STUDIO_COMPONENTS_HTML = """
 
         <div class="flex-1 overflow-y-auto p-6 md:p-12 pb-32 custom-scrollbar">
           <div class="cw-save-row flex flex-wrap items-center gap-3 mb-6 text-sm">
-              <button type="button" onclick="saveStudioDraft()" class="px-4 py-2 border border-brand/20 rounded-xl">Save draft (unscheduled)</button>
-              <button type="button" onclick="exportStudioSequence()" class="px-4 py-2 border border-brand/20 rounded-xl">Export images + source</button>
+              <button type="button" id="studioSaveDraftButton" onclick="saveStudioDraft()" title="Save without scheduling or publishing" class="px-4 py-2 border border-brand/20 rounded-xl">Save draft</button>
+              <details class="cw-draft-menu"><summary>More</summary><div><button type="button" onclick="exportStudioSequence()">Export images + source</button><p>Saving a draft never schedules or publishes it.</p></div></details>
               <span id="creatorSaveState" role="status" aria-live="polite"></span><span id="studioSaveStatus" role="status" aria-live="polite" class="text-brand/70"></span>
           </div>
           <div id="studioSection1" class="studio-section space-y-10 animate-in slide-in-from-right-8 duration-500">
@@ -3103,7 +3130,7 @@ STUDIO_COMPONENTS_HTML = """
                     </div>
                     <label id="sequenceReviewLabel" class="flex items-start gap-2 text-sm max-w-[390px]"><input type="checkbox" id="sequenceReviewCheck" disabled> I reviewed every page, the full source, Arabic and separate reflection.</label>
                     <div id="cardActions" class="hidden flex gap-3">
-                        <button type="button" onclick="confirmStudioSequence()" class="px-8 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Confirm Visual &rarr;</button>
+                        <button type="button" onclick="confirmStudioSequence()" class="px-8 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Continue to caption &rarr;</button>
                     </div>
                 </div>
              </div>
@@ -3151,7 +3178,7 @@ STUDIO_COMPONENTS_HTML = """
                   <!-- Generate Button + helper -->
                   <div class="flex flex-col justify-center gap-3">
                       <div class="text-[9px] font-medium text-text-muted leading-relaxed">
-                          Generate a social caption grounded in the source above. You can edit it after.
+                          Write your own caption below, or ask Sabeel for a source-grounded suggestion.
                       </div>
                       <button type="button" id="btnGenerateCaption" onclick="generateSocialCaption()" class="w-full py-5 bg-brand text-white rounded-[2rem] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:shadow-brand/30 hover:scale-[1.005] transition-all flex items-center justify-center gap-3">
                           <svg class="btn-icon w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
@@ -3173,14 +3200,12 @@ STUDIO_COMPONENTS_HTML = """
                   </div>
 
                   <!-- Formatted Caption Preview -->
-                  <div id="captionPreviewContainer" class="hidden bg-white border border-brand/10 rounded-[2.5rem] shadow-2xl overflow-hidden">
-                      <div class="px-8 pt-6 pb-2 border-b border-brand/5">
-                          <div class="text-[8px] font-black uppercase tracking-widest text-brand/30">Caption Preview</div>
-                      </div>
+                  <details id="captionPreviewContainer" class="hidden bg-white border border-brand/10 rounded-2xl overflow-hidden">
+                      <summary class="px-4 py-2">Caption preview</summary>
                       <div id="captionPreviewBlock" class="px-8 py-6 space-y-1 leading-relaxed">
                           <!-- Rendered by _renderCaptionPreview() -->
                       </div>
-                  </div>
+                  </details>
 
                   <!-- Divider -->
                   <div class="flex items-center gap-4 px-2">
@@ -3191,12 +3216,12 @@ STUDIO_COMPONENTS_HTML = """
 
                   <!-- Editable Refinement Zone -->
                   <div class="relative">
-                      <textarea id="studioCaption" name="caption" oninput="captionChanged()" class="w-full bg-brand/[0.02] border border-brand/10 rounded-[2rem] px-8 py-7 text-[11px] font-medium text-brand min-h-[200px] outline-none leading-relaxed custom-scrollbar focus:border-brand/30 focus:bg-white transition-all resize-none" placeholder="Your generated caption will appear here. You can edit it before publishing."></textarea>
+                      <textarea id="studioCaption" name="caption" oninput="captionChanged()" class="w-full bg-brand/[0.02] border border-brand/10 rounded-[2rem] px-8 py-7 text-[11px] font-medium text-brand min-h-[200px] outline-none leading-relaxed custom-scrollbar focus:border-brand/30 focus:bg-white transition-all resize-none" placeholder="Write your caption, or ask Sabeel for a suggestion."></textarea>
                   </div>
 
                   <!-- Continue -->
                   <div class="flex justify-end pt-2">
-                      <button type="button" onclick="switchStudioSection(4)" class="px-10 py-5 bg-brand text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-brand/15 hover:shadow-brand/25 hover:scale-[1.01] transition-all">Approve &amp; Review &rarr;</button>
+                      <button type="button" onclick="switchStudioSection(4)" class="px-10 py-5 bg-brand text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-brand/15 hover:shadow-brand/25 hover:scale-[1.01] transition-all">Review sharing options &rarr;</button>
                   </div>
 
               </div>
@@ -3204,14 +3229,13 @@ STUDIO_COMPONENTS_HTML = """
           <div id="studioSection4" class="studio-section hidden space-y-10">
             <!-- Phase Header -->
             <div>
-              <label class="text-[9px] font-bold uppercase tracking-[0.3em] text-accent">Studio Phase 4</label>
-              <h4 class="text-3xl font-bold text-brand italic">Schedule The Share</h4>
-              <p class="text-xs text-text-muted mt-2 font-medium">Choose exactly when this reminder reaches your audience.</p>
+              <h4 class="text-3xl font-bold text-brand">Ready to share?</h4>
+              <p class="text-sm text-text-muted mt-2">Check your account and choose when. Nothing is published until you confirm.</p>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
-              <!-- Left: Post Preview -->
-              <div class="space-y-5">
+            <div class="cw-share-grid grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
+              <!-- Full preview remains available without pushing phone actions below it. -->
+              <details class="cw-share-preview space-y-5"><summary>Review image & caption</summary>
                 <div class="text-[9px] font-black uppercase tracking-widest text-brand/30 ml-1">Reminder Preview</div>
                 <div class="w-full aspect-square bg-cream rounded-[3rem] border-4 border-brand/5 overflow-hidden relative shadow-2xl">
                   <img id="finalPreviewImage" alt="First page of your reviewed sequence" class="w-full h-full object-contain">
@@ -3226,10 +3250,10 @@ STUDIO_COMPONENTS_HTML = """
                   <div class="text-[8px] font-black uppercase tracking-widest text-brand/30 mb-3">Caption</div>
                   <p id="manifestCaption" class="text-[11px] text-text-muted font-medium italic line-clamp-4 leading-relaxed"></p>
                 </div>
-              </div>
+              </details>
 
               <!-- Right: Scheduling Panel -->
-              <div class="space-y-6 bg-white border border-brand/5 rounded-[2.5rem] p-8 shadow-sm">
+              <div class="cw-share-panel space-y-6 bg-white border border-brand/5 rounded-[2.5rem] p-8 shadow-sm">
 
                 <!-- Account Badge -->
                 <div class="flex items-center gap-4 p-5 bg-brand/[0.03] border border-brand/5 rounded-2xl relative overflow-hidden">
@@ -3259,12 +3283,11 @@ STUDIO_COMPONENTS_HTML = """
                   </div>
                 </div>
 
-                <!-- Divider -->
-                <div class="flex items-center gap-3">
-                  <div class="h-px flex-1 bg-brand/5"></div>
-                  <div class="text-[8px] font-black uppercase tracking-widest text-brand/20">Choose Schedule</div>
-                  <div class="h-px flex-1 bg-brand/5"></div>
-                </div>
+                <fieldset class="cw-share-choice"><legend>When would you like to share?</legend>
+                  <label><input type="radio" name="shareTiming" value="later" checked onchange="setStudioShareTiming('later')"> Schedule later</label>
+                  <label><input type="radio" name="shareTiming" value="now" onchange="setStudioShareTiming('now')"> Publish now</label>
+                </fieldset>
+                <div id="studioScheduleFields" class="space-y-4">
 
                 <!-- Date Picker -->
                 <div class="space-y-2">
@@ -3284,7 +3307,7 @@ STUDIO_COMPONENTS_HTML = """
                   </label>
                   <input type="time" id="scheduleTime" step="300" onchange="updateScheduleConfirmation()"
                     class="w-full bg-cream/50 border border-brand/10 rounded-2xl px-6 py-4 text-sm font-black text-brand outline-none focus:border-brand/30 focus:ring-4 focus:ring-brand/5 transition-all shadow-inner">
-                  <p class="text-[8px] text-text-muted px-1 font-medium">All times are in your local timezone.</p>
+                  <p id="studioTimezoneLabel" class="text-sm text-text-muted px-1">Times use this device’s timezone.</p>
                 </div>
 
                 <!-- Confirmation Line -->
@@ -3293,16 +3316,17 @@ STUDIO_COMPONENTS_HTML = """
                   <div id="manifestTime" class="text-[11px] font-black text-emerald-700"></div>
                 </div>
 
+                </div>
                 <!-- CTA -->
-                <p class="text-sm text-brand/70">The whole reviewed sequence will be shared in order. Stories are separate posts; interrupted sequences can be checked and resumed from the saved post.</p>
-                <button type="button" id="studioShareNowBtn" onclick="shareStudioNow()" class="w-full py-4 border border-brand/20 text-brand rounded-2xl font-bold">Share reviewed sequence now</button>
+                <p id="studioShareFormatNote" class="text-sm text-brand/70">The whole reviewed sequence will be shared in order. Stories are separate posts; interrupted sequences can be checked and resumed from the saved post.</p>
+                <button type="button" id="studioShareNowBtn" hidden onclick="shareStudioNow()" class="w-full py-4 border border-brand/20 text-brand rounded-2xl font-bold">Publish now to Instagram</button>
                 <button type="submit" id="studioSubmitBtn"
                   class="w-full py-6 bg-brand text-white rounded-3xl font-black text-[12px] uppercase tracking-[0.3em] shadow-2xl shadow-brand/20 hover:bg-brand-hover hover:scale-[1.005] transition-all flex items-center justify-center gap-3">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
                   Schedule Reminder
                 </button>
 
-                <button type="button" onclick="showDeleteConfirm()" class="w-full text-[9px] font-black uppercase tracking-widest text-rose-500/40 hover:text-rose-500 transition-colors text-center pt-1">Discard this piece of reminder</button>
+                <button type="button" onclick="saveStudioDraft()" class="cw-secondary w-full">Keep as a draft instead</button>
               </div>
             </div>
           </div>
@@ -3599,7 +3623,7 @@ APP_LAYOUT_HTML = """<!doctype html>
     .text-brand {{ color: var(--brand) !important; }}
     .border-brand {{ border-color: var(--brand) !important; }}
   </style>
-<link rel="stylesheet" href="/static/creator-workspace.css?v=3">
+<link rel="stylesheet" href="/static/creator-workspace.css?v=4">
 </head>
 <body class="min-h-screen">
 <header class="cw-topbar"><a class="cw-wordmark" href="/app">sabeel<span> studio</span></a><a href="/app?view=you" aria-label="Your workspace">Your space ↗</a></header>

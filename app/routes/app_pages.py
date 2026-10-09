@@ -766,7 +766,7 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
         active_library=active_map["library"],
         active_media=active_map["media"],
         studio_modal=STUDIO_COMPONENTS_HTML.replace("{account_options}", account_options).replace("{workspace_key}", f"{org.id}:{user.id}"),
-        studio_js=STUDIO_SCRIPTS_JS + '<script src="/static/creator-workspace.js?v=2"></script>',
+        studio_js=STUDIO_SCRIPTS_JS + '<script src="/static/creator-workspace.js?v=3"></script>',
         connected_account_info=(extras.get("connected_account_info", "") if extras else ""),
         connect_instagram_modal=CONNECT_INSTAGRAM_MODAL_HTML,
         navbar_account_switcher=switcher_html,

@@ -53,6 +53,41 @@ class PostgresChecks(unittest.TestCase):
         self.db.commit()
         return post.id
 
+    def test_new_creator_registration_login_and_workspace_are_isolated(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from app.db import get_db
+        from app.models import User, OrgMember
+        from app.routes import auth
+        # setUp inserts an explicit ID; let normal registration use the next one.
+        self.db.execute(text("SELECT setval(pg_get_serial_sequence('orgs','id'), (SELECT MAX(id) FROM orgs))"))
+        self.db.commit()
+        application = FastAPI()
+        application.dependency_overrides[get_db] = lambda: self.db
+        application.include_router(auth.router)
+        with TestClient(application, base_url='https://testserver') as client:
+            created = client.post('/auth/register', json={
+                'email': 'creator@example.com', 'name': 'Isolated Creator',
+                'password': 'disposable-creator-test-password',
+            })
+            self.assertEqual(created.status_code, 200)
+            for flag in ('HttpOnly', 'Secure', 'SameSite=lax'):
+                self.assertIn(flag, created.headers['set-cookie'])
+            profile = client.get('/auth/me')
+            self.assertEqual(profile.status_code, 200)
+            user = self.db.get(User, profile.json()['id'])
+            self.assertFalse(user.is_superadmin)
+            self.assertNotEqual(user.active_org_id, 1)
+            membership = self.db.query(OrgMember).filter_by(user_id=user.id).one()
+            self.assertEqual(membership.org_id, user.active_org_id)
+            self.assertEqual(membership.role, 'owner')
+            self.assertEqual(self.db.query(IGAccount).filter_by(org_id=user.active_org_id).count(), 0)
+            client.post('/auth/logout')
+            self.assertEqual(client.get('/auth/me').status_code, 401)
+            login = client.post('/auth/login', data={'username': 'CREATOR@example.com', 'password': 'disposable-creator-test-password'})
+            self.assertEqual(login.status_code, 200)
+            self.assertEqual(client.get('/auth/me').json()['id'], user.id)
+
     def test_quran_annotation_repair_preview_apply_and_guarded_rollback(self):
         import json
         from types import SimpleNamespace

@@ -66,4 +66,7 @@ def render_creator_workspace(user, org, posts, account, view="home", accounts=()
         <section><div class="cw-section-title"><h2>Continue creating</h2><a href="/app?view=posts">All posts →</a></div><div class="cw-post-list">{''.join(post_card(p) for p in draft_posts[:2]) or '<div class="cw-empty"><strong>Room for your first reminder.</strong><p>Start above. Your saved drafts will be waiting here.</p></div>'}</div></section>
         {('<section><div class="cw-section-title"><h2>Needs your attention</h2></div>'+''.join(post_card(p) for p in attention[:2])+'</section>') if attention else ''}
         <a class="cw-brand-strip" href="/app?view=you"><span class="cw-swatches" aria-hidden="true">{swatches}</span><span><strong>Your signature, every time</strong><small id="workspaceBrandSignature">{escape(signature)}</small></span><b aria-hidden="true">→</b></a>'''
-    return f'<div class="creator-workspace" data-view="{escape(view)}">{header}{body}</div>'
+    setup = ''
+    if account is None and view != 'you':
+        setup = '<section class="cw-recovery"><div><strong>Connect Instagram to save your posts</strong><p>You can explore sources and keep ideas on this device. Workspace drafts, exports and publishing need a connected account.</p><a class="cw-secondary" href="/app?view=you">Set up your account →</a></div></section>'
+    return f'<div class="creator-workspace" data-view="{escape(view)}">{header}{setup}{body}</div>'
