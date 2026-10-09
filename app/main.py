@@ -177,8 +177,11 @@ is_prod = is_railway or ("localhost" not in str(settings.public_base_url) and "1
 from urllib.parse import urlparse
 eff_domain = urlparse(settings.public_base_url).hostname if is_prod else None
 
+from app.security.instagram_session import LegacyInstagramSessionCleanup
+# Runs inside SessionMiddleware so it can remove legacy credential payloads.
+app.add_middleware(LegacyInstagramSessionCleanup)
 app.add_middleware(
-    SessionMiddleware, 
+    SessionMiddleware,
     secret_key=settings.secret_key,
     https_only=is_prod,
     same_site="lax",

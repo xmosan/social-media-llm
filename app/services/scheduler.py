@@ -15,6 +15,7 @@ from app.services.post_service import publish_post
 from app.services.automation_runner import run_automation_once
 from app.services.automation_schedule import automation_triggers
 from app.services.backups import scheduled_database_backup, ensure_recent_backup
+from app.services.instagram_connection import purge_expired
 from app.security.ownership import require_account
 from fastapi import HTTPException
 
@@ -135,6 +136,10 @@ def start_scheduler(db_factory: Callable[[], Session]):
 
     # 2. Daily Automation Jobs
     sync_automation_jobs(sched, db_factory)
+
+    sched.add_job(purge_expired, trigger="interval", minutes=15, args=[db_factory],
+                  id="expire_instagram_handoffs", replace_existing=True,
+                  max_instances=1, coalesce=True, misfire_grace_time=300)
 
     # 3. Daily Database Backups
     sched.add_job(
