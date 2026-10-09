@@ -27,6 +27,50 @@ An older app ignores pilot expiry. Before rollback, revoke all issued access and
 
 Keep public signup closed. Start with a personally invited small group after operational launch blockers are resolved. Creator review, qualified source review and physical iPhone/Android testing are still required; automated checks cannot replace them.
 
+## Private creator feedback
+
+Creators open **You → Share feedback** (`/app/feedback`). The form asks for the
+phone/browser, one task, completion outcome, publishing confidence and a short
+comment. Source concerns can include the reference. These answers are private,
+linked to the signed-in creator, and stored in the existing `inbound_messages`
+table with `source=creator_pilot`. It sends no email. Creating/submitting a report
+does not alter a post, its review state, or any publishing schedule.
+
+`/admin/feedback`, linked from `/admin/testers`, shows the latest 200 reports only
+to platform superadmins. User text is escaped and responses are not cacheable.
+The legacy `/api/contact/all` endpoint now also requires a superadmin; the public
+contact form cannot label its messages as authenticated pilot feedback.
+
+The API requires a signed-in user with an accessible, unexpired workspace and a
+matching Origin. Identity comes from that account, not submitted fields. A user
+row lock serializes idempotency and a 20-report rolling 24-hour limit. Identical
+retries return the saved report; altered data with the same request id conflicts.
+The browser disables repeat submits, times out after 15 seconds, retains answers
+after failure and reuses the request id when retrying unchanged answers. It keeps
+no private feedback in browser storage; refreshing before success loses the local
+form. On an uncertain save, retry unchanged answers before refreshing. Editing
+the answers begins a different report. No new schema migration is required.
+
+### First creator session checklist
+
+1. Open the private invitation on a real iPhone or Android device, join and sign in.
+   Check that no admin tools or another creator's work are visible.
+2. Choose a known source, inspect its Arabic, translation and returned attribution,
+   then create and edit a design. Keep any reflection separate from the source.
+3. Without an Instagram connection, check the disclosed local-only draft recovery.
+   Workspace saving and ZIP export currently require a connected account; do not
+   tell a tester that a local draft is saved to their workspace.
+4. With the tester's own supported Meta account, save, close/reopen, edit and export
+   the post. Open every exported page on the phone and check order/readability.
+5. Schedule/publish only content the creator has explicitly approved, then check
+   the result in their own Instagram account. Never repeat an unknown publishing
+   attempt simply because the screen timed out.
+6. Use Share feedback to record actual outcomes, the device/browser and any source
+   or usability concern. A creator's confidence answer is not scholarly review.
+
+Automated invitation/workspace/draft/export/publish checks and synthetic browser
+feedback checks do not replace this real-device, fresh-Meta creator session.
+
 ## Website versus mobile app
 
 Keep the responsive website for the pilot. It supports quick invitation links and immediate fixes while preserving one backend and interface. Evaluate an installable PWA after real-device checks; do not cache private invitation responses or authenticated API responses in a future service worker. iOS/Android installation steps and capabilities differ, and some in-app browsers do not support installation: https://web.dev/learn/pwa/installation

@@ -8,6 +8,7 @@ import threading
 import queue
 import requests
 import json
+import time
 from datetime import datetime, timezone
 from pythonjsonlogger import jsonlogger
 from .config import settings
@@ -47,6 +48,10 @@ class AxiomHandler(logging.Handler):
     def __init__(self):
         super().__init__()
         self.queue = queue.Queue(maxsize=10000)
+        self._delivery_lock = threading.Lock()
+        self._unconfirmed_events = 0
+        self._failed_batches = 0
+        self._last_delivery_notice = None
         self.worker = threading.Thread(target=self._ship_logs, daemon=True)
         self.worker.start()
         
@@ -65,7 +70,8 @@ class AxiomHandler(logging.Handler):
 
     def _send_to_axiom(self, batch):
         if not settings.axiom_token or not settings.axiom_dataset:
-            return
+            self._delivery_notice(False, len(batch), "not_configured")
+            return False
             
         url = f"{settings.axiom_url.rstrip('/')}/v1/datasets/{settings.axiom_dataset}/ingest"
         headers = {
@@ -76,9 +82,47 @@ class AxiomHandler(logging.Handler):
             headers["X-Axiom-Org-Id"] = settings.axiom_org_id
             
         try:
-            requests.post(url, headers=headers, json=batch, timeout=5.0)
+            response = requests.post(url, headers=headers, json=batch, timeout=5.0)
+            if not 200 <= response.status_code < 300:
+                self._delivery_notice(False, len(batch), "http_rejected", response.status_code)
+                return False
+            result = response.json()
+            if not isinstance(result, dict) or result.get("failed") != 0 or result.get("ingested") != len(batch):
+                self._delivery_notice(False, len(batch), "unconfirmed_ingestion")
+                return False
         except Exception:
-            pass # Never crash the main application thread if logging fails
+            self._delivery_notice(False, len(batch), "request_failed")
+            return False
+        self._delivery_notice(True, 0)
+        return True
+
+    def _delivery_notice(self, success, count, reason=None, status=None):
+        """Report to Railway's console directly, never back through this handler.
+
+        Do not include log payloads, response bodies, URLs or exception strings.
+        Unconfirmed counts can include a partially accepted batch; no blind retry.
+        """
+        try:
+            with self._delivery_lock:
+                if success and not self._failed_batches:
+                    return
+                if not success:
+                    self._failed_batches += 1
+                    self._unconfirmed_events += count
+                now = time.monotonic()
+                if not success and self._last_delivery_notice is not None and now - self._last_delivery_notice < 60:
+                    return
+                notice = {"event": "log_delivery_recovered" if success else "log_delivery_failed",
+                          "level": "INFO" if success else "ERROR", "reason": reason,
+                          "http_status": status, "failed_batches": self._failed_batches,
+                          "unconfirmed_events": self._unconfirmed_events}
+                sys.stderr.write(json.dumps(notice) + "\n")
+                self._last_delivery_notice = now
+                if success:
+                    self._failed_batches = self._unconfirmed_events = 0
+                    self._last_delivery_notice = None
+        except Exception:
+            pass  # Observability failures cannot break application requests.
             
     def emit(self, record):
         if not settings.axiom_token:
@@ -88,7 +132,7 @@ class AxiomHandler(logging.Handler):
             log_entry = self.format(record)
             self.queue.put_nowait(json.loads(log_entry))
         except Exception:
-            self.handleError(record)
+            self._delivery_notice(False, 1, "queue_or_format_failed")
 
 def setup_logging():
     logger = logging.getLogger()
