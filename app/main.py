@@ -150,7 +150,7 @@ class ComingSoonMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         allowed_prefixes = [
-            "/login", "/register", "/auth", "/static", "/favicon.ico", "/api/contact", "/health", "/ready", "/api-test", "/demo",
+            "/join", "/login", "/register", "/auth", "/static", "/favicon.ico", "/api/contact", "/health", "/ready", "/api-test", "/demo",
             "/contact", "/privacy", "/terms", "/docs", "/redoc", "/openapi.json", "/generate-caption", "/generate-quote-card", "/api/waitlist",
             "/api/quran", "/api/quote-card/build-message", "/api/caption/generate", "/library", "/api/library", "/app/library"
         ]
@@ -414,6 +414,8 @@ app.include_router(media.router)
 from .routes import admin_diag
 app.include_router(admin_diag.router)
 app.include_router(auth.router)
+from .routes import tester_access
+app.include_router(tester_access.router)
 app.include_router(auth_google.router)
 app.include_router(auth_ig.router)
 app.include_router(auth_ig.meta_alias_router)

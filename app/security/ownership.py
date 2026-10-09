@@ -27,6 +27,8 @@ def require_account(db: Session, org_id: int, account_id, *, active: bool = Fals
         raise HTTPException(status_code=403, detail="Instagram account is not in your workspace")
     if active and (not account.active or not account.ig_user_id or not account.access_token):
         raise HTTPException(status_code=422, detail="Instagram account is inactive or disconnected. Reconnect it in Settings.")
+    from app.security.tester_access import require_workspace_access
+    require_workspace_access(db, org_id)
     return account
 
 

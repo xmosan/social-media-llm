@@ -98,7 +98,10 @@ def get_current_org_id(
     db: Session = Depends(get_db)
 ) -> int:
     from app.security.usage_context import bind_workspace
-    return bind_workspace(_resolve_current_org_id(request, user, org_id, db))
+    from app.security.tester_access import require_workspace_access
+    resolved = _resolve_current_org_id(request, user, org_id, db)
+    require_workspace_access(db, resolved)
+    return bind_workspace(resolved)
 
 
 def require_superadmin(user: User = Depends(require_user)) -> User:

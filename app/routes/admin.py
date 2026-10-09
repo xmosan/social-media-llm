@@ -287,6 +287,7 @@ HTML = r"""<!doctype html>
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
         </button>
         <div class="h-8 w-px bg-brand/10 mx-1"></div>
+        <a href="/admin/testers" class="text-sm font-bold text-brand">Tester access</a>
         <a href="/logout" class="text-[10px] font-bold uppercase tracking-widest text-rose-500 hover:text-rose-600 transition-colors">Sign Out</a>
       </div>
     </div>

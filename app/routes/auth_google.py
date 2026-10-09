@@ -9,6 +9,8 @@ from app.db import get_db
 from app.models import User, Org, OrgMember
 from app.security.auth import create_access_token, clear_legacy_domain_cookie
 from app.config import settings
+from app.security.tester_access import user_can_sign_in
+from app.services.registration import provision_creator
 from datetime import timedelta
 
 router = APIRouter(prefix="/auth/google", tags=["auth"])
@@ -73,7 +75,7 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
     if not user:
         user = db.query(User).filter(func.lower(User.email) == email.lower()).first()
     if user:
-        if not user.is_active or (user.google_id and user.google_id != google_id):
+        if not user_can_sign_in(user) or (user.google_id and user.google_id != google_id):
             raise HTTPException(403, "This account cannot sign in. Please contact support.")
         if not user.google_id:
             user.google_id = google_id
@@ -81,16 +83,8 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
         if not settings.signup_enabled:
             return RedirectResponse(url="/login?error=registration_closed", status_code=303)
         name = user_info.get("name") or "Creator"
-        user = User(email=email, name=name, google_id=google_id,
-                    is_active=True, is_superadmin=False, onboarding_complete=False)
-        db.add(user)
         try:
-            db.flush()
-            org = Org(name=f"{name}'s Workspace")
-            db.add(org)
-            db.flush()
-            db.add(OrgMember(org_id=org.id, user_id=user.id, role="owner"))
-            user.active_org_id = org.id
+            user, org = provision_creator(db, email=email, name=name, google_id=google_id)
         except IntegrityError:
             db.rollback()
             raise HTTPException(409, "Sign-in changed while processing. Please start again.") from None
