@@ -104,6 +104,30 @@
     toolbar.append(b);
   }
   design.prepend(toolbar);
+  // Enlarge the existing image and pager, preserving load/review tracking.
+  const preview = byId("cardPreviewContainer"), pager = byId("sequenceNavigation");
+  const previewHome = document.createComment("preview home");
+  const pagerHome = document.createComment("pager home");
+  preview.before(previewHome); pager.before(pagerHome);
+  const reader = document.createElement("dialog");
+  reader.id = "creatorPreviewDialog";
+  reader.setAttribute("aria-label", "Review your images");
+  reader.innerHTML = '<div class="cw-reader-heading"><strong>Review your images</strong><button type="button" class="cw-secondary">Back to editor</button></div><div class="cw-reader-pages"></div><p>Check each page at reading size. Return to the editor to confirm your review.</p>';
+  modal.append(reader);
+  const expand = document.createElement("button");
+  expand.type = "button"; expand.id = "creatorExpandPreview";
+  expand.className = "cw-edit-design"; expand.textContent = "Larger preview";
+  editDesign.before(expand);
+  expand.onclick = () => {
+    if (byId("quoteCardPreview").classList.contains("hidden") || reader.open) return;
+    reader.querySelector(".cw-reader-pages").append(preview, pager);
+    reader.showModal();
+  };
+  reader.querySelector("button").onclick = () => reader.close();
+  window.onCreatorPageChanged = () => { if (reader.open) reader.scrollTop = 0; };
+  reader.addEventListener("close", () => {
+    previewHome.after(preview); pagerHome.after(pager); expand.focus();
+  });
   function showTool(key) {
     for (const pane of design.querySelectorAll("[data-editor-pane]"))
       pane.hidden = pane.dataset.editorPane !== key;
@@ -192,6 +216,9 @@
     byId("creatorDiscoveryResults").replaceChildren();
     byId("creatorDiscoveryStatus").textContent = "";
     byId("creatorSaveState").textContent = "";
+    window.creatorSaveBusy(false);
+    byId("studioSaveStatus").textContent = "";
+    modal.querySelector(".cw-draft-menu").open = false;
     notice.classList.add("hidden");
     byId("captionResultArea").classList.remove("hidden");
     byId("btnGenerateCaption").disabled = false;
@@ -213,6 +240,7 @@
     byId("creatorIdea").focus();
   };
   window.closeNewPostModal = function () {
+    if (reader.open) reader.close();
     oldClose();
     cancelDiscovery();
     isolatePage(false);
@@ -419,6 +447,11 @@
   window.creatorCloudSaved = () => {
     byId("creatorSaveState").textContent = "Saved to your workspace";
   };
+  window.creatorSaveBusy = (busy) => {
+    const button = byId("studioSaveDraftButton");
+    button.disabled = busy;
+    button.textContent = busy ? "Saving…" : "Save draft";
+  };
   window.creatorRecoveryStatus = (ok) => {
     byId("studioSaveStatus").textContent = "";
     byId("creatorSaveState").textContent = ok
@@ -495,8 +528,8 @@
       byId("captionResultArea").classList.remove("hidden");
       byId("studioCaption").parentNode.before(panel);
     } else {
-      showTool("ask");
-      ask.prepend(panel);
+      showTool("words");
+      byId("editSupporting").parentNode.before(panel);
     }
     panel.focus();
   };
@@ -550,6 +583,7 @@
   }
   // Focus stays in the editor; Escape closes without discarding recovery.
   modal.addEventListener("keydown", (e) => {
+    if (reader.open) return; // Native dialog handles Escape and focus containment.
     if (!byId("editPostModal").classList.contains("hidden")) return;
     if (e.key === "Escape") {
       e.preventDefault();

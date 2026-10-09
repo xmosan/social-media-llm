@@ -901,3 +901,58 @@ button:disabled {
 @media (max-width:350px) {
   #newPostModal .cw-design-pickers { grid-template-columns:minmax(0,1fr); }
 }
+
+/* Final phone review: readable previews, compact persistence, explicit sharing. */
+#newPostModal summary { min-height:44px; }
+#newPostModal .cw-save-row { display:grid; grid-template-columns:auto 1fr auto; align-items:center; margin-bottom:16px; padding-bottom:12px; }
+#newPostModal .cw-save-row > button { grid-column:1; grid-row:1; }
+#newPostModal #creatorSaveState { grid-column:2; grid-row:1; font-size:11px; }
+#newPostModal #studioSaveStatus { grid-column:1/-1; font-size:13px; overflow-wrap:anywhere; }
+#newPostModal #studioSaveStatus:empty { display:none; }
+#newPostModal .cw-draft-menu { grid-column:3; grid-row:1; position:relative; }
+#newPostModal .cw-draft-menu summary { padding:0 8px; gap:6px; font-size:13px; }
+#newPostModal .cw-draft-menu > div { position:absolute; right:0; top:48px; width:min(270px,75vw); padding:14px; border:1px solid var(--cw-line); background:#fff; border-radius:14px; box-shadow:0 10px 25px #193e3020; z-index:20; }
+#newPostModal .cw-draft-menu p { font-size:12px; color:var(--cw-muted); line-height:1.5; margin-top:8px; }
+#newPostModal .cw-preview-column { position:relative; }
+#newPostModal #creatorExpandPreview { align-self:flex-start; }
+#newPostModal .cw-edit-design:not(#creatorExpandPreview) { position:absolute; right:0; top:0; }
+#newPostModal .cw-preview-column:has(#quoteCardPreview.hidden) #creatorExpandPreview { display:none; }
+#newPostModal #sequenceNavigation[data-single-page="true"] { justify-content:center; }
+#newPostModal #sequenceNavigation[data-single-page="true"] button { display:none; }
+#newPostModal #sequenceReviewLabel { padding:12px 0; min-height:48px; align-items:center; line-height:1.5; }
+#newPostModal #sequenceReviewCheck { width:20px; height:20px; flex:none; accent-color:var(--cw-ink); }
+#newPostModal #cardActions { width:100%; }
+#newPostModal #cardActions button { width:100%; border-radius:14px; font-size:14px; text-transform:none; letter-spacing:0; }
+#newPostModal #creatorPreviewDialog { width:min(100%,520px); max-width:100vw; max-height:100dvh; height:100dvh; margin:auto; padding:0 16px 20px; border:0; background:var(--cw-paper); color:var(--cw-ink); overflow-y:auto; }
+#creatorPreviewDialog::backdrop { background:#12251ee8; }
+#newPostModal .cw-reader-heading { position:sticky; top:0; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; background:var(--cw-paper); z-index:4; }
+#newPostModal .cw-reader-heading strong { font-size:15px; }
+#newPostModal .cw-reader-heading button { font-size:13px; padding:8px 12px; }
+#newPostModal .cw-reader-pages { display:grid; gap:12px; justify-items:center; }
+#newPostModal #creatorPreviewDialog #cardPreviewContainer { width:100%; max-width:100%; }
+#newPostModal #creatorPreviewDialog > p { margin-top:16px; font-size:13px; line-height:1.6; }
+#newPostModal .cw-share-grid { gap:18px; }
+#newPostModal .cw-share-preview { align-self:start; padding:12px 16px; border:1px solid var(--cw-line); border-radius:16px; }
+#newPostModal .cw-share-preview > div { margin-top:12px; }
+#newPostModal .cw-share-panel { padding:18px; border-radius:18px; }
+#newPostModal .cw-share-panel > * + * { margin-top:18px; }
+#newPostModal .cw-share-choice legend { font-size:14px; font-weight:600; margin-bottom:10px; }
+#newPostModal .cw-share-choice label { display:flex; align-items:center; gap:10px; padding:12px; min-height:48px; font-size:15px; border:1px solid var(--cw-line); border-radius:12px; margin:8px 0; }
+#newPostModal .cw-share-choice label:has(:checked) { background:#e9f0e2; border-color:#809976; }
+#newPostModal .cw-share-choice input { accent-color:var(--cw-ink); width:18px; height:18px; }
+#newPostModal #studioSubmitBtn, #newPostModal #studioShareNowBtn { letter-spacing:0; text-transform:none; font-size:15px; min-height:52px; padding:14px; border-radius:14px; }
+#newPostModal [hidden] { display:none !important; }
+@media (max-width:767px) {
+  #newPostModal #cardPreviewContainer { width:100%; max-width:100%; }
+  #newPostModal #cardPreviewContainer[data-format="story"] { max-width:320px; }
+  #newPostModal #cardMessageWorkspace { padding:16px; border-radius:16px; }
+  #newPostModal #studioCaption { padding:16px; border-radius:16px; }
+  #newPostModal #composerForm > div { padding:12px 18px max(28px,env(safe-area-inset-bottom)) !important; }
+  #newPostModal .cw-share-panel { order:0; }
+  #newPostModal .cw-share-preview { order:1; }
+  #newPostModal .cw-share-panel > div:has(#manifestAccount), #newPostModal #shareSourceBadge { padding:12px; gap:10px; }
+  #newPostModal #manifestAccountStatus { font-size:10px !important; }
+}
+#newPostModal .cw-share-panel .text-brand\/40,
+#newPostModal .cw-share-panel .text-accent\/60 { color:var(--cw-muted); }
+@media (max-width:767px) { #newPostModal #presenceCardThumb { display:none; } }
