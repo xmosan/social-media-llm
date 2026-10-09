@@ -178,13 +178,13 @@ APP_DASHBOARD_CONTENT = """
 SELECT_ACCOUNT_HTML = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer"><title>Connect Instagram · Sabeel Studio</title>
-<style>body{margin:0;background:#f7f8f0;color:#143e31;font:16px/1.5 system-ui}main{max-width:520px;margin:6vh auto;padding:24px}h1{font:36px/1.15 Georgia;margin:28px 0 14px}p{color:#52665c}.account{display:flex;gap:14px;align-items:center;padding:18px;border:1px solid #c8d2c5;border-radius:14px;background:white;margin:12px 0;cursor:pointer}.account input{width:22px;height:22px;accent-color:#143e31;flex-shrink:0}.account span{overflow-wrap:anywhere}.account small{display:block;color:#647366}button,.back{display:block;width:100%;min-height:48px;margin:14px 0;padding:14px;border-radius:26px;font:inherit;font-weight:650;box-sizing:border-box;text-align:center}button{background:#143e31;color:white;border:0;cursor:pointer}button:disabled{opacity:.5;cursor:default}.back{color:#143e31;background:transparent;border:1px solid #c8d2c5;text-decoration:none}#status{padding:14px 0;min-height:24px}#status.error{color:#963d2d}small{font-size:14px}:focus-visible{outline:3px solid #a76c22;outline-offset:4px}</style></head>
-<body><main><strong>Sabeel Studio</strong><h1>Choose your Instagram accounts</h1><p>Select the accounts you want to connect. Existing accounts can be reconnected to refresh access.</p>
+<style>body{margin:0;background:#f7f8f0;color:#143e31;font:16px/1.5 system-ui}main{max-width:520px;margin:6vh auto;padding:24px}h1{font:36px/1.15 Georgia;margin:28px 0 14px}p{color:#52665c}.account{display:flex;gap:14px;align-items:center;padding:18px;border:1px solid #c8d2c5;border-radius:14px;background:white;margin:12px 0;cursor:pointer}.account input{width:22px;height:22px;accent-color:#143e31;flex-shrink:0}.account span{overflow-wrap:anywhere}.account small{display:block;color:#647366}button,.back{display:block;width:100%;min-height:48px;margin:14px 0;padding:14px;border-radius:26px;font:inherit;font-weight:650;box-sizing:border-box;text-align:center}button{background:#143e31;color:white;border:0;cursor:pointer}button:disabled{opacity:.5;cursor:default}[hidden]{display:none!important}.back.primary{background:#143e31;color:white}.back{color:#143e31;background:transparent;border:1px solid #c8d2c5;text-decoration:none}#status{padding:14px 0;min-height:24px}#status.error{color:#963d2d}small{font-size:14px}:focus-visible{outline:3px solid #a76c22;outline-offset:4px}</style></head>
+<body><main><strong>Sabeel Studio</strong><h1 id="connection-heading">Choose your Instagram accounts</h1><p id="connection-intro">Select the accounts you want to connect. Existing accounts can be reconnected to refresh access.</p>
 <div id="status" role="status" aria-live="polite">Loading your accounts…</div><div id="account-grid"></div>
 <button id="continue-btn" type="button" disabled>Connect selected accounts</button>
-<a class="back" href="/app">Back to your workspace</a><a class="back" href="/auth/instagram/login">Start connection again</a>
+<a class="back" href="/app">Back to your workspace</a><a id="restart-link" class="back" href="/auth/instagram/login">Start connection again</a>
 <small>Your existing accounts and posts stay in place. Nothing will be published by connecting an account.</small></main>
-<script src="/static/instagram-connect.js?v=1" defer></script></body></html>"""
+<script src="/static/instagram-connect.js?v=2" defer></script></body></html>"""
 
 ONBOARDING_HTML = """<!doctype html>
 <html lang="en">
@@ -380,25 +380,15 @@ ONBOARDING_HTML = """<!doctype html>
 """
 
 def get_active_context(db: Session, user: User, org_id: int):
-    """
-    Centralized helper to fetch the active IGAccount for an organization.
-    Handles auto-activation if no account is marked active.
-    """
-    from app.models import IGAccount
-    accs = db.query(IGAccount).filter(IGAccount.org_id == org_id).all()
+    """Read account context without changing a disconnected/disabled account."""
+    accs = db.query(IGAccount).filter(IGAccount.org_id == org_id).order_by(IGAccount.id).all()
     if not accs:
         return None, [], False
-        
     active_acc = next((a for a in accs if a.active), None)
-    
-    # Auto-healing: ensure at least one is active if any exist
-    if not active_acc and accs:
-        active_acc = accs[0]
-        active_acc.active = True
-        db.commit()
-        db.refresh(active_acc)
-        
-    return active_acc, accs, True
+    # Keep saved posts visible for a disconnected account, but never restore access
+    # or activation as a side effect of opening a page.
+    return active_acc or accs[0], accs, bool(active_acc and active_acc.access_token)
+
 
 def render_app_page(title, content, user, org, active_tab, db: Session = None, extras=None):
     from .ui_assets import APP_LAYOUT_HTML, STUDIO_COMPONENTS_HTML, STUDIO_SCRIPTS_JS, CONNECT_INSTAGRAM_MODAL_HTML

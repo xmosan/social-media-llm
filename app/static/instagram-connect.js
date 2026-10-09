@@ -18,7 +18,24 @@
       throw error;
     } finally { clearTimeout(timeout); }
   }
+  function offerRestart() {
+    button.hidden = true;
+    document.getElementById('restart-link').classList.toggle('primary', true);
+  }
   async function initialize() {
+    const outcome = new URLSearchParams(window.location.search).get('connection');
+    const outcomes = new Map([
+      ['cancelled', 'Connection cancelled. Your existing accounts are unchanged.'],
+      ['no-accounts', 'No eligible accounts were returned. Check your Facebook Page connection and permissions, then start again.'],
+      ['unavailable', 'Instagram could not complete this connection. Please try again.']
+    ]);
+    if (outcomes.has(outcome)) {
+      document.getElementById('connection-heading').textContent = 'Connect Instagram';
+      document.getElementById('connection-intro').textContent = 'Your workspace and saved posts are still here. You can return or start the connection again.';
+      offerRestart();
+      message(outcomes.get(outcome), outcome !== 'cancelled');
+      return;
+    }
     try {
       const [available, connected] = await Promise.all([request('/accounts/available'), request('/accounts/connected')]);
       if (!Array.isArray(available) || !Array.isArray(connected)) throw new Error('Account discovery could not be loaded. Start again.');
@@ -28,12 +45,13 @@
         const label = document.createElement('label'); label.className = 'account';
         const input = document.createElement('input'); input.type = 'checkbox'; input.value = account.ig_user_id; inputs.push(input);
         const name = document.createElement('span'); name.textContent = account.username ? '@' + account.username : account.name;
-        const detail = document.createElement('small'); detail.textContent = connected.includes(account.ig_user_id) ? 'Already connected · select to refresh access' : 'Available to connect';
+        const detail = document.createElement('small'); detail.textContent = connected.includes(account.ig_user_id) ? 'Existing account · select to refresh access' : 'Available to connect';
         name.appendChild(detail); label.append(input, name); grid.appendChild(label);
         input.addEventListener('change', () => { input.checked ? selected.add(account.ig_user_id) : selected.delete(account.ig_user_id); updateButton(); message(selected.size ? `${selected.size} account${selected.size === 1 ? '' : 's'} selected.` : 'Choose at least one account to continue.'); });
       });
+      if (!accounts.length) offerRestart();
       message(accounts.length ? 'Choose at least one account to continue.' : 'No eligible accounts were returned. Check your Facebook Page connection and permissions, then start again.');
-    } catch (error) { message(error.message || 'Could not load accounts. Please start again.', true); }
+    } catch (error) { offerRestart(); message(error.message || 'Could not load accounts. Please start again.', true); }
   }
   button.addEventListener('click', async () => {
     if (saving || !selected.size) return;

@@ -34,7 +34,7 @@ async def instagram_callback(request: Request, code: str | None = None, state: s
     attempt_id = connection.claim_callback(db, request, user.id, org_id, state)
     if request.query_params.get("error") or not code:
         connection.abandon(db, request, attempt_id)
-        return RedirectResponse("/app?error=Instagram%20connection%20was%20cancelled.%20You%20can%20try%20again.", status_code=303)
+        return RedirectResponse("/select-account?connection=cancelled", status_code=303)
     try:
         async with asyncio.timeout(60):
             short_token = await instagram_auth_service.exchange_code_for_token(code)
@@ -42,13 +42,13 @@ async def instagram_callback(request: Request, code: str | None = None, state: s
             accounts = await instagram_auth_service.discover_ig_business_account(token_data["access_token"])
         if not accounts:
             connection.abandon(db, request, attempt_id)
-            return RedirectResponse("/app?error=No%20eligible%20Instagram%20accounts%20were%20returned.%20Check%20your%20Facebook%20Page%20connection%20and%20permissions.", status_code=303)
+            return RedirectResponse("/select-account?connection=no-accounts", status_code=303)
         connection.finish_discovery(db, attempt_id, accounts, token_data)
     except Exception:
         db.rollback()
         connection.abandon(db, request, attempt_id)
         log_event("ig_connection_failed", level="warning")
-        return RedirectResponse("/app?error=Instagram%20connection%20could%20not%20be%20completed.%20Please%20try%20again.", status_code=303)
+        return RedirectResponse("/select-account?connection=unavailable", status_code=303)
     return RedirectResponse("/select-account", status_code=303,
                             headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
 
