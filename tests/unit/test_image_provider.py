@@ -1,4 +1,5 @@
 import base64
+from contextlib import nullcontext
 from io import BytesIO
 from types import SimpleNamespace
 import unittest
@@ -22,6 +23,10 @@ def fixture_image():
 
 
 class ImageProviderTests(unittest.TestCase):
+    def setUp(self):
+        for stub in (patch("app.services.usage_limits.paid_call", side_effect=lambda kind: nullcontext()), patch.object(settings, "openai_api_key", "fixture")):
+            stub.start(); self.addCleanup(stub.stop)
+
     def test_portrait_size_is_retained_through_provider_fallback(self):
         result = provider.GeneratedImage(Image.new('RGB', (16, 16)), 'openai', settings.openai_image_fallback_model)
         with patch.object(provider, 'generate_openai_image', side_effect=[provider.ImageGenerationError('unavailable', 404), result]) as generate:

@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from app.services.usage_limits import UsageLimitError
 import logging
 import os
 import hashlib
@@ -99,6 +100,8 @@ def generate_visual(request: VisualRequest) -> VisualResult:
     except CardTypographyError as e:
         logger.warning("[VisualService] Card validation: %s", str(e))
         return VisualResult(url="", error=str(e), error_status=422)
+    except UsageLimitError:
+        raise
     except Exception as e:
         from app.services.image_provider import ImageGenerationError
         logger.error("[VisualService] Generation failed (%s)", type(e).__name__)

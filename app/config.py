@@ -60,6 +60,17 @@ class Settings(BaseSettings):
     
     # Feature Flags
     coming_soon_mode: bool = Field(default=True, env="COMING_SOON_MODE")
+    # Admission is independent of the landing page. Existing accounts can log in.
+    signup_enabled: bool = False
+    ai_generation_enabled: bool = True
+    ai_workspace_daily_images: int = Field(default=20, ge=1, le=1000)
+    ai_workspace_daily_text: int = Field(default=200, ge=1, le=10000)
+    ai_global_daily_images: int = Field(default=100, ge=1, le=10000)
+    ai_global_daily_text: int = Field(default=1000, ge=1, le=100000)
+    ai_workspace_concurrency: int = Field(default=2, ge=1, le=10)
+    ai_global_concurrency: int = Field(default=8, ge=1, le=50)
+    auth_identity_attempts: int = Field(default=10, ge=1, le=100)
+    auth_global_attempts: int = Field(default=300, ge=1, le=3000)
 
     ig_access_token: str | None = Field(default=None, env="IG_ACCESS_TOKEN")
     ig_user_id: str | None = Field(default=None, env="IG_USER_ID")

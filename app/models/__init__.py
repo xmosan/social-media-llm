@@ -8,6 +8,20 @@ from sqlalchemy.sql import func
 
 Base = declarative_base()
 
+class UsageBucket(Base):
+    """Bounded counters only: never store prompts, emails, tokens or provider data."""
+    __tablename__ = "usage_buckets"
+    key = Column(String(100), primary_key=True)
+    window_start = Column(DateTime(timezone=True), primary_key=True, index=True)
+    attempts = Column(Integer, nullable=False)
+
+
+class AIUsageLease(Base):
+    __tablename__ = "ai_usage_leases"
+    id = Column(String(36), primary_key=True)
+    org_id = Column(Integer, ForeignKey("orgs.id"), nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+
 from .waitlist import WaitlistEntry
 from .inbound_message import InboundMessage
 

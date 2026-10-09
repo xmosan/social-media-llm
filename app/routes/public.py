@@ -18,6 +18,19 @@ router = APIRouter()
 
 # --- HTML TEMPLATES (Embedded) ---
 
+PRIVATE_PREVIEW_HTML = """<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Private preview | Sabeel Studio</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f8f6f2;color:#173b30;font:17px/1.6 system-ui,sans-serif;min-height:100svh;display:grid;place-items:center;padding:24px}
+main{width:100%;max-width:460px;background:white;border:1px solid #dce2d8;border-radius:24px;padding:32px}
+h1{font-size:30px;line-height:1.2;margin:24px 0 16px}p{color:#53625b}.brand{font-weight:750;color:#173b30}
+a{display:block;text-align:center;padding:14px 18px;border-radius:14px;margin-top:12px;color:#173b30}a.primary{background:#153e30;color:white;text-decoration:none}
+a:focus-visible{outline:3px solid #628e79;outline-offset:4px}
+</style></head><body><main><div class="brand">Sabeel Studio</div>
+<h1>A little more care before we open.</h1><p>Sabeel is in private preview while we test the creator experience. New accounts are not open yet.</p>
+<p>Already have an account? Your sign-in still works.</p><a class="primary" href="/login">Sign in</a><a href="/">Visit the launch page</a>
+</main></body></html>"""
+
 LANDING_HTML = """<!doctype html>
 <html lang="en">
 <head>
@@ -1044,7 +1057,12 @@ def landing_page(user: Optional[User] = Depends(get_current_user)):
 
 @router.get("/login", response_class=HTMLResponse)
 def login_page(error: Optional[str] = None):
+    from app.config import settings
     html = LOGIN_HTML
+    if not settings.signup_enabled:
+        html = html.replace("Don't have an account?", "Sabeel is in private preview.").replace('>Create one</a>', '>About access</a>')
+    if error == "registration_closed":
+        html = html.replace('<form id="loginForm"', '<p role="status">New accounts are not open yet. Please use an existing Sabeel account.</p><form id="loginForm"')
     if error == "google_config_missing":
         error_banner = '<div class="text-xs font-bold text-rose-500 bg-rose-500/10 p-4 rounded-xl border border-rose-500/20 text-center mb-6">Google Sign-In is not configured on this server. Please check your Railway environment variables.</div>'
         html = html.replace('<h2 class="text-xl font-bold">Welcome back</h2>', error_banner + '<h2 class="text-xl font-bold">Welcome back</h2>')
@@ -1052,6 +1070,9 @@ def login_page(error: Optional[str] = None):
 
 @router.get("/register", response_class=HTMLResponse)
 def register_page(error: Optional[str] = None):
+    from app.config import settings
+    if not settings.signup_enabled:
+        return PRIVATE_PREVIEW_HTML
     html = REGISTER_HTML
     if error == "google_config_missing":
         error_banner = '<div class="text-xs font-bold text-rose-500 bg-rose-500/10 p-4 rounded-xl border border-rose-500/20 text-center mb-6">Google Sign-In is not configured on this server. Please check your Railway environment variables.</div>'

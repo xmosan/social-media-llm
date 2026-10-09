@@ -65,7 +65,7 @@ class PostgresChecks(unittest.TestCase):
         application = FastAPI()
         application.dependency_overrides[get_db] = lambda: self.db
         application.include_router(auth.router)
-        with TestClient(application, base_url='https://testserver') as client:
+        with patch.object(settings, 'signup_enabled', True), TestClient(application, base_url='https://testserver') as client:
             created = client.post('/auth/register', json={
                 'email': 'creator@example.com', 'name': 'Isolated Creator',
                 'password': 'disposable-creator-test-password',
@@ -282,6 +282,18 @@ class PostgresChecks(unittest.TestCase):
         stack.enter_context(patch.object(automation_runner, "validate_source_relevance", return_value={"accepted": True, "reason": "Fixture"}))
         stack.enter_context(patch("app.services.image_card.generate_quote_card", create=True, return_value=CDN))
         stack.enter_context(patch("app.services.llm.generate_card_framing_from_source", return_value={"supporting_text": "Fixture reflection"}))
+
+    def test_automation_budget_denial_stops_without_a_partial_post_or_more_ai_calls(self):
+        from app.services.usage_limits import UsageLimitError
+        self.automation_fixture()
+        with patch.object(automation_runner, 'generate_topic_variations', side_effect=UsageLimitError('Preview allowance reached')), \
+             patch.object(automation_runner, 'validate_source_relevance') as relevance:
+            with self.assertRaises(UsageLimitError):
+                automation_runner.run_automation_once(self.db, 1)
+        relevance.assert_not_called()
+        self.assertEqual(self.db.query(Post).count(), 0)
+        self.db.expire_all()
+        self.assertIn('Preview allowance reached', self.db.get(TopicAutomation, 1).last_error)
 
     def test_hadith_manual_approval_round_trip_and_shared_publication(self):
         from app.routes import posts

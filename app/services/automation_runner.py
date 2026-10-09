@@ -2,6 +2,7 @@
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
 import logging
+from app.services.usage_limits import UsageLimitError
 from typing import Any
 from datetime import datetime, timezone as dt_timezone, timedelta
 from sqlalchemy.orm import Session
@@ -225,6 +226,16 @@ def resolve_media_url(
     return None
 
 def run_automation_once(db: Session, automation_id: int, force_publish: bool = False, scheduled_for: datetime | None = None) -> Post | None:
+    # Scheduled jobs have no HTTP request context. Their owner is server-derived.
+    from app.security.usage_context import workspace_usage
+    automation = db.get(TopicAutomation, automation_id)
+    if not automation:
+        return None
+    with workspace_usage(automation.org_id):
+        return _run_automation_once(db, automation_id, force_publish, scheduled_for)
+
+
+def _run_automation_once(db: Session, automation_id: int, force_publish: bool = False, scheduled_for: datetime | None = None) -> Post | None:
     """
     Core engine to run one automation cycle using the decoupled Content Provider architecture.
     """
@@ -310,6 +321,8 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             import random
             topic = random.choice(variations)
             log_event("automation_topic_variation", automation_id=automation.id, original=topic_base, selected=topic)
+        except UsageLimitError:
+            raise
         except Exception as e:
             print(f"[AUTO] Topic variation failed: {e}")
             topic = topic_base
@@ -564,6 +577,8 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
             caption = result.get("caption", "").strip() if isinstance(result, dict) else (result or "").strip()
             hashtags = result.get("hashtags", []) if isinstance(result, dict) else []
             alt_text = result.get("alt_text", "") if isinstance(result, dict) else ""
+        except UsageLimitError:
+            raise
         except Exception as e:
             print(f"[AUTO] LLM Generation failed: {e}")
             automation.last_error = f"LLM Generation failed: {str(e)}"
@@ -650,6 +665,8 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                     db.commit()
                     return None
 
+            except UsageLimitError:
+                raise
             except Exception as e:
                 print(f"[AUTO] Premium Quote card rendering failed: {e}")
                 import traceback; traceback.print_exc()
@@ -667,6 +684,8 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                     media_tag_query=automation.media_tag_query,
                     content_concept=concepts
                 )
+            except UsageLimitError:
+                raise
             except Exception as e:
                 print(f"[AUTO] Media resolution error: {e}")
 
@@ -851,6 +870,8 @@ def run_automation_once(db: Session, automation_id: int, force_publish: bool = F
                 db.commit()
         except:
             pass
+        if isinstance(e, UsageLimitError):
+            raise
         return None
     finally:
         db.rollback()  # Release an uncommitted selection lock on early exits.
@@ -938,6 +959,8 @@ def recover_stale_media(post: Post, db: Session) -> bool:
         print(f"✅ [MEDIA_RECOVERY] new media url: {new_media_url}")
         return True
         
+    except UsageLimitError:
+        raise
     except Exception as e:
         print(f"❌ [MEDIA_RECOVERY_FAIL] regeneration failed: {e}")
         log_event("media_recovery_error", post_id=post.id, error=str(e))

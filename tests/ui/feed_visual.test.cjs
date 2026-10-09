@@ -82,3 +82,11 @@ test('direction changes drop the receipt and update the generation action', asyn
   assert.equal(requests[1].background_token,null);
   assert.equal(requests[1].visual_prompt,'night light');
 });
+test('budget denial retains a valid previous image and its review actions without automatic retry',async()=>{
+ let calls=0,hidden=false;
+ const f=setup(async()=>{calls++;return {ok:false,json:async()=>({detail:"Your workspace has reached today's image generation limit."})}});
+ f.context.currentQuoteCardUrl='saved-image';f.context.isQuoteCardOutOfDate=false;f.context.studioSequenceReviewed=true;
+ f.el('quoteCardPreview').src='saved-image';f.el('cardActions').classList={add:()=>hidden=true,remove:()=>hidden=false};
+ await f.generate();assert.equal(calls,1);assert.equal(hidden,false);assert.equal(f.context.studioSequenceReviewed,true);
+ assert.equal(f.el('quoteCardPreview').src,'saved-image');assert.match(f.el('visualQualityNote').textContent,/generation limit/);assert.equal(f.el('btnGenerateCard').disabled,false);
+});

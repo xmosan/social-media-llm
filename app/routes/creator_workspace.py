@@ -56,6 +56,7 @@ def render_creator_workspace(user, org, posts, account, view="home", accounts=()
             account_choice = f'<label class="cw-account-choice">Active Instagram account<select onchange="setActiveAccount(this.value)">{options}</select></label>'
         body = f'''<section class="cw-panel"><h2>{escape(org.name)}</h2><p>{escape(account_name)}</p>{account_choice}<a class="cw-secondary" href="/auth/instagram/login">Connect Instagram</a></section>
         <section class="cw-panel"><h2>Your brand</h2><p id="workspaceBrandSummary">{escape(signature)} · {escape(brand.get('series_name') or 'Your next series')}</p><button type="button" class="cw-primary" onclick="openCreatorBrand()">Edit brand kit</button></section>
+        <details class="cw-panel" id="creatorUsage"><summary>Preview generation allowance</summary><p id="creatorUsageStatus" role="status">Open to check today's allowance.</p><p class="cw-note">Shared across this workspace and its automations. Provider attempts count even if they fail; layout edits using a saved photograph do not use image allowance.</p></details>
         <div class="cw-link-list"><a href="/app/automations">Reminder streams <span>Recurring creation and schedules →</span></a><a href="/app/library">Source library <span>Browse your knowledge library →</span></a><a href="/app/media">Visual library <span>Manage your images →</span></a></div>
         <button type="button" class="cw-secondary" onclick="logout()">Sign out</button>'''
     else:

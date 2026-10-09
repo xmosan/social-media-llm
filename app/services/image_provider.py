@@ -112,24 +112,30 @@ def generate_configured_image(prompt: str, *, engine: str = "dalle", size: str =
     Timeouts, authentication failures and content refusals never cause a second charge.
     """
     from app.config import settings
+    from app.services.usage_limits import paid_call, UsageLimitError
     if engine not in {"dalle", "openai", "gemini"}:
         raise ImageGenerationError("unsupported_image_engine")
+    if not settings.openai_api_key:
+        raise ImageGenerationError("provider_not_configured")
+    if size not in {"1024x1024", "1024x1536", "1536x1024", "1088x1360", "1152x2048"}:
+        raise ImageGenerationError("unsupported_image_size")
+    if len(prompt) > 12000:
+        raise UsageLimitError("This background direction is too long. Shorten the direction and try again.", 422)
     primary = settings.openai_image_model
     fallback = settings.openai_image_fallback_model
+    def attempt(model):
+        with paid_call("image"):
+            return generate_openai_image(
+                prompt, api_key=settings.openai_api_key, model=model,
+                quality=settings.openai_image_quality, timeout=settings.image_generation_timeout_seconds,
+                size=size,
+            )
     try:
-        result = generate_openai_image(
-            prompt, api_key=settings.openai_api_key, model=primary,
-            quality=settings.openai_image_quality, timeout=settings.image_generation_timeout_seconds,
-            size=size,
-        )
+        result = attempt(primary)
     except ImageGenerationError as exc:
         logger.warning("[VISION] model=%s code=%s status=%s", primary, exc.code, exc.status)
         if exc.status not in {404, 429, 503} or not fallback or fallback == primary:
             raise
-        result = generate_openai_image(
-            prompt, api_key=settings.openai_api_key, model=fallback,
-            quality=settings.openai_image_quality, timeout=settings.image_generation_timeout_seconds,
-            size=size,
-        )
+        result = attempt(fallback)
     logger.info("[VISION] provider=%s model=%s quality=%s", result.provider, result.model, settings.openai_image_quality)
     return result
