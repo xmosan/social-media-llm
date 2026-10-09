@@ -1606,6 +1606,8 @@ STUDIO_SCRIPTS_JS = r"""
 
     window.submitNewPost = async function(event) {
         if (event) event.preventDefault();
+        // Phone keyboards submit forms from source/design inputs too. Only Share may schedule.
+        if (document.getElementById('newPostModal')?.getAttribute('data-step') !== '4') return;
         if (document.getElementById('studioSubmitBtn').hidden || studioSaveBusy) return;
         const btn = document.getElementById('studioSubmitBtn');
         const original = btn.innerHTML;
