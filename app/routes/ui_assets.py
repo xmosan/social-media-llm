@@ -1079,6 +1079,12 @@ STUDIO_SCRIPTS_JS = r"""
         window.rememberStudio();
         window.switchStudioSection(3);
     };
+    window.changeStudioReview = function() {
+        // Checking the box still requires the explicit Continue action. Unchecking
+        // must immediately revoke an earlier confirmation in this editor session.
+        if (!document.getElementById('sequenceReviewCheck').checked) studioSequenceReviewed = false;
+        window.rememberStudio();
+    };
     function restoreStudioPayload(data, {dirty=false, format, layout, direction, entry, source_tab, custom_prompt, tone, include_reflection, schedule}={}) {
         if (source_tab && window.switchSourceTab) window.switchSourceTab(source_tab);
         studioPostId = data.post_id || null;
@@ -3128,7 +3134,7 @@ STUDIO_COMPONENTS_HTML = """
                         <span id="sequencePageLabel" role="status" class="text-center text-xs"></span>
                         <button type="button" id="sequenceNext" onclick="moveStudioPage(1)" disabled class="p-3 border rounded-xl">Next</button>
                     </div>
-                    <label id="sequenceReviewLabel" class="flex items-start gap-2 text-sm max-w-[390px]"><input type="checkbox" id="sequenceReviewCheck" disabled> I reviewed every page, the full source, Arabic and separate reflection.</label>
+                    <label id="sequenceReviewLabel" class="flex items-start gap-2 text-sm max-w-[390px]"><input type="checkbox" id="sequenceReviewCheck" onchange="changeStudioReview()" disabled> I reviewed every page, the full source, Arabic and separate reflection.</label>
                     <div id="cardActions" class="hidden flex gap-3">
                         <button type="button" onclick="confirmStudioSequence()" class="px-8 py-3 bg-brand text-white rounded-xl text-[9px] font-black uppercase tracking-widest">Continue to caption &rarr;</button>
                     </div>
