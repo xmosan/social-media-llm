@@ -19,7 +19,13 @@
       const response = await fetch('/api/creator-feedback', {method: 'POST', credentials: 'same-origin',
         headers: {'Content-Type': 'application/json'}, signal: controller.signal,
         body: JSON.stringify({...answers, request_id: attempt.request_id})});
-      const data = await response.json();
+      if (response.redirected) {
+        $('feedback-recovery').hidden = false;
+        throw new Error('Your session may have ended. Sign in again, then return here to retry.');
+      }
+      let data;
+      try { data = await response.json(); }
+      catch (_) { throw new Error('We couldn’t confirm it saved. Please retry with the same answers.'); }
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) $('feedback-recovery').hidden = false;
         throw new Error(typeof data.detail === 'string' ? data.detail : 'Your feedback could not be saved. Please retry.');

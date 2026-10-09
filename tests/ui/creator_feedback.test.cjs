@@ -23,3 +23,7 @@ test('expired access offers sign in, invalid response never claims success',asyn
  const n=setup(async()=>({ok:false,status:401,json:async()=>({detail:'Please sign in.'})}));await n['feedback-form'].listeners.submit(event);assert.equal(n['feedback-recovery'].hidden,false);assert.equal(n['feedback-form'].hidden,false);assert.match(n.status.textContent,/sign in/);
  const broken=setup(async()=>({ok:true,json:async()=>({})}));await broken['feedback-form'].listeners.submit(event);assert.match(broken.status.textContent,/confirm/);assert.equal(broken.notes.value,'notes');
 });
+test('login-wall redirects and non-JSON failures retain answers with useful recovery',async()=>{
+ const n=setup(async()=>({ok:true,redirected:true,json:async()=>{throw new Error('must not read landing page')}}));await n['feedback-form'].listeners.submit(event);assert.equal(n['feedback-recovery'].hidden,false);assert.match(n.status.textContent,/session may have ended/);assert.equal(n.notes.value,'notes');
+ const broken=setup(async()=>({ok:false,status:503,json:async()=>{throw new SyntaxError('private HTML body')}}));await broken['feedback-form'].listeners.submit(event);assert.match(broken.status.textContent,/confirm/);assert.doesNotMatch(broken.status.textContent,/private/);assert.equal(broken['feedback-submit'].disabled,false);
+});
