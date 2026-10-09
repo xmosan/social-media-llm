@@ -176,242 +176,15 @@ APP_DASHBOARD_CONTENT = """
 """
 
 SELECT_ACCOUNT_HTML = """<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Choose Account | Sabeel Studio</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: '#0F3D2E',
-            'brand-hover': '#0A2D22',
-            accent: '#C9A96E',
-            cream: '#F8F6F2',
-            neutral: '#F8F8F6'
-          }
-        }
-      }
-    }
-  </script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Inter', sans-serif; background-color: #F8F6F2; color: #1A1A1A; }
-    .animate-in { animation: fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
-    @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-    .card-shadow { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
-    .card-shadow-hover { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02); }
-    .selected-card { border-color: #0F3D2E !important; background-color: rgba(15, 61, 46, 0.02) !important; box-shadow: 0 10px 15px -3px rgba(15, 61, 46, 0.1) !important; }
-  </style>
-</head>
-<body class="min-h-screen flex flex-col items-center justify-center p-6 md:p-10 relative bg-cream">
-    <!-- Top-Right Cancel -->
-    <a href="/app" class="absolute top-8 right-8 text-[11px] font-bold uppercase tracking-widest text-gray-400 hover:text-brand transition-colors flex items-center gap-2 group">
-        Cancel
-        <svg class="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-    </a>
-
-    <div class="max-w-[560px] w-full space-y-10 animate-in">
-        <!-- Header -->
-        <div class="space-y-4">
-            <div class="w-10 h-10 bg-brand/5 rounded-xl flex items-center justify-center text-brand">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.058-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.791-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.209-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
-            </div>
-            <div class="space-y-1">
-                <h1 class="text-3xl font-extrabold text-brand tracking-tight">Connect Your Meta Account</h1>
-                <p class="text-[13px] font-medium text-gray-500">Pick which professional accounts to authorize for Sabeel Studio</p>
-            </div>
-        </div>
-
-        <!-- Account List -->
-        <div id="account-grid" class="space-y-4">
-            <!-- Loading Skeletons -->
-            <div class="bg-white border border-gray-100 rounded-2xl p-5 flex items-center justify-between card-shadow animate-pulse">
-                <div class="flex items-center gap-4">
-                    <div class="w-12 h-12 bg-gray-50 rounded-full"></div>
-                    <div class="space-y-2">
-                        <div class="h-4 bg-gray-50 rounded w-32"></div>
-                        <div class="h-3 bg-gray-50 rounded w-20"></div>
-                    </div>
-                </div>
-                <div class="h-9 w-24 bg-gray-50 rounded-lg"></div>
-            </div>
-        </div>
-
-        <!-- Continue Action -->
-        <div id="libraryContainer" class="flex flex-col h-full bg-[#F8F6F2]">
-        <!-- UI VERSION: 5.2 (ULTRA-HARDENED) -->
-            <button id="continue-btn" onclick="saveSelected()" class="w-full py-4 bg-brand text-white rounded-2xl font-bold text-[13px] uppercase tracking-widest hover:bg-brand-hover transition-all shadow-xl shadow-brand/10 hover:shadow-brand/20 disabled:opacity-50 disabled:cursor-not-allowed">
-                Continue to Dashboard
-            </button>
-            <p class="text-[10px] text-gray-400 text-center mt-4">You can always add more accounts later in Settings</p>
-        </div>
-
-        <div id="empty-state" class="hidden text-center py-16 space-y-6 bg-white rounded-3xl border border-gray-100 card-shadow">
-            <div class="w-14 h-14 bg-rose-50 rounded-2xl flex items-center justify-center text-rose-300 mx-auto">!</div>
-            <div class="space-y-2 px-8">
-                <h3 class="text-lg font-bold text-brand">No Accounts Found</h3>
-                <p class="text-[12px] text-gray-500 max-w-xs mx-auto leading-relaxed">Ensure your Instagram account is set to 'Professional' and linked to a Facebook Page.</p>
-            </div>
-            <button onclick="window.location.href='/app'" class="px-8 py-3 bg-brand text-white rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-brand-hover transition-all">Go Back</button>
-        </div>
-
-        <div class="pt-6 flex items-center justify-between text-gray-400">
-            <div class="flex items-center gap-2">
-                <span class="w-1.5 h-1.5 rounded-full bg-brand"></span>
-                <span class="text-[10px] font-bold uppercase tracking-widest">Enhanced Discovery</span>
-            </div>
-            <div class="text-[9px] font-medium">Step 2 of 2</div>
-        </div>
-    </div>
-
-<script>
-    let discoveredAccounts = [];
-    let connectedIds = [];
-    let selectedIds = [];
-
-    // Fix Facebook redirect hash issue
-    if (window.location.hash === '#_=_') {
-        history.replaceState(null, null, window.location.pathname);
-    }
-
-    async function initialize() {
-        try {
-            const [availRes, connRes] = await Promise.all([
-                fetch('/accounts/available'),
-                fetch('/accounts/connected')
-            ]);
-            
-            discoveredAccounts = await availRes.json();
-            connectedIds = await connRes.json();
-
-            // Auto-skip logic: 1 account available and NOT connected
-            if (discoveredAccounts.length === 1 && !connectedIds.includes(discoveredAccounts[0].ig_user_id)) {
-                selectedIds = [discoveredAccounts[0].ig_user_id];
-                await saveSelected();
-                return;
-            }
-
-            render();
-        } catch (e) {
-            console.error(e);
-            alert('Session expired. Please reconnect Meta.');
-        }
-    }
-
-    function toggleSelect(igId) {
-        if (connectedIds.includes(igId)) return;
-        
-        if (selectedIds.includes(igId)) {
-            selectedIds = selectedIds.filter(id => id !== igId);
-        } else {
-            selectedIds.push(igId);
-        }
-        render();
-    }
-
-    function render() {
-        const grid = document.getElementById('account-grid');
-        const emptyState = document.getElementById('empty-state');
-        const cta = document.getElementById('cta-container');
-        const continueBtn = document.getElementById('continue-btn');
-        
-        if (!discoveredAccounts || discoveredAccounts.length === 0) {
-            emptyState.classList.remove('hidden');
-            grid.innerHTML = '';
-            cta.classList.add('hidden');
-            return;
-        }
-
-        cta.classList.remove('hidden');
-        continueBtn.disabled = selectedIds.length === 0;
-
-        grid.innerHTML = discoveredAccounts.map(acc => {
-            const isConnected = connectedIds.includes(acc.ig_user_id);
-            const isSelected = selectedIds.includes(acc.ig_user_id);
-            
-            let btnLabel = "Connect";
-            let btnClass = "bg-brand text-white hover:bg-brand-hover";
-            let cardClass = "";
-
-            if (isConnected) {
-                btnLabel = `<span class="flex items-center gap-1.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg> Connected</span>`;
-                btnClass = "bg-gray-100 text-gray-400 cursor-not-allowed";
-                cardClass = "opacity-75 grayscale-[0.5]";
-            } else if (isSelected) {
-                btnLabel = "Selected";
-                btnClass = "bg-brand text-white ring-4 ring-brand/10";
-                cardClass = "selected-card";
-            }
-
-            return `
-                <div onclick="toggleSelect('${acc.ig_user_id}')" class="bg-white border border-gray-100 rounded-2xl p-5 flex items-center justify-between card-shadow hover:card-shadow-hover hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group ${cardClass}">
-                    <div class="flex items-center gap-4">
-                        <div class="relative">
-                            <img src="${acc.profile_picture_url || 'https://ui-avatars.com/api/?name=' + acc.username}" class="w-12 h-12 rounded-full object-cover">
-                            ${isConnected ? `
-                                <div class="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-emerald-500 border-2 border-white rounded-full flex items-center justify-center">
-                                    <svg class="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
-                                </div>
-                            ` : `
-                                <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-gray-200 border-2 border-white rounded-full ${isSelected ? 'bg-brand' : ''}"></div>
-                            `}
-                        </div>
-                        <div>
-                            <div class="text-[14px] font-bold text-brand leading-none mb-1">@${acc.username}</div>
-                            <div class="text-[11px] font-medium text-gray-400">${acc.name || acc.username}</div>
-                        </div>
-                    </div>
-                    <button class="px-6 py-2.5 rounded-lg font-bold text-[11px] transition-all ${btnClass}">
-                        ${btnLabel}
-                    </button>
-                </div>
-            `;
-        }).join('');
-    }
-
-    async function saveSelected() {
-        if (selectedIds.length === 0) return;
-        
-        const btn = document.getElementById('continue-btn');
-        btn.disabled = true;
-        btn.innerHTML = `<span class="flex items-center justify-center gap-2"><svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Persisting Connections...</span>`;
-        
-        const payload = selectedIds.map(id => {
-            const acc = discoveredAccounts.find(a => a.ig_user_id === id);
-            return { ig_user_id: id, page_id: acc.fb_page_id };
-        });
-
-        try {
-            const res = await fetch('/accounts/select', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            
-            if (res.ok) {
-                window.location.href = '/app';
-            } else {
-                const data = await res.json();
-                alert(data.detail || 'Failed to connect accounts');
-                btn.disabled = false;
-                btn.innerHTML = 'Continue to Dashboard';
-            }
-        } catch (e) {
-            alert('Service unavailable. Please retry.');
-            btn.disabled = false;
-            btn.innerHTML = 'Continue to Dashboard';
-        }
-    }
-
-    window.onload = initialize;
-</script>
-</body>
-</html>
-"""
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer"><title>Connect Instagram · Sabeel Studio</title>
+<style>body{margin:0;background:#f7f8f0;color:#143e31;font:16px/1.5 system-ui}main{max-width:520px;margin:6vh auto;padding:24px}h1{font:36px/1.15 Georgia;margin:28px 0 14px}p{color:#52665c}.account{display:flex;gap:14px;align-items:center;padding:18px;border:1px solid #c8d2c5;border-radius:14px;background:white;margin:12px 0;cursor:pointer}.account input{width:22px;height:22px;accent-color:#143e31;flex-shrink:0}.account span{overflow-wrap:anywhere}.account small{display:block;color:#647366}button,.back{display:block;width:100%;min-height:48px;margin:14px 0;padding:14px;border-radius:26px;font:inherit;font-weight:650;box-sizing:border-box;text-align:center}button{background:#143e31;color:white;border:0;cursor:pointer}button:disabled{opacity:.5;cursor:default}.back{color:#143e31;background:transparent;border:1px solid #c8d2c5;text-decoration:none}#status{padding:14px 0;min-height:24px}#status.error{color:#963d2d}small{font-size:14px}:focus-visible{outline:3px solid #a76c22;outline-offset:4px}</style></head>
+<body><main><strong>Sabeel Studio</strong><h1>Choose your Instagram accounts</h1><p>Select the accounts you want to connect. Existing accounts can be reconnected to refresh access.</p>
+<div id="status" role="status" aria-live="polite">Loading your accounts…</div><div id="account-grid"></div>
+<button id="continue-btn" type="button" disabled>Connect selected accounts</button>
+<a class="back" href="/app">Back to your workspace</a><a class="back" href="/auth/instagram/login">Start connection again</a>
+<small>Your existing accounts and posts stay in place. Nothing will be published by connecting an account.</small></main>
+<script src="/static/instagram-connect.js?v=1" defer></script></body></html>"""
 
 ONBOARDING_HTML = """<!doctype html>
 <html lang="en">
@@ -821,7 +594,7 @@ async def app_select_account_page(
     user: User = Depends(require_user)
 ):
     """Renders the clean account selection page after OAuth discovery."""
-    return HTMLResponse(content=SELECT_ACCOUNT_HTML)
+    return HTMLResponse(content=SELECT_ACCOUNT_HTML, headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
 
 def _calendar_post_time(post, display_tz):
     value = post.published_time if post.status == "published" and post.published_time else (post.scheduled_time or post.published_time)
@@ -1391,45 +1164,33 @@ class OnboardingFinalize(BaseModel):
 async def finalize_onboarding(
     payload: OnboardingFinalize,
     user: User = Depends(require_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    org_id: int = Depends(get_current_org_id)
 ):
-    # 1. Ensure Org exists or create it
-    org = db.query(Org).filter(Org.id == user.active_org_id).first()
+    if payload.igUserId or payload.igAccessToken:
+        raise HTTPException(400, "Connect Instagram through Meta before choosing an account.")
+    # 1. Update only the authorized workspace
+    org = db.query(Org).filter(Org.id == org_id).first()
     if not org:
-        org = Org(name=payload.orgName or f"{user.name}'s Workspace")
-        db.add(org)
-        db.flush()
-        membership = OrgMember(org_id=org.id, user_id=user.id, role="owner")
-        db.add(membership)
-        user.active_org_id = org.id
+        raise HTTPException(404, "Workspace not found")
     else:
         if payload.orgName: org.name = payload.orgName
 
-    # 2. Connect IG Account (Optional - though UI usually skips this now)
+    # 2. Use an existing OAuth-connected account only
     ig_acc = db.query(IGAccount).filter(IGAccount.org_id == org.id).first()
-    if not ig_acc and (payload.igUserId or payload.igAccessToken):
-        ig_acc = IGAccount(
-            org_id=org.id,
-            name=f"IG: {payload.igUserId}" if payload.igUserId else "IG Account",
-            ig_user_id=payload.igUserId,
-            access_token=payload.igAccessToken,
-            daily_post_time=payload.autoTime or "09:00"
-        )
-        db.add(ig_acc)
-        db.flush()
     
     # 3. Create Automation (Use existing or create new)
     auto = db.query(TopicAutomation).filter(TopicAutomation.org_id == org.id).first()
-    if not auto:
+    if not auto and ig_acc:
         auto = TopicAutomation(
             org_id=org.id,
-            ig_account_id=ig_acc.id if ig_acc else 0, # 0 if not yet connected
+            ig_account_id=ig_acc.id,
             name="Daily Intelligence Feed",
             topic_prompt=payload.autoTopic or "Daily wisdom and news relevant to our niche.",
             source_mode=payload.contentMode if payload.contentMode != "auto_library" else "none",
             content_seed_mode="auto_library" if payload.contentMode == "auto_library" else "none",
             post_time_local=payload.autoTime or "09:00",
-            enabled=True if ig_acc else False, # Only enable if connected
+            enabled=False, # Creator must deliberately enable the finished plan.
             approval_mode="needs_manual_approve"
         )
         db.add(auto)

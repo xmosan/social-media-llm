@@ -2,7 +2,6 @@
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import IGAccount
@@ -11,87 +10,35 @@ from ..security.auth import require_user
 from ..schemas import IGAccountOut, AccountCreate, AccountUpdate
 import httpx
 from pydantic import BaseModel
-from datetime import datetime, timezone, timedelta
 
 router = APIRouter(prefix="/ig-accounts", tags=["ig-accounts"])
 
 # --- SEAMLESS UX DISCOVERY API ---
 accounts_router = APIRouter(prefix="/accounts", tags=["accounts"])
 
+from app.services import instagram_connection as connection
+
 @accounts_router.get("/available")
-async def get_available_accounts(request: Request, user = Depends(require_user)):
-    """Fetch discovered accounts from session storage."""
-    return request.session.get("discovered_accounts", [])
+async def get_available_accounts(request: Request, db: Session = Depends(get_db),
+                                 user = Depends(require_user), org_id: int = Depends(get_current_org_id)):
+    _, payload = connection.read_discovery(db, request, user.id, org_id)
+    return payload["accounts"]
 
 @accounts_router.get("/connected")
-async def get_connected_accounts(db: Session = Depends(get_db), user = Depends(require_user)):
-    """Fetch IDs of accounts already connected to the current org."""
-    if not user.active_org_id:
-        return []
-    accounts = db.query(IGAccount.ig_user_id).filter(IGAccount.org_id == user.active_org_id).all()
-    return [a[0] for a in accounts]
+async def get_connected_accounts(db: Session = Depends(get_db), user = Depends(require_user),
+                                  org_id: int = Depends(get_current_org_id)):
+    return [a[0] for a in db.query(IGAccount.ig_user_id).filter(IGAccount.org_id == org_id).all()]
 
 class SelectionPayload(BaseModel):
     ig_user_id: str
     page_id: str
 
 @accounts_router.post("/select")
-async def select_accounts(
-    payload: list[SelectionPayload],
-    request: Request,
-    db: Session = Depends(get_db),
-    user = Depends(require_user)
-):
-    """Persist a list of discovery selections to the database."""
-    accounts = request.session.get("discovered_accounts", [])
-    token = request.session.get("temp_ig_token")
-    
-    if not token or not accounts:
-        raise HTTPException(status_code=401, detail="Meta session expired. Please reconnect.")
-        
-    org_id = user.active_org_id
-    if not org_id:
-        raise HTTPException(status_code=400, detail="No active organization found.")
-
-    # Mark existing active accounts as inactive if we're adding new ones
-    db.query(IGAccount).filter(IGAccount.org_id == org_id).update({"active": False})
-    
-    for item in payload:
-        selected = next((a for a in accounts if a["ig_user_id"] == item.ig_user_id), None)
-        if not selected:
-            continue
-
-        # Upsert
-        acc = db.query(IGAccount).filter(
-            IGAccount.org_id == org_id,
-            IGAccount.ig_user_id == selected["ig_user_id"]
-        ).first()
-        
-        if not acc:
-            acc = IGAccount(
-                org_id=org_id,
-                ig_user_id=selected["ig_user_id"],
-                username=selected.get("username"),
-                name=selected.get("name") or selected["username"] or "Instagram Account",
-                profile_picture_url=selected.get("profile_picture_url")
-            )
-            db.add(acc)
-        
-        acc.access_token = token
-        acc.username = selected.get("username")
-        acc.fb_page_id = selected["fb_page_id"]
-        acc.profile_picture_url = selected.get("profile_picture_url")
-        acc.expires_at = datetime.now(timezone.utc) + timedelta(days=60)
-        acc.active = True # Last one in loop will be the final active one
-    
-    user.has_connected_instagram = True
-    db.commit()
-    
-    # Cleanup session
-    request.session.pop("discovered_accounts", None)
-    request.session.pop("temp_ig_token", None)
-    
-    return {"ok": True, "message": "Accounts connected successfully"}
+async def select_accounts(payload: list[SelectionPayload], request: Request,
+                          db: Session = Depends(get_db), user = Depends(require_user),
+                          org_id: int = Depends(get_current_org_id)):
+    ids = connection.connect_selected(db, request, user, org_id, payload)
+    return {"ok": True, "account_ids": ids, "message": "Accounts connected successfully"}
 
 
 @router.get("", response_model=list[IGAccountOut])
@@ -170,18 +117,10 @@ def toggle_account(
     return acc
 
 @router.get("/meta-options", response_model=dict)
-async def get_meta_account_options(
-    request: Request,
-    user = Depends(require_user)
-):
-    """Fetch available IG accounts from Meta using the temporary token cookie."""
-    token = request.cookies.get("temp_ig_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Meta session expired. Please try connecting again.")
-    
-    from app.services.instagram_auth import instagram_auth_service
-    accounts = await instagram_auth_service.discover_ig_business_account(token)
-    return {"accounts": accounts}
+async def get_meta_account_options(request: Request, db: Session = Depends(get_db),
+                                   user = Depends(require_user), org_id: int = Depends(get_current_org_id)):
+    _, payload = connection.read_discovery(db, request, user.id, org_id)
+    return {"accounts": payload["accounts"]}
 
 class ConnectPayload(BaseModel):
     ig_user_id: str
@@ -214,10 +153,9 @@ def set_active_account(
 @router.get("/me", response_model=list[IGAccountOut])
 def get_my_accounts(
     db: Session = Depends(get_db),
-    user = Depends(require_user)
+    user = Depends(require_user), org_id: int = Depends(get_current_org_id)
 ):
     """List all IG accounts for the current user's active organization."""
-    org_id = user.active_org_id
     if not org_id:
         return []
     # Order by active DESC so active shows first
@@ -226,79 +164,29 @@ def get_my_accounts(
 @router.get("/active", response_model=IGAccountOut)
 def get_active_account(
     db: Session = Depends(get_db),
-    user = Depends(require_user)
+    user = Depends(require_user), org_id: int = Depends(get_current_org_id)
 ):
     """Get the currently active account for the organization."""
-    org_id = user.active_org_id
     acc = db.query(IGAccount).filter(IGAccount.org_id == org_id, IGAccount.active == True).first()
     if not acc:
-        # Fallback to the first one found if none marked active
+        # Return the existing account for reconnect UX; a GET must not reactivate it.
         acc = db.query(IGAccount).filter(IGAccount.org_id == org_id).first()
-        if acc:
-            acc.active = True
-            db.commit()
-            db.refresh(acc)
     
     if not acc:
         raise HTTPException(status_code=404, detail="No active account found")
     return acc
 
 @router.post("/connect", response_model=IGAccountOut)
-async def connect_meta_account(
-    payload: ConnectPayload,
-    request: Request,
-    db: Session = Depends(get_db),
-    user = Depends(require_user)
-):
-    """Persist the selected IG account to the database."""
-    token = request.cookies.get("temp_ig_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Meta session expired.")
-    
-    org_id = user.active_org_id
-    if not org_id:
-        raise HTTPException(status_code=400, detail="Active Organization not found")
-
-    from app.services.instagram_auth import instagram_auth_service
-    # Re-discover to get full details (safe and ensures data integrity)
-    all_discovery = await instagram_auth_service.discover_ig_business_account(token)
-    selected = next((a for a in all_discovery if a["ig_user_id"] == payload.ig_user_id), None)
-    
+async def connect_meta_account(payload: ConnectPayload, request: Request,
+                               db: Session = Depends(get_db), user = Depends(require_user),
+                               org_id: int = Depends(get_current_org_id)):
+    _, discovered = connection.read_discovery(db, request, user.id, org_id)
+    selected = next((a for a in discovered["accounts"] if a["ig_user_id"] == payload.ig_user_id), None)
     if not selected:
-        raise HTTPException(status_code=404, detail="Selected account not found in your Meta profile")
-
-    # Set all others to inactive if we are connecting a new one
-    db.query(IGAccount).filter(IGAccount.org_id == org_id).update({"active": False})
-
-    # Check if exists
-    acc = db.query(IGAccount).filter(
-        IGAccount.org_id == org_id,
-        IGAccount.ig_user_id == selected["ig_user_id"]
-    ).first()
-
-    if not acc:
-        acc = IGAccount(
-            org_id=org_id,
-            ig_user_id=selected["ig_user_id"],
-            username=selected.get("username"),
-            name=selected.get("name") or selected["username"] or "Instagram Account",
-            profile_picture_url=selected.get("profile_picture_url")
-        )
-        db.add(acc)
-    
-    # Update latest token and metadata
-    acc.access_token = token
-    acc.username = selected.get("username")
-    acc.fb_page_id = selected["fb_page_id"]
-    acc.profile_picture_url = selected.get("profile_picture_url")
-    acc.expires_at = datetime.now(timezone.utc) + timedelta(days=60) # Standard Meta LLT
-    acc.active = True
-    
-    user.has_connected_instagram = True
-    db.commit()
-    db.refresh(acc)
-    
-    return acc
+        raise HTTPException(422, "Selected account was not returned by Meta.")
+    ids = connection.connect_selected(db, request, user, org_id,
+        [SelectionPayload(ig_user_id=selected["ig_user_id"], page_id=selected["fb_page_id"])])
+    return db.get(IGAccount, ids[0])
 
 @router.get("/{account_id}/health")
 async def check_account_health(

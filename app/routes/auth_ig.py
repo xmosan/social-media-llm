@@ -1,135 +1,70 @@
-# Copyright (c) 2026 Mohammed Hassan. All rights reserved.
-# Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
-
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+"""Workspace-bound Instagram authorization; provider credentials stay server-side."""
+import asyncio
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import User, IGAccount
 from app.security.auth import require_user
-from app.services.instagram_auth import instagram_auth_service
 from app.security.rbac import get_current_org_id
+from app.services.instagram_auth import instagram_auth_service
+from app.services import instagram_connection as connection
+from app.services.usage_limits import check_auth_attempt
 from app.logging_setup import log_event
-import traceback
-import os
 
 router = APIRouter(prefix="/auth/instagram", tags=["auth"])
-# ALIAS ROUTER: To handle legacy /auth/meta/callback without breaking existing config
 meta_alias_router = APIRouter(prefix="/auth/meta", tags=["auth"])
 
+
 @router.get("/login")
-async def instagram_login(
-    request: Request,
-    user: User = Depends(require_user)
-):
-    """Redirects the user to the Meta OAuth consent screen."""
-    from app.config import settings
-    
-    # 1. LIVE DIAGNOSTIC: Check settings and raw env
-    app_id = settings.fb_app_id or "MISSING"
-    log_event("ig_auth_attempt", user_id=user.id, app_id_present=bool(settings.fb_app_id))
-    
-    # Debug print for server logs
-    print(f"DEBUG: IG Login Attempt for User {user.id}")
-    print(f"DEBUG: settings.fb_app_id: {app_id}")
-    print(f"DEBUG: META_APP_ID env: {os.getenv('META_APP_ID', 'NOT SET')}")
+async def instagram_login(request: Request, user: User = Depends(require_user),
+                          db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
+    check_auth_attempt(str(user.id))
+    instagram_auth_service.validate_configuration()
+    state = connection.begin(db, request, user.id, org_id)
+    return RedirectResponse(instagram_auth_service.get_auth_url(state), status_code=303,
+                            headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
 
-    if not settings.fb_app_id:
-        log_event("ig_auth_config_missing", user_id=user.id)
-        raise HTTPException(status_code=400, detail=f"Instagram connection is not configured properly (Missing App ID). Detected Env: {os.getenv('META_APP_ID', 'NOT SET')}")
-
-    # 4. FINAL SAFETY CHECK: Ensure the redirect URI is correctly resolved
-    redirect_uri = instagram_auth_service.redirect_uri
-    print(f"DEBUG: Final Meta Redirect URI: {redirect_uri}")
-    
-    if "app.sabeelstudio.com" not in redirect_uri and "localhost" not in redirect_uri and "127.0.0.1" not in redirect_uri:
-        log_event("ig_auth_bad_redirect", user_id=user.id, redirect=redirect_uri)
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Instagram connection is not configured correctly. The redirect URL '{redirect_uri}' does not match the allowed domains."
-        )
-
-    auth_url = instagram_auth_service.get_auth_url()
-    
-    log_event("ig_auth_redirect", user_id=user.id)
-    return RedirectResponse(url=auth_url)
 
 @router.get("/callback")
 @meta_alias_router.get("/callback")
-async def instagram_callback(
-    request: Request,
-    code: str = None,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_user)
-):
-    """Handles the Meta OAuth callback."""
-    # 1. HANDLE CANCEL OR ERROR FROM META
-    error = request.query_params.get("error")
-    if error or not code:
-        log_event("ig_auth_cancelled", user_id=user.id, error=error)
-        msg = "Instagram connection was not completed. Please try again."
-        return RedirectResponse(url=f"/app?error={msg}")
-
-    org_id = user.active_org_id
-    if not org_id:
-        raise HTTPException(status_code=400, detail="Active Organization not found")
-
+async def instagram_callback(request: Request, code: str | None = None, state: str | None = None,
+                             db: Session = Depends(get_db), user: User = Depends(require_user),
+                             org_id: int = Depends(get_current_org_id)):
+    attempt_id = connection.claim_callback(db, request, user.id, org_id, state)
+    if request.query_params.get("error") or not code:
+        connection.abandon(db, request, attempt_id)
+        return RedirectResponse("/app?error=Instagram%20connection%20was%20cancelled.%20You%20can%20try%20again.", status_code=303)
     try:
-        # 2. Exchange code for short-lived token
-        print(f"DEBUG: Exchanging code for token. Code: {code[:10]}...")
-        short_token = await instagram_auth_service.exchange_code_for_token(code)
-        if not short_token:
-            print("DEBUG: Exchange failed - no short_token returned")
-            return RedirectResponse(url="/app?error=Instagram authentication failed.")
-
-        # 3. Upgrade to long-lived token (60 days)
-        print("DEBUG: Upgrading to long-lived token...")
-        token_data = await instagram_auth_service.get_long_lived_token(short_token)
-        if not token_data:
-            print("DEBUG: Upgrade failed - no token_data returned")
-            return RedirectResponse(url="/app?error=Failed to secure long-term access.")
-
-        # --- SEAMLESS UX FLOW ---
-        # Perform discovery silently
-        accounts = await instagram_auth_service.discover_ig_business_account(token_data["access_token"])
-        
+        async with asyncio.timeout(60):
+            short_token = await instagram_auth_service.exchange_code_for_token(code)
+            token_data = await instagram_auth_service.get_long_lived_token(short_token)
+            accounts = await instagram_auth_service.discover_ig_business_account(token_data["access_token"])
         if not accounts:
-            log_event("ig_callback_no_accounts", user_id=user.id)
-            return RedirectResponse(url="/app?error=No Instagram Business accounts found on your Facebook Pages.")
+            connection.abandon(db, request, attempt_id)
+            return RedirectResponse("/app?error=No%20eligible%20Instagram%20accounts%20were%20returned.%20Check%20your%20Facebook%20Page%20connection%20and%20permissions.", status_code=303)
+        connection.finish_discovery(db, attempt_id, accounts, token_data)
+    except Exception:
+        db.rollback()
+        connection.abandon(db, request, attempt_id)
+        log_event("ig_connection_failed", level="warning")
+        return RedirectResponse("/app?error=Instagram%20connection%20could%20not%20be%20completed.%20Please%20try%20again.", status_code=303)
+    return RedirectResponse("/select-account", status_code=303,
+                            headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
 
-        # Store Discovery in Session
-        request.session["discovered_accounts"] = accounts
-        request.session["temp_ig_token"] = token_data["access_token"]
-        
-        log_event("ig_callback_discovery_complete", user_id=user.id, count=len(accounts))
-        
-        # Always redirect to the clean selection UI
-        return RedirectResponse(url="https://app.sabeelstudio.com/select-account", status_code=302)
-
-    except Exception as e:
-        print(f"CRITICAL ERROR in ig_callback: {str(e)}")
-        log_event("ig_callback_error", error=str(e))
-        traceback.print_exc()
-        return RedirectResponse(url=f"/app?error=Authentication failed: {type(e).__name__}")
 
 @router.post("/disconnect")
-async def instagram_disconnect(
-    db: Session = Depends(get_db),
-    user: User = Depends(require_user)
-):
-    """Disconnects the primary Instagram account for the current org."""
-    org_id = user.active_org_id
-    acc = db.query(IGAccount).filter(IGAccount.org_id == org_id).first()
-    
-    if acc:
-        db.delete(acc)
-        
-        # Check if user has any other IG accounts in other orgs? 
-        # For simplicity, we just reset the flag for the current session/context
-        user.has_connected_instagram = False
-        
-        db.commit()
-        log_event("ig_disconnect_success", user_id=user.id)
-        return {"ok": True}
-    
-    return {"ok": False, "error": "No account connected"}
+async def instagram_disconnect(request: Request, db: Session = Depends(get_db),
+                               user: User = Depends(require_user), org_id: int = Depends(get_current_org_id)):
+    connection.require_same_origin(request)
+    account = db.query(IGAccount).filter(IGAccount.org_id == org_id).order_by(IGAccount.active.desc(), IGAccount.id).first()
+    if account:
+        account.active = False
+        account.access_token = ""
+        account.expires_at = None
+    db.flush()
+    user.has_connected_instagram = db.query(IGAccount).filter(IGAccount.org_id == org_id,
+        IGAccount.active == True, IGAccount.access_token != "").first() is not None
+    db.commit()
+    # Preserve account rows referenced by drafts, schedules and publishing claims.
+    return {"ok": True}

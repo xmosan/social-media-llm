@@ -113,6 +113,10 @@ def setup_logging():
         
     # Tone down noisy uvicorn access logs
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    # OAuth exchanges put credentials in query parameters under Meta's contract.
+    # httpx INFO logs full request URLs; never ship those to console or Axiom.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 def log_event(event: str, level: str = "info", **fields):
     """Helper method to log structured JSON events cleanly."""

@@ -1,159 +1,121 @@
-# Copyright (c) 2026 Mohammed Hassan. All rights reserved.
-# Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
-
-import httpx
-import logging
+"""Bounded Meta discovery with sanitized errors and no credential logging."""
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, List
+from urllib.parse import urlencode, urlsplit
+import re
+import httpx
+from fastapi import HTTPException
 from app.config import settings
-from app.logging_setup import log_event
+from app.services.publisher import GRAPH_URL
 
-logger = logging.getLogger(__name__)
 
-GRAPH_URL = "https://graph.facebook.com/v18.0"
+class InstagramAuthError(RuntimeError):
+    pass
+
 
 class InstagramAuthService:
     def __init__(self):
         self.client_id = settings.fb_app_id
         self.client_secret = settings.fb_app_secret
-        # Dynamic Resolution: Prefer explicit META_REDIRECT_URI, fallback to Base URL + /auth/instagram/callback
         self.redirect_uri = settings.fb_redirect_uri or f"{settings.public_base_url.rstrip('/')}/auth/instagram/callback"
 
-    def get_auth_url(self) -> str:
-        """Construct the Meta OAuth authorization URL."""
-        log_event("ig_auth_url_gen", redirect_uri=self.redirect_uri)
-        print(f"DEBUG: Resolving Meta Redirect URI: {self.redirect_uri}")
-        scopes = [
-            "instagram_basic",
-            "instagram_content_publish",
-            "pages_show_list"
-        ]
-        scope_str = ",".join(scopes)
-        return (
-            f"https://www.facebook.com/v18.0/dialog/oauth?"
-            f"client_id={self.client_id}"
-            f"&redirect_uri={self.redirect_uri}"
-            f"&scope={scope_str}"
-            f"&response_type=code"
-        )
+    def validate_configuration(self):
+        uri, base = urlsplit(self.redirect_uri), urlsplit(settings.public_base_url)
+        local = uri.hostname in {"localhost", "127.0.0.1"}
+        if (not self.client_id or not self.client_secret or uri.username or uri.password
+                or (uri.scheme, uri.netloc) != (base.scheme, base.netloc)
+                or (uri.scheme != "https" and not (local and uri.scheme == "http"))
+                or uri.path not in {"/auth/instagram/callback", "/auth/meta/callback"}
+                or uri.query or uri.fragment):
+            raise HTTPException(503, "Instagram connection is not configured. Please contact support.")
 
-    async def exchange_code_for_token(self, code: str) -> Optional[str]:
-        """Exchange the authorization code for a short-lived user access token."""
-        url = f"{GRAPH_URL}/oauth/access_token"
-        params = {
-            "client_id": self.client_id,
-            "redirect_uri": self.redirect_uri,
-            "client_secret": self.client_secret,
-            "code": code,
-        }
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, params=params)
-            data = resp.json()
-            if "access_token" in data:
-                return data["access_token"]
-            log_event("ig_token_exchange_fail", error=data.get("error"))
-            return None
+    def get_auth_url(self, state):
+        self.validate_configuration()
+        return f"https://www.facebook.com/{GRAPH_URL.rsplit('/', 1)[-1]}/dialog/oauth?" + urlencode({
+            "client_id": self.client_id, "redirect_uri": self.redirect_uri, "state": state,
+            "scope": "instagram_basic,instagram_content_publish,pages_show_list", "response_type": "code"})
 
-    async def get_long_lived_token(self, short_token: str) -> Optional[Dict]:
-        """Exchange short-lived token for a 60-day long-lived token."""
-        url = f"{GRAPH_URL}/oauth/access_token"
-        params = {
-            "grant_type": "fb_exchange_token",
-            "client_id": self.client_id,
-            "client_secret": self.client_secret,
-            "fb_exchange_token": short_token,
-        }
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, params=params)
-            data = resp.json()
-            if "access_token" in data:
-                # Meta long-lived tokens typically last 60 days
-                expires_in = data.get("expires_in", 5184000) # Default to 60 days
-                return {
-                    "access_token": data["access_token"],
-                    "expires_at": datetime.now(timezone.utc) + timedelta(seconds=expires_in)
-                }
-            log_event("ig_long_lived_token_fail", error=data.get("error"))
-            return None
+    async def _get(self, client, path, *, params=None, token=None):
+        try:
+            response = await client.get(f"{GRAPH_URL}/{path}", params=params,
+                headers={"Authorization": "Bearer " + token} if token else None)
+            data = response.json()
+            if response.status_code != 200 or not isinstance(data, dict) or data.get("error"):
+                raise InstagramAuthError("Meta could not complete this connection")
+            return data
+        except (httpx.RequestError, ValueError):
+            raise InstagramAuthError("Meta is temporarily unavailable") from None
 
-    async def discover_ig_business_account(self, user_token: str) -> List[Dict]:
-        """
-        Fetches the user's FB Pages and identifies all linked Instagram Business accounts.
-        Returns a detailed list of account options.
-        """
-        log_event("ig_discovery_start", token_present=bool(user_token))
-        logger.info(f"DISCOVERY: Starting exhaustive IG account discovery for token ending in ...{user_token[-5:]}")
-        
-        # Step 1: Fetch FB Pages (me/accounts)
-        pages_url = f"{GRAPH_URL}/me/accounts"
-        # We need to request the fields specifically
-        params = {
-            "fields": "id,name,access_token,instagram_business_account{id,username,name,profile_picture_url}",
-            "access_token": user_token
-        }
-        
-        discovered_accounts = []
-        unique_ids = set()
-        
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(pages_url, params=params)
-            pages_data = resp.json()
-            
-            if "data" not in pages_data:
-                err = pages_data.get("error")
-                log_event("ig_discovery_pages_fail", error=err)
-                logger.error(f"DISCOVERY_ERROR: Failed to fetch pages: {pages_data}")
-                return []
-                
-            logger.info(f"DISCOVERY: Found {len(pages_data['data'])} FB Pages to inspect.")
-                
-            for page in pages_data["data"]:
-                page_id = page["id"]
-                page_name = page.get("name", "Unknown Page")
-                
-                # Check for nested IG account (Meta Graph API often allows this projection)
-                ig_acc = page.get("instagram_business_account")
-                
-                if ig_acc:
-                    ig_id = ig_acc.get("id")
-                    if ig_id and ig_id not in unique_ids:
-                        unique_ids.add(ig_id)
-                        logger.info(f"DISCOVERY: Found IG '@{ig_acc.get('username')}' on Page '{page_name}'")
-                        discovered_accounts.append({
-                            "ig_user_id": ig_id,
-                            "username": ig_acc.get("username"),
-                            "name": ig_acc.get("name") or ig_acc.get("username"),
-                            "profile_picture_url": ig_acc.get("profile_picture_url"),
-                            "fb_page_id": page_id
-                        })
-                else:
-                    # Fallback recursive check if nested fails
-                    logger.info(f"DISCOVERY: No nested IG on '{page_name}', performing deep check...")
-                    ig_url = f"{GRAPH_URL}/{page_id}"
-                    ig_params = {
-                        "fields": "instagram_business_account{id,username,name,profile_picture_url}",
-                        "access_token": user_token
-                    }
-                    try:
-                        ig_resp = await client.get(ig_url, params=ig_params)
-                        deep_data = ig_resp.json()
-                        deep_ig = deep_data.get("instagram_business_account")
-                        if deep_ig:
-                            ig_id = deep_ig.get("id")
-                            if ig_id and ig_id not in unique_ids:
-                                unique_ids.add(ig_id)
-                                logger.info(f"DISCOVERY_DEEP: Found IG '@{deep_ig.get('username')}'")
-                                discovered_accounts.append({
-                                    "ig_user_id": ig_id,
-                                    "username": deep_ig.get("username"),
-                                    "name": deep_ig.get("name") or deep_ig.get("username"),
-                                    "profile_picture_url": deep_ig.get("profile_picture_url"),
-                                    "fb_page_id": page_id
-                                })
-                    except Exception as e:
-                        logger.error(f"DISCOVERY_DEEP_FAIL: Error checking Page {page_id}: {e}")
+    async def exchange_code_for_token(self, code):
+        async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
+            data = await self._get(client, "oauth/access_token", params={
+                "client_id": self.client_id, "redirect_uri": self.redirect_uri,
+                "client_secret": self.client_secret, "code": code})
+        token = data.get("access_token")
+        if not isinstance(token, str) or not token:
+            raise InstagramAuthError("Meta did not return an access token")
+        return token
 
-        logger.info(f"DISCOVERY_COMPLETE: Total unique IG accounts: {len(discovered_accounts)}")
-        return discovered_accounts
+    async def get_long_lived_token(self, short_token):
+        async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
+            data = await self._get(client, "oauth/access_token", params={
+                "grant_type": "fb_exchange_token", "client_id": self.client_id,
+                "client_secret": self.client_secret, "fb_exchange_token": short_token})
+        token = data.get("access_token")
+        if not isinstance(token, str) or not token:
+            raise InstagramAuthError("Meta did not return an access token")
+        expiry = data.get("expires_in")
+        # Unknown expiration remains unknown; never invent a fresh 60-day lifetime.
+        expires_at = None
+        if expiry is not None:
+            if isinstance(expiry, bool) or not isinstance(expiry, int) or not 0 < expiry <= 366 * 24 * 3600:
+                raise InstagramAuthError("Meta returned an invalid token expiration")
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=expiry)
+        return {"access_token": token, "expires_at": expires_at}
+
+    async def discover_ig_business_account(self, user_token):
+        accounts, seen_ids, cursors = [], set(), set()
+        params = {"fields": "id,name,instagram_business_account{id,username,name,profile_picture_url}", "limit": 100}
+        async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
+            for _ in range(10):
+                data = await self._get(client, "me/accounts", params=params, token=user_token)
+                pages = data.get("data")
+                if not isinstance(pages, list):
+                    raise InstagramAuthError("Meta returned invalid account discovery")
+                for page in pages:
+                    if not isinstance(page, dict) or not re.fullmatch(r"[0-9]{1,64}", str(page.get("id", ""))):
+                        raise InstagramAuthError("Meta returned invalid page data")
+                    page_id = str(page["id"])
+                    ig = page.get("instagram_business_account")
+                    if not ig:
+                        deep = await self._get(client, page_id, params={"fields": "instagram_business_account{id,username,name,profile_picture_url}"}, token=user_token)
+                        ig = deep.get("instagram_business_account")
+                    if not ig:
+                        continue
+                    if not isinstance(ig, dict) or not re.fullmatch(r"[0-9]{1,64}", str(ig.get("id", ""))):
+                        raise InstagramAuthError("Meta returned invalid Instagram data")
+                    ig_id = str(ig["id"])
+                    if ig_id in seen_ids:
+                        continue
+                    seen_ids.add(ig_id)
+                    picture = ig.get("profile_picture_url")
+                    if not isinstance(picture, str) or not picture.startswith("https://"):
+                        picture = None
+                    accounts.append({"ig_user_id": ig_id, "fb_page_id": page_id,
+                        "username": str(ig.get("username") or "")[:150],
+                        "name": str(ig.get("name") or ig.get("username") or "Instagram account")[:250],
+                        "profile_picture_url": picture[:2000] if picture else None})
+                paging = data.get("paging") or {}
+                if not isinstance(paging, dict):
+                    raise InstagramAuthError("Meta returned invalid pagination")
+                if not paging.get("next"):
+                    return accounts
+                cursor = (paging.get("cursors") or {}).get("after")
+                if not isinstance(cursor, str) or not cursor or len(cursor) > 4096 or cursor in cursors:
+                    raise InstagramAuthError("Meta returned invalid pagination")
+                cursors.add(cursor)
+                # Never follow a provider-supplied next URL with credentials.
+                params = {**params, "after": cursor}
+        raise InstagramAuthError("Account discovery exceeded its supported page limit")
+
 
 instagram_auth_service = InstagramAuthService()

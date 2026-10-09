@@ -8,6 +8,17 @@ from sqlalchemy.sql import func
 
 Base = declarative_base()
 
+class InstagramConnectionAttempt(Base):
+    """Short-lived, user/workspace-bound OAuth handoff; no provider token in cookies."""
+    __tablename__ = "instagram_connection_attempts"
+    id = Column(String(64), primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    org_id = Column(Integer, ForeignKey("orgs.id", ondelete="CASCADE"), nullable=False)
+    state_hash = Column(String(64), nullable=False)
+    stage = Column(String(16), nullable=False)
+    encrypted_payload = Column(Text, nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+
 class UsageBucket(Base):
     """Bounded counters only: never store prompts, emails, tokens or provider data."""
     __tablename__ = "usage_buckets"
