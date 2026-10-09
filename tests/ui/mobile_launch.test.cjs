@@ -3,7 +3,7 @@ process.env.TZ='America/Detroit';
 const source=fs.readFileSync(path.join(__dirname,'../../app/routes/ui_assets.py'),'utf8');
 const workspace=fs.readFileSync(path.join(__dirname,'../../app/static/creator-workspace.js'),'utf8');
 const section=(start,end)=>source.slice(source.indexOf(start),source.indexOf(end,source.indexOf(start)));
-const node=()=>({value:'',textContent:'',innerText:'',innerHTML:'',hidden:false,style:{},classList:{add(){},remove(){},toggle(){}}});
+const node=()=>({getAttribute:()=> '4',value:'',textContent:'',innerText:'',innerHTML:'',hidden:false,style:{},classList:{add(){},remove(){},toggle(){}}});
 function context(){const nodes={};const el=id=>nodes[id]||=(node());const radios=[{value:'later'},{value:'now'}];return {el,radios,c:{window:{},document:{getElementById:el,querySelectorAll:()=>radios},Date,Intl,AbortSignal,studioSessionEpoch:1,studioSaveBusy:false,currentQuoteCardUrl:null,studioVisualDesign:null,sequencePages:()=>[]}};}
 test('timing selection exposes one explicit action; returning to share defaults safely to later',()=>{
  const f=context();vm.runInNewContext(section('    window.setStudioShareTiming =','    window.prepareShare ='),f.c);
@@ -46,4 +46,11 @@ test('allowance panel loads once while busy and recovers from failed requests',a
  resolve({ok:false,json:async()=>({detail:'Unavailable'})});await first;assert.match(status.textContent,/Close and reopen/);
  c.fetch=async()=>({ok:true,json:async()=>({generation_enabled:true,images:{used:3,limit:20},text:{used:12,limit:200},reset_at:'2026-10-09T00:00:00Z'})});
  await toggle();assert.match(status.textContent,/3 of 20 image attempts/);assert.match(status.textContent,/12 of 200 writing attempts/);
+});
+
+test('Return in source, design or caption fields never enters scheduling validation',async()=>{
+ const f=context();let called=0;f.c.alert=()=>{throw Error('Unexpected scheduling prompt')};f.c.persistStudioDraft=async()=>{called++};
+ vm.runInNewContext(section('    window.submitNewPost =',"    window.addEventListener('load'"),f.c);
+ for(const step of ['1','2','3',null]) {f.el('newPostModal').getAttribute=()=>step;await f.c.window.submitNewPost({preventDefault(){}});}
+ assert.equal(called,0);
 });

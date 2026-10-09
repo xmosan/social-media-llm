@@ -90,6 +90,14 @@ if a rollback is required. The landing page alone is not an access control. Do n
 existing account. Cohort admission/invitation and email recovery remain separate
 work before onboarding external testers.
 
+## Phone follow-up
+
+The live walkthrough found that pressing Return in a source field could submit
+the surrounding form and open a scheduling alert. Form submission now exits
+unless the editor is on Share; search keeps its existing debounced behavior.
+This also protects single-line design fields. Explicit Share actions retain
+all their account, review, time and duplicate-submit checks.
+
 ## Verification boundary
 
 Automated tests use synthetic inputs, mock provider responses and disposable
