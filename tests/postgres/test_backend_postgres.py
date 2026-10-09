@@ -8,6 +8,7 @@ import threading
 import unittest
 import ast
 import gzip
+import shutil
 import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
@@ -199,7 +200,12 @@ class PostgresChecks(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch.object(backups, "BACKUPS_DIR", directory), patch.object(settings, "database_url", engine.url.render_as_string(hide_password=False)), patch.object(settings, "backup_storage_type", "local"):
             result = backups.backup_postgres_database()
             self.assertEqual(result["status"], "success", result)
-            dump = gzip.decompress((Path(directory) / result["file"]).read_bytes())
+            snapshot = Path(directory) / result["file"]
+            dump = gzip.decompress(snapshot.read_bytes())
+            from scripts.verify_backup_restore import restore_and_check
+            counts = restore_and_check(snapshot, Path(shutil.which("psql")).parent)
+            self.assertEqual(counts["posts"], 1)
+            self.assertEqual(counts["orphan_or_mismatched_post_accounts"], 0)
         with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
             connection.execute(text("CREATE DATABASE sabeel_restore"))
         restore_engine = create_engine(engine.url.set(database="sabeel_restore"))
