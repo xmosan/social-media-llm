@@ -89,6 +89,8 @@ def reserve(kind):
     try:
         with _session() as db, db.begin():
             now = _now(db)
+            from app.security.tester_access import require_workspace_access
+            require_workspace_access(db, org_id)
             # Short transaction lock only; never held across network work.
             db.execute(text("SELECT pg_advisory_xact_lock(731209, 1)"))
             now = db.execute(text("SELECT clock_timestamp()" )).scalar_one()

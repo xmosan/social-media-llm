@@ -41,6 +41,8 @@ class Org(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     brand_kit = Column(JSON, nullable=True)  # Workspace default; posts retain their own render snapshot.
+    tester_expires_at = Column(DateTime(timezone=True), nullable=True)
+    tester_revoked_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     members = relationship("OrgMember", back_populates="org")
@@ -59,6 +61,7 @@ class User(Base):
     password_hash = Column(String, nullable=True)
     name = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
+    tester_expires_at = Column(DateTime(timezone=True), nullable=True)
     is_superadmin = Column(Boolean, default=False)
     onboarding_complete = Column(Boolean, default=False)
     active_org_id = Column(Integer, nullable=True)
@@ -74,6 +77,23 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     memberships = relationship("OrgMember", back_populates="user")
+
+class TesterInvitation(Base):
+    __tablename__ = "tester_invitations"
+    id = Column(String(36), primary_key=True)
+    email = Column(String(254), unique=True, nullable=False)
+    token_hash = Column(String(64), unique=True, nullable=False)
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    pilot_days = Column(Integer, nullable=False)
+    redeemed_at = Column(DateTime(timezone=True), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=True)
+    org_id = Column(Integer, ForeignKey("orgs.id"), unique=True, nullable=True)
+    access_expires_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+    revoked_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
 
 class OrgMember(Base):
     __tablename__ = "org_members"

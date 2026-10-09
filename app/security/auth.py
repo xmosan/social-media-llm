@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import User, ApiKey
 from app.config import settings
+from app.security.tester_access import user_can_sign_in
 
 ALGORITHM = "HS256"
 # Hash of the public default API key used by the retired startup bootstrap.
@@ -90,7 +91,7 @@ def get_current_user(
         return None
         
     user = db.query(User).filter(User.id == user_id).first()
-    if not user or not user.is_active:
+    if not user_can_sign_in(user):
         return None
         
     return user

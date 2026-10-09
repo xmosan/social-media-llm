@@ -12,6 +12,9 @@ from app.security.auth import verify_password, create_access_token, get_current_
 from typing import Any
 from app.services.usage_limits import check_auth_attempt, require_signup_enabled
 
+from app.security.tester_access import user_can_sign_in
+from app.services.registration import provision_creator
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login")
@@ -24,7 +27,7 @@ def login(
     user = db.query(User).filter(func.lower(User.email) == func.lower(form_data.username.strip())).first()
 
     # Never expose account existence, account state, or the user directory.
-    if (not user or not user.is_active or not user.password_hash
+    if (not user_can_sign_in(user) or not user.password_hash
             or not verify_password(form_data.password, user.password_hash)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -72,37 +75,13 @@ def register(
 
     from sqlalchemy.exc import IntegrityError
     
-    # 2. Create the User
-    new_user = User(
-        email=user_in.email.strip(),
-        name=user_in.name.strip(),
-        password_hash=get_password_hash(user_in.password),
-        is_active=True,
-        is_superadmin=False
-    )
-    db.add(new_user)
-    
     try:
-        db.flush() # get user ID
+        new_user, new_org = provision_creator(db, email=user_in.email, name=user_in.name,
+                                             password_hash=get_password_hash(user_in.password))
+        db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A user with this email already exists."
-        )
-
-    # 3. Auto-provision a default Workspace (Org)
-    new_org = Org(name=f"{new_user.name}'s Workspace")
-    db.add(new_org)
-    db.flush() # get org ID
-
-    # 4. Bind the user to the new workspace as owner
-    membership = OrgMember(org_id=new_org.id, user_id=new_user.id, role="owner")
-    db.add(membership)
-    
-    # Set active_org_id
-    new_user.active_org_id = new_org.id
-    db.commit()
+        raise HTTPException(400, "A user with this email already exists.") from None
 
     # 5. Automatically log them in (Session Cookie)
     access_token = create_access_token(data={"sub": str(new_user.id)})
