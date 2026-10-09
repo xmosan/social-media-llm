@@ -187,8 +187,11 @@ class BackupChecks(unittest.TestCase):
         file.write_bytes(b"fixture")
         client = Mock()
         with patch.object(backups, "_get_s3_client", return_value=client):
-            client.head_object.return_value = {"ContentLength": 7}
+            client.head_object.return_value = {"ContentLength": 7, "Metadata": {"sha256": backups.file_sha256(file)}}
             self.assertTrue(backups._s3_upload(str(file), "database_backups/fixture.gz"))
+            self.assertEqual(client.upload_file.call_args.kwargs["ExtraArgs"]["Metadata"]["sha256"], backups.file_sha256(file))
+            client.head_object.return_value = {"ContentLength": 7, "Metadata": {"sha256": "wrong"}}
+            self.assertFalse(backups._s3_upload(str(file), "database_backups/fixture.gz"))
             client.head_object.return_value = {"ContentLength": 1}
             self.assertFalse(backups._s3_upload(str(file), "database_backups/fixture.gz"))
             client.head_object.side_effect = RuntimeError("Fixture unavailable")
@@ -199,6 +202,7 @@ class BackupChecks(unittest.TestCase):
         now = datetime.now(timezone.utc)
         objects = [{"Key": f"database_backups/backup_{index}.sql.gz", "LastModified": now - timedelta(minutes=index)} for index in range(2015)]
         client = Mock()
+        client.delete_objects.return_value = {}
         client.get_paginator.return_value.paginate.return_value = [{"Contents": objects[:1000]}, {"Contents": objects[1000:]}]
         with patch.object(backups, "_get_s3_client", return_value=client):
             backups._s3_cleanup_old_backups()
@@ -206,6 +210,73 @@ class BackupChecks(unittest.TestCase):
         self.assertEqual([len(batch) for batch in batches], [1000, 1000, 1])
         deleted = {item["Key"] for batch in batches for item in batch}
         self.assertTrue(all(obj["Key"] not in deleted for obj in objects[:14]))
+
+    def test_scheduler_does_not_report_returned_error_or_ephemeral_copy_as_success(self):
+        for result in ({"status": "error"}, {"status": "success", "durable": False}):
+            with patch.object(backups, "backup_postgres_database", return_value=result):
+                with self.assertRaisesRegex(RuntimeError, "Durable database backup failed"):
+                    backups.scheduled_database_backup()
+
+    def test_scheduler_registers_startup_and_hourly_recovery_without_executing_jobs(self):
+        from test_ownership import load_scheduler
+        scheduler = load_scheduler()
+        with patch.object(scheduler, "BackgroundScheduler") as factory, patch.object(scheduler, "sync_automation_jobs"):
+            scheduler.start_scheduler(Mock())
+        jobs = {call.kwargs["id"]: call for call in factory.return_value.add_job.call_args_list}
+        self.assertIs(jobs["daily_database_backup"].args[0], backups.scheduled_database_backup)
+        recovery = jobs["database_backup_freshness"]
+        self.assertIs(recovery.args[0], backups.ensure_recent_backup)
+        self.assertEqual(recovery.kwargs["hours"], 1)
+        self.assertEqual(recovery.kwargs["max_instances"], 1)
+        self.assertTrue(recovery.kwargs["coalesce"])
+
+    def test_freshness_check_only_recovers_missing_stale_or_invalid_snapshots(self):
+        for status in ("fresh", "missing", "stale", "invalid", "unavailable", "not_configured"):
+            with self.subTest(status=status), patch.object(backups, "remote_backup_status", return_value={"status": status}), patch.object(backups, "scheduled_database_backup") as run:
+                if status in {"unavailable", "not_configured"}:
+                    with self.assertRaises(RuntimeError):
+                        backups.ensure_recent_backup()
+                else:
+                    backups.ensure_recent_backup()
+                self.assertEqual(run.call_count, int(status in {"missing", "stale", "invalid"}))
+
+    def test_remote_freshness_uses_head_metadata_and_preserves_restore_uncertainty(self):
+        from datetime import datetime, timezone, timedelta
+        now = datetime.now(timezone.utc)
+        client = Mock()
+        client.get_paginator.return_value.paginate.return_value = [{"Contents": [
+            {"Key": "database_backups/backup_old.sql.gz", "LastModified": now - timedelta(days=2)},
+        ]}, {"Contents": [{"Key": "database_backups/backup_new.sql.gz", "LastModified": now}]}]
+        with patch.object(settings, "backup_storage_type", "s3"), patch.object(backups, "_get_s3_client", return_value=client):
+            for age, size, expected in ((1, 12, "fresh"), (27, 12, "stale"), (1, 0, "invalid"), (-1, 12, "invalid")):
+                client.head_object.return_value = {"LastModified": now - timedelta(hours=age), "ContentLength": size}
+                result = backups.remote_backup_status(now=now)
+                self.assertEqual(result["status"], expected)
+                self.assertFalse(result["restore_verified"])
+                self.assertFalse(result["checksum_recorded"])
+                self.assertEqual(client.head_object.call_args.kwargs["Key"], "database_backups/backup_new.sql.gz")
+            client.head_object.side_effect = RuntimeError("sensitive credential")
+            result = backups.remote_backup_status(now=now)
+            self.assertEqual(result["status"], "unavailable")
+            self.assertNotIn("sensitive", str(result))
+            client.get_paginator.return_value.paginate.return_value = [{}]
+            self.assertEqual(backups.remote_backup_status(now=now)["status"], "missing")
+
+    def test_overlapping_backup_is_rejected_before_dump(self):
+        with backups._backup_lock, patch.object(backups.subprocess, "run") as dump:
+            self.assertEqual(backups.backup_postgres_database()["status"], "error")
+            dump.assert_not_called()
+
+    def test_retention_partial_failure_is_observable(self):
+        from datetime import datetime, timezone
+        client = Mock()
+        client.get_paginator.return_value.paginate.return_value = [{"Contents": [
+            {"Key": f"database_backups/backup_{index}.sql.gz", "LastModified": datetime.now(timezone.utc)}
+            for index in range(15)]}]
+        client.delete_objects.return_value = {"Errors": [{"Code": "AccessDenied"}]}
+        with patch.object(backups, "_get_s3_client", return_value=client), self.assertLogs(backups.logger, level="ERROR") as logs:
+            backups._s3_cleanup_old_backups()
+        self.assertIn("backup_retention_failed", str(logs.output))
 
 
 class AdminHealthChecks(DatabaseCase):

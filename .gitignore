@@ -29,6 +29,7 @@ test_*.py
 !tests/unit/test_*.py
 !tests/postgres/test_*.py
 verify_*.py
+!scripts/verify_backup_restore.py
 reproduce_*.py
 debug_bidi.py
 patch_*.py

@@ -14,7 +14,7 @@ from app.models import Post, IGAccount, TopicAutomation
 from app.services.post_service import publish_post
 from app.services.automation_runner import run_automation_once
 from app.services.automation_schedule import automation_triggers
-from app.services.backups import backup_postgres_database
+from app.services.backups import scheduled_database_backup, ensure_recent_backup
 from app.security.ownership import require_account
 from fastapi import HTTPException
 
@@ -138,11 +138,20 @@ def start_scheduler(db_factory: Callable[[], Session]):
 
     # 3. Daily Database Backups
     sched.add_job(
-        backup_postgres_database,
+        scheduled_database_backup,
         trigger=CronTrigger(hour=3, minute=0, timezone="UTC"),
         id="daily_database_backup",
         replace_existing=True,
         max_instances=1
+    )
+
+    # The in-memory cron cannot replay a backup missed while the app was down.
+    # Check durable freshness on startup and hourly; create only if missing/stale.
+    sched.add_job(
+        ensure_recent_backup, trigger="interval", hours=1,
+        next_run_time=datetime.now(timezone.utc) + timedelta(seconds=30),
+        id="database_backup_freshness", replace_existing=True,
+        max_instances=1, coalesce=True, misfire_grace_time=300,
     )
 
     sched.start()
