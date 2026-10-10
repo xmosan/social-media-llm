@@ -1,7 +1,8 @@
+import os
 import sqlalchemy
 import sys
 
-URL = "postgresql://postgres:SRVGlFcxyhQVbJveWFmcxDzGVoeIjtgN@nozomi.proxy.rlwy.net:45252/railway"
+URL = os.environ["DATABASE_URL"]
 
 engine = sqlalchemy.create_engine(URL)
 with engine.begin() as conn:
