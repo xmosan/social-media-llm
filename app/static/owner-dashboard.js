@@ -273,7 +273,7 @@
         u.email,
         badge(
           u.is_superadmin
-            ? "You · Owner"
+            ? "Owner account"
             : u.can_sign_in === false
               ? "Access ended"
               : u.is_active
@@ -378,7 +378,7 @@
     for (const a of plans.items) {
       const r = row(
         a.name || `Automation #${a.id}`,
-        `${a.org_name} · ${a.ig_username === "Not Linked" ? "No Instagram account linked" : "@" + a.ig_username}`,
+        `${a.org_name} · ${a.ig_username === "Not Linked" ? "No Instagram account linked" : a.ig_username ? "@" + a.ig_username : "Instagram username unavailable"}`,
         badge(a.enabled ? "Enabled" : "Paused", a.enabled ? "good" : ""),
       );
       r.append(el("p", "Last run: " + date(a.last_run), "detail"));
