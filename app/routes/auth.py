@@ -1,7 +1,10 @@
 # Copyright (c) 2026 Mohammed Hassan. All rights reserved.
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi.routing import APIRoute
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -15,7 +18,23 @@ from app.services.usage_limits import check_auth_attempt, require_signup_enabled
 from app.security.tester_access import user_can_sign_in
 from app.services.registration import provision_creator
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+class AuthRoute(APIRoute):
+    def get_route_handler(self):
+        handler = super().get_route_handler()
+        async def private(request: Request):
+            try:
+                return await handler(request)
+            except RequestValidationError:
+                # Validation responses must not echo submitted credentials.
+                detail = "Check your form fields."
+                if request.url.path == "/auth/register":
+                    detail += " New passwords need at least 8 characters and at most 72 UTF-8 bytes."
+                return JSONResponse({"detail": detail},
+                                    status_code=422, headers={"Cache-Control": "no-store"})
+        return private
+
+
+router = APIRouter(prefix="/auth", tags=["auth"], route_class=AuthRoute)
 
 @router.post("/login")
 def login(

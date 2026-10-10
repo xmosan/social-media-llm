@@ -1,14 +1,23 @@
 # Copyright (c) 2026 Mohammed Hassan. All rights reserved.
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
-from pydantic import BaseModel, Field, validator
+from pydantic import AfterValidator, BaseModel, Field, validator
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
+
+
+def _password_bytes(value: str) -> str:
+    if len(value.encode("utf-8")) > 72:
+        raise ValueError("Password must fit within 72 UTF-8 bytes")
+    return value
+
+
+CreatorPassword = Annotated[str, Field(min_length=8, max_length=72, repr=False), AfterValidator(_password_bytes)]
 
 class UserCreate(BaseModel):
     name: str
     email: str
-    password: str
+    password: CreatorPassword
 
 class OrgOut(BaseModel):
     id: int

@@ -536,7 +536,7 @@ REGISTER_HTML = """<!doctype html>
       </div>
       <div class="space-y-1">
         <label class="text-[10px] font-bold uppercase tracking-widest text-[#4A4A4A] ml-3">Password</label>
-        <input type="password" id="password" required class="w-full bg-[#F8F6F2] border border-gray-200 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-[#0F3D2E] outline-none transition-all text-[#1A1A1A]" placeholder="At least 8 characters">
+        <input type="password" id="password" required minlength="8" maxlength="72" autocomplete="new-password" class="w-full bg-[#F8F6F2] border border-gray-200 rounded-2xl px-5 py-3.5 text-sm focus:ring-2 focus:ring-[#0F3D2E] outline-none transition-all text-[#1A1A1A]" placeholder="At least 8 characters">
       </div>
       
       <div id="errorMsg" class="hidden text-xs font-bold text-rose-500 bg-rose-500/10 p-4 rounded-xl border border-rose-500/20 text-center"></div>
