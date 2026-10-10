@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import get_db
 from app.models import TesterInvitation, User
+from app.schemas import CreatorPassword
 from app.security.auth import create_access_token, clear_legacy_domain_cookie
 from app.security.rbac import require_superadmin
 from app.services import tester_invitations as invitations
@@ -30,7 +31,7 @@ class PrivateRoute(APIRoute):
                 response = await handler(request)
             except RequestValidationError:
                 # FastAPI's default validation payload can echo passwords/tokens.
-                response = JSONResponse({"detail": "Check your invitation, email and form fields. Passwords need 12 characters and at most 72 UTF-8 bytes."}, status_code=422)
+                response = JSONResponse({"detail": "Check your invitation, email and form fields. Passwords need at least 8 characters and at most 72 UTF-8 bytes."}, status_code=422)
             except HTTPException as exc:
                 response = JSONResponse({"detail": exc.detail}, status_code=exc.status_code, headers=exc.headers)
             response.headers.update(PRIVATE_HEADERS)
@@ -74,7 +75,7 @@ class TokenPayload(BaseModel):
 
 class RedeemPayload(TokenPayload, EmailPayload):
     name: str = Field(min_length=1, max_length=80)
-    password: str = Field(min_length=12, max_length=72)
+    password: CreatorPassword
 
     @field_validator("name")
     @classmethod
@@ -82,13 +83,6 @@ class RedeemPayload(TokenPayload, EmailPayload):
         if not value.strip():
             raise ValueError("Enter your name")
         return value.strip()
-
-    @field_validator("password")
-    @classmethod
-    def password_bytes(cls, value):
-        if len(value.encode("utf-8")) > 72:
-            raise ValueError("Password must fit within 72 UTF-8 bytes")
-        return value
 
 
 @router.get("/join", response_class=HTMLResponse)

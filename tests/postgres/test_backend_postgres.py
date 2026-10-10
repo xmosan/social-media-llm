@@ -67,9 +67,16 @@ class PostgresChecks(unittest.TestCase):
         application.dependency_overrides[get_db] = lambda: self.db
         application.include_router(auth.router)
         with patch.object(settings, 'signup_enabled', True), TestClient(application, base_url='https://testserver') as client:
+            for password in ('short7!', 'أ'*7, 'أ'*40, 'x'*73):
+                rejected = client.post('/auth/register', json={
+                    'email': 'creator@example.com', 'name': 'Isolated Creator', 'password': password})
+                self.assertEqual(rejected.status_code, 422)
+                self.assertNotIn(password, rejected.text)
+                self.assertIn('at least 8 characters', rejected.json()['detail'])
+                self.assertEqual(self.db.query(User).count(), 0)
             created = client.post('/auth/register', json={
                 'email': 'creator@example.com', 'name': 'Isolated Creator',
-                'password': 'disposable-creator-test-password',
+                'password': 'Test123!',
             })
             self.assertEqual(created.status_code, 200)
             for flag in ('HttpOnly', 'Secure', 'SameSite=lax'):
@@ -85,7 +92,7 @@ class PostgresChecks(unittest.TestCase):
             self.assertEqual(self.db.query(IGAccount).filter_by(org_id=user.active_org_id).count(), 0)
             client.post('/auth/logout')
             self.assertEqual(client.get('/auth/me').status_code, 401)
-            login = client.post('/auth/login', data={'username': 'CREATOR@example.com', 'password': 'disposable-creator-test-password'})
+            login = client.post('/auth/login', data={'username': 'CREATOR@example.com', 'password': 'Test123!'})
             self.assertEqual(login.status_code, 200)
             self.assertEqual(client.get('/auth/me').json()['id'], user.id)
 

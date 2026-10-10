@@ -65,6 +65,7 @@ class TesterAccessChecks(unittest.TestCase):
         return account
 
     def test_closed_public_signup_still_allows_one_private_workspace_and_normal_login(self):
+        self.payload['password'] = 'Test123!'
         with patch.object(settings, 'signup_enabled', False):
             self.assertEqual(self.client.post('/auth/register', json=self.payload).status_code, 403)
             invitation_id, user, response = self.join()
@@ -78,8 +79,15 @@ class TesterAccessChecks(unittest.TestCase):
         self.assertEqual(self.client.get('/scope', headers={'X-Org-Id':'1'}).status_code, 403)
         self.assertEqual(self.client.get('/api/admin/tester-invitations').status_code, 403)
         self.client.post('/auth/logout')
-        login = self.client.post('/auth/login', data={'username':'CREATOR@fixture.test','password':PASSWORD})
+        login = self.client.post('/auth/login', data={'username':'CREATOR@fixture.test','password':self.payload['password']})
         self.assertEqual(login.status_code, 200)
+
+    def test_eight_arabic_characters_can_join_and_sign_in(self):
+        self.payload['password'] = 'ابتثجحخد'
+        self.join()
+        self.client.post('/auth/logout')
+        response = self.client.post('/auth/login', data={'username':self.payload['email'],'password':self.payload['password']})
+        self.assertEqual(response.status_code, 200)
 
     def test_admin_issue_is_origin_protected_hash_only_and_shown_once(self):
         self.assertEqual(self.client.post('/api/admin/tester-invitations', json={'email':self.payload['email']}, headers={'Authorization':self.admin['Authorization']}).status_code, 403)
@@ -108,9 +116,10 @@ class TesterAccessChecks(unittest.TestCase):
         invitation_id, token = self.issue()
         wrong = self.client.post('/auth/tester-invitations/redeem', json=dict(self.payload, token=token, email='wrong@fixture.test'), headers={'Origin':ORIGIN})
         self.assertEqual(wrong.status_code, 422)
-        for password in ('short-only', 'أ'*40):
+        for password in ('short7!', 'أ'*7, 'أ'*40, 'x'*73):
             response = self.client.post('/auth/tester-invitations/redeem', json=dict(self.payload, token=token, password=password), headers={'Origin':ORIGIN})
             self.assertEqual(response.status_code, 422); self.assertNotIn(token, response.text); self.assertNotIn(password, response.text)
+            self.assertIn('at least 8 characters', response.json()['detail'])
         self.assertIsNone(self.db.get(TesterInvitation, invitation_id).redeemed_at)
         self.assertEqual(self.db.query(User).count(), 1); self.assertEqual(self.db.query(Org).count(), 1)
 
