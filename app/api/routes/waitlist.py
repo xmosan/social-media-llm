@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Literal
+from pydantic import BaseModel, ConfigDict, Field
 import logging
 import io
 import csv
@@ -11,7 +12,7 @@ from datetime import datetime, timedelta
 from app.db import get_db
 from app.models.waitlist import WaitlistEntry
 from app.schemas.waitlist import WaitlistJoinRequest
-from app.security.rbac import require_superadmin
+from app.security.rbac import require_superadmin, OWNER_HEADERS
 from app.models import User
 from app.services.email import send_email
 
@@ -168,13 +169,13 @@ def export_waitlist_csv(db: Session = Depends(get_db)):
     return StreamingResponse(
         iter([output.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="waitlist.csv"'}
+        headers={**OWNER_HEADERS, "Content-Disposition": 'attachment; filename="waitlist.csv"'}
     )
 
 @router.get("/all", dependencies=[Depends(require_superadmin)])
 def get_all_entries(
-    limit: int = 100,
-    offset: int = 0,
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     q: Optional[str] = None,
     status: Optional[str] = None,
     source: Optional[str] = None,
@@ -233,10 +234,19 @@ def get_all_entries(
         "items": items
     }
 
+class WaitlistUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: Literal["active", "contacted", "invited", "converted", "archived"] | None = None
+    tags: str | None = Field(default=None, max_length=500)
+    admin_notes: str | None = Field(default=None, max_length=4000)
+    name: str | None = Field(default=None, max_length=100)
+    source: str | None = Field(default=None, max_length=100)
+
+
 @router.patch("/{id}")
 async def patch_waitlist_entry(
     id: int,
-    payload: dict,
+    payload: WaitlistUpdate,
     db: Session = Depends(get_db),
     admin_user: User = Depends(require_superadmin)
 ):
@@ -245,11 +255,9 @@ async def patch_waitlist_entry(
     if not entry:
         raise HTTPException(status_code=404, detail="Entry not found")
     
-    allowed_fields = ["status", "tags", "admin_notes", "name", "source"]
-    for field in allowed_fields:
-        if field in payload:
-            setattr(entry, field, payload[field])
-            
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(entry, field, value)
+
     db.commit()
     db.refresh(entry)
     return {"ok": True, "id": entry.id}

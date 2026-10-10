@@ -145,6 +145,8 @@ class Settings(BaseSettings):
         repr=False,
     )
     bootstrap_superadmin: bool = False
+    # Runtime owner allowlist; separate from one-time administrator bootstrap.
+    platform_owner_email: str | None = None
     superadmin_email: str | None = Field(default=None, env="SUPERADMIN_EMAIL")
     superadmin_password: str | None = Field(default=None, env="SUPERADMIN_PASSWORD", repr=False)
 

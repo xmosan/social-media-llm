@@ -1,3 +1,5 @@
+from app.config import settings
+from unittest.mock import patch
 """Security regression tests with disposable records and mocked external work."""
 
 import ast
@@ -120,6 +122,8 @@ class BootstrapTests(DatabaseCase):
 
 class AccessTests(DatabaseCase):
     def setUp(self):
+        owner = patch.object(settings, "platform_owner_email", "admin@example.test")
+        owner.start(); self.addCleanup(owner.stop)
         super().setUp()
         self.db.add_all([Org(id=1, name="First"), Org(id=2, name="Second"), Org(id=3, name="Empty")])
         self.admin = User(id=1, email="admin@example.test", is_active=True, is_superadmin=True, active_org_id=1)
@@ -185,9 +189,9 @@ class AccessTests(DatabaseCase):
         with patch.object(settings, "admin_api_key", retired_key):
             self.assertEqual(self.client.get("/platform", headers=headers).status_code, 401)
 
-    def test_explicit_admin_key_requires_active_superadmin(self):
+    def test_shared_admin_key_cannot_impersonate_owner(self):
         headers = {"X-API-Key": settings.admin_api_key}
-        self.assertEqual(self.client.get("/platform", headers=headers).status_code, 200)
+        self.assertEqual(self.client.get("/platform", headers=headers).status_code, 401)
         self.admin.is_active = False
         self.db.commit()
         self.assertEqual(self.client.get("/platform", headers=headers).status_code, 401)

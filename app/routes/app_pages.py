@@ -10,7 +10,7 @@ from app.models import User, Org, OrgMember, IGAccount, Post, TopicAutomation, C
 from app.security.auth import require_user, optional_user
 from app.services.prebuilt_loader import load_prebuilt_packs
 from app.services.automation_runner import run_automation_once
-from app.security.rbac import get_current_org_id
+from app.security.rbac import is_platform_owner, get_current_org_id
 from typing import Optional
 from pydantic import BaseModel
 import json
@@ -522,7 +522,7 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
         content=content,
         user_name=user.name or user.email,
         org_name=org.name if org else "Personal Workspace",
-        admin_link=('<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""),
+        admin_link=('<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if is_platform_owner(user) else ""),
         active_dashboard=active_map["dashboard"],
         active_calendar=active_map["calendar"],
         active_automations=active_map["automations"],
@@ -612,7 +612,7 @@ async def app_calendar_page(
     active_acc, all_accs, is_connected = get_active_context(db, user, org.id)
     active_acc_id = active_acc.id if active_acc else 0
 
-    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""
+    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if is_platform_owner(user) else ""
     
     today = datetime.now(display_tz)
     year = today.year
@@ -866,7 +866,7 @@ async def app_automations_page(
     active_acc, all_accs, is_connected = get_active_context(db, user, org.id)
     active_acc_id = active_acc.id if active_acc else 0
 
-    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""
+    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if is_platform_owner(user) else ""
     
     # Filter by Active Account
     autos = db.query(TopicAutomation).filter(
@@ -1046,7 +1046,7 @@ async def app_media_page(
     active_acc, all_accs, is_connected = get_active_context(db, user, org.id)
     active_acc_id = active_acc.id if active_acc else 0
 
-    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if user.is_superadmin else ""
+    admin_link = '<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if is_platform_owner(user) else ""
     
     # Filter Media by Active Account
     from app.models import MediaAsset

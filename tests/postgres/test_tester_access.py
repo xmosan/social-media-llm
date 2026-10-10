@@ -30,6 +30,8 @@ class TesterAccessChecks(unittest.TestCase):
         Base.metadata.create_all(engine)
 
     def setUp(self):
+        owner = patch.object(settings, "platform_owner_email", "admin@fixture.test")
+        owner.start(); self.addCleanup(owner.stop)
         with engine.begin() as c:
             c.execute(text('TRUNCATE ' + ', '.join('"'+t.name+'"' for t in Base.metadata.sorted_tables) + ' RESTART IDENTITY CASCADE'))
         self.db = Session(engine, expire_on_commit=False); self.addCleanup(self.db.close)

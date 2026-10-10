@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import IGAccount
-from ..security.rbac import get_current_org_id
+from ..security.rbac import is_platform_owner, get_current_org_id
 from ..security.auth import require_user
 from ..schemas import IGAccountOut, AccountCreate, AccountUpdate
 import httpx
@@ -50,7 +50,7 @@ def list_accounts(
     """List all IG accounts for the organization (or all for superadmin)."""
     org_id_header = request.headers.get("X-Org-Id")
     
-    if user.is_superadmin and not org_id_header:
+    if is_platform_owner(user) and not org_id_header:
         return db.query(IGAccount).all()
         
     org_id = get_current_org_id(request=request, user=user, org_id=org_id_header, db=db)
