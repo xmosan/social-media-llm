@@ -17,6 +17,7 @@ from app.services.usage_limits import check_auth_attempt, require_signup_enabled
 
 from app.security.tester_access import user_can_sign_in
 from app.services.registration import provision_creator
+from app.security.rbac import is_platform_owner
 
 class AuthRoute(APIRoute):
     def get_route_handler(self):
@@ -181,7 +182,7 @@ def get_current_user_profile(
 ) -> dict[str, Any]:
     # Fetch orgs
     orgs = []
-    if current_user.is_superadmin:
+    if is_platform_owner(current_user):
         all_orgs = db.query(Org).all()
         orgs = [{"id": o.id, "name": o.name, "role": "superadmin"} for o in all_orgs]
     else:
@@ -195,7 +196,7 @@ def get_current_user_profile(
         "id": current_user.id,
         "email": current_user.email,
         "name": current_user.name,
-        "is_superadmin": current_user.is_superadmin,
+        "is_superadmin": is_platform_owner(current_user),
         "onboarding_complete": current_user.onboarding_complete,
         "orgs": orgs
     }

@@ -7,12 +7,12 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import ContactMessage, User, TopicAutomation
 from app.security.auth import get_current_user
-from app.security.rbac import require_superadmin
+from app.security.rbac import require_superadmin, OWNER_HEADERS
 from typing import Optional
 from fastapi.templating import Jinja2Templates
 import os
 
-templates = Jinja2Templates(directory="app/templates")
+templates = Jinja2Templates(directory=os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates"))
 
 router = APIRouter()
 
@@ -1081,10 +1081,8 @@ def register_page(error: Optional[str] = None):
 
 @router.get("/admin", response_class=HTMLResponse, dependencies=[Depends(require_superadmin)])
 async def get_admin_dashboard(request: Request):
-    """
-    Serves the Waitlist Admin Dashboard.
-    """
-    return templates.TemplateResponse("admin.html", {"request": request})
+    return templates.TemplateResponse("admin.html", {"request": request}, headers={
+        **OWNER_HEADERS, "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"})
 
 @router.get("/demo", response_class=HTMLResponse)
 def demo_page():

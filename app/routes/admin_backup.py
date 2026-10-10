@@ -19,7 +19,6 @@ def verify_admin_key(admin_key: Optional[str] = Query(None)):
 
 
 @router.post("/backup-db")
-@router.get("/backup-db")  # Existing admin client compatibility.
 def create_postgres_backup(admin: User = Depends(require_superadmin), _key: bool = Depends(verify_admin_key)):
     result = backups.backup_postgres_database()
     if result["status"] != "success":

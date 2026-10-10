@@ -1,3 +1,5 @@
+from app.config import settings
+from unittest.mock import patch
 """Actual PostgreSQL feedback persistence and private access boundaries."""
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
@@ -23,6 +25,8 @@ class CreatorFeedbackChecks(unittest.TestCase):
         Base.metadata.create_all(engine)
 
     def setUp(self):
+        owner = patch.object(settings, "platform_owner_email", "admin@fixture.test")
+        owner.start(); self.addCleanup(owner.stop)
         with engine.begin() as c:
             c.execute(text('TRUNCATE ' + ', '.join('"'+t.name+'"' for t in Base.metadata.sorted_tables) + ' RESTART IDENTITY CASCADE'))
         self.db = Session(engine, expire_on_commit=False); self.addCleanup(self.db.close)

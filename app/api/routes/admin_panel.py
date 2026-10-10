@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query
+from pydantic import BaseModel, ConfigDict, StrictBool
+from typing import Literal
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-from typing import List, Dict, Any, Optional
-from datetime import datetime, timezone, timedelta
+from typing import Optional
+from datetime import datetime, timezone
 import os
 
 from app.db import get_db
-from app.models import User, Org, IGAccount, TopicAutomation, Post, WaitlistEntry
+from app.models import User, Org, IGAccount, TopicAutomation, Post, WaitlistEntry, TesterInvitation, InboundMessage
+from app.config import settings
 from app.security.rbac import require_superadmin
 from app.services.automation_runner import run_automation_once
 
@@ -38,6 +40,18 @@ def get_platform_overview(
 
     return {
         "ok": True,
+        "owner": {"name": admin_user.name or "Sabeel owner", "email": admin_user.email},
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "signup_enabled": settings.signup_enabled,
+        "creators": db.query(User).filter(User.id != admin_user.id).count(),
+        "pilot": {
+            "pending": db.query(TesterInvitation).filter(TesterInvitation.redeemed_at.is_(None), TesterInvitation.revoked_at.is_(None), TesterInvitation.expires_at > datetime.now(timezone.utc)).count(),
+            "active": db.query(TesterInvitation).filter(TesterInvitation.redeemed_at.is_not(None), TesterInvitation.revoked_at.is_(None), TesterInvitation.access_expires_at > datetime.now(timezone.utc)).count(),
+        },
+        "inbox": {
+            "feedback": db.query(InboundMessage).filter(InboundMessage.source == "creator_pilot").count(),
+            "support_pending": db.query(InboundMessage).filter(InboundMessage.source.is_distinct_from("creator_pilot"), InboundMessage.status == "received").count(),
+        },
         "users": db.query(User).count(),
         "orgs": db.query(Org).count(),
         "ig_accounts": db.query(IGAccount).count(),
@@ -50,6 +64,7 @@ def get_platform_overview(
             "scheduled": db.query(Post).filter(Post.status == "scheduled").count(),
             "published": db.query(Post).filter(Post.status == "published").count(),
             "failed": db.query(Post).filter(Post.status == "failed").count(),
+            "publish_unknown": db.query(Post).filter(Post.status == "publish_unknown").count(),
         },
         "waitlist": db.query(WaitlistEntry).count()
     }
@@ -81,10 +96,15 @@ def list_system_automations(
     
     return {"ok": True, "items": results}
 
+class AutomationState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: StrictBool
+
+
 @router.patch("/automations/{id}")
 def patch_automation(
     id: int,
-    payload: dict,
+    payload: AutomationState,
     db: Session = Depends(get_db),
     admin_user: User = Depends(require_superadmin)
 ):
@@ -92,11 +112,15 @@ def patch_automation(
     auto = db.query(TopicAutomation).filter(TopicAutomation.id == id).first()
     if not auto:
         raise HTTPException(status_code=404, detail="Automation not found")
-        
-    if "enabled" in payload:
-        auto.enabled = payload["enabled"]
-        
-    db.commit()
+    # Reuse the creator route's canonical account and schedule validation.
+    # Pausing must remain possible even after a workspace's pilot has ended.
+    if payload.enabled:
+        from app.security.tester_access import require_workspace_access
+        require_workspace_access(db, auto.org_id)
+    from app.routes.automations import update_automation
+    from app.schemas import TopicAutomationUpdate
+    update_automation(id, TopicAutomationUpdate(enabled=payload.enabled), db, auto.org_id)
+
     return {"ok": True}
 
 @router.post("/automations/{id}/run")
@@ -191,6 +215,8 @@ def get_diagnostics(
 ):
     """System heartbeat and environment check."""
     from app.services.scheduler import _global_scheduler
+    from sqlalchemy import text
+    db.execute(text("SELECT 1"))
     
     scheduler_running = False
     active_jobs = 0
@@ -200,15 +226,19 @@ def get_diagnostics(
 
     return {
         "ok": True,
+        "database": "connected",
+        "signup_enabled": settings.signup_enabled,
+        "owner_email": admin_user.email,
         "scheduler": {
-            "status": "running" if scheduler_running else "stopped",
+            "status": ("running" if scheduler_running else "stopped") if settings.scheduler_enabled else "disabled",
             "active_jobs": active_jobs,
             "timestamp": datetime.now(timezone.utc).isoformat()
         },
         "environment": {
-            "openai_key": bool(os.getenv("OPENAI_API_KEY")),
-            "ig_client_id": bool(os.getenv("INSTAGRAM_CLIENT_ID")),
-            "db_url": os.getenv("DATABASE_URL")[:15] + "..." if os.getenv("DATABASE_URL") else "sqlite-default"
+            "openai_configured": bool(settings.openai_api_key),
+            "instagram_configured": bool(settings.fb_app_id and settings.fb_app_secret),
+            "logging_configured": bool(settings.axiom_token),
+            "backup_configured": settings.backup_storage_type.lower() == "s3" and all((settings.s3_access_key, settings.s3_secret_key, settings.s3_bucket_name)),
         },
         "stats": {
             "total_posts": db.query(Post).count(),
@@ -218,12 +248,12 @@ def get_diagnostics(
 
 @router.get("/failed-posts")
 def list_failed_posts(
-    limit: int = 50,
+    limit: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
     admin_user: User = Depends(require_superadmin)
 ):
     """Deep dive into platform-wide post failures."""
-    posts = db.query(Post).filter(Post.status == "failed")\
+    posts = db.query(Post).filter(Post.status.in_(["failed", "publish_unknown"]))\
                .order_by(Post.created_at.desc())\
                .limit(limit).all()
     
@@ -234,7 +264,8 @@ def list_failed_posts(
                 "id": p.id,
                 "org_id": p.org_id,
                 "topic": p.topic,
-                "error": p.flags.get("publish_error") if p.flags else p.last_error,
+                "status": p.status,
+                "error": (p.flags or {}).get("publish_error") or p.last_error,
                 "created_at": p.created_at.isoformat() if p.created_at else None
             } for p in posts
         ]
@@ -242,14 +273,14 @@ def list_failed_posts(
 
 @router.get("/messages")
 def list_inbound_messages(
-    status: Optional[str] = None,
-    limit: int = 50,
+    status: Optional[Literal["received", "resolved", "archived"]] = None,
+    limit: int = Query(default=50, ge=1, le=100),
     db: Session = Depends(get_db),
     admin_user: User = Depends(require_superadmin)
 ):
     """Admin-only view of support messages with filters."""
     from app.models.inbound_message import InboundMessage
-    q = db.query(InboundMessage)
+    q = db.query(InboundMessage).filter(InboundMessage.source.is_distinct_from("creator_pilot"))
     if status:
         q = q.filter(InboundMessage.status == status)
         
@@ -270,10 +301,15 @@ def list_inbound_messages(
         ]
     }
 
+class MessageState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: Literal["received", "resolved", "archived"]
+
+
 @router.patch("/messages/{id}")
 def update_message_status(
     id: int,
-    payload: dict,
+    payload: MessageState,
     db: Session = Depends(get_db),
     admin_user: User = Depends(require_superadmin)
 ):
@@ -283,8 +319,7 @@ def update_message_status(
     if not msg:
         raise HTTPException(status_code=404, detail="Message not found")
         
-    if "status" in payload:
-        msg.status = payload["status"]
+    msg.status = payload.status
         
     db.commit()
     return {"ok": True}

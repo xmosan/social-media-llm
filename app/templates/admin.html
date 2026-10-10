@@ -1,978 +1,207 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sabeel Studio Admin | Control Center</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --primary: #10B981;
-      --primary-dim: rgba(16, 185, 129, 0.1);
-      --bg-dark: #0F172A;
-      --card-bg: #1E293B;
-      --text-main: #F8FAFC;
-      --text-muted: #94A3B8;
-      --border: rgba(255, 255, 255, 0.08);
-      --accent: #6366F1;
-    }
-    body { 
-      font-family: 'Inter', sans-serif; 
-      background-color: var(--bg-dark); 
-      color: var(--text-main);
-      -webkit-font-smoothing: antialiased;
-    }
-    .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid var(--border); }
-    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 1.5rem; transition: transform 0.2s ease, border-color 0.2s ease; }
-    .card:hover { border-color: rgba(255, 255, 255, 0.15); }
-    
-    .btn { padding: 0.75rem 1.25rem; border-radius: 0.75rem; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; transition: all 0.2s ease; display: inline-flex; items-center; gap: 0.5rem; }
-    .btn-primary { background: var(--primary); color: white; }
-    .btn-primary:hover { background: #059669; transform: translateY(-1px); box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2); }
-    .btn-accent { background: var(--accent); color: white; }
-    .btn-outline { border: 1px solid var(--border); color: var(--text-main); }
-    .btn-outline:hover { background: rgba(255, 255, 255, 0.05); }
-    
-    .status-badge { padding: 0.25rem 0.625rem; border-radius: 0.5rem; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
-    .status-new { background: var(--primary-dim); color: var(--primary); }
-    .status-contacted { background: rgba(99, 102, 241, 0.1); color: #818CF8; }
-    .status-invited { background: rgba(245, 158, 11, 0.1); color: #F59E0B; }
-    .status-converted { background: rgba(16, 185, 129, 0.2); color: #34D399; }
-    .status-archived { background: rgba(148, 163, 184, 0.1); color: #94A3B8; }
-
-    table { width: 100%; }
-    th { text-align: left; color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; padding: 1rem; border-bottom: 1px solid var(--border); }
-    td { padding: 1rem; border-bottom: 1px solid var(--border); font-size: 0.8rem; }
-    tr:hover { background: rgba(255, 255, 255, 0.02); }
-
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); display: none; items-center; justify-content: center; z-index: 100; }
-    .modal-content { background: var(--card-bg); width: 100%; max-width: 500px; border-radius: 2rem; border: 1px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); }
-
-    select, input { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 0.75rem; padding: 0.625rem 1rem; color: white; outline: none; transition: border-color 0.2s; }
-    select:focus, input:focus { border-color: var(--primary); }
-    .status-icon { width: 8px; height: 8px; border-radius: 50%; }
-  </style>
-</head>
-<body class="min-h-screen p-6 md:p-12 pb-24">
-  <div class="max-w-7xl mx-auto space-y-12">
-    
-    <!-- System Status Section (Step 6) -->
-    <section class="mb-12">
-      <div class="card p-6 border-blue-500/20 bg-blue-500/5">
-        <h2 class="text-xl font-black mb-4 flex items-center gap-2">
-          <span class="w-3 h-3 bg-blue-500 rounded-full animate-pulse"></span>
-          System Status 
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div class="flex items-center gap-3 p-4 bg-black/40 rounded-lg">
-            <div id="status-db-icon" class="status-icon bg-gray-500"></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Owner dashboard · Sabeel Studio</title>
+    <link rel="stylesheet" href="/static/owner-dashboard.css?v=1" />
+    <script defer src="/static/owner-dashboard.js?v=1"></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to dashboard</a>
+    <div class="shell">
+      <aside class="sidebar">
+        <a
+          class="brand"
+          href="/admin"
+          aria-label="Sabeel Studio owner dashboard"
+          >Sabeel<span>Studio</span></a
+        >
+        <div class="owner-label">
+          <span aria-hidden="true">●</span> Owner workspace
+        </div>
+        <nav aria-label="Owner dashboard">
+          <a href="#overview" data-panel="overview" aria-current="page"
+            ><span aria-hidden="true">01</span> Overview</a
+          >
+          <a href="#creators" data-panel="creators"
+            ><span aria-hidden="true">02</span> Creators</a
+          >
+          <a href="#publishing" data-panel="publishing"
+            ><span aria-hidden="true">03</span> Publishing</a
+          >
+          <a href="#inbox" data-panel="inbox"
+            ><span aria-hidden="true">04</span> Inbox</a
+          >
+          <a href="#waitlist" data-panel="waitlist"
+            ><span aria-hidden="true">05</span> Waitlist</a
+          >
+          <a href="#system" data-panel="system"
+            ><span aria-hidden="true">06</span> System</a
+          >
+        </nav>
+        <div class="sidebar-foot">
+          <p>Private tools for running Sabeel.</p>
+          <a href="/app">← Back to the app</a>
+        </div>
+      </aside>
+      <main id="main" tabindex="-1">
+        <header class="page-header">
+          <div>
+            <p class="eyebrow">SABEEL / OWNER</p>
+            <h1 id="page-title">Overview</h1>
+            <p id="page-description">A clear view of your creator pilot.</p>
+          </div>
+          <button class="secondary" id="refresh" type="button">Refresh</button>
+        </header>
+        <p id="notice" class="notice" role="status" hidden></p>
+        <div id="session-error" class="error" role="alert" hidden>
+          <h2>Your session needs attention</h2>
+          <p>Sign in with the owner account to continue.</p>
+          <a class="button" href="/login">Sign in</a>
+        </div>
+        <section id="panel-overview" aria-label="Overview">
+          <div class="hero">
             <div>
-              <p class="text-[10px] text-text-muted uppercase font-bold">Database</p>
-              <p id="status-db-text" class="text-sm font-bold">Unknown</p>
+              <span class="tag" id="access-mode">Private workspace</span>
+              <h2>Your creator pilot.</h2>
+              <p>Invite creators and review their feedback in one place.</p>
+              <div class="actions">
+                <a class="button" href="/admin/testers"
+                  >Invite creators <span aria-hidden="true">↗</span></a
+                ><a class="text-link" href="/admin/feedback"
+                  >Review feedback →</a
+                >
+              </div>
             </div>
           </div>
-          <div class="flex items-center gap-3 p-4 bg-black/40 rounded-lg">
-            <div id="status-backup-icon" class="status-icon bg-gray-500"></div>
+          <div id="overview-data" class="data-area" aria-live="polite"></div>
+        </section>
+        <section id="panel-creators" aria-label="Creators" hidden>
+          <div class="section-top">
+            <p>
+              Accounts and workspaces. Manage pilot invitations and access
+              separately.
+            </p>
+            <a class="button" href="/admin/testers">Manage tester access ↗</a>
+          </div>
+          <label class="search-label" for="creator-search">Find a creator</label
+          ><input
+            id="creator-search"
+            type="search"
+            placeholder="Name, email or workspace"
+            autocomplete="off"
+          />
+          <div id="creators-data" class="data-area" aria-live="polite"></div>
+        </section>
+        <section id="panel-publishing" aria-label="Publishing" hidden>
+          <p class="section-intro">
+            Review scheduled automation and posts that need attention. Opening
+            this page never runs an automation or publishes a post.
+          </p>
+          <div id="publishing-data" class="data-area" aria-live="polite"></div>
+        </section>
+        <section id="panel-inbox" aria-label="Inbox" hidden>
+          <a class="feature-link" href="/admin/feedback"
+            ><div>
+              <strong>Creator feedback</strong>
+              <p>Read private pilot feedback and the creator’s context.</p>
+            </div>
+            <span aria-hidden="true">↗</span></a
+          >
+          <div class="section-top">
+            <h2>Support messages</h2>
+            <label
+              >Status
+              <select id="message-filter">
+                <option value="received">Needs a reply</option>
+                <option value="resolved">Resolved</option>
+                <option value="archived">Archived</option>
+                <option value="">All messages</option>
+              </select></label
+            >
+          </div>
+          <p class="muted">
+            Status changes only update this inbox. They do not send an email.
+          </p>
+          <div id="inbox-data" class="data-area" aria-live="polite"></div>
+        </section>
+        <section id="panel-waitlist" aria-label="Waitlist" hidden>
+          <div class="section-top">
+            <p>
+              People who asked to hear from Sabeel. A waitlist entry does not
+              grant app access.
+            </p>
+            <a class="secondary button" href="/api/waitlist/export" download
+              >Export CSV ↓</a
+            >
+          </div>
+          <form id="waitlist-search" class="search-form">
             <div>
-              <p class="text-[10px] text-text-muted uppercase font-bold">Backup Integrity</p>
-              <p id="status-backup-text" class="text-sm font-bold">Pending Audit</p>
+              <label for="waitlist-query">Find a person</label
+              ><input
+                id="waitlist-query"
+                type="search"
+                placeholder="Name or email"
+                autocomplete="off"
+              />
             </div>
+            <button class="secondary" type="submit">Search</button>
+          </form>
+          <div id="waitlist-data" class="data-area" aria-live="polite"></div>
+          <div class="pagination">
+            <button id="waitlist-prev" class="secondary" disabled>
+              Previous</button
+            ><span id="waitlist-range"></span
+            ><button id="waitlist-next" class="secondary" disabled>Next</button>
           </div>
-          <div class="flex items-center gap-3 p-4 bg-black/40 rounded-lg">
-            <div id="status-write-icon" class="status-icon bg-gray-500"></div>
-            <div>
-              <p class="text-[10px] text-text-muted uppercase font-bold">Write Test</p>
-              <p id="status-write-text" class="text-sm font-bold">Not Tested</p>
-            </div>
+        </section>
+        <section id="panel-system" aria-label="System" hidden>
+          <p class="section-intro">
+            Live app checks and connection settings. Configured credentials are
+            not proof that an external service is working.
+          </p>
+          <div id="system-data" class="data-area" aria-live="polite"></div>
+          <div class="card">
+            <h2>Backups & recovery</h2>
+            <p>
+              Portable backups are stored separately from the app. Recovery must
+              be verified with an isolated restore test; this dashboard does not
+              certify that test.
+            </p>
+            <button id="backup" class="secondary" type="button">
+              Create a portable backup
+            </button>
+            <p id="backup-result" role="status" class="muted"></p>
           </div>
-        </div>
-        <div class="flex flex-wrap gap-3">
-          <button onclick="runSystemCheck()" id="btn-run-check" class="btn btn-primary w-full md:w-auto">
-            Run Full System Check
-          </button>
-          <button onclick="triggerBackup()" id="btn-run-backup" class="btn btn-outline w-full md:w-auto border-blue-500/30 text-blue-400 hover:bg-blue-500/10">
-            Trigger Portable Backup
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- 1. Header -->
-    <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-      <div class="space-y-1">
-        <h1 class="text-4xl font-black tracking-tight italic">Sabeel Studio <span class="text-primary">Admin</span></h1>
-        <div class="flex items-center gap-4">
-          <p class="text-text-muted text-[10px] font-black uppercase tracking-widest opacity-60">Strategic Control Matrix</p>
-          <div id="diag-heartbeat" class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/5">
-            <span class="w-1.5 h-1.5 rounded-full bg-text-muted animate-pulse" id="heartbeat-dot"></span>
-            <span class="text-[8px] font-black uppercase tracking-widest text-text-muted" id="heartbeat-text">System Loading...</span>
-          </div>
-        </div>
-      </div>
-      <div class="flex flex-wrap gap-3">
-        <button onclick="refreshAll()" class="btn btn-outline">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-          Sync Matrix
-        </button>
-        <a href="/api/waitlist/export" class="btn btn-primary">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-          Export Waitlist
-        </a>
-      </div>
-    </header>
-
-    <!-- 2. Platform Overview (NEW) -->
-    <section id="platform-overview" class="space-y-6">
-      <div class="flex items-center gap-3">
-        <div class="h-px flex-1 bg-border"></div>
-        <h2 class="text-[10px] font-black uppercase tracking-[0.3em] text-text-muted">Platform Overview</h2>
-        <div class="h-px flex-1 bg-border"></div>
-      </div>
-      <div id="overview-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-        <div class="card p-5 space-y-1">
-          <div class="text-[9px] font-black text-text-muted uppercase tracking-widest">Total Users</div>
-          <div id="ov-users" class="text-2xl font-black">—</div>
-        </div>
-        <div class="card p-5 space-y-1">
-          <div class="text-[9px] font-black text-text-muted uppercase tracking-widest">Workspaces</div>
-          <div id="ov-orgs" class="text-2xl font-black">—</div>
-        </div>
-        <div class="card p-5 space-y-1">
-          <div class="text-[9px] font-black text-text-muted uppercase tracking-widest">IG Nodes</div>
-          <div id="ov-accounts" class="text-2xl font-black">—</div>
-        </div>
-        <div class="card p-5 space-y-1 border-primary/20">
-          <div class="text-[9px] font-black text-primary uppercase tracking-widest">Waitlist</div>
-          <div id="ov-waitlist" class="text-2xl font-black text-primary">—</div>
-        </div>
-        <div class="card p-5 space-y-1">
-          <div class="text-[9px] font-black text-text-muted uppercase tracking-widest">Automations</div>
-          <div id="ov-autos" class="text-2xl font-black">—</div>
-        </div>
-        <div class="card p-5 space-y-1 bg-blue-500/5 border-blue-500/20">
-          <div class="text-[9px] font-black text-blue-400 uppercase tracking-widest">Library Items</div>
-          <div id="ov-library" class="text-2xl font-black text-blue-400">—</div>
-        </div>
-        <div class="card p-5 space-y-1">
-          <div class="text-[9px] font-black text-text-muted uppercase tracking-widest">Total Posts</div>
-          <div id="ov-posts-total" class="text-2xl font-black">—</div>
-        </div>
-        <div class="card p-5 space-y-1">
-          <div class="text-[9px] font-black text-text-muted uppercase tracking-widest">Published</div>
-          <div id="ov-posts-pub" class="text-2xl font-black text-emerald-400">—</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- 3. Waitlist Section (Expanded) -->
-    <section id="waitlist-control" class="space-y-6">
-      <div class="flex flex-col md:flex-row justify-between items-end gap-6">
-        <div class="space-y-4 w-full md:w-auto">
-          <div class="flex items-center gap-3">
-             <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
-              <span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
-              Waitlist Registry
-             </h2>
-             <span id="entry-count" class="text-[9px] font-black bg-white/5 border border-white/5 px-3 py-1 rounded-full text-text-muted tracking-tighter italic">Loading...</span>
-          </div>
-          <!-- Filters (PART 2) -->
-          <div class="flex flex-wrap gap-2">
-            <input type="text" id="wl-search" placeholder="Search email/name..." class="text-xs min-w-[240px]" oninput="debounce(reloadWaitlist, 500)()">
-            <select id="wl-status" class="text-xs" onchange="reloadWaitlist()">
-              <option value="">All Statuses</option>
-              <option value="active">Active/New</option>
-              <option value="contacted">Contacted</option>
-              <option value="invited">Invited</option>
-              <option value="converted">Converted</option>
-              <option value="archived">Archived</option>
-            </select>
-            <select id="wl-source" class="text-xs" onchange="reloadWaitlist()">
-              <option value="">All Sources</option>
-              <option value="homepage">Homepage</option>
-              <option value="waitlist-page">Waitlist Page</option>
-              <option value="ref">Referral</option>
-            </select>
-          </div>
-        </div>
-        
-        <!-- Waitlist Quick Stats (PART 1 rule) -->
-        <div id="waitlist-mini-stats" class="flex gap-4">
-          <div class="text-right">
-            <div class="text-[9px] font-black text-text-muted uppercase tracking-widest">Arrived Today</div>
-            <div id="wl-today" class="text-lg font-black text-white">0</div>
-          </div>
-          <div class="h-8 w-px bg-border"></div>
-          <div class="text-right">
-            <div class="text-[9px] font-black text-text-muted uppercase tracking-widest">This Week</div>
-            <div id="wl-week" class="text-lg font-black text-white">0</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card overflow-hidden shadow-2xl">
-        <div class="overflow-x-auto">
-          <table>
-            <thead>
-              <tr>
-                <th>Identity</th>
-                <th>Status</th>
-                <th>Source & Tracking</th>
-                <th>Acquired</th>
-                <th>Tags & Notes</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="waitlist-tbody">
-              <!-- Rows injected here -->
-            </tbody>
-          </table>
-        </div>
-        <div class="p-8 text-center bg-white/5 border-t border-white/5">
-          <button id="btn-load-more" onclick="loadMoreEntries()" class="btn btn-outline min-w-[200px]">Load More Records</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- 4. Automation Control (PART 5 NEW) -->
-    <section id="automation-section" class="space-y-6">
-      <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
-        <span class="w-1.5 h-1.5 rounded-full bg-accent"></span>
-        Automation Control
-      </h2>
-      <div class="card overflow-hidden">
-        <div class="overflow-x-auto">
-          <table>
-            <thead>
-              <tr>
-                <th>Automation Name</th>
-                <th>Workspace</th>
-                <th>Instagram Node</th>
-                <th>Schedule</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="automations-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- 5. Network & History Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <!-- 5a. Global Networks & Accounts -->
-      <section id="accounts-section" class="space-y-6">
-        <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
-          <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-          Connected Nodes
-        </h2>
-        <div class="card overflow-hidden">
-          <table>
-            <thead>
-              <tr>
-                <th>Account</th>
-                <th>Status</th>
-                <th>Joined</th>
-              </tr>
-            </thead>
-            <tbody id="accounts-tbody"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- 5b. Recent Activity -->
-      <section id="activity-section" class="space-y-6">
-        <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
-          <span class="w-1.5 h-1.5 rounded-full bg-accent"></span>
-          Matrix Feed
-        </h2>
-        <div class="card p-8 space-y-6 flex flex-col h-[300px]">
-          <div id="activity-feed" class="space-y-4 overflow-y-auto pr-2">
-            <!-- Feed injected here -->
-          </div>
-        </div>
-      </section>
+        </section>
+        <footer class="main-footer">
+          <span>Owner access only</span
+          ><span id="updated">Data loads when you open each section.</span>
+        </footer>
+        <noscript
+          ><p class="error">
+            Enable JavaScript to load dashboard data. You can still
+            <a href="/admin/testers">manage tester access</a> or
+            <a href="/admin/feedback">read feedback</a>.
+          </p></noscript
+        >
+      </main>
     </div>
-
-    <!-- 6. Failure Investigator & Diagnostics (NEW) -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      <!-- 6a. System Health Diagnostics -->
-      <section class="space-y-6">
-        <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
-          <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-          Diagnostics
-        </h2>
-        <div class="card p-8 space-y-6">
-          <div class="space-y-4">
-            <div class="flex justify-between items-center">
-              <span class="text-[10px] font-black uppercase tracking-widest text-text-muted">Scheduler State</span>
-              <span id="diag-sched-status" class="text-[10px] font-bold text-white">—</span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-[10px] font-black uppercase tracking-widest text-text-muted">OpenAI Matrix</span>
-              <span id="diag-openai" class="w-2 h-2 rounded-full bg-white/10"></span>
-            </div>
-            <div class="flex justify-between items-center">
-              <span class="text-[10px] font-black uppercase tracking-widest text-text-muted">IG Gateway</span>
-              <span id="diag-ig" class="w-2 h-2 rounded-full bg-white/10"></span>
-            </div>
-            <div class="pt-4 border-t border-white/5 space-y-2">
-              <div class="text-[9px] font-black text-text-muted uppercase">Active Worker Threads</div>
-              <div id="diag-jobs" class="text-xl font-black text-white">0</div>
-            </div>
-          </div>
+    <dialog
+      id="confirmation"
+      aria-labelledby="confirm-title"
+      aria-describedby="confirm-description"
+    >
+      <form method="dialog">
+        <p class="eyebrow">PLEASE CONFIRM</p>
+        <h2 id="confirm-title"></h2>
+        <p id="confirm-description"></p>
+        <div class="actions">
+          <button value="cancel" class="secondary">Cancel</button
+          ><button value="confirm" id="confirm-button">Continue</button>
         </div>
-      </section>
-
-      <!-- 6b. Failed Post Matrix -->
-      <section class="lg:col-span-2 space-y-6">
-        <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
-          <span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
-          Anomalies & Failures
-        </h2>
-        <div class="card overflow-hidden">
-          <div class="max-h-[280px] overflow-y-auto">
-            <table>
-              <thead>
-                <tr>
-                  <th>Topic / Org</th>
-                  <th>Error Intelligence</th>
-                  <th>Detected At</th>
-                </tr>
-              </thead>
-              <tbody id="failed-posts-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <!-- 7. Support Hub & Inbound Matrix (NEW) -->
-    <section id="support-hub" class="space-y-6">
-      <div class="flex justify-between items-end">
-        <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-          Intelligence Inbound (Support Hub)
-        </h2>
-        <select id="msg-filter-status" class="text-[10px] py-1" onchange="fetchSupportMessages()">
-          <option value="">All Messages</option>
-          <option value="received">Received</option>
-          <option value="resolved">Resolved</option>
-          <option value="archived">Archived</option>
-        </select>
-      </div>
-      <div class="card overflow-hidden">
-        <table>
-          <thead>
-            <tr>
-              <th>Contact Identity</th>
-              <th>Intelligence Query (Subject)</th>
-              <th>Status</th>
-              <th>Intercepted</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="messages-tbody"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- 8. Global Library Synchronizer (NEW) -->
-    <section id="sync-foundation-container" class="space-y-6">
-      <h2 class="text-sm font-black uppercase tracking-widest flex items-center gap-3">
-        <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-        Global Foundation Synchronizer
-      </h2>
-      <div class="card p-8 flex flex-col md:flex-row items-center justify-between gap-8 border-blue-500/20">
-        <div class="space-y-2">
-          <h3 class="text-lg font-black italic">Quran Foundation Ingestion</h3>
-          <p class="text-xs text-text-muted font-medium max-w-md">Synchronize specific Surahs directly from the foundation's API into the global repository for all organizations.</p>
-          <div id="sync-live-status" class="text-[10px] font-bold mt-2 hidden"></div>
-        </div>
-        <div class="flex flex-wrap gap-4 items-end">
-          <div class="space-y-2">
-            <label class="text-[9px] font-black text-text-muted uppercase tracking-widest ml-2">Surah ID (1-114)</label>
-            <input type="number" id="sync-surah-id" min="1" max="114" value="1" class="w-32">
-          </div>
-          <button onclick="triggerSurahSync()" id="btn-sync-surah" class="btn btn-outline py-2">
-            Sync Single Surah
-          </button>
-          <button onclick="triggerFullSync()" id="btn-sync-full" class="btn btn-primary bg-blue-600 hover:bg-blue-700">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path></svg>
-            Full Matrix Sync
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <footer class="text-center pt-12 opacity-30">
-      <div class="text-[9px] font-black uppercase tracking-[0.5em]">&copy; 2026 Sabeel Studio Intelligence Matrix</div>
-    </footer>
-  </div>
-
-  <!-- Note/Tag Modal (PART 3) -->
-  <div id="edit-modal" class="modal-overlay" onclick="closeModal(event)">
-    <div class="modal-content p-10 space-y-8" onclick="event.stopPropagation()">
-      <div class="space-y-1">
-        <h3 class="text-xl font-black italic">Modify Entry</h3>
-        <p class="text-[10px] font-black text-text-muted uppercase tracking-widest" id="edit-id-label">Waitlist ID: —</p>
-      </div>
-      
-      <div class="space-y-4">
-        <div class="space-y-2">
-          <label class="text-[9px] font-black uppercase tracking-widest text-text-muted ml-2">Administrative Notes</label>
-          <textarea id="edit-notes" class="w-full bg-white/5 border border-border rounded-2xl p-4 text-xs font-medium outline-none h-32 focus:border-primary" placeholder="Internal notes..."></textarea>
-        </div>
-        <div class="space-y-2">
-          <label class="text-[9px] font-black uppercase tracking-widest text-text-muted ml-2">Tags (Comma Separated)</label>
-          <input type="text" id="edit-tags" class="w-full" placeholder="VIP, early_adopter, developer">
-        </div>
-      </div>
-
-      <div class="flex gap-3 justify-end">
-        <button onclick="closeModal()" class="btn btn-outline">Cancel</button>
-        <button onclick="saveEntryChanges()" class="btn btn-primary" id="btn-save-edit">Apply Intelligence</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    let currentOffset = 0;
-    const limit = 50;
-    let currentEditId = null;
-
-    // --- Core Logic ---
-
-    async function refreshAll() {
-      fetchOverview();
-      fetchAutomations();
-      fetchActivity();
-      fetchFailedPosts();
-      fetchSupportMessages();
-      runSystemCheck(true); // Silent check on load
-    }
-
-    async function runSystemCheck(silent = false) {
-      if(!silent) {
-        document.getElementById('btn-run-check').disabled = true;
-        document.getElementById('btn-run-check').textContent = "Running Analysis...";
-      }
-      
-      try {
-        const res = await fetch('/api/admin/system/health');
-        const data = await res.json();
-        
-        const dbIcon = document.getElementById('status-db-icon');
-        const dbText = document.getElementById('status-db-text');
-        const backupIcon = document.getElementById('status-backup-icon');
-        const backupText = document.getElementById('status-backup-text');
-        const writeIcon = document.getElementById('status-write-icon');
-        const writeText = document.getElementById('status-write-text');
-
-        if(data.database === 'connected') {
-          dbIcon.className = 'status-icon bg-green-500';
-          dbText.textContent = '✅ Connected';
-        } else {
-          dbIcon.className = 'status-icon bg-red-500';
-          dbText.textContent = '❌ Error';
-        }
-
-        writeIcon.className = 'status-icon bg-gray-500';
-        writeText.textContent = 'Not run — read-only check';
-        backupIcon.className = 'status-icon bg-yellow-500';
-        backupText.textContent = data.backup_status === 'configured'
-          ? 'Configured — restore unverified'
-          : data.backup_status === 'not_configured'
-            ? 'Durable storage not configured' : 'Not verified';
-
-        if(!silent) alert(data.database === 'connected'
-          ? "Database check complete. Backup recovery has not been verified by this check."
-          : "Database check failed. Check the service logs.");
-        
-      } catch(e) { console.error(e); }
-      
-      if(!silent) {
-        document.getElementById('btn-run-check').disabled = false;
-        document.getElementById('btn-run-check').textContent = "Run Full System Check";
-      }
-    }
-
-    async function triggerBackup() {
-      const btn = document.getElementById('btn-run-backup');
-      if (btn.disabled) return;
-      btn.disabled = true;
-      btn.textContent = "Creating backup...";
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 360000);
-      
-      try {
-        const res = await fetch('/admin/backup-db', {method: 'POST', signal: controller.signal});
-        const data = await res.json();
-        if(res.ok) {
-          alert(data.durable
-            ? "Backup uploaded and its size verified. A restore check is still required before database maintenance."
-            : (data.warning || "Backup created locally. Configure durable storage before relying on it for recovery."));
-          runSystemCheck(true);
-        } else {
-          alert("❌ Backup Error: " + (data.detail || "Unknown error"));
-        }
-      } catch(e) {
-        console.error(e);
-        alert(e.name === 'AbortError'
-          ? "Backup request timed out. Check its status before retrying."
-          : "❌ Failed to reach backup gateway.");
-      } finally {
-        clearTimeout(timeout);
-        btn.disabled = false;
-        btn.textContent = "Trigger Portable Backup";
-      }
-    }
-
-    async function fetchDiagnostics() {
-      try {
-        const res = await fetch('/api/admin/diagnostics');
-        const data = await res.json();
-        if(!data.ok) return;
-        
-        const heartbeat = document.getElementById('heartbeat-dot');
-        const hbText = document.getElementById('heartbeat-text');
-        
-        if(data.scheduler.status === 'running') {
-          heartbeat.className = "w-1.5 h-1.5 rounded-full bg-primary animate-pulse";
-          hbText.textContent = "Scheduler Active";
-          document.getElementById('diag-sched-status').textContent = "RUNNING";
-          document.getElementById('diag-sched-status').className = "text-[10px] font-black text-primary";
-        } else {
-          heartbeat.className = "w-1.5 h-1.5 rounded-full bg-rose-500";
-          hbText.textContent = "Critical: Scheduler Stopped";
-          document.getElementById('diag-sched-status').textContent = "STOPPED";
-          document.getElementById('diag-sched-status').className = "text-[10px] font-black text-rose-500";
-        }
-        
-        document.getElementById('diag-jobs').textContent = data.scheduler.active_jobs;
-        document.getElementById('diag-openai').className = `w-2 h-2 rounded-full ${data.environment.openai_key ? 'bg-primary' : 'bg-rose-500'}`;
-        document.getElementById('diag-ig').className = `w-2 h-2 rounded-full ${data.environment.ig_client_id ? 'bg-primary' : 'bg-rose-500'}`;
-        
-      } catch(e) { console.error(e); }
-    }
-
-    async function fetchOverview() {
-      try {
-        const res = await fetch('/api/admin/overview');
-        const data = await res.json();
-        if(!data.ok) return;
-        document.getElementById('ov-users').textContent = data.users;
-        document.getElementById('ov-orgs').textContent = data.orgs;
-        document.getElementById('ov-accounts').textContent = data.ig_accounts;
-        document.getElementById('ov-waitlist').textContent = data.waitlist;
-        document.getElementById('ov-autos').textContent = data.automations;
-        document.getElementById('ov-library').textContent = data.library;
-        document.getElementById('ov-posts-total').textContent = data.posts.total;
-        document.getElementById('ov-posts-pub').textContent = data.posts.published;
-
-        // Sync Logic Visibility (Phase 7)
-        const syncContainer = document.getElementById('sync-foundation-container');
-        if (data.is_quran_synced) {
-           syncContainer.classList.add('hidden');
-        } else {
-           syncContainer.classList.remove('hidden');
-        }
-
-        // Live Status / Error reporting
-        if (data.sync_status && data.sync_status.message) {
-           const statusEl = document.getElementById('sync-live-status');
-           statusEl.classList.remove('hidden');
-           statusEl.textContent = data.sync_status.message;
-           statusEl.className = `text-[10px] font-bold mt-2 ${data.sync_status.is_error ? 'text-rose-500' : 'text-primary'}`;
-        }
-      } catch(e) { console.error(e); }
-    }
-
-    async function fetchWaitlistStats() {
-      try {
-        const res = await fetch('/api/waitlist/stats');
-        const data = await res.json();
-        if(data.ok) {
-          document.getElementById('wl-today').textContent = data.today;
-          document.getElementById('wl-week').textContent = data.this_week;
-        }
-      } catch(e) { console.error(e); }
-    }
-
-    async function reloadWaitlist() {
-      currentOffset = 0;
-      document.getElementById('waitlist-tbody').innerHTML = '';
-      document.getElementById('btn-load-more').classList.remove('hidden');
-      loadMoreEntries();
-    }
-
-    async function loadMoreEntries() {
-      const btn = document.getElementById('btn-load-more');
-      const q = document.getElementById('wl-search').value;
-      const status = document.getElementById('wl-status').value;
-      const source = document.getElementById('wl-source').value;
-      
-      const qs = new URLSearchParams({ limit, offset: currentOffset });
-      if(q) qs.set('q', q);
-      if(status) qs.set('status', status);
-      if(source) qs.set('source', source);
-
-      try {
-        btn.disabled = true;
-        btn.textContent = "Scanning Matrix...";
-        
-        const res = await fetch(`/api/waitlist/all?${qs.toString()}`);
-        const data = await res.json();
-        
-        if (data.ok) {
-          renderWaitlistRows(data.items);
-          currentOffset += data.items.length;
-          document.getElementById('entry-count').textContent = `${currentOffset} of ${data.count} found`;
-          
-          if (currentOffset >= data.count || data.items.length === 0) {
-            btn.classList.add('hidden');
-          } else {
-            btn.disabled = false;
-            btn.textContent = "Load More Records";
-          }
-        }
-      } catch (err) { console.error(err); }
-    }
-
-    function renderWaitlistRows(items) {
-      const tbody = document.getElementById('waitlist-tbody');
-      items.forEach(item => {
-        const row = document.createElement('tr');
-        const date = new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        
-        row.innerHTML = `
-          <td>
-            <div class="font-bold text-white">${esc(item.email)}</div>
-            <div class="text-[10px] text-text-muted font-medium">${esc(item.name || 'Anonymous')}</div>
-          </td>
-          <td>
-            <span class="status-badge status-${item.status}">${item.status}</span>
-          </td>
-          <td>
-            <div class="text-[9px] font-black uppercase tracking-wider text-primary mb-1">${item.source}</div>
-            <div class="text-[9px] text-text-muted opacity-60">UTM: ${item.utm_source || 'direct'}</div>
-          </td>
-          <td class="text-text-muted text-xs font-semibold">${date}</td>
-          <td class="max-w-[150px]">
-            <div class="flex flex-wrap gap-1 mb-2">
-              ${(item.tags || '').split(',').filter(Boolean).map(t => `<span class="bg-white/5 border border-white/5 px-2 py-0.5 rounded text-[8px] font-bold text-text-muted">${esc(t.trim())}</span>`).join('')}
-            </div>
-            <div class="text-[9px] text-text-muted italic truncate opacity-40">${esc(item.admin_notes || 'No notes...')}</div>
-          </td>
-          <td>
-            <div class="flex gap-2">
-              <select class="text-[9px] bg-white/5 border-none p-1 font-bold rounded cursor-pointer" onchange="updateEntryStatus(${item.id}, this.value)">
-                <option value="active" ${item.status === 'active' ? 'selected' : ''}>Active</option>
-                <option value="contacted" ${item.status === 'contacted' ? 'selected' : ''}>Contacted</option>
-                <option value="invited" ${item.status === 'invited' ? 'selected' : ''}>Invited</option>
-                <option value="converted" ${item.status === 'converted' ? 'selected' : ''}>Converted</option>
-                <option value="archived" ${item.status === 'archived' ? 'selected' : ''}>Archive</option>
-              </select>
-              <button onclick="openEditModal(${item.id}, '${esc(item.admin_notes || '')}', '${esc(item.tags || '')}')" class="p-2 glass rounded-lg hover:border-primary/40 text-text-muted hover:text-primary transition-all">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-              </button>
-              <button onclick="deleteEntry(${item.id})" class="p-2 glass rounded-lg hover:border-rose-500/40 text-text-muted hover:text-rose-500 transition-all">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-              </button>
-            </div>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
-    }
-
-    async function fetchAutomations() {
-      try {
-        const res = await fetch('/api/admin/automations');
-        const data = await res.json();
-        const tbody = document.getElementById('automations-tbody');
-        tbody.innerHTML = data.items.map(a => `
-          <tr>
-            <td class="font-black italic text-white">${esc(a.name)}</td>
-            <td><span class="text-[10px] font-bold text-text-muted uppercase">${esc(a.org_name)}</span></td>
-            <td><span class="text-[10px] font-black italic text-accent opacity-80">@${esc(a.ig_username)}</span></td>
-            <td class="text-text-muted text-xs font-semibold">${a.post_time}</td>
-            <td>
-              <span class="status-badge ${a.enabled ? 'status-converted' : 'status-archived'}">
-                ${a.enabled ? 'Enabled' : 'Paused'}
-              </span>
-            </td>
-            <td>
-              <div class="flex gap-2">
-                <button onclick="toggleAutomation(${a.id}, ${!a.enabled})" class="btn btn-outline py-1.5 px-3 text-[9px]">
-                  ${a.enabled ? 'Pause' : 'Resume'}
-                </button>
-                <button onclick="runAutomation(${a.id})" class="btn btn-accent py-1.5 px-3 text-[9px]">
-                  Run Now
-                </button>
-              </div>
-            </td>
-          </tr>
-        `).join('');
-      } catch(e) { console.error(e); }
-    }
-
-    async function fetchAccounts() {
-      try {
-        const res = await fetch('/api/admin/ig-accounts');
-        const data = await res.json();
-        const tbody = document.getElementById('accounts-tbody');
-        tbody.innerHTML = data.items.map(a => `
-          <tr>
-            <td>
-              <div class="font-bold text-white">@${esc(a.username)}</div>
-              <div class="text-[9px] text-text-muted">${esc(a.name)}</div>
-            </td>
-            <td><span class="text-[10px] font-bold text-text-muted uppercase">${esc(a.org_name)}</span></td>
-            <td>
-              <span class="status-badge ${a.active ? 'status-new' : 'status-archived'}">
-                ${a.active ? 'Live' : 'Inactive'}
-              </span>
-            </td>
-            <td class="text-text-muted text-[10px] font-semibold">${new Date(a.created_at).toLocaleDateString()}</td>
-          </tr>
-        `).join('');
-      } catch(e) { console.error(e); }
-    }
-
-    async function fetchActivity() {
-      try {
-        const res = await fetch('/api/admin/activity');
-        const data = await res.json();
-        const feed = document.getElementById('activity-feed');
-        feed.innerHTML = data.items.map(item => `
-          <div class="flex gap-4 items-start pb-4 border-b border-white/5 last:border-0 group">
-            <div class="mt-1 w-2 h-2 rounded-full flex-shrink-0 ${getActivityColor(item.type)} shadow-[0_0_8px_rgba(255,255,255,0.1)]"></div>
-            <div class="flex-1 space-y-1">
-              <p class="text-[11px] font-medium text-white/90 group-hover:text-white transition-colors leading-relaxed truncate max-w-[200px]">${esc(item.text)}</p>
-              <div class="text-[8px] font-black uppercase tracking-widest text-text-muted opacity-50 italic">${timeAgo(item.time)}</div>
-            </div>
-          </div>
-        `).join('');
-      } catch(e) { console.error(e); }
-    }
-
-    async function fetchFailedPosts() {
-      try {
-        const res = await fetch('/api/admin/failed-posts');
-        const data = await res.json();
-        const tbody = document.getElementById('failed-posts-tbody');
-        tbody.innerHTML = data.items.map(p => `
-          <tr class="group">
-            <td>
-              <div class="text-[10px] font-black text-white italic">${esc(p.topic || 'No Topic')}</div>
-              <div class="text-[8px] font-bold text-text-muted uppercase">Org ID: ${p.org_id}</div>
-            </td>
-            <td>
-              <div class="text-[9px] text-rose-400 font-medium max-w-[300px] truncate group-hover:whitespace-normal transition-all" title="${esc(p.error)}">
-                ${esc(p.error || 'Unknown runtime anomaly')}
-              </div>
-            </td>
-            <td class="text-[9px] font-bold text-text-muted opacity-60">${timeAgo(p.created_at)}</td>
-          </tr>
-        `).join('');
-      } catch(e) { console.error(e); }
-    }
-
-    async function fetchSupportMessages() {
-      const status = document.getElementById('msg-filter-status').value;
-      try {
-        const res = await fetch(`/api/admin/messages?status=${status}`);
-        const data = await res.json();
-        const tbody = document.getElementById('messages-tbody');
-        tbody.innerHTML = data.items.map(m => `
-          <tr class="${m.status === 'received' ? 'bg-emerald-500/5' : ''}">
-            <td>
-              <div class="font-bold text-white">${esc(m.email)}</div>
-              <div class="text-[9px] text-text-muted">${esc(m.name || 'Anonymous')}</div>
-            </td>
-            <td>
-              <div class="text-xs font-semibold text-white/80 mb-1">${esc(m.subject || 'No Subject')}</div>
-              <div class="text-[10px] text-text-muted italic truncate max-w-[250px]">${esc(m.message)}</div>
-            </td>
-            <td><span class="status-badge ${m.status === 'resolved' ? 'status-converted' : 'status-new'}">${m.status}</span></td>
-            <td class="text-[10px] text-text-muted font-bold">${timeAgo(m.created_at)}</td>
-            <td>
-              <div class="flex gap-2">
-                <button onclick="updateMessageStatus(${m.id}, 'resolved')" class="btn btn-outline py-1 px-2 text-[8px] ${m.status === 'resolved' ? 'hidden' : ''}">Resolve</button>
-                <button onclick="updateMessageStatus(${m.id}, 'archived')" class="btn btn-outline py-1 px-2 text-[8px] ${m.status === 'archived' ? 'hidden' : ''}">Archive</button>
-              </div>
-            </td>
-          </tr>
-        `).join('');
-      } catch(e) { console.error(e); }
-    }
-
-    async function updateMessageStatus(id, status) {
-      const res = await fetch(`/api/admin/messages/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-      });
-      if((await res.json()).ok) fetchSupportMessages();
-    }
-
-    async function triggerSurahSync() {
-      const id = document.getElementById('sync-surah-id').value;
-      const btn = document.getElementById('btn-sync-surah');
-      if(!id || id < 1 || id > 114) return alert("Select a valid Surah ID (1-114)");
-      
-      btn.disabled = true;
-      btn.textContent = "Processing Foundation Sync...";
-      
-      try {
-        const res = await fetch(`/api/admin/library/global/sources/sync-qf?chapter_id=${id}`, { method: 'POST' });
-        const data = await res.json();
-        if(data.status === 'success') alert(`Success! Added ${data.new_verses_added} verses to the global intelligence pool.`);
-        else alert("Sync anomaly detected: " + (data.detail || "Check logs"));
-      } catch(e) { console.error(e); alert("Network failure reaching foundation gateway."); }
-      
-      btn.disabled = false;
-      btn.textContent = "Sync Single Surah";
-      refreshAll();
-    }
-
-    async function triggerFullSync() {
-      if(!confirm("Command entire Quran foundation synchronization? This will manifest 114 Surahs (~6,000+ verses) into the global matrix. Process runs in the background.")) return;
-      
-      const btn = document.getElementById('btn-sync-full');
-      btn.disabled = true;
-      btn.textContent = "Deploying Matrix Sync...";
-      
-      try {
-        const res = await fetch('/api/admin/sync/full-quran', { method: 'POST' });
-        const data = await res.json();
-        if(data.ok) alert("Sync successfully spawned. Monitor the Activity Feed for sequential manifestation.");
-        else alert("Sync deployment anomaly: " + (data.message || "Unknown error"));
-      } catch(e) { console.error(e); alert("Network failure: Core failed to spawn process."); }
-      
-      btn.disabled = false;
-      btn.textContent = "Full Matrix Sync";
-      refreshAll();
-    }
-
-    // --- Actions ---
-
-    async function updateEntryStatus(id, status) {
-      const res = await fetch(`/api/waitlist/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-      });
-      if((await res.json()).ok) refreshAll();
-    }
-
-    async function deleteEntry(id) {
-      if(!confirm("Permanently erase this data record?")) return;
-      const res = await fetch(`/api/waitlist/${id}`, { method: 'DELETE' });
-      if((await res.json()).ok) reloadWaitlist();
-    }
-
-    async function toggleAutomation(id, enabled) {
-      const res = await fetch(`/api/admin/automations/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled })
-      });
-      if((await res.json()).ok) fetchAutomations();
-    }
-
-    async function runAutomation(id) {
-      const btn = event.target;
-      btn.disabled = true;
-      btn.textContent = "Executing...";
-      const res = await fetch(`/api/admin/automations/${id}/run`, { method: 'POST' });
-      const data = await res.json();
-      btn.disabled = false;
-      btn.textContent = "Run Now";
-      if(data.ok) alert("Post manifested successfully (ID: " + data.post_id + ")");
-      else alert("Run failed: " + (data.message || "Unknown error"));
-      refreshAll();
-    }
-
-    function openEditModal(id, notes, tags) {
-      currentEditId = id;
-      document.getElementById('edit-id-label').textContent = `Waitlist ID: ${id}`;
-      document.getElementById('edit-notes').value = notes;
-      document.getElementById('edit-tags').value = tags;
-      document.getElementById('edit-modal').style.display = 'flex';
-    }
-
-    async function saveEntryChanges() {
-      const btn = document.getElementById('btn-save-edit');
-      const notes = document.getElementById('edit-notes').value;
-      const tags = document.getElementById('edit-tags').value;
-      
-      btn.disabled = true;
-      btn.textContent = "Updating Identity...";
-
-      const res = await fetch(`/api/waitlist/${currentEditId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ admin_notes: notes, tags: tags })
-      });
-
-      btn.disabled = false;
-      btn.textContent = "Apply Intelligence";
-      
-      if((await res.json()).ok) {
-        closeModal();
-        reloadWaitlist();
-      }
-    }
-
-    function closeModal() {
-      document.getElementById('edit-modal').style.display = 'none';
-      currentEditId = null;
-    }
-
-    // --- Helpers ---
-
-    function getActivityColor(type) {
-      if(type === 'waitlist') return 'bg-primary';
-      if(type === 'post') return 'bg-accent';
-      if(type === 'account') return 'bg-indigo-500';
-      return 'bg-white';
-    }
-
-    function timeAgo(date) {
-      const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-      let interval = seconds / 31536000;
-      if (interval > 1) return Math.floor(interval) + "y ago";
-      interval = seconds / 2592000;
-      if (interval > 1) return Math.floor(interval) + "mo ago";
-      interval = seconds / 86400;
-      if (interval > 1) return Math.floor(interval) + "d ago";
-      interval = seconds / 3600;
-      if (interval > 1) return Math.floor(interval) + "h ago";
-      interval = seconds / 60;
-      if (interval > 1) return Math.floor(interval) + "m ago";
-      return "just now";
-    }
-
-    function esc(str) {
-      if(!str) return '';
-      return str.replace(/[&<>"']/g, function(m) {
-        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
-      });
-    }
-
-    function debounce(func, wait) {
-      let timeout;
-      return function(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), wait);
-      };
-    }
-
-    // Initialize
-    window.onload = refreshAll;
-  </script>
-</body>
+      </form>
+    </dialog>
+  </body>
 </html>

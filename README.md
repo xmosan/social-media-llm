@@ -145,3 +145,11 @@ To enable remote streaming, configure the following environment variables in you
 - Secret keys (`OPENAI_API_KEY`, Access Tokens, Authorization headers) are natively redacted before leaving the host memory.
 - If Axiom ever goes offline, the in-memory log buffer queue naturally drops logs after timing out, heavily ensuring your application will *never* crash due to an observability outage.
 - To check the health of the logging shipper, a Superadmin can visit `/admin/debug/logging`.
+
+### Owner dashboard access
+
+`/admin` is the single owner dashboard. Set `PLATFORM_OWNER_EMAIL` to the sign-in email of the existing, active owner account; that account must also retain its `is_superadmin` database flag. Matching is case-insensitive. Missing configuration denies all platform administration while ordinary creator workspaces continue normally. The setting does not create or promote an account. Set it in Railway before deploying this change, and verify the owner's existing session afterward.
+
+Legacy superadmin flags alone and `ADMIN_API_KEY` do not grant platform access. Workspace API keys retain only their own workspace scope. Cookie-authenticated admin writes require a same-origin request using `PUBLIC_BASE_URL`. Tester invitations, feedback, diagnostics, waitlist exports and platform actions share the owner guard. `/api/admin/library` still contains creator workspace operations; its global operations use the same owner check.
+
+Dashboard checks distinguish credential configuration from live provider/alert delivery or backup recovery. Loading a section never sends email, runs generation or publishes a post. Resume uses the existing automation account/schedule validation. Pausing does not cancel posts already scheduled. No database migration is required.

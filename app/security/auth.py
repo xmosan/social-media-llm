@@ -57,13 +57,11 @@ def get_current_user(
             hashed_key = hashlib.sha256(x_api_key.encode()).hexdigest()
             if hashed_key == RETIRED_BOOTSTRAP_KEY_HASH:
                 return None
-            # Superadmin bypass
+            # A shared service key must never impersonate the platform owner.
             if settings.admin_api_key and hmac.compare_digest(
                 x_api_key.encode(), settings.admin_api_key.encode()
             ):
-                return db.query(User).filter(
-                    User.is_superadmin == True, User.is_active == True
-                ).first()
+                return None
             
             # Legacy API key lookup
             api_key_record = db.query(ApiKey).filter(

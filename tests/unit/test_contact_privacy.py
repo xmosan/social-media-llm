@@ -1,3 +1,5 @@
+from app.config import settings
+from unittest.mock import patch
 """An anonymous contact route must not reveal the private support inbox."""
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -10,6 +12,8 @@ from test_security import DatabaseCase
 
 class ContactPrivacyChecks(DatabaseCase):
     def setUp(self):
+        owner = patch.object(settings, "platform_owner_email", "admin@fixture.test")
+        owner.start(); self.addCleanup(owner.stop)
         super().setUp()
         InboundMessage.__table__.create(self.engine)
         self.db.add(Org(id=1,name='Synthetic')); self.db.flush()

@@ -10,14 +10,14 @@ from app.schemas import (
     ContentItemOut, ContentItemCreate, ContentItemUpdate
 )
 from app.security.auth import require_user
-from app.security.rbac import get_current_org_id, require_superadmin
+from app.security.rbac import is_platform_owner, get_current_org_id, require_superadmin
 from app.services.library_service import validate_entry_meta
 
 router = APIRouter(prefix="/api/admin/library", tags=["admin_library"])
 
 def check_library_admin_access(user: User, org_id: int, db: Session):
     """Checks if the user is an admin for the given org or a superadmin."""
-    if user.is_superadmin:
+    if is_platform_owner(user):
         return True
     
     membership = db.query(OrgMember).filter(
@@ -67,7 +67,7 @@ def create_source(
 ):
     try:
         if is_global:
-            require_superadmin(user)
+            require_superadmin(user, request=request)
             target_org_id = None
         else:
             # Note: using the top-level import
@@ -99,6 +99,7 @@ def create_source(
 def update_source(
     id: int,
     data: ContentSourceUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(require_user),
     org_id: int = Depends(get_current_org_id)
@@ -108,7 +109,7 @@ def update_source(
         raise HTTPException(status_code=404, detail="Source not found")
     
     if source.org_id is None:
-        require_superadmin(user)
+        require_superadmin(user, request=request)
     else:
         if source.org_id != org_id:
             raise HTTPException(status_code=403, detail="Cross-org access denied")
@@ -124,6 +125,7 @@ def update_source(
 @router.delete("/sources/{id}")
 def delete_source(
     id: int,
+    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(require_user),
     org_id: int = Depends(get_current_org_id)
@@ -133,7 +135,7 @@ def delete_source(
         raise HTTPException(status_code=404, detail="Source not found")
         
     if source.org_id is None:
-        require_superadmin(user)
+        require_superadmin(user, request=request)
     else:
         if source.org_id != org_id:
             raise HTTPException(status_code=403, detail="Cross-org access denied")
@@ -176,6 +178,7 @@ def list_entries(
 @router.post("/entries", response_model=ContentItemOut)
 def create_entry(
     data: ContentItemCreate,
+    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(require_user),
     org_id: int = Depends(get_current_org_id)
@@ -185,7 +188,7 @@ def create_entry(
         raise HTTPException(status_code=400, detail="Invalid source_id")
     
     if source.org_id is None:
-        require_superadmin(user)
+        require_superadmin(user, request=request)
         target_org_id = None
     else:
         if source.org_id != org_id:
@@ -217,6 +220,7 @@ def create_entry(
 def update_entry(
     id: int,
     data: ContentItemUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(require_user),
     org_id: int = Depends(get_current_org_id)
@@ -226,7 +230,7 @@ def update_entry(
         raise HTTPException(status_code=404, detail="Entry not found")
         
     if item.org_id is None:
-        require_superadmin(user)
+        require_superadmin(user, request=request)
     else:
         if item.org_id != org_id:
             raise HTTPException(status_code=403, detail="Cross-org access denied")
@@ -253,6 +257,7 @@ def update_entry(
 @router.delete("/entries/{id}")
 def delete_entry(
     id: int,
+    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(require_user),
     org_id: int = Depends(get_current_org_id)
@@ -262,7 +267,7 @@ def delete_entry(
         raise HTTPException(status_code=404, detail="Entry not found")
         
     if item.org_id is None:
-        require_superadmin(user)
+        require_superadmin(user, request=request)
     else:
         if item.org_id != org_id:
             raise HTTPException(status_code=403, detail="Cross-org access denied")
