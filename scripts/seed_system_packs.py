@@ -12,7 +12,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.models import ContentSource, ContentItem
 
 # Hardcoded production DB url from user env
-DATABASE_URL = "postgresql://postgres:SRVGlFcxyhQVbJveWFmcxDzGVoeIjtgN@nozomi.proxy.rlwy.net:45252/railway"
+DATABASE_URL = os.environ["DATABASE_URL"]
 
 # Data to seed
 SYSTEM_PACKS = [
