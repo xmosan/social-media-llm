@@ -2,7 +2,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const code=fs.readFileSync(require('node:path').join(__dirname,'../../app/static/tester-access.js'),'utf8');
 function element(){return {children:[],listeners:{},disabled:false,hidden:true,value:'',textContent:'',classList:{toggle(){}},append(...n){this.children.push(...n)},replaceChildren(){this.children=[]},addEventListener(n,fn){this.listeners[n]=fn},setAttribute(){},focus(){},select(){}}}
 function setup(fetch,page='join',hash='#invite='+'x'.repeat(43)){
- const nodes=Object.fromEntries(['status','list-status','recovery','join-form','join-submit','pilot-summary','pilot-details','password','name','email','continue','invite-form','invite-submit','issued','invite-link','copy-link','refresh','invitations','invitation-days','pilot-days'].map(id=>[id,element()]));
+ const nodes=Object.fromEntries(['status','list-status','recovery','join-form','join-submit','join-title','pilot-summary','pilot-details','password','password-label','password-help','name-field','name','email','continue','invite-form','invite-submit','issued','invite-link','copy-link','refresh','invitations','invitation-days','pilot-days','invitation-kind'].map(id=>[id,element()]));
  nodes.password.value='synthetic-pilot-password';nodes.name.value='Fixture';nodes.email.value='fixture@example.test';nodes['invitation-days'].value='7';nodes['pilot-days'].value='30';
  const histories=[];const context={document:{body:{dataset:{page}},getElementById:id=>nodes[id],createElement:element},location:{hash,pathname:'/join'},history:{replaceState:(...v)=>histories.push(v)},fetch,URLSearchParams,AbortController,TextEncoder,Intl,Date,setTimeout,clearTimeout,confirm:()=>true,navigator:{clipboard:{writeText:async()=>{}}}};
  vm.runInNewContext(code,context);return {nodes,histories};
@@ -27,4 +27,17 @@ test('admin renders recipient as text and revocation is guarded from duplicate r
 });
 test('issue shows link once with explicit no email sent and refresh does not duplicate issue',async()=>{
  let posts=0;const {nodes}=setup(async(path,options)=>{if(options.body){posts++;return ok({invitation:{id:'one',email:'fixture@example.test'},link:'https://fixture.test/join#invite=synthetic'})}return ok({items:[]})},'admin');await settle();await nodes['invite-form'].listeners.submit(event);assert.equal(posts,1);assert.equal(nodes.issued.hidden,false);assert.match(nodes.status.textContent,/No email was sent/);assert.equal(nodes['invite-submit'].disabled,false);await nodes.refresh.listeners.click();assert.equal(posts,1);
+});
+test('returning invitation preserves identity and uses existing-password endpoint',async()=>{
+ let sent;const {nodes}=setup(async(path,options)=>{if(path.endsWith('check'))return ok({...info,returning:true});sent={path,body:JSON.parse(options.body)};return ok({access_expires_at:'2026-11-08T00:00:00Z'})});
+ await settle();assert.equal(nodes['name-field'].hidden,true);assert.equal(nodes.name.required,false);assert.equal(nodes.password.minLength,1);assert.equal(nodes.password.autocomplete,'current-password');assert.match(nodes['password-label'].textContent,/existing/);
+ nodes.password.value='old7';await nodes['join-form'].listeners.submit(event);assert.equal(sent.path,'/auth/tester-invitations/return');assert.equal(sent.body.name,undefined);assert.equal(sent.body.password,'old7');assert.equal(nodes.password.value,'');assert.match(nodes.status.textContent,/Paused schedules remain paused/);
+});
+test('returning password rejection keeps invitation and input recoverable',async()=>{
+ let posts=0;const {nodes}=setup(async path=>{if(path.endsWith('check'))return ok({...info,returning:true});posts++;return {ok:false,json:async()=>({detail:'Your existing password did not match. Nothing was changed.'})}});
+ await settle();await nodes['join-form'].listeners.submit(event);assert.equal(posts,1);assert.equal(nodes['join-submit'].disabled,false);assert.equal(nodes['join-submit'].textContent,'Restore my access →');assert.equal(nodes['join-form'].hidden,false);assert.notEqual(nodes.password.value,'');
+});
+test('admin returning invitation choice is explicit',async()=>{
+ let sent;const {nodes}=setup(async(path,options)=>{if(options.body){sent=JSON.parse(options.body);return ok({invitation:{id:'one',email:'fixture@example.test'},link:'https://fixture.test/join#invite=synthetic'})}return ok({items:[]})},'admin');
+ await settle();nodes['invitation-kind'].value='returning';await nodes['invite-form'].listeners.submit(event);assert.equal(sent.returning,true);
 });

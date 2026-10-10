@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from authlib.integrations.starlette_client import OAuth
 from app.db import get_db
 from app.models import User, Org, OrgMember
-from app.security.auth import create_access_token, clear_legacy_domain_cookie
+from app.security.auth import create_user_access_token, clear_legacy_domain_cookie
 from app.config import settings
 from app.security.tester_access import user_can_sign_in
 from app.services.registration import provision_creator
@@ -98,7 +98,7 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
         db.rollback()
         raise HTTPException(409, "Sign-in changed while processing. Please start again.") from None
     expires = timedelta(days=7)
-    access_token = create_access_token(data={"sub": str(user.id)}, expires_delta=expires)
+    access_token = create_user_access_token(user, expires_delta=expires)
     response = RedirectResponse(url="/app")
     clear_legacy_domain_cookie(response)
     # Match email login/logout's host-only secure cookie.

@@ -4,7 +4,7 @@ Open `/admin/testers` while signed in as a platform superadmin. This is a delibe
 
 ## Behavior
 
-- One invitation per normalized email. Only new accounts can join; existing accounts are never promoted, reset, or reactivated by an invitation.
+- One invitation per normalized email. New-creator invitations never take over an existing account. The explicit **Returning creator** option can restore a disabled legacy creator's private workspace after the creator proves their existing password; it does not reset passwords or promote accounts.
 - Defaults: link valid for 7 days, creator access for 30 days from redemption. Admin UI offers 1/7/14-day links and 14/30/60-day access; API bounds are 1–30 and 1–90 respectively.
 - New users receive one private workspace and ordinary owner membership, never platform admin access. Password, Google signup and invitations share `provision_creator`.
 - Creator passwords use the same minimum of 8 characters for public signup and invitations, with a 72 UTF-8-byte maximum to avoid bcrypt truncation. Existing passwords remain valid; the separate server bootstrap administrator policy is unchanged.
@@ -13,8 +13,49 @@ Open `/admin/testers` while signed in as a platform superadmin. This is a delibe
 - Links are bearer credentials bound to an email string; this does **not** independently verify email ownership. Trusted private delivery by the admin is required. Signup email verification/delivery automation is not included. If exposed or lost, revoke an unused link and issue a replacement.
 - Single-use redemption holds a PostgreSQL row lock. Creating the account, workspace, membership and consuming the invitation is one transaction. Concurrent redemption can create only one workspace. Failed transactions leave no partial account.
 - Expiry denies password/Google/current-session access, workspace API keys, paid generation reservations and the shared account guard used by scheduling/publishing/automation execution. Existing non-pilot accounts have NULL bounds and are unchanged.
-- Revocation additionally deactivates the user, marks the workspace revoked, disables automations and moves `scheduled` posts to `drafted` with schedule cleared. Drafts/media/source records and published/unknown/in-progress statuses are retained. Already dispatched provider work or publication may finish; it cannot be recalled.
-- Existing sessions become unusable on the next authenticated request. Revocation is terminal in this first pilot interface; no automatic reactivation, renewal, billing or deletion. Expiry leaves scheduled records intact but unable to run. The latest 200 invitation records are listed.
+- Revocation additionally deactivates the user, increments the session version, revokes workspace API keys, marks the workspace revoked, disables automations and moves `scheduled` posts to `drafted` with schedule cleared. Drafts/media/source records and published/unknown/in-progress statuses are retained. Already dispatched provider work or publication may finish; it cannot be recalled.
+- Existing sessions become unusable on the next authenticated request and cannot revive when a legacy creator returns. There is no automatic reactivation, renewal, billing or deletion. Expiry leaves scheduled records intact but unable to run. The latest 200 invitation records are listed.
+
+## Returning legacy creators
+
+Choose **Returning creator** when issuing a link for a disabled legacy account.
+The account must have an existing password, ordinary creator privileges, exactly
+one owner membership, and a revoked workspace with no other members. Owner emails,
+active accounts, ambiguous email matches, shared workspaces and passwordless
+accounts require separate review and cannot use this flow. Previously redeemed
+pilot grants cannot yet be renewed through this interface.
+
+The link binds the existing user and workspace IDs. Accepting it requires the
+invited email and existing password; all eligibility checks repeat under a row
+lock. It restores the same profile and saved work, sets matching user/workspace
+expiry and issues a session for the new session version. It creates no duplicate
+account/workspace, changes no password, and resumes no scheduled work or API keys.
+Wrong credentials or transaction failure leave the link and disabled account
+unchanged. Revoking an unaccepted returning link changes only that invitation.
+Delivery of the private link remains the owner's responsibility; Sabeel sends no
+email. Forgotten-password and Google-only recovery are separate work.
+
+Apply `scripts/migrate_session_version.py` before deploying this release. It adds
+`users.session_version INTEGER NOT NULL DEFAULT 0`; version zero preserves existing
+owner and pilot sessions. Do not roll back to an authentication implementation
+that ignores this version after returning creators have been enabled.
+
+## Retiring legacy access
+
+`scripts/retire_legacy_access.py` is an operator-only maintenance tool, never a
+startup hook. It previews non-owner users with no pilot expiry. The owner must
+confirm the protected email, preservation of existing pilot accounts, and the
+exact target list. Create and verify a fresh durable backup before applying.
+Use `--env-file`, `--owner-email`, then `--apply --expected-users <reviewed IDs>`
+and `--audit <new private file outside Git>` for the deliberate transaction.
+
+It deactivates legacy users and removes legacy platform roles. Workspaces shared
+with protected owner/pilot users remain available to those users; other affected
+workspaces are revoked and their scheduled work is stopped. Old shared API keys
+in affected workspaces are revoked because keys have no per-user ownership.
+Counts/digests prove content, media, memberships, invitations and protected access
+records are retained. A restricted audit records prior access flags for deliberate
+recovery; never blindly replay it after later invitations or other account changes.
 
 ## Deployment and rollback
 
