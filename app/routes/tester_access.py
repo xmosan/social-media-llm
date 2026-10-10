@@ -12,7 +12,7 @@ from app.config import settings
 from app.db import get_db
 from app.models import TesterInvitation, User
 from app.schemas import CreatorPassword
-from app.security.auth import create_access_token, clear_legacy_domain_cookie
+from app.security.auth import create_user_access_token, clear_legacy_domain_cookie
 from app.security.rbac import require_superadmin
 from app.services import tester_invitations as invitations
 from app.services.usage_limits import check_auth_attempt
@@ -31,7 +31,10 @@ class PrivateRoute(APIRoute):
                 response = await handler(request)
             except RequestValidationError:
                 # FastAPI's default validation payload can echo passwords/tokens.
-                response = JSONResponse({"detail": "Check your invitation, email and form fields. Passwords need at least 8 characters and at most 72 UTF-8 bytes."}, status_code=422)
+                detail = ("Check your invitation, email and existing password. Passwords must fit within 72 UTF-8 bytes."
+                          if request.url.path.endswith('/return') else
+                          "Check your invitation, email and form fields. Passwords need at least 8 characters and at most 72 UTF-8 bytes.")
+                response = JSONResponse({"detail": detail}, status_code=422)
             except HTTPException as exc:
                 response = JSONResponse({"detail": exc.detail}, status_code=exc.status_code, headers=exc.headers)
             response.headers.update(PRIVATE_HEADERS)
@@ -67,6 +70,7 @@ class EmailPayload(BaseModel):
 class IssuePayload(EmailPayload):
     invitation_days: int = Field(default=7, ge=1, le=30)
     pilot_days: int = Field(default=30, ge=1, le=90)
+    returning: bool = Field(default=False, strict=True)
 
 
 class TokenPayload(BaseModel):
@@ -85,6 +89,18 @@ class RedeemPayload(TokenPayload, EmailPayload):
         return value.strip()
 
 
+class ReturnPayload(TokenPayload, EmailPayload):
+    # Existing passwords are not subjected to today's new-password policy.
+    password: str = Field(min_length=1, max_length=72)
+
+    @field_validator("password")
+    @classmethod
+    def bounded_password(cls, value):
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password exceeds 72 UTF-8 bytes")
+        return value
+
+
 @router.get("/join", response_class=HTMLResponse)
 def join_page():
     return HTMLResponse((TEMPLATES / "tester-join.html").read_text(), headers=PRIVATE_HEADERS)
@@ -101,7 +117,8 @@ def check(payload: TokenPayload, db: Session = Depends(get_db)):
     row = invitations.pending(db, payload.token)
     # Do not disclose the recipient's address to whoever has a link.
     return {"pilot_days": row.pilot_days, "expires_at": row.expires_at,
-            "daily_images": settings.ai_workspace_daily_images, "daily_text": settings.ai_workspace_daily_text}
+            "daily_images": settings.ai_workspace_daily_images, "daily_text": settings.ai_workspace_daily_text,
+            "returning": row.user_id is not None}
 
 
 @router.post("/auth/tester-invitations/redeem", dependencies=[Depends(same_origin), Depends(private_response)])
@@ -110,7 +127,18 @@ def redeem(payload: RedeemPayload, response: Response, db: Session = Depends(get
     check_auth_attempt(payload.email)
     user = invitations.redeem(db, **payload.model_dump())
     clear_legacy_domain_cookie(response)
-    response.set_cookie("access_token", create_access_token({"sub": str(user.id)}),
+    response.set_cookie("access_token", create_user_access_token(user),
+                        httponly=True, secure=True, samesite="lax", max_age=7 * 24 * 60 * 60)
+    return {"next": "/app", "access_expires_at": user.tester_expires_at}
+
+
+@router.post("/auth/tester-invitations/return", dependencies=[Depends(same_origin), Depends(private_response)])
+def return_creator(payload: ReturnPayload, response: Response, db: Session = Depends(get_db)):
+    check_auth_attempt("tester-invitation:" + invitations.digest(payload.token))
+    check_auth_attempt(payload.email)
+    user = invitations.restore(db, **payload.model_dump())
+    clear_legacy_domain_cookie(response)
+    response.set_cookie("access_token", create_user_access_token(user),
                         httponly=True, secure=True, samesite="lax", max_age=7 * 24 * 60 * 60)
     return {"next": "/app", "access_expires_at": user.tester_expires_at}
 

@@ -12,12 +12,14 @@ from app.db import engine, get_db
 from app.config import settings
 from app.models import Base, User, Org, OrgMember, TesterInvitation, ApiKey, IGAccount, Post, TopicAutomation, UsageBucket
 from app.routes import auth, tester_access
-from app.security.auth import create_access_token
+from app.security.auth import create_access_token, get_password_hash, create_user_access_token
 from app.security.ownership import require_account
 from app.security.rbac import get_current_org_id
 from app.security.usage_context import workspace_usage
 from app.services import tester_invitations as service, usage_limits
 from scripts.migrate_tester_access import migrate
+from scripts.migrate_session_version import migrate as migrate_sessions
+from app.services.creator_access import legacy_access_plan, retire_legacy_access
 
 ORIGIN = 'https://app.sabeelstudio.com'
 PASSWORD = 'synthetic-pilot-password-only'
@@ -65,6 +67,121 @@ class TesterAccessChecks(unittest.TestCase):
             self.db.add(Post(org_id=user.active_org_id, ig_account_id=account.id, status=state, caption='Keep exact draft', scheduled_time=datetime.now(timezone.utc)))
         self.db.commit()
         return account
+
+    def legacy_creator(self, email='returning@fixture.test', password='old7'):
+        org = Org(name='Retained legacy workspace'); self.db.add(org); self.db.flush()
+        user = User(email=email, name='Keep original name', password_hash=get_password_hash(password), active_org_id=org.id)
+        self.db.add(user); self.db.flush()
+        self.db.add(OrgMember(org_id=org.id, user_id=user.id, role='owner')); self.db.commit()
+        return user
+
+    def retire(self):
+        plan = legacy_access_plan(self.db, 'admin@fixture.test')
+        retire_legacy_access(self.db, owner_email='admin@fixture.test', expected_user_ids=plan['user_ids'])
+        self.db.commit(); return plan
+
+    def test_legacy_retirement_protects_owner_invited_pilot_and_saved_work(self):
+        _, pilot, _ = self.join(); self.client.cookies.clear()
+        legacy = self.legacy_creator(); account = self.fixture_work(legacy)
+        self.db.add(OrgMember(org_id=1,user_id=1,role='owner'))
+        self.db.add(OrgMember(org_id=1,user_id=legacy.id,role='member'))
+        self.db.add(ApiKey(org_id=1,name='Shared old key',key_hash='fixture-shared-key'))
+        self.db.commit()
+        owner_before = self.db.get(User,1).session_version
+        plan = self.retire()
+        self.assertEqual(plan['user_ids'],[legacy.id]);self.assertNotIn(1,plan['workspace_ids'])
+        self.db.refresh(legacy);self.assertFalse(legacy.is_active);self.assertEqual(legacy.session_version,1)
+        self.assertTrue(self.db.get(User,1).is_active);self.assertEqual(self.db.get(User,1).session_version,owner_before)
+        self.assertTrue(self.db.get(User,pilot.id).is_active)
+        self.assertIsNone(self.db.get(Org,1).tester_revoked_at)
+        self.assertIsNone(self.db.get(Org,pilot.active_org_id).tester_revoked_at)
+        self.assertIsNotNone(self.db.query(ApiKey).one().revoked_at)
+        self.assertEqual({p.status for p in self.db.query(Post).all()},{'drafted','published','publish_unknown','publishing'})
+        self.assertTrue(all(p.caption=='Keep exact draft' for p in self.db.query(Post).all()))
+        self.assertFalse(self.db.query(TopicAutomation).one().enabled)
+        with self.assertRaises(HTTPException):require_account(self.db,legacy.active_org_id,account.id)
+        self.retire();self.db.refresh(legacy);self.assertEqual(legacy.session_version,1)
+
+    def test_retirement_requires_exact_preview_and_matching_owner(self):
+        user=self.legacy_creator()
+        for owner,ids in [('admin@fixture.test',[]),('wrong@fixture.test',[user.id])]:
+            with self.assertRaises(HTTPException):retire_legacy_access(self.db,owner_email=owner,expected_user_ids=ids)
+        self.db.refresh(user);self.assertTrue(user.is_active);self.assertEqual(user.session_version,0)
+
+    def test_returning_link_restores_same_workspace_without_password_reset_or_old_sessions(self):
+        user=self.legacy_creator();self.fixture_work(user)
+        old_token=create_access_token({'sub':str(user.id)});old_hash=user.password_hash
+        self.retire()
+        row,token=service.issue(self.db,email=user.email,admin_id=1,returning=True)
+        self.assertEqual(self.client.post('/auth/login',data={'username':user.email,'password':'old7'}).status_code,401)
+        check=self.client.post('/auth/tester-invitations/check',json={'token':token},headers={'Origin':ORIGIN})
+        self.assertTrue(check.json()['returning']);self.assertNotIn(user.email,check.text)
+        for email,password,code in [(user.email,'wrong',401),('wrong@fixture.test','old7',422)]:
+            r=self.client.post('/auth/tester-invitations/return',json={'token':token,'email':email,'password':password},headers={'Origin':ORIGIN})
+            self.assertEqual(r.status_code,code);self.assertNotIn(token,r.text)
+        self.db.refresh(row);self.assertIsNone(row.redeemed_at)
+        r=self.client.post('/auth/tester-invitations/return',json={'token':token,'email':user.email,'password':'old7'},headers={'Origin':ORIGIN})
+        self.assertEqual(r.status_code,200,r.text)
+        self.db.refresh(user);self.assertEqual(user.password_hash,old_hash);self.assertEqual(user.name,'Keep original name')
+        self.assertEqual(user.session_version,2);self.assertFalse(user.is_superadmin)
+        self.assertEqual(self.db.query(User).count(),2);self.assertEqual(self.db.query(Org).count(),2)
+        self.assertEqual(self.client.get('/scope').json(),{'org':user.active_org_id})
+        self.assertEqual(self.client.get('/scope',headers={'X-Org-Id':'1'}).status_code,403)
+        self.assertFalse(self.db.query(TopicAutomation).one().enabled)
+        self.assertFalse(self.db.query(Post).filter_by(status='scheduled').count())
+        self.client.cookies.clear()
+        self.assertEqual(self.client.get('/auth/me',headers={'Authorization':'Bearer '+old_token}).status_code,401)
+        self.assertEqual(self.client.post('/auth/login',data={'username':user.email,'password':'old7'}).status_code,200)
+        self.assertEqual(self.client.get('/scope').status_code,200)
+
+    def test_returning_invitation_requires_explicit_disabled_private_creator(self):
+        user=self.legacy_creator()
+        with self.assertRaises(HTTPException):service.issue(self.db,email=user.email,admin_id=1,returning=True)
+        self.retire()
+        with self.assertRaises(HTTPException):service.issue(self.db,email=user.email,admin_id=1)
+        with self.assertRaises(HTTPException):service.issue(self.db,email='admin@fixture.test',admin_id=1,returning=True)
+        self.db.add(OrgMember(org_id=user.active_org_id,user_id=1,role='member'));self.db.commit()
+        with self.assertRaises(HTTPException):service.issue(self.db,email=user.email,admin_id=1,returning=True)
+
+    def test_returning_invitation_revoke_replace_and_wrong_endpoint_preserve_account(self):
+        user=self.legacy_creator();self.retire()
+        row,token=service.issue(self.db,email=user.email,admin_id=1,returning=True)
+        with self.assertRaises(HTTPException):service.redeem(self.db,token=token,email=user.email,name='Overwrite',password=PASSWORD)
+        service.revoke(self.db,row.id,1);self.db.refresh(user)
+        self.assertFalse(user.is_active);self.assertEqual(user.session_version,1)
+        row,new_token=service.issue(self.db,email=user.email,admin_id=1,returning=True)
+        with self.assertRaises(HTTPException):service.pending(self.db,token)
+        self.assertEqual(service.pending(self.db,new_token).id,row.id)
+
+    def test_returning_redemption_rechecks_membership_and_rolls_back_failure(self):
+        user=self.legacy_creator();self.retire()
+        row,token=service.issue(self.db,email=user.email,admin_id=1,returning=True)
+        with patch.object(self.db,'commit',side_effect=RuntimeError('Synthetic failure')),self.assertRaises(RuntimeError):
+            service.restore(self.db,token=token,email=user.email,password='old7')
+        self.db.refresh(user);self.db.refresh(row)
+        self.assertFalse(user.is_active);self.assertIsNone(row.redeemed_at);self.assertEqual(user.session_version,1)
+        self.db.add(OrgMember(org_id=user.active_org_id,user_id=1,role='member'));self.db.commit()
+        with self.assertRaises(HTTPException):service.restore(self.db,token=token,email=user.email,password='old7')
+        self.db.refresh(user);self.assertFalse(user.is_active)
+
+    def test_returning_redemption_is_single_use_under_concurrency(self):
+        user=self.legacy_creator();self.retire()
+        row,token=service.issue(self.db,email=user.email,admin_id=1,returning=True)
+        email=user.email;barrier=threading.Barrier(2)
+        def attempt(_):
+            with Session(engine) as db:
+                barrier.wait(timeout=10)
+                try:service.restore(db,token=token,email=email,password='old7');return 200
+                except HTTPException as error:return error.status_code
+        with ThreadPoolExecutor(2) as pool:results=list(pool.map(attempt,range(2)))
+        self.assertEqual(sorted(results),[200,410]);self.assertEqual(self.db.query(User).count(),2)
+
+    def test_session_migration_is_additive_repeatable_and_retains_current_sessions(self):
+        with engine.begin() as c:
+            c.execute(text('ALTER TABLE users DROP COLUMN session_version'))
+            migrate_sessions(c);migrate_sessions(c)
+        self.db.expire_all();self.assertEqual(self.db.get(User,1).session_version,0)
+        self.assertEqual(self.client.get('/auth/me',headers=self.admin).status_code,200)
 
     def test_closed_public_signup_still_allows_one_private_workspace_and_normal_login(self):
         self.payload['password'] = 'Test123!'
@@ -154,7 +271,7 @@ class TesterAccessChecks(unittest.TestCase):
         service.revoke(self.db, invitation_id, 1)
         self.assertEqual(self.client.get('/auth/me').status_code, 401)
         self.client.cookies.clear()
-        self.assertEqual(self.client.get('/scope', headers={'X-API-Key':'fixture-scope-key'}).status_code, 403)
+        self.assertEqual(self.client.get('/scope', headers={'X-API-Key':'fixture-scope-key'}).status_code, 401)
         with self.assertRaises(HTTPException): require_account(self.db, user.active_org_id, account.id, active=True)
         self.assertFalse(self.db.query(TopicAutomation).one().enabled)
         posts = self.db.query(Post).all(); self.assertEqual(len(posts), 4)

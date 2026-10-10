@@ -37,6 +37,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=ALGORITHM)
     return encoded_jwt
 
+def create_user_access_token(user: User, expires_delta: timedelta | None = None) -> str:
+    return create_access_token({"sub": str(user.id), "sv": user.session_version or 0}, expires_delta)
+
 def get_current_user(
     request: Request,
     db: Session = Depends(get_db)
@@ -90,6 +93,9 @@ def get_current_user(
         
     user = db.query(User).filter(User.id == user_id).first()
     if not user_can_sign_in(user):
+        return None
+    # Tokens issued before versioning remain valid only for untouched accounts.
+    if payload.get("sv", 0) != (user.session_version or 0):
         return None
         
     return user

@@ -5,6 +5,8 @@
 <main><p class="eyebrow">Private creator pilot</p><h1>Invite a creator.</h1><p class="intro">Give each tester a private workspace with ordinary creator permissions and existing generation limits.</p>
 <section class="card"><h2>Create an invitation</h2><form id="invite-form">
 <label for="email">Creator’s email</label><input id="email" name="email" type="email" autocomplete="off" maxlength="254" required>
+<label for="invitation-kind">Creator access</label><select id="invitation-kind"><option value="new">New creator</option><option value="returning">Returning creator</option></select>
+<p class="hint">Returning invitations restore a disabled legacy creator’s own workspace using their existing password. Saved work stays; paused schedules stay paused.</p>
 <div class="fields"><div><label for="invitation-days">Link expires in</label><select id="invitation-days" name="invitation_days"><option value="7">7 days</option><option value="1">1 day</option><option value="14">14 days</option></select></div>
 <div><label for="pilot-days">Access after joining</label><select id="pilot-days" name="pilot_days"><option value="30">30 days</option><option value="14">14 days</option><option value="60">60 days</option></select></div></div>
 <p class="muted">Send the private link yourself to this email address. Sabeel does not send an email. A link can be accepted once and must not be shared publicly.</p>

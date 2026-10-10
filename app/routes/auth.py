@@ -11,7 +11,7 @@ from sqlalchemy import func
 from app.db import get_db
 from app.models import User, OrgMember, Org, ContentProfile
 from app.schemas import UserCreate
-from app.security.auth import verify_password, create_access_token, get_current_user, require_user, get_password_hash, clear_legacy_domain_cookie
+from app.security.auth import verify_password, create_user_access_token, get_current_user, require_user, get_password_hash, clear_legacy_domain_cookie
 from typing import Any
 from app.services.usage_limits import check_auth_attempt, require_signup_enabled
 
@@ -62,7 +62,7 @@ def login(
             user.active_org_id = membership.org_id
             db.commit()
 
-    access_token = create_access_token(data={"sub": str(user.id)})
+    access_token = create_user_access_token(user)
     
     # Set HttpOnly cookie for web clients
     clear_legacy_domain_cookie(response)
@@ -104,7 +104,7 @@ def register(
         raise HTTPException(400, "A user with this email already exists.") from None
 
     # 5. Automatically log them in (Session Cookie)
-    access_token = create_access_token(data={"sub": str(new_user.id)})
+    access_token = create_user_access_token(new_user)
     
     clear_legacy_domain_cookie(response)
     response.set_cookie(

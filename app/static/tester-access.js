@@ -24,6 +24,7 @@
   const date = value => new Intl.DateTimeFormat(undefined, {dateStyle:'medium'}).format(new Date(value));
   async function join() {
     let token = new URLSearchParams(location.hash.slice(1)).get('invite') || '';
+    let returning = false;
     history.replaceState(null, '', location.pathname);
     if (!/^[A-Za-z0-9_-]{43}$/.test(token)) {
       status('Open the complete private invitation link that Sabeel sent you.', true);
@@ -31,6 +32,16 @@
     }
     try {
       const info = await api('/auth/tester-invitations/check', {token});
+      returning = info.returning === true;
+      if (returning) {
+        $('name-field').hidden = true; $('name').required = false;
+        $('password-label').textContent = 'Your existing Sabeel password';
+        $('password').minLength = 1; $('password').autocomplete = 'current-password';
+        $('password-help').textContent = 'Use the password from your earlier account. It will not be changed. If you forgot it, contact Sabeel before continuing.';
+        $('join-submit').textContent = 'Restore my access →';
+        $('join-title').textContent = 'Welcome back to your workspace';
+        $('recovery').textContent = 'You can retry this invitation with your existing password. If you cannot remember it, contact Sabeel for help; requesting another link will not reset your password.';
+      }
       status('Your invitation is ready.');
       $('pilot-summary').textContent = `${info.pilot_days} days of creator access from the day you join. Up to ${info.daily_images} image and ${info.daily_text} writing requests daily, subject to shared preview capacity. Join by ${date(info.expires_at)}.`;
       $('pilot-details').hidden = $('join-form').hidden = false;
@@ -41,15 +52,17 @@
       if (new TextEncoder().encode($('password').value).length > 72) {
         status('Please use a password within 72 UTF-8 bytes (some characters use more than one byte).', true); return;
       }
-      $('join-submit').disabled = true; $('join-submit').textContent = 'Creating your workspace…';
-      status('Creating your private workspace…');
+      $('join-submit').disabled = true; $('join-submit').textContent = returning ? 'Restoring access…' : 'Creating your workspace…';
+      status(returning ? 'Checking your existing password…' : 'Creating your private workspace…');
       try {
-        const data = await api('/auth/tester-invitations/redeem', {token, name:$('name').value.trim(), email:$('email').value.trim(), password:$('password').value});
+        const body = {token, email:$('email').value.trim(), password:$('password').value};
+        if (!returning) body.name = $('name').value.trim();
+        const data = await api(returning ? '/auth/tester-invitations/return' : '/auth/tester-invitations/redeem', body);
         token = ''; $('password').value = ''; $('join-form').hidden = $('pilot-details').hidden = $('recovery').hidden = true;
-        status(`Welcome. Your workspace is ready, with access through ${date(data.access_expires_at)}.`);
+        status(`Welcome${returning ? ' back' : ''}. Your workspace is ready, with access through ${date(data.access_expires_at)}.${returning ? ' Your saved work is retained. Paused schedules remain paused.' : ''}`);
         $('continue').hidden = false; $('continue').focus();
       } catch (error) { status(error.message, true); $('recovery').hidden = false; }
-      finally { $('join-submit').disabled = false; $('join-submit').textContent = 'Create my workspace →'; }
+      finally { $('join-submit').disabled = false; $('join-submit').textContent = returning ? 'Restore my access →' : 'Create my workspace →'; }
     });
   }
   async function admin() {
@@ -91,7 +104,7 @@
       $('invite-submit').disabled = true; status('Creating a private invitation…');
       $('issued').hidden = true; $('invite-link').value = '';
       try {
-        const data = await api('/api/admin/tester-invitations', {email:$('email').value.trim(), invitation_days:Number($('invitation-days').value), pilot_days:Number($('pilot-days').value)});
+        const data = await api('/api/admin/tester-invitations', {email:$('email').value.trim(), invitation_days:Number($('invitation-days').value), pilot_days:Number($('pilot-days').value), returning:$('invitation-kind').value === 'returning'});
         issuedId = data.invitation.id; $('invite-link').value = data.link; $('issued').hidden = false;
         status(`Invitation created for ${data.invitation.email}. No email was sent.`);
         await refresh(); $('invite-link').focus(); $('invite-link').select();

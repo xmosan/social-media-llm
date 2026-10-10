@@ -61,6 +61,7 @@ class User(Base):
     password_hash = Column(String, nullable=True)
     name = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
+    session_version = Column(Integer, nullable=False, default=0, server_default="0")
     tester_expires_at = Column(DateTime(timezone=True), nullable=True)
     is_superadmin = Column(Boolean, default=False)
     onboarding_complete = Column(Boolean, default=False)

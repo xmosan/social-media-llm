@@ -49,14 +49,14 @@ class LoginTests(DatabaseCase):
 
     def test_unknown_account_and_bad_password_do_not_disclose_accounts(self):
         output = StringIO()
-        with redirect_stdout(output), redirect_stderr(output), patch.object(auth, "create_access_token") as issue:
+        with redirect_stdout(output), redirect_stderr(output), patch.object(auth, "create_user_access_token") as issue:
             self.assert_rejected(self.submit("missing@example.test", self.password))
             self.assert_rejected(self.submit("member@example.test", "wrong-password"))
         self.assertEqual(output.getvalue(), "")
         issue.assert_not_called()
 
     def test_disabled_passwordless_and_malformed_accounts_fail_without_a_session(self):
-        with patch.object(auth, "create_access_token") as issue:
+        with patch.object(auth, "create_user_access_token") as issue:
             for email in ("disabled@example.test", "oauth@example.test", "malformed@example.test"):
                 with self.subTest(email=email):
                     self.assert_rejected(self.submit(email, self.password))
