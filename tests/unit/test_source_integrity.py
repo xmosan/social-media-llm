@@ -38,12 +38,12 @@ def load_isolated_service(name):
 class CaptionIntegrityTests(unittest.TestCase):
     def test_quran_ai_output_cannot_replace_source_fields(self):
         result = {"reference": "Wrong reference", "translation_text": "Rewritten fixture", "arabic_text": "wrong",
-                  "reflection": "A separate test reflection."}
+                  "commentary": "A separate test explanation."}
         response = SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=json.dumps(result)))])
         with patch.object(settings, "openai_api_key", "fake-key"), patch.object(source_caption, "generate_text", return_value=result):
             caption = quran_caption_service.generate_ai_caption_from_quran(FIXTURE)
         self.assertTrue(caption.startswith("\n\n".join(FIXTURE[k] for k in ("reference", "arabic_text", "translation_text"))))
-        self.assertIn("Reflection: A separate test reflection.", caption)
+        self.assertIn("Explanation: A separate test explanation.", caption)
         self.assertNotIn("Rewritten fixture", caption)
         self.assertNotIn("Wrong reference", caption)
 
@@ -144,7 +144,7 @@ class SourceRouteTests(DatabaseCase):
             result = self.client.post("/api/studio/generate-card-message", json={"source_type": "quran", "source_payload": FIXTURE})
             self.assertEqual(result.status_code, 200, result.text)
             card = result.json()["card_message"]
-            caption = self.client.post("/api/studio/generate-caption", json={"source_type": "quran", "source_payload": FIXTURE})
+            caption = self.client.post("/api/studio/generate-caption", json={"source_type": "quran", "source_payload": FIXTURE, "caption_options":{"purpose":"source_only"}})
             self.assertEqual(caption.status_code, 200, caption.text)
             saved = self.client.post("/api/studio/create-post", json={"ig_account_id": 1, "source_type": "quran", "source_metadata": FIXTURE,
                 "source_reference": FIXTURE["reference"], "card_message": card, "caption": caption.json()["caption"],

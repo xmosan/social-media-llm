@@ -75,7 +75,7 @@ const search = source.slice(
   ),
 );
 const caption = source.slice(
-  source.indexOf("    window.generateSocialCaption ="),
+  source.indexOf("    // Caption choices belong"),
   source.indexOf(
     "    function _renderCaptionPreview",
     source.indexOf("    window.generateSocialCaption ="),
@@ -169,4 +169,22 @@ test("caption failure restores the action and keeps writing; a late response can
   finish(response({ caption: "Old result" }));
   await p;
   assert.equal(f.suggestions.length, 0);
+});
+
+test("caption purpose and tone are sent independently of the card and stale choices cannot apply", async () => {
+  let finish, payload;
+  const f=setup((url,opts)=>{payload=JSON.parse(opts.body);return new Promise(r=>finish=r)});
+  f.run(caption);f.el('captionPurpose').value='lesson';f.el('captionTone').value='warm';
+  const pending=f.c.window.generateSocialCaption();
+  assert.deepEqual(payload.caption_options,{purpose:'lesson',tone:'warm'});
+  f.el('captionPurpose').value='explanation';finish(response({caption:'Old purpose'}));await pending;
+  assert.equal(f.suggestions.length,0);assert.match(f.alerts[0],/choices changed/);
+  assert.equal(f.el('studioCaption').value,'My caption');assert.equal(f.el('btnGenerateCaption').disabled,false);
+});
+test("source-only disables tone; changing choices clears a pending suggestion without editing writing",()=>{
+ const f=setup();f.run(caption);let cleared=false,saved=false;
+ f.c.window.clearCreatorSuggestion=()=>cleared=true;f.c.window.rememberStudio=()=>saved=true;
+ f.el('captionPurpose').value='source_only';f.c.window.captionOptionsChanged();
+ assert.equal(f.el('captionTone').disabled,true);assert.equal(cleared,true);assert.equal(saved,true);
+ assert.equal(f.el('studioCaption').value,'My caption');
 });

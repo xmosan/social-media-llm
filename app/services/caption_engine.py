@@ -133,7 +133,7 @@ def fetch_quran_verse(topic: str):
 # -------------------------------
 # Caption Generator
 # -------------------------------
-def generate_islamic_caption(intention, topic, tone="calm"):
+def generate_islamic_caption(intention, topic, tone="calm", *, purpose="explanation", require_commentary=False):
     print(f"👉 Phase 3 Generating caption for: {topic} (Tone: {tone})")
 
     # 2. Fetch Verse (Unified Local Foundation Search)
@@ -143,6 +143,6 @@ def generate_islamic_caption(intention, topic, tone="calm"):
         # HIGH-FIDELITY GROUNDED GENERATION
         # We delegate to the new caption service for unified quality
         print(f"🔗 [CaptionEngine] Delegating grounded generation for '{topic}' to Quran Service.")
-        return generate_ai_caption_from_quran(verse["item"], style=tone)
+        return generate_ai_caption_from_quran(verse["item"], style=tone, purpose=purpose, require_commentary=require_commentary)
 
     raise ValueError("No verified source was found. Select a source from the library before generating a caption.")

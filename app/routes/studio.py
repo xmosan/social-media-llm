@@ -1,3 +1,5 @@
+from app.services.source_caption import normalize_caption_options
+from app.services.text_provider import TextGenerationError
 from app.services.usage_limits import UsageLimitError
 import logging
 from datetime import datetime, timezone
@@ -155,6 +157,11 @@ def studio_generate_caption(data: dict, db: Session = Depends(get_db),
     topic = data.get("topic")
     context = _editorial_context(data)
     try:
+        options = normalize_caption_options(data.get("caption_options"))
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error))
+    tone = options["tone"]
+    try:
         source_payload = resolve_selected_source(db, org_id, source_type, source_payload, user.id)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error))
@@ -163,8 +170,10 @@ def studio_generate_caption(data: dict, db: Session = Depends(get_db),
     if source_type == "hadith":
         try:
             from app.services.hadith_caption_service import generate_hadith_caption
-            caption = generate_hadith_caption(source_payload, tone=tone, intent=intention, editorial_context=context)
-            return {"caption": caption}
+            caption = generate_hadith_caption(source_payload, tone=tone, intent=intention, editorial_context=context, purpose=options["purpose"], require_commentary=True)
+            return {"caption": caption, "caption_options": options}
+        except TextGenerationError:
+            raise HTTPException(status_code=503, detail="Sabeel could not finish this suggestion. Your caption is unchanged. Try again, or choose Source only.")
         except UsageLimitError:
             raise
         except Exception as e:
@@ -179,9 +188,11 @@ def studio_generate_caption(data: dict, db: Session = Depends(get_db),
     if source_type == "quran" and source_payload.get("translation_text") and source_payload.get("reference"):
         try:
             from app.services.quran_caption_service import generate_ai_caption_from_quran
-            caption = generate_ai_caption_from_quran(source_payload, style=tone, editorial_context=context)
+            caption = generate_ai_caption_from_quran(source_payload, style=tone, editorial_context=context, purpose=options["purpose"], require_commentary=True)
             logger.info(f"[STUDIO] Quran caption grounded directly to: {source_payload.get('reference')}")
-            return {"caption": caption}
+            return {"caption": caption, "caption_options": options}
+        except TextGenerationError:
+            raise HTTPException(status_code=503, detail="Sabeel could not finish this suggestion. Your caption is unchanged. Try again, or choose Source only.")
         except UsageLimitError:
             raise
         except Exception as e:
@@ -198,8 +209,10 @@ def studio_generate_caption(data: dict, db: Session = Depends(get_db),
 
     # ── Manual / fallback ─────────────────────────────────────────────────────
     try:
-        caption = generate_islamic_caption(intention, topic, tone)
-        return {"caption": caption}
+        caption = generate_islamic_caption(intention, topic, tone, purpose=options["purpose"], require_commentary=True)
+        return {"caption": caption, "caption_options": options}
+    except TextGenerationError:
+        raise HTTPException(status_code=503, detail="Sabeel could not finish this suggestion. Your caption is unchanged. Try again, or choose Source only.")
     except UsageLimitError:
         raise
     except Exception as e:
@@ -315,6 +328,11 @@ def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = 
     # Safe isolation
     card_msg = data.get("card_message")
     caption_msg = data.get("caption_message") or data.get("caption", "")
+    if isinstance(caption_msg, dict) and "options" in caption_msg:
+        try:
+            caption_msg = {**caption_msg, "options": normalize_caption_options(caption_msg["options"])}
+        except ValueError as error:
+            raise HTTPException(status_code=422, detail=str(error))
 
     # Convert structures mapped from UI
     if isinstance(card_msg, str):

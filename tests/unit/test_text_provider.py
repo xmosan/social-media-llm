@@ -133,7 +133,7 @@ class TextFlowTests(unittest.TestCase):
         generic.assert_not_called()
 
     def test_overlong_optional_reflection_is_omitted_without_cutting_source(self):
-        with patch.object(settings,'openai_api_key','fixture'), patch.object(source_caption,'generate_text',return_value={'reflection':'word '*51}):
+        with patch.object(settings,'openai_api_key','fixture'), patch.object(source_caption,'generate_text',return_value={'commentary':'word '*71}):
             caption = source_caption.compose_source_caption(FIXTURE,'quran','calm')
         self.assertEqual(caption,'\n\n'.join(FIXTURE[k] for k in ('reference','arabic_text','translation_text')))
 
@@ -157,9 +157,9 @@ class TextFlowTests(unittest.TestCase):
 
     def test_actual_provider_output_is_assembled_with_exact_source(self):
         with patch.object(settings,'openai_api_key','fixture'), patch.object(provider,'OpenAI') as client:
-            client.return_value.__enter__.return_value.responses.create.return_value = response()
+            client.return_value.__enter__.return_value.responses.create.return_value = response(text='{"commentary":"A separate explanation."}')
             caption = source_caption.compose_source_caption(FIXTURE,'quran','calm')
-        self.assertEqual(caption,'\n\n'.join(FIXTURE[k] for k in ('reference','arabic_text','translation_text'))+'\n\nReflection: A separate reflection.')
+        self.assertEqual(caption,'\n\n'.join(FIXTURE[k] for k in ('reference','arabic_text','translation_text'))+'\n\nExplanation: A separate explanation.')
 
     def test_incompatible_reasoning_configuration_is_rejected(self):
         from app.config import Settings

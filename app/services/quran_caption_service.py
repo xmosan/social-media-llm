@@ -6,12 +6,12 @@ from app.services.source_caption import compose_source_caption
 from app.services.quran_serialization import normalize_quran_verse
 
 
-def generate_ai_caption_from_quran(item_or_payload, style: str = "reflective", *, editorial_context: str = "") -> str:
-    """Keep the source immutable; generate only a separately labeled reflection."""
+def generate_ai_caption_from_quran(item_or_payload, style: str = "reflective", *, editorial_context: str = "", purpose: str = "explanation", require_commentary: bool = False) -> str:
+    """Keep the source immutable; generate only a separately labeled commentary."""
     if isinstance(item_or_payload, dict):
         payload = dict(item_or_payload)
         payload["reference"] = payload.get("reference") or payload.get("source_reference")
         payload["translation_text"] = payload.get("translation_text") or payload.get("main_text")
     else:
         payload = normalize_quran_verse(item_or_payload)
-    return compose_source_caption(payload, "quran", style, editorial_context=editorial_context)
+    return compose_source_caption(payload, "quran", style, editorial_context=editorial_context, purpose=purpose, require_commentary=require_commentary)
