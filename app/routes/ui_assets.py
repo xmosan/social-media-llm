@@ -237,6 +237,8 @@ STUDIO_SCRIPTS_JS = r"""
         setVal('editHeadline', '');
         setVal('editSupporting', '');
         setVal('studioCaption', '');
+        setVal('captionPurpose', 'explanation'); setVal('captionTone', 'clear');
+        window.updateCaptionOptions?.();
         setVal('finalMediaUrl', '');
         setVal('studioVisualPrompt', '');
         setVal('studioStyle', 'editorial');
@@ -988,7 +990,7 @@ STUDIO_SCRIPTS_JS = r"""
             audience: document.getElementById('studioAudience')?.value || 'english_muslims',
             purpose: document.getElementById('studioPurpose')?.value || 'reminder',
             post_format: studioVisualDesign?.media_manifest?.format || document.getElementById('studioFormat')?.value || 'feed_4_5',
-            caption_message: {caption: document.getElementById('studioCaption')?.value || ''},
+            caption_message: {caption: document.getElementById('studioCaption')?.value || '', options: window.readCaptionOptions?.() || {purpose:'explanation',tone:'clear'}},
             media_url: currentQuoteCardUrl, visual_style: document.getElementById('studioStyle')?.value,
             intent_type: document.getElementById('studioIntent')?.value,
             reviewed: studioSequenceReviewed && !isQuoteCardOutOfDate};
@@ -1110,6 +1112,9 @@ STUDIO_SCRIPTS_JS = r"""
         studioBackgroundToken = studioVisualDesign?.background_token || null;
         currentQuoteCardUrl = data.media_url || null;
         studioCaptionMessage = data.caption_message;
+        set('captionPurpose', data.caption_message?.options?.purpose || 'explanation');
+        set('captionTone', data.caption_message?.options?.tone || 'clear');
+        window.updateCaptionOptions?.();
         set('studioAccount', data.ig_account_id); set('studioTopic', data.topic || meta.reference);
         set('editEyebrow', studioCardMessage?.eyebrow); set('editHeadline', studioCardMessage?.headline);
         set('editSupporting', studioCardMessage?.supporting_text); set('studioCaption', data.caption_message?.caption);
@@ -1166,7 +1171,7 @@ STUDIO_SCRIPTS_JS = r"""
             const meta = {...(post.source_metadata?.metadata || {}), ...(post.source_metadata || {})};
             restoreStudioPayload({post_id:post.id, draft_key:post.flags?.draft_key, ig_account_id:post.ig_account_id,
                 source_type:['quran','hadith'].includes(post.source_type) ? post.source_type : post.source_foundation || 'manual',
-                source_metadata:meta, card_message:post.card_message, caption_message:{caption:post.caption || ''},
+                source_metadata:meta, card_message:post.card_message, caption_message:{...post.caption_message,caption:post.caption || ''},
                 visual_design:{...(post.flags?.visual_design || {}), media_manifest:post.flags?.media_manifest},
                 audience:post.target_audience,purpose:post.intent_type,
                 post_format:post.post_format, media_url:post.media_url, visual_style:post.visual_style, topic:post.topic});
@@ -1212,7 +1217,7 @@ STUDIO_SCRIPTS_JS = r"""
     window.captionChanged = function() {
         studioSequenceReviewed=false;
         document.getElementById('sequenceReviewCheck').checked=false;
-        studioCaptionMessage={caption:document.getElementById('studioCaption')?.value || ''};
+        studioCaptionMessage={caption:document.getElementById('studioCaption')?.value || '',options:window.readCaptionOptions?.() || {purpose:'explanation',tone:'clear'}};
         window.rememberStudio();
     };
     window.exportStudioSequence = async function() {
@@ -1248,8 +1253,28 @@ STUDIO_SCRIPTS_JS = r"""
     // End sequence editor.
 
 
+    // Caption choices belong to the social caption, independently of the card.
+    window.readCaptionOptions = function() {
+        return {purpose:document.getElementById('captionPurpose')?.value || 'explanation',tone:document.getElementById('captionTone')?.value || 'clear'};
+    };
+    window.updateCaptionOptions = function() {
+        const purpose=window.readCaptionOptions().purpose;
+        const help=document.getElementById('captionPurposeHelp');
+        const descriptions={explanation:'Explain the main idea in plain language.',lesson:'Share one practical lesson grounded in this source.',reflection:'Offer a thoughtful observation about this source.',source_only:'Use the complete source and reference, without AI commentary.'};
+        if(help) help.textContent=descriptions[purpose] || descriptions.explanation;
+        const tone=document.getElementById('captionTone'); if(tone) tone.disabled=purpose==='source_only';
+        const button=document.getElementById('btnGenerateCaption');
+        if(button && !button.disabled) {const text=button.querySelector('.btn-text');if(text) text.innerText=purpose==='source_only' ? 'Use source only' : 'Suggest a caption';}
+    };
+    window.captionOptionsChanged = function() {
+        window.clearCreatorSuggestion?.();
+        window.updateCaptionOptions();
+        window.rememberStudio();
+    };
+
     window.generateSocialCaption = async function() {
         const sourceEpoch = studioSourceEpoch;
+        const options = window.readCaptionOptions();
         const sessionEpoch = studioSessionEpoch;
         const before=document.getElementById('studioCaption')?.value || '';
         const btn = document.getElementById('btnGenerateCaption');
@@ -1260,7 +1285,7 @@ STUDIO_SCRIPTS_JS = r"""
 
         btn.disabled = true;
         if(icon) icon.classList.add('animate-spin');
-        if(text) text.innerText = 'Crafting Presence...';
+        if(text) text.innerText = options.purpose==='source_only' ? 'Preparing source…' : 'Writing suggestion…';
         if(driftWarning) driftWarning.classList.add('hidden');
 
         try {
@@ -1287,6 +1312,7 @@ STUDIO_SCRIPTS_JS = r"""
             const payload = {
                 audience: document.getElementById('studioAudience')?.value || 'english_muslims',
                 purpose: document.getElementById('studioPurpose')?.value || 'reminder',
+                caption_options: options,
                 source_type: srcType,
                 source_payload: srcPayload,
                 topic: document.getElementById('studioTopic').value,
@@ -1302,6 +1328,7 @@ STUDIO_SCRIPTS_JS = r"""
             const data = await res.json();
             if (sourceEpoch !== studioSourceEpoch || sessionEpoch !== studioSessionEpoch) return;
             if(!res.ok) throw Error(data.detail || 'Caption unavailable');
+            if(JSON.stringify(options)!==JSON.stringify(window.readCaptionOptions())) throw Error('Your caption choices changed while Sabeel was writing. Generate a new suggestion with your current choices.');
 
             // Handle both structured caption_message and plain caption string
             let captionText = '';
@@ -1309,7 +1336,7 @@ STUDIO_SCRIPTS_JS = r"""
                 studioCaptionMessage = data.caption_message;
                 captionText = `${studioCaptionMessage.hook || ''}\n\n${studioCaptionMessage.body || ''}\n\n${studioCaptionMessage.cta || ''}\n\n${(studioCaptionMessage.hashtags || []).join(' ')}`;
             } else if (data.caption) {
-                studioCaptionMessage = { caption: data.caption };
+                studioCaptionMessage = { caption: data.caption, options };
                 captionText = data.caption;
             }
 
@@ -1346,7 +1373,7 @@ STUDIO_SCRIPTS_JS = r"""
             if(sourceEpoch!==studioSourceEpoch || sessionEpoch!==studioSessionEpoch) return;
             btn.disabled = false;
             if(icon) icon.classList.remove('animate-spin');
-            if(text) text.innerText = 'Generate Caption';
+            window.updateCaptionOptions();
         }
     }
 
@@ -3189,9 +3216,28 @@ STUDIO_COMPONENTS_HTML = """
                       <div class="text-[9px] font-medium text-text-muted leading-relaxed">
                           Write your own caption below, or ask Sabeel for a source-grounded suggestion.
                       </div>
+                      <div class="cw-caption-options">
+                          <label for="captionPurpose">Caption purpose
+                              <select id="captionPurpose" onchange="captionOptionsChanged()" aria-describedby="captionPurposeHelp">
+                                  <option value="explanation">Simple explanation</option>
+                                  <option value="lesson">Practical lesson</option>
+                                  <option value="reflection">Reflection</option>
+                                  <option value="source_only">Source only</option>
+                              </select>
+                          </label>
+                          <label for="captionTone">Tone
+                              <select id="captionTone" onchange="captionOptionsChanged()">
+                                  <option value="clear">Clear &amp; direct</option>
+                                  <option value="warm">Warm</option>
+                                  <option value="encouraging">Encouraging</option>
+                                  <option value="serious">Serious</option>
+                              </select>
+                          </label>
+                      </div>
+                      <p id="captionPurposeHelp" class="cw-caption-help" aria-live="polite">Explain the main idea in plain language.</p>
                       <button type="button" id="btnGenerateCaption" onclick="generateSocialCaption()" class="w-full py-5 bg-brand text-white rounded-[2rem] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-brand/20 hover:shadow-brand/30 hover:scale-[1.005] transition-all flex items-center justify-center gap-3">
                           <svg class="btn-icon w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-                          <span class="btn-text">Generate Caption</span>
+                          <span class="btn-text">Suggest a caption</span>
                       </button>
                   </div>
               </div>
@@ -3632,7 +3678,7 @@ APP_LAYOUT_HTML = """<!doctype html>
     .text-brand {{ color: var(--brand) !important; }}
     .border-brand {{ border-color: var(--brand) !important; }}
   </style>
-<link rel="stylesheet" href="/static/creator-workspace.css?v=4">
+<link rel="stylesheet" href="/static/creator-workspace.css?v=5">
 </head>
 <body class="min-h-screen">
 <header class="cw-topbar"><a class="cw-wordmark" href="/app">sabeel<span> studio</span></a><a href="/app?view=you" aria-label="Your workspace">Your space ↗</a></header>

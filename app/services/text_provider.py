@@ -24,6 +24,10 @@ class Reflection(Output):
     reflection: str
 
 
+class CaptionCommentary(Output):
+    commentary: str = Field(min_length=1, max_length=1200)
+
+
 class Caption(Output):
     caption: str = Field(min_length=1)
     hashtags: list[str]

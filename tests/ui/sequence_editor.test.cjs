@@ -143,3 +143,13 @@ test('withdrawing a visual review revokes approval in the persisted payload unti
  f.el('sequenceReviewCheck').checked=true;f.c.window.changeStudioReview();assert.equal(f.run('studioSequenceReviewed'),false);
  f.c.window.confirmStudioSequence();assert.equal(f.run('studioSequenceReviewed'),true);
 });
+
+test('caption preferences survive device recovery and saved-post reopen independently of card purpose',async()=>{
+ const f=setup(async()=>({ok:true,json:async()=>({id:51,status:'drafted',source_type:'quran',source_metadata:{id:1},card_message:{headline:'Exact'},caption:'Saved',caption_message:{caption:'Saved',options:{purpose:'reflection',tone:'warm'}}})}));
+ f.c.window.readCaptionOptions=()=>({purpose:f.el('captionPurpose').value||'explanation',tone:f.el('captionTone').value||'clear'});
+ f.el('captionPurpose').value='lesson';f.el('captionTone').value='serious';f.c.window.rememberStudio();
+ f.el('captionPurpose').value='source_only';await f.c.window.restoreStudioRecovery();
+ assert.equal(f.el('captionPurpose').value,'lesson');assert.equal(f.el('captionTone').value,'serious');
+ f.c.window.closeEditPostModal=()=>{};f.c.window.openNewPostModal=()=>{};
+ await f.c.window.resumeStudioPost(51);assert.equal(f.el('captionPurpose').value,'reflection');assert.equal(f.el('captionTone').value,'warm');assert.equal(f.el('studioCaption').value,'Saved');
+});

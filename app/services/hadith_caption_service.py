@@ -6,6 +6,6 @@ from typing import Any, Optional
 from app.services.source_caption import compose_source_caption
 
 
-def generate_hadith_caption(hadith_payload: dict[str, Any], tone: str = "calm", intent: Optional[str] = None, *, editorial_context: str = "") -> str:
-    """Preserve the full translation and returned narrator separately from reflection."""
-    return compose_source_caption(hadith_payload, "hadith", tone, editorial_context=editorial_context)
+def generate_hadith_caption(hadith_payload: dict[str, Any], tone: str = "calm", intent: Optional[str] = None, *, editorial_context: str = "", purpose: str = "explanation", require_commentary: bool = False) -> str:
+    """Preserve the full translation and returned narrator separately from commentary."""
+    return compose_source_caption(hadith_payload, "hadith", tone, editorial_context=editorial_context, purpose=purpose, require_commentary=require_commentary)

@@ -20,7 +20,7 @@ import requests
 from ..services.policy import keyword_flags
 from ..services.post_service import publish_post as publish_saved_post, get_mutable_post, prepare_scheduled_post
 from ..services.source_grounding import resolve_selected_source, resolve_saved_source, saved_source_type, validate_source_card, validate_source_edit
-from ..services.source_caption import compose_source_caption
+from ..services.source_caption import compose_source_caption, normalize_caption_options, caption_message_with_text
 from ..services.automation_runner import resolve_media_url
 from ..security.rbac import get_current_org_id
 from ..security.ownership import require_account, require_content_item, require_media
@@ -37,7 +37,8 @@ def _source_caption(db, post, user, tone="calm"):
         return None
     try:
         source = resolve_saved_source(db, post, user.id if user else None)
-        return compose_source_caption(source, saved_source_type(post), tone)
+        options = normalize_caption_options((post.caption_message or {}).get("options"))
+        return compose_source_caption(source, saved_source_type(post), options["tone"], purpose=options["purpose"])
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error))
 def get_next_daily_time(daily_post_time: str, account_timezone: str) -> datetime:
@@ -345,7 +346,7 @@ def generate_for_post(
     post.caption = draft["caption"]
     post.hashtags = draft["hashtags"]
     post.alt_text = draft["alt_text"]
-    post.caption_message = {"caption": post.caption}
+    post.caption_message = caption_message_with_text(post.caption_message, post.caption)
     post.flags = {**(post.flags or {}), **flags}
     post.status = "needs_review" if flags.get("needs_review") else "drafted"
     db.commit()
@@ -457,9 +458,14 @@ def update_post(
                 incoming[key] = post.flags[key]
         data["flags"] = incoming
     if "caption" in data:
-        data["caption_message"] = {"caption": data["caption"] or ""}
+        data["caption_message"] = caption_message_with_text(post.caption_message, data["caption"] or "")
     elif "caption_message" in data:
         message = data["caption_message"] or {}
+        if "options" in message:
+            try:
+                message["options"] = normalize_caption_options(message["options"])
+            except ValueError as error:
+                raise HTTPException(status_code=422, detail=str(error))
         caption = message.get("caption")
         if caption is None:
             parts = [message.get(key) for key in ("hook", "body", "cta") if message.get(key)]
@@ -506,7 +512,7 @@ def regenerate_caption(
     grounded_caption = _source_caption(db, post, user, instructions or "calm")
     draft = {"caption": grounded_caption, "hashtags": post.hashtags or [], "alt_text": post.alt_text or ""} if grounded_caption is not None else generate_draft(prompt)
     post.caption = draft["caption"]
-    post.caption_message = {"caption": post.caption}
+    post.caption_message = caption_message_with_text(post.caption_message, post.caption)
     post.hashtags = draft["hashtags"]
     post.alt_text = draft["alt_text"]
     

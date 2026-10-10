@@ -956,3 +956,11 @@ button:disabled {
 #newPostModal .cw-share-panel .text-brand\/40,
 #newPostModal .cw-share-panel .text-accent\/60 { color:var(--cw-muted); }
 @media (max-width:767px) { #newPostModal #presenceCardThumb { display:none; } }
+
+/* Two concise caption controls, independent from the card's purpose and mood. */
+#newPostModal .cw-caption-options {display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:12px;}
+#newPostModal .cw-caption-options label {display:flex;flex-direction:column;gap:7px;font-size:14px;font-weight:600;min-width:0;}
+#newPostModal .cw-caption-options select {width:100%;min-height:48px;min-width:0;font-size:16px;padding:10px 8px;border:1px solid #d6ded8;border-radius:12px;background:#fff;color:#173e32;}
+#newPostModal .cw-caption-options select:disabled {opacity:.55;}
+#newPostModal .cw-caption-help {font-size:14px;line-height:1.5;color:#566d62;margin:0;}
+@media(max-width:359px) {#newPostModal .cw-caption-options {grid-template-columns:1fr;}}
