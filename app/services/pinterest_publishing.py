@@ -101,6 +101,12 @@ def review(db, post_id, org_id, user_id, copy):
     manifest = eligible(post)
     row = connection.connection(db, org_id)
     snap, _ = snapshot(post, row, copy, manifest, image_digest(post.media_url))
+    return {'receipt': signer().dumps({'digest': card_digest(snap), 'user_id': user_id, 'org_id': org_id}),
+            **source_preview(post), 'board_name': row.board_name, 'username': row.username, 'copy': copy}
+
+
+def source_preview(post):
+    """Canonical source presentation shared by the pilot and creator drafts."""
     metadata = {**((post.source_metadata or {}).get('metadata') or {}), **(post.source_metadata or {})}
     provenance = metadata.get('translation_provenance') or {}
     details = [label + ': ' + str(value) for label, value in (
@@ -108,11 +114,9 @@ def review(db, post_id, org_id, user_id, copy):
         ('Narrator', metadata.get('narrator')), ('Grade', metadata.get('grade'))) if value]
     details.extend('Translator note: ' + str(note['text']) for note in (metadata.get('translation_footnotes') or [])
                    if isinstance(note, dict) and note.get('text'))
-    return {'receipt': signer().dumps({'digest': card_digest(snap), 'user_id': user_id, 'org_id': org_id}),
-            'image_url': post.media_url, 'source_reference': post.source_reference,
+    return {'image_url': post.media_url, 'source_reference': post.source_reference,
             'arabic': post.card_message['arabic_text'], 'translation': post.card_message['headline'],
-            'reflection': post.card_message.get('supporting_text') or '', 'source_details': '\n'.join(details),
-            'board_name': row.board_name, 'username': row.username, 'copy': copy}
+            'reflection': post.card_message.get('supporting_text') or '', 'source_details': '\n'.join(details)}
 
 
 def publish(db, post_id, org_id, user_id, copy, receipt, api):
