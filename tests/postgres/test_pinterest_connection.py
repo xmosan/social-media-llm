@@ -2,7 +2,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock,patch
 import threading,unittest
 from fastapi import HTTPException
 from sqlalchemy import text
@@ -62,3 +62,20 @@ class PinterestPostgresChecks(unittest.TestCase):
         with Session(engine) as db:
             self.assertEqual(service.token(db,1,api),'new-access')
             self.assertEqual(service.decrypt(db.query(Connection).one())['refresh_token'],'rotated-refresh')
+
+    def test_concurrent_sandbox_setup_creates_one_board(self):
+        with Session(engine) as db:
+            state=service.begin(db,self.request,1,1);attempt=service.claim(db,self.request,1,1,state)
+            service.store(db,attempt,{'access_token':'synthetic','expires_in':3600},{'username':'fixture'},True)
+        api=Mock(sandbox=True)
+        api.create_test_board.return_value={'id':'123','name':'Test','privacy':'PUBLIC','owner':{'username':'fixture'}}
+        barrier=threading.Barrier(2)
+        def setup(_):
+            with Session(engine) as db:
+                barrier.wait(timeout=10)
+                return service.setup_test_board(db,1,api)
+        with patch.object(service.settings,'pinterest_sandbox',True),ThreadPoolExecutor(2) as pool:
+            results=list(pool.map(setup,range(2)))
+        self.assertEqual(sorted(r['reused'] for r in results),[False,True])
+        self.assertEqual({r['id'] for r in results},{'123'})
+        api.create_test_board.assert_called_once_with('synthetic')

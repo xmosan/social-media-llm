@@ -201,6 +201,14 @@ before switching environments. Authentication failures (401) require reconnectio
 permission failures (403) require checking access tier/scopes/environment instead
 of repeatedly authorizing the same account.
 
+In Sandbox the owner page can explicitly create one test board and select its
+returned, verified ID. Repeated successful setup uses the saved selection. The
+action cannot create production boards and never retries a write automatically.
+If creation times out or cannot be saved, load all Sandbox board pages and select
+the existing board before considering another creation. The setup control stays
+disabled for that page session after any attempt. This limited test helper is not
+a general board-management feature.
+
 The transport follows Pinterest's official v5.28.0 API description and preserves
 separately reviewed Pin copy without truncation, canonical Cloudinary media and
 explicit AI disclosure. It never retries a possibly completed write. Offline

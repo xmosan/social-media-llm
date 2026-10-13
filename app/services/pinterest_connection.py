@@ -170,3 +170,26 @@ def disconnect(db, request, user_id, org_id):
     # Revoke outstanding local handoffs so an in-flight callback cannot reconnect.
     db.execute(delete(Attempt).where(Attempt.user_id==user_id,Attempt.org_id==org_id))
     db.commit();request.session.pop('pinterest_connection',None)
+
+
+def setup_test_board(db, org_id, api):
+    """Explicit owner setup; never create a production board or retry a write."""
+    if not settings.pinterest_sandbox or not api.sandbox:
+        raise PinterestError('Test board setup is available only in Sandbox.')
+    access=token(db,org_id,api)
+    row=db.query(Connection).filter_by(org_id=org_id).populate_existing().with_for_update().one()
+    if not row.active or not row.sandbox or decrypt(row).get('access_token')!=access:
+        raise PinterestError('The connection changed. Reload the Sandbox connection first.')
+    # Serializes simultaneous setup clicks; a selected board is reused.
+    if row.board_id:
+        return {'id':row.board_id,'name':row.board_name,'reused':True}
+    board=api.create_test_board(access)
+    if (board.get('privacy')!='PUBLIC' or (board.get('owner') or {}).get('username')!=row.username):
+        raise PinterestError('The returned test board could not be verified. Load your boards; do not create another automatically.')
+    row.board_id=_identifier(board.get('id'));row.board_name=str(board.get('name') or 'Sandbox test')[:255]
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise PinterestError('The board result could not be saved. Load your boards and select the existing test board; do not create another.') from None
+    return {'id':row.board_id,'name':row.board_name,'reused':False}

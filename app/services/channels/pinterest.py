@@ -189,6 +189,18 @@ class PinterestClient:
     def board(self, token, board_id):
         return self._request('GET', '/boards/' + _identifier(board_id), token=token)
 
+    def create_test_board(self, token):
+        if not self.sandbox:
+            raise PinterestError('Test boards can only be created in Sandbox.')
+        data = self._request('POST', '/boards', token=token, uncertain=True, payload={
+            'name': 'Sabeel Studio — Sandbox test', 'privacy': 'PUBLIC',
+            'description': 'Owner-only integration testing. Sandbox content is not a public launch.'})
+        try:
+            _identifier(data.get('id'))
+        except PinterestError:
+            raise PinterestOutcomeUnknown('The test board result was not confirmed. Load your boards before trying anything else.') from None
+        return data
+
     def create_pin(self, token, draft: PinDraft):
         data = self._request('POST', '/pins', token=token, payload=draft.payload(), uncertain=True)
         try:

@@ -29,6 +29,16 @@
     }
     byId('loadBoards')?.addEventListener('click',()=>load());
     byId('moreBoards')?.addEventListener('click',()=>load(true));
+    byId('createTestBoard')?.addEventListener('click',async()=>{
+        if(busy||byId('createTestBoard').disabled)return;busy=true;byId('createTestBoard').disabled=true;
+        status('Creating one Sandbox board…');
+        try {
+            const data=await request('/api/pinterest/sandbox-board',{method:'POST'});
+            byId('chosenBoard').textContent='Selected board: '+data.name;
+            status('Sandbox board saved. You can now review one test Pin.');
+        }catch(error){status((error.name==='TimeoutError'?'The board result was not received.':error.message)+' Load your boards and look for the test board before doing anything else. Nothing was retried automatically.');}
+        finally{busy=false;}
+    });
     byId('boardForm')?.addEventListener('submit',async event=>{
         event.preventDefault();if(busy)return;busy=true;
         const button=event.currentTarget.querySelector('button');button.disabled=true;

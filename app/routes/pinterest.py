@@ -107,6 +107,13 @@ def disconnect(request:Request,db:Session=Depends(get_db),user:User=Depends(requ
     return redirect('disconnected')
 
 
+@router.post('/api/pinterest/sandbox-board')
+def sandbox_board(request:Request,db:Session=Depends(get_db),user:User=Depends(require_superadmin),
+                  org_id:int=Depends(get_current_org_id)):
+    require_same_origin(request)
+    with api_client() as api:return connection.setup_test_board(db,org_id,api)
+
+
 class PinCopy(BaseModel):
     title: str = Field(min_length=1, max_length=100)
     description: str = Field(min_length=1, max_length=800)

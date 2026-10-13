@@ -10,6 +10,7 @@
 </section>
 {% if connected %}<section><h2>Connected as @{{ username }}</h2><p id="chosenBoard">{% if board_name %}Selected board: {{ board_name }}{% else %}No board selected.{% endif %}</p>
 <button id="loadBoards" type="button">Load public boards</button><p id="boardStatus" role="status" aria-live="polite"></p>
+{% if sandbox %}<p>Sandbox needs a board created through the test API. If you already have one, load and select it. Otherwise create one below.</p><button id="createTestBoard" type="button" {% if board_name %}disabled{% endif %}>Create one Sandbox test board</button>{% endif %}
 <form id="boardForm" hidden><label for="boardChoice">Your public board</label><select id="boardChoice" required></select><button type="submit">Use this board</button></form>
 <button id="moreBoards" type="button" hidden>Load more boards</button>
 <p>Only public boards owned by this account are listed. If none appear, create a public board in Pinterest, then reload.</p>
