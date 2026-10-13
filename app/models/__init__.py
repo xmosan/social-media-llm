@@ -154,7 +154,8 @@ class Post(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     org_id = Column(Integer, ForeignKey("orgs.id"), nullable=False, index=True)
-    ig_account_id = Column(Integer, ForeignKey("ig_accounts.id"), nullable=False, index=True)
+    # Drafts belong to the workspace; choose a channel when publishing.
+    ig_account_id = Column(Integer, ForeignKey("ig_accounts.id"), nullable=True, index=True)
 
     # NEW: Link to automation source
     is_auto_generated = Column(Boolean, default=False)

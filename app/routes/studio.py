@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.models import Post, User
 from app.security.rbac import get_current_org_id
 from app.security.auth import require_user, get_current_user
-from app.security.ownership import require_account
+from app.security.ownership import require_account, draft_account_id
 from app.services.source_grounding import resolve_selected_source
 from app.services.post_service import get_mutable_post, prepare_scheduled_post
 
@@ -282,11 +282,7 @@ def studio_create_post(data: dict, db: Session = Depends(get_db), org_id: int = 
     - This prevents saving Hadith posts with broken source integrity.
     - Does NOT affect Quran or manual post creation.
     """
-    ig_account_id = data.get("ig_account_id")
-    if not ig_account_id:
-        raise HTTPException(status_code=400, detail="ig_account_id required")
-    account = require_account(db, org_id, ig_account_id, active=True)
-    ig_account_id = account.id
+    ig_account_id = draft_account_id(db, org_id, data.get("ig_account_id"))
 
     source_type = data.get("source_type", "manual")
     source_reference = data.get("source_reference")

@@ -120,11 +120,28 @@ class OwnershipTests(DatabaseCase):
         self.assertEqual(result.json()["status"], "unavailable")
         self.assertNotIn("fake-test-token", result.text)
 
-    def test_studio_rejects_foreign_inactive_and_invalid_accounts(self):
-        for account, status in [(2, 403), (3, 422), (999, 403), ("bad", 422)]:
+    def test_studio_rejects_foreign_and_invalid_accounts(self):
+        for account, status in [(2, 403), (999, 403), ("bad", 422), (False, 422), (0, 422)]:
             result = self.client.post("/api/studio/create-post", json={"ig_account_id": account, "caption": "Fixture"})
             self.assertEqual(result.status_code, status, result.text)
         self.assertEqual(self.db.query(Post).count(), 4)
+
+    def test_workspace_draft_needs_no_live_connection_but_publishing_does(self):
+        for account in (None, 3):
+            result = self.client.post('/api/studio/create-post', json={
+                'ig_account_id': account, 'caption': 'Saved independently',
+                'media_url': 'https://res.cloudinary.com/fixture/image/upload/test.jpg'})
+            self.assertEqual(result.status_code, 200, result.text)
+            post_id = result.json()['id']
+            reopened = self.client.get(f'/api/studio/post/{post_id}').json()
+            self.assertEqual(reopened['ig_account_id'], account)
+            with patch('app.services.publisher.publish_to_instagram') as publish:
+                self.assertEqual(self.client.post(f'/posts/{post_id}/publish').status_code, 422)
+                publish.assert_not_called()
+            scheduled = self.client.post('/api/studio/create-post', json={
+                'post_id': post_id, 'ig_account_id': account, 'scheduled_at': '2099-01-01T12:00:00Z'})
+            self.assertEqual(scheduled.status_code, 422, scheduled.text)
+            self.db.rollback()
 
     def test_studio_saves_owned_account_and_reopens(self):
         result = self.client.post("/api/studio/create-post", json={"ig_account_id": 1, "caption": "Saved fixture", "source_type": "manual"})

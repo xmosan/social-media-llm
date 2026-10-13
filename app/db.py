@@ -85,8 +85,11 @@ def validate_database_schema():
         if table.name not in existing:
             missing.append(table.name)
             continue
-        columns = {column["name"] for column in inspector.get_columns(table.name)}
+        definitions = inspector.get_columns(table.name)
+        columns = {column["name"] for column in definitions}
         missing.extend(f"{table.name}.{column.name}" for column in table.columns if column.name not in columns)
+        if table.name == "posts" and any(c["name"] == "ig_account_id" and not c["nullable"] for c in definitions):
+            missing.append("posts.ig_account_id must allow workspace drafts (migrate_workspace_drafts.py)")
     if missing:
         raise RuntimeError("Database schema requires a reviewed migration: " + ", ".join(missing))
 

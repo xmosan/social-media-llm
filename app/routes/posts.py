@@ -23,7 +23,7 @@ from ..services.source_grounding import resolve_selected_source, resolve_saved_s
 from ..services.source_caption import compose_source_caption, normalize_caption_options, caption_message_with_text
 from ..services.automation_runner import resolve_media_url
 from ..security.rbac import get_current_org_id
-from ..security.ownership import require_account, require_content_item, require_media
+from ..security.ownership import require_account, require_content_item, require_media, draft_account_id
 from ..security.auth import get_current_user
 from ..logging_setup import log_event
 router = APIRouter(prefix="/posts", tags=["posts"])
@@ -59,7 +59,7 @@ def intake_post(
     db: Session = Depends(get_db),
     source_text: str = Form(""),
     source_type: str = Form("form"),
-    ig_account_id: int = Form(...),
+    ig_account_id: int | None = Form(None),
     image: UploadFile | None = File(None),
     use_ai_image: bool = Form(False),
     visual_mode: str = Form("upload"),
@@ -111,7 +111,7 @@ def intake_post(
             pass
 
     print(f"DEBUG: Intake attempt - Account={ig_account_id}, AI={use_ai_image}, File={image.filename if image else 'None'}")
-    acc = require_account(db, org_id, ig_account_id, active=True)
+    ig_account_id = draft_account_id(db, org_id, ig_account_id)
     asset = None
     if visual_mode == "media_library":
         if lib_id is None:
@@ -132,8 +132,6 @@ def intake_post(
         source_foundation = kind
     _ensure_uploads_dir()
     
-    if not acc.access_token or not acc.ig_user_id:
-         raise HTTPException(status_code=400, detail="Incomplete IG Account connection. Please reconnect your account.")
     public_url = None
     # 1. Handle AI Generation
     if use_ai_image or visual_mode == "ai_background":

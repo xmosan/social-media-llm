@@ -528,8 +528,8 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
         active_automations=active_map["automations"],
         active_library=active_map["library"],
         active_media=active_map["media"],
-        studio_modal=STUDIO_COMPONENTS_HTML.replace("{account_options}", account_options).replace("{workspace_key}", f"{org.id}:{user.id}"),
-        studio_js=STUDIO_SCRIPTS_JS + '<script src="/static/creator-workspace.js?v=4"></script>',
+        studio_modal=STUDIO_COMPONENTS_HTML.replace("{account_options}", '<option value="">Save or export without a connection</option>' + account_options).replace("{workspace_key}", f"{org.id}:{user.id}"),
+        studio_js=STUDIO_SCRIPTS_JS + '<script src="/static/creator-workspace.js?v=5"></script>',
         connected_account_info=(extras.get("connected_account_info", "") if extras else ""),
         connect_instagram_modal=CONNECT_INSTAGRAM_MODAL_HTML,
         navbar_account_switcher=switcher_html,
@@ -573,7 +573,7 @@ async def app_dashboard_page(
     active_acc_id = active_acc.id if active_acc else 0
     
     from .creator_workspace import render_creator_workspace
-    posts = db.query(Post).filter(Post.org_id == org_id, Post.ig_account_id == active_acc_id).order_by(Post.created_at.desc()).limit(30).all()
+    posts = db.query(Post).filter(Post.org_id == org_id).order_by(Post.created_at.desc()).limit(30).all()
     return render_app_page(title={"home": "Home", "posts": "Posts", "you": "Your workspace"}.get(view, "Home"),
         content=render_creator_workspace(user, org, posts, active_acc, view, all_accs), user=user, org=org,
         active_tab="dashboard", db=db)

@@ -123,17 +123,19 @@ class SequenceLifecycleTests(DatabaseCase):
         self.app.dependency_overrides[get_current_org_id]=lambda:1
         self.app.dependency_overrides[get_current_user]=lambda:None
         self.client=TestClient(self.app);self.addCleanup(self.client.close)
-    def save(self,fmt='story_9_16',count=2):
+    def save(self,fmt='story_9_16',count=2,account=1):
         m=manifest(fmt=fmt,count=count)
         payload={'ig_account_id':1,'draft_key':'11111111-1111-4111-8111-111111111111','source_type':'manual','card_message':CARD,'caption_message':{'caption':'Separate caption'},'visual_design':{'family':'editorial','media_manifest':m},'media_url':m['pages'][0]['url'],'post_format':fmt,'reviewed':True}
+        payload['ig_account_id']=account
         result=self.client.post('/api/studio/create-post',json=payload)
         self.assertEqual(result.status_code,200,result.text)
         return result.json()['id'],payload
     def test_draft_recovery_is_idempotent_and_ordered_export_contains_full_source(self):
-        id,payload=self.save(); again=self.client.post('/api/studio/create-post',json=payload)
+        id,payload=self.save(account=None); again=self.client.post('/api/studio/create-post',json=payload)
         self.assertEqual(again.json()['id'],id);self.assertEqual(self.db.query(Post).count(),1)
         reopened=self.client.get(f'/api/studio/post/{id}').json()
         self.assertEqual(reopened['card_message'],CARD)
+        self.assertIsNone(reopened['ig_account_id'])
         self.assertEqual(reopened['flags']['media_manifest'],payload['visual_design']['media_manifest'])
         with patch.object(media,'download_image',side_effect=[b'first',b'second']):
             res=self.client.get(f'/posts/{id}/export')

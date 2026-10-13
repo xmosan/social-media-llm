@@ -28,7 +28,7 @@ from sqlalchemy import update
 from fastapi import HTTPException
 from uuid import uuid4
 
-from app.security.ownership import require_account
+from app.security.ownership import require_account, draft_account_id
 from app.services.publish_media import prepare_publish_media
 from app.services.source_grounding import validate_saved_source_snapshot
 
@@ -50,7 +50,7 @@ class PostCreateRequest:
     Maps to fields on the Post model but is framework-agnostic.
     """
     org_id: int
-    ig_account_id: int
+    ig_account_id: Optional[int] = None
 
     # Content
     source_type: str = "studio_manual"
@@ -107,13 +107,7 @@ def create_post(db: Session, request: PostCreateRequest) -> PostResult:
     The existing /posts/intake route will eventually call this.
     """
     try:
-        # Validate account
-        acc = db.query(IGAccount).filter(
-            IGAccount.id == request.ig_account_id,
-            IGAccount.org_id == request.org_id
-        ).first()
-        if not acc:
-            return PostResult(error="IGAccount not found or not in your organization")
+        account_id = draft_account_id(db, request.org_id, request.ig_account_id)
 
         # Policy check (non-blocking — flags the post, doesn't reject it)
         flags = {}
@@ -145,7 +139,7 @@ def create_post(db: Session, request: PostCreateRequest) -> PostResult:
 
         post = Post(
             org_id=request.org_id,
-            ig_account_id=request.ig_account_id,
+            ig_account_id=account_id,
             status=status,
             source_type=request.source_type,
             source_text=request.source_text,
@@ -180,6 +174,9 @@ def create_post(db: Session, request: PostCreateRequest) -> PostResult:
                   source_type=request.source_type)
         return PostResult(post=post)
 
+    except HTTPException as error:
+        db.rollback()
+        return PostResult(error=error.detail, status_code=error.status_code)
     except Exception as e:
         logger.error(f"[PostService] create_post failed: {e}", exc_info=True)
         db.rollback()

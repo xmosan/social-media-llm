@@ -30,6 +30,8 @@ with tempfile.TemporaryDirectory(prefix="sabeel-pg-test-", dir="/tmp") as direct
     env = {"PATH": str(binary) + os.pathsep + os.defpath, "SABEEL_ISOLATED_SECURITY_TESTS": "1",
            "SECRET_KEY": "isolated-test-key-not-for-production-0001", "ADMIN_API_KEY": "isolated-admin-key",
            "SABEEL_PG_TEST_SOCKET": str(root)}
+    if os.environ.get("DYLD_FALLBACK_LIBRARY_PATH"):
+        env["DYLD_FALLBACK_LIBRARY_PATH"] = os.environ["DYLD_FALLBACK_LIBRARY_PATH"]
     try:
         subprocess.run([str(binary / "initdb"), "-D", str(data), "-U", "sabeel_test", "-A", "trust", "--no-locale", "-E", "UTF8"], env=env, check=True, capture_output=True)
         subprocess.run([str(binary / "pg_ctl"), "-D", str(data), "-l", str(root / "server.log"), "-o", f"-k {root} -c listen_addresses=''", "-w", "start"], env=env, check=True, capture_output=True)
