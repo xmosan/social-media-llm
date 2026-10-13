@@ -1211,6 +1211,19 @@ STUDIO_SCRIPTS_JS = r"""
         }
         try { await persistStudioDraft(); } catch(e) { document.getElementById('studioSaveStatus').textContent=e.message; }
     };
+    window.preparePinterestDraft = async function() {
+        if (studioSaveBusy) return;
+        const button = document.getElementById('studioPinterestButton');
+        button.disabled = true;
+        try {
+            if (sequencePages().length !== 1 || studioVisualDesign?.media_manifest?.format !== 'feed_4_5')
+                throw Error('Pinterest drafts currently support one complete 4:5 card. Keep every page of this sequence for export or Instagram.');
+            if (!studioSequenceReviewed) throw Error('Review the complete visual in the Visual step before preparing a Pin.');
+            const post = await persistStudioDraft();
+            if (post) window.location.href = `/app/pinterest?post=${post.id}`;
+        } catch(e) { document.getElementById('studioSaveStatus').textContent = e.message; }
+        finally { button.disabled = false; }
+    };
     window.captionChanged = function() {
         studioSequenceReviewed=false;
         document.getElementById('sequenceReviewCheck').checked=false;
@@ -3293,6 +3306,7 @@ STUDIO_COMPONENTS_HTML = """
               <p class="text-sm text-text-muted mt-2">Check your account and choose when. Nothing is published until you confirm.</p>
             </div>
 
+            <details class="cw-panel"><summary>Prepare for Pinterest</summary><p class="text-sm text-text-muted">Save a separate Pin draft from this card. Pinterest connecting and publishing are awaiting approval.</p><button type="button" id="studioPinterestButton" onclick="preparePinterestDraft()" class="cw-secondary">Save & prepare Pin</button></details>
             <div class="cw-share-grid grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
               <!-- Full preview remains available without pushing phone actions below it. -->
               <details class="cw-share-preview space-y-5"><summary>Review image & caption</summary>

@@ -449,7 +449,7 @@ def update_post(
         raise HTTPException(status_code=422, detail="This status is controlled by the publishing service")
     if "flags" in data:
         incoming = dict(data["flags"] or {})
-        protected = {"publication", "pinterest_publication", "media_manifest", "reviewed_manifest", "visual_design", "draft_key", "relevance_check", "automation_error", "rotation_topic", "rotation_style_id", "rotation_pillar", "rotation_used_at", "scheduled_occurrence"}
+        protected = {"publication", "pinterest_publication", "pinterest_draft", "media_manifest", "reviewed_manifest", "visual_design", "draft_key", "relevance_check", "automation_error", "rotation_topic", "rotation_style_id", "rotation_pillar", "rotation_used_at", "scheduled_occurrence"}
         for key in protected:
             incoming.pop(key, None)
             if key in (post.flags or {}):

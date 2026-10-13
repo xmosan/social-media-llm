@@ -71,3 +71,20 @@ class PinterestPublicationPostgresChecks(unittest.TestCase):
             finally:release.set()
             self.assertEqual(task.result(timeout=10),'published')
         self.api.create_pin.assert_called_once()
+
+    def test_creator_draft_concurrent_edits_keep_one_revision_without_erasing_other_flags(self):
+        from app.services import pinterest_drafts as drafts
+        with Session(engine) as db:version=drafts.source_version(db.get(Post,1))
+        barrier=threading.Barrier(2)
+        def edit(title):
+            with Session(engine) as db:
+                barrier.wait(timeout=10)
+                try:return drafts.save(db,1,1,{**self.copy,'title':title},0,version)['revision']
+                except HTTPException as error:db.rollback();return error.status_code
+        with ThreadPoolExecutor(2) as pool:outcomes=list(pool.map(edit,['First edit','Second edit']))
+        self.assertEqual(sorted(outcomes),[1,409])
+        with Session(engine) as db:
+            post=db.get(Post,1);self.assertEqual(post.flags[drafts.KEY]['revision'],1)
+            self.assertIn('media_manifest',post.flags);self.assertNotIn('pinterest_publication',post.flags)
+            self.assertEqual(post.caption,'Preserved caption');self.assertEqual(post.status,'drafted')
+        self.api.create_pin.assert_not_called()
