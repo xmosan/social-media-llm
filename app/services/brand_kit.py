@@ -24,7 +24,7 @@ PURPOSES = {"reminder": "A gentle daily reminder", "learn": "Help readers unders
 def normalize_brand(value=None):
     if value is None:
         return dict(DEFAULT_BRAND)
-    if not isinstance(value, dict) or set(value) - (set(DEFAULT_BRAND) | {"visual_identity"}):
+    if not isinstance(value, dict) or set(value) - (set(DEFAULT_BRAND) | {"visual_identity", "quran_ornaments"}):
         raise ValueError("Choose a valid brand kit")
     result = {**DEFAULT_BRAND, **value}
     enums = {"palette": PALETTES, "typography": {"modern", "classic"},
@@ -50,6 +50,10 @@ def normalize_brand(value=None):
         raise ValueError("Visual preferences must be up to 400 characters without hidden control characters")
     if identity.strip():
         result["visual_identity"] = identity.strip()
+    from app.services.quran_ornaments import normalize_ornaments
+    ornaments = normalize_ornaments(result.pop("quran_ornaments", {}))
+    if ornaments:
+        result["quran_ornaments"] = ornaments
     # Omit empty optional fields so existing v1 signed snapshots remain valid.
     return result
 

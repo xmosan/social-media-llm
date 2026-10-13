@@ -54,6 +54,12 @@ def generate_quote_card(
     if brand_kit is not None:
         from app.services.brand_kit import normalize_brand
         brand_kit = normalize_brand(brand_kit)
+    from app.services.quran_ornaments import card_ornaments
+    from app.services.card_typography import CardTypographyError
+    try:
+        ornaments = card_ornaments(card_message, brand_kit)
+    except ValueError as error:
+        raise CardTypographyError(str(error)) from None
 
     print(f"\n🖼️  [ImageCard] mode={mode} | style={style}")
     
@@ -103,6 +109,7 @@ def generate_quote_card(
             segments.append({
                 "text": card_message["arabic_text"][start:end],
                 "role": "source_arabic",
+                **({"quran_ornaments": ornaments} if ornaments else {}),
                 "narration_end": max(0, boundary-start) if boundary is not None else None,
                 "label": (card_message.get("arabic_display") or {}).get("label"),
                 "size": sizes[1],

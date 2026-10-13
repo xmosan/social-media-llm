@@ -221,7 +221,8 @@ def studio_generate_caption(data: dict, db: Session = Depends(get_db),
 
 
 @router.post("/generate-visual", dependencies=[Depends(require_user)])
-def studio_generate_visual(data: dict, org_id: int = Depends(get_current_org_id), db: Session = Depends(get_db)):
+def studio_generate_visual(data: dict, org_id: int = Depends(get_current_org_id), db: Session = Depends(get_db),
+                           user: User | None = Depends(get_current_user)):
     """
     Phase 3: Route explicitly into Visual Service Facade for all Studio image generation.
     """
@@ -230,6 +231,20 @@ def studio_generate_visual(data: dict, org_id: int = Depends(get_current_org_id)
         brand = normalize_brand(data["brand_kit"]) if "brand_kit" in data else workspace_brand(db, org_id)
     except ValueError as error:
         raise HTTPException(422, str(error)) from None
+    if brand.get("quran_ornaments"):
+        from app.services.quran_ornaments import card_ornaments
+        from app.services.source_grounding import validate_source_card
+        try:
+            ornaments = card_ornaments(data.get("card_message"), brand)
+            if ornaments or data.get("source_type") == "quran":
+                if data.get("source_type") != "quran":
+                    raise ValueError("Select a verified Qur’an source before adding ornaments")
+                if not ornaments:
+                    raise ValueError("Rebuild the complete Qur’an card before adding ornaments")
+                canonical = resolve_selected_source(db, org_id, "quran", data.get("source_metadata") or {}, user.id if user else None)
+                validate_source_card(data.get("card_message"), canonical, "quran")
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from None
     direction = data.get("visual_prompt")
     if direction is not None and (not isinstance(direction, str) or len(direction) > 600):
         raise HTTPException(422, "Background direction must be up to 600 characters")

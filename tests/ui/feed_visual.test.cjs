@@ -15,6 +15,16 @@ function setup(fetch) {
   return {context, el, generate: () => context.window.generateQuoteCard(), cancel: () => vm.runInNewContext('cancelStudioVisual()',context)};
 }
 const response = data => ({ok: true, json: async () => data});
+test('ornament generation sends the unchanged source identity for server validation',async()=>{
+ const requests=[];
+ const f=setup(async(url,opts)=>{requests.push(JSON.parse(opts.body));return response({image_url:'fixture',visual_design:{background_token:'kept-photo'}})});
+ f.context.window.selectedAyahMetadata={id:4,reference:"Qur'an 94:6",arabic_text:'Synthetic fixture'};
+ f.context.window.studioBrandSnapshot=()=>({quran_ornaments:{brackets:true,verse_number:true}});
+ await f.generate();await f.generate();
+ assert.equal(requests[1].background_token,'kept-photo');assert.equal(requests[1].source_type,'quran');
+ assert.equal(requests[1].source_metadata.id,4);assert.deepEqual(requests[1].card_message,requests[0].card_message);
+ assert.equal(requests[1].brand_kit.quran_ornaments.verse_number,true);
+});
 test('layout change sends same source and background receipt without replacing the photograph', async () => {
   const requests = [];
   const f = setup(async (url, opts) => {requests.push(JSON.parse(opts.body)); return response({image_url:'https://cdn.test/card.jpg',visual_design:{background_token:'receipt',background_reused:requests.length>1,quality:{status:'passed'}}});});

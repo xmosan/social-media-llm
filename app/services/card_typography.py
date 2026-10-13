@@ -113,6 +113,13 @@ FEED_LAYOUTS = {"english_first", "bilingual"}
 
 def _source_slice(segment, start, end, label):
     result = dict(segment, text=segment["text"][start:end], label=label)
+    ornaments = segment.get("quran_ornaments")
+    if ornaments:
+        result["quran_ornaments"] = {
+            "opening": ornaments["opening"] and start == 0,
+            "closing": ornaments["closing"] and end == len(segment["text"]),
+            "verse_number": ornaments["verse_number"] if end == len(segment["text"]) else None,
+        }
     boundary = segment.get("narration_end")
     if boundary is not None:
         result["narration_end"] = max(0, min(end, boundary)-start)
@@ -120,6 +127,61 @@ def _source_slice(segment, start, end, label):
         # source itself. Do not repeat a chapter heading above the narration.
         result["label"] = None
     return result
+
+
+def wrap_quran(text, font, width, ornaments):
+    """Measure separate ornament runs around unchanged logical source lines.
+
+    Reserve space before pagination, so a marker never appears alone or leaks
+    outside the text-safe region. Shared masks check every ornament pixel too.
+    """
+    gap = max(8, round(font.size * .14))
+    opening = measure("\ufd3f", font, "rtl") if ornaments["opening"] else None
+    closing = measure("\ufd3e", font, "rtl") if ornaments["closing"] else None
+    number = ornaments["verse_number"]
+    marker = measure("\u06dd" + str(number).translate(str.maketrans("0123456789", "٠١٢٣٤٥٦٧٨٩")), font, "rtl") if number else None
+    opening_width = opening["width"] + gap if opening else 0
+    ending_width = sum(run["width"] + gap for run in (closing, marker) if run)
+    # Reserve only where a mark actually appears, not on every line. This keeps
+    # an optional ornament from unnecessarily turning two lines into three.
+    lines = []
+    paragraphs = [p for p in text.splitlines() if p.strip()]
+    direction = paragraph_direction(text)
+    for paragraph_index, paragraph in enumerate(paragraphs):
+        words, current = _wrap_words(paragraph), ""
+        for word_index, word in enumerate(words):
+            trial = f"{current} {word}" if current else word
+            last_word = paragraph_index == len(paragraphs)-1 and word_index == len(words)-1
+            available = width - (opening_width if not lines else 0) - (ending_width if last_word else 0)
+            if current and measure(trial, font, direction)["width"] > available:
+                lines.append(measure(current, font, direction))
+                current = word
+            else:
+                current = trial
+        if current:
+            lines.append(measure(current, font, direction))
+    if len(lines) >= 2:
+        previous, last = _wrap_words(lines[-2]["text"]), _wrap_words(lines[-1]["text"])
+        while len(previous) > 1 and measure(" ".join(last), font, direction)["width"] < (width-ending_width)*.45:
+            trial = [previous[-1], *last]
+            if (measure(" ".join(trial), font, direction)["width"] > width-ending_width or
+                    measure(" ".join(previous[:-1]), font, direction)["width"] < width*.45):
+                break
+            previous, last = previous[:-1], trial
+        lines[-2:] = [measure(" ".join(words), font, direction) for words in (previous, last)]
+    for i, line in enumerate(lines):
+        # Visual order is left to right; Arabic shaping remains right to left.
+        runs = ([closing] if closing and i == len(lines)-1 else []) + ([marker] if marker and i == len(lines)-1 else []) + [dict(line)] + ([opening] if opening and i == 0 else [])
+        if len(runs) == 1:
+            continue
+        left = 0
+        positioned = []
+        for run in runs:
+            positioned.append({**run, "x": left})
+            left += run["width"] + gap
+        top, bottom = min(r["bbox"][1] for r in runs), max(r["bbox"][3] for r in runs)
+        line.update(runs=positioned, width=left-gap, height=bottom-top, bbox=(0, top, left-gap, bottom))
+    return lines
 
 
 def layout_card(segments, *, serif=False, family="editorial", layout="bilingual", post_format="feed_4_5", brand_kit=None):
@@ -210,7 +272,8 @@ def layout_card(segments, *, serif=False, family="editorial", layout="bilingual"
             needs_arabic_font = contains_arabic(text) or seg.get("use_arabic_font", False)
             use_serif = brand_kit["typography"] == "classic" if brand_kit is not None else serif or family == "minimal_paper"
             font = load_font(text, size, serif=use_serif or needs_arabic_font)
-            lines = wrap(text, font, width - 2 * margin)
+            ornaments = seg.get("quran_ornaments") if role == "source_arabic" else None
+            lines = wrap_quran(text, font, width - 2 * margin, ornaments) if ornaments else wrap(text, font, width - 2 * margin)
             leading = round(size * (.36 if needs_arabic_font else .30))
             block_height = sum(line["height"] for line in lines) + max(0, len(lines)-1) * leading
             label = None
@@ -422,8 +485,13 @@ def _ink_mask(size, block, alignment):
         if line is block["label"]:
             align = "Left"
         x = left if align == "Left" else right-line["width"] if align == "Right" else (left+right-line["width"])/2
-        draw.text((x-line["bbox"][0], y-line["bbox"][1]), line["display"],
-                  font=line.get("font", block["font"]), fill=255, direction=line["direction"])
+        if line.get("runs"):
+            for run in line["runs"]:
+                draw.text((x+run["x"]-run["bbox"][0], y-line["bbox"][1]), run["display"],
+                          font=block["font"], fill=255, direction=run["direction"])
+        else:
+            draw.text((x-line["bbox"][0], y-line["bbox"][1]), line["display"],
+                      font=line.get("font", block["font"]), fill=255, direction=line["direction"])
         y += line["height"] + (18 if line is block["label"] else block["leading"])
     return mask
 
