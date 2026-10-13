@@ -174,3 +174,20 @@ separate from Standard access for independent creators. There is no enabled
 Pinterest publishing route in this release. Do not present it as connected or
 send scheduled jobs to it until OAuth, token refresh/revocation, board selection,
 per-destination persistence and uncertain-outcome recovery pass live validation.
+
+The staged `app/services/channels/pinterest.py` transport follows Pinterest's
+official v5.28.0 API description. It defaults to Sandbox, preserves separately
+reviewed Pin copy without truncation, enforces canonical Cloudinary media and
+explicit AI disclosure, and never retries a possibly completed write. The tests
+use mock HTTP responses; they do not demonstrate approval or real publication.
+No route or scheduler imports this adapter yet.
+
+Before enabling it, implement workspace-bound OAuth state, encrypted token
+storage and atomic refresh rotation; validated board ownership; and a durable
+per-destination publication claim with uncertain-result reconciliation. Reuse
+the existing source, signed media-manifest and review checks. Initially accept
+only a complete single-image source: never publish the cover of a carousel or
+Story sequence by dropping the remaining pages. Pin title, description and alt
+text must be reviewed separately from the source and Instagram caption. A live
+owner-account test and the appropriate Pinterest access tier are release gates.
+There is no Pinterest schema migration or production configuration in this stage.
