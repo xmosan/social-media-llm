@@ -71,6 +71,40 @@ class PinterestConnectionTests(DatabaseCase):
             self.assertEqual(getattr(self.client,method)(path).status_code,403)
         self.api.exchange_code.assert_not_called()
 
+    def test_form_page_preserves_same_origin_without_external_referrers(self):
+        page=self.client.get(pinterest.HOME)
+        self.assertEqual(page.status_code,200)
+        self.assertEqual(page.headers['referrer-policy'],'same-origin')
+        self.assertEqual(page.headers['cache-control'],'no-store')
+        self.assertEqual(page.headers['x-frame-options'],'DENY')
+        self.assertIn('method="post" action="/auth/pinterest/login"',page.text)
+        self.client.cookies.set('access_token','synthetic-owner-session')
+        response=self.client.post('/auth/pinterest/login',headers={'Origin':ORIGIN})
+        self.assertEqual(response.status_code,303)
+        self.assertEqual(response.headers['referrer-policy'],'no-referrer')
+
+    def test_cookie_authenticated_forms_still_reject_untrusted_origins(self):
+        self.client.cookies.set('access_token','synthetic-owner-session')
+        for origin in (None,'null','https://untrusted.test',ORIGIN+'.untrusted.test'):
+            headers={} if origin is None else {'Origin':origin}
+            for path in ('/auth/pinterest/login','/auth/pinterest/disconnect','/api/pinterest/board'):
+                with self.subTest(origin=origin,path=path):
+                    response=self.client.post(path,headers=headers,json={'board_id':'123'})
+                    self.assertEqual(response.status_code,403)
+        self.assertEqual(self.db.query(Attempt).count(),0)
+        self.api.authorization_url.assert_not_called()
+        self.api.exchange_code.assert_not_called()
+
+    def test_callback_and_disconnect_keep_no_referrer_policy(self):
+        self.client.cookies.set('access_token','synthetic-owner-session')
+        state=self.start()
+        response=self.client.get('/auth/pinterest/callback',params={'code':'fixture','state':state})
+        self.assertEqual(response.status_code,303)
+        self.assertEqual(response.headers['referrer-policy'],'no-referrer')
+        response=self.client.post('/auth/pinterest/disconnect',headers={'Origin':ORIGIN})
+        self.assertEqual(response.status_code,303)
+        self.assertEqual(response.headers['referrer-policy'],'no-referrer')
+
     def test_bad_cross_browser_replayed_or_expired_state_never_exchanges(self):
         state=self.start()
         self.assertEqual(self.client.get('/auth/pinterest/callback',params={'state':'x'*43,'code':'fixture'}).status_code,400)
