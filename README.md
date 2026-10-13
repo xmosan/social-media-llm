@@ -193,6 +193,14 @@ Only public boards owned by the connected account can be selected. Environment
 changes require reconnection. Changing or disconnecting a Pinterest connection
 does not modify Instagram or Studio data.
 
+Sandbox and production tokens are not interchangeable. Exchange and refresh use
+the selected environment's `/v5/oauth/token` endpoint. Sandbox tests also need a
+Sandbox board; a normal board created in Pinterest's website is a production
+board. Follow Pinterest's [Sandbox setup](https://developers.pinterest.com/docs/developer-tools/sandbox/)
+before switching environments. Authentication failures (401) require reconnection;
+permission failures (403) require checking access tier/scopes/environment instead
+of repeatedly authorizing the same account.
+
 The transport follows Pinterest's official v5.28.0 API description and preserves
 separately reviewed Pin copy without truncation, canonical Cloudinary media and
 explicit AI disclosure. It never retries a possibly completed write. Offline

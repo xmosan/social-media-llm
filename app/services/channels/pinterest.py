@@ -112,7 +112,8 @@ class PinterestClient:
         if form is None and (not isinstance(token, str) or not token.strip() or '\r' in token or '\n' in token):
             raise PinterestError('Reconnect Pinterest before continuing.')
         try:
-            response = self.http.request(method, (API if form is not None else self.base_url) + path,
+            # Sandbox requires tokens issued by its own OAuth endpoint as well.
+            response = self.http.request(method, self.base_url + path,
                 headers={'Authorization': 'Bearer ' + token} if token else {},
                 auth=httpx.BasicAuth(self.credentials.client_id, self.credentials.client_secret) if form is not None else None,
                 data=form, json=payload)
@@ -124,8 +125,10 @@ class PinterestClient:
             if uncertain:
                 raise PinterestOutcomeUnknown('Pinterest has not confirmed the result. Check the account before retrying.')
             raise PinterestError('Pinterest is temporarily unavailable.')
-        if response.status_code in (401, 403):
-            raise PinterestError('Pinterest access is unavailable. Check app approval and reconnect the account.')
+        if response.status_code == 401:
+            raise PinterestError('Pinterest authentication expired or was rejected. Reconnect the account.')
+        if response.status_code == 403:
+            raise PinterestError('Pinterest denied this operation (403). Check the app access tier, granted permissions and selected environment before trying again.')
         if response.status_code == 429:
             raise PinterestError('Pinterest is limiting requests. Try again later; nothing was retried automatically.')
         if not 200 <= response.status_code < 300:

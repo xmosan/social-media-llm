@@ -36,13 +36,16 @@ class PinterestAdapterTests(unittest.TestCase):
     def test_exchange_and_refresh_preserve_rotated_secrets_and_do_not_log_them(self):
         token={'access_token':'synthetic-access','refresh_token':'synthetic-new-refresh','token_type':'bearer',
                'expires_in':3600,'scope':' '.join(SCOPES),'refresh_token_expires_at':9999999999}
-        c=self.client(httpx.Response(200,json=token))
-        self.assertEqual(c.exchange_code('synthetic-code')['refresh_token'],'synthetic-new-refresh')
-        self.assertEqual(str(self.requests[0].url),API+'/oauth/token')
-        self.assertTrue(self.requests[0].headers['Authorization'].startswith('Basic '))
-        self.assertEqual(parse_qs(self.requests[0].content.decode())['redirect_uri'],[CREDS.redirect_uri])
-        self.assertEqual(c.refresh('synthetic-old')['refresh_token'],'synthetic-new-refresh')
-        self.assertEqual(parse_qs(self.requests[1].content.decode())['grant_type'],['refresh_token'])
+        for sandbox,base in ((True,SANDBOX),(False,API)):
+            with self.subTest(sandbox=sandbox):
+                c=self.client(httpx.Response(200,json=token),sandbox=sandbox)
+                self.assertEqual(c.exchange_code('synthetic-code')['refresh_token'],'synthetic-new-refresh')
+                self.assertEqual(str(self.requests[0].url),base+'/oauth/token')
+                self.assertTrue(self.requests[0].headers['Authorization'].startswith('Basic '))
+                self.assertEqual(parse_qs(self.requests[0].content.decode())['redirect_uri'],[CREDS.redirect_uri])
+                self.assertEqual(c.refresh('synthetic-old')['refresh_token'],'synthetic-new-refresh')
+                self.assertEqual(str(self.requests[1].url),base+'/oauth/token')
+                self.assertEqual(parse_qs(self.requests[1].content.decode())['grant_type'],['refresh_token'])
 
     def test_incomplete_token_never_becomes_a_connection(self):
         c=self.client(httpx.Response(200,json={'access_token':'synthetic-access','scope':'boards:read'}))
@@ -102,6 +105,8 @@ class PinterestAdapterTests(unittest.TestCase):
             with self.assertRaises(PinterestError) as error:c.create_pin('synthetic-token',DRAFT)
             self.assertNotIsInstance(error.exception,PinterestOutcomeUnknown)
             self.assertNotIn('synthetic-token',str(error.exception));self.assertEqual(len(self.requests),1)
+            if status==403:self.assertIn('access tier',str(error.exception))
+            if status==401:self.assertIn('Reconnect',str(error.exception))
 
     def test_redirect_does_not_forward_token_or_duplicate_write(self):
         c=self.client(httpx.Response(302,headers={'location':'https://other.test'}))
