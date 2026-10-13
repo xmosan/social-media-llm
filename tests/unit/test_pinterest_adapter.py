@@ -14,6 +14,17 @@ DRAFT=PinDraft('123', 'https://res.cloudinary.com/fixture/image/upload/one.jpg',
 
 
 class PinterestAdapterTests(unittest.TestCase):
+    def test_test_board_never_writes_to_production_or_retries_unknown_outcome(self):
+        c=self.client(httpx.Response(201,json={'id':'123'}),sandbox=False)
+        with self.assertRaises(PinterestError):c.create_test_board('synthetic')
+        self.assertEqual(self.requests,[])
+        c=self.client(httpx.Response(201,json={'id':'123'}))
+        self.assertEqual(c.create_test_board('synthetic')['id'],'123')
+        self.assertEqual(str(self.requests[0].url),SANDBOX+'/boards')
+        c=self.client(httpx.Response(201,json={}))
+        with self.assertRaises(PinterestOutcomeUnknown):c.create_test_board('synthetic')
+        self.assertEqual(len(self.requests),1)
+
     def client(self, response=None, *, handler=None, sandbox=True):
         self.requests=[]
         def transport(request):

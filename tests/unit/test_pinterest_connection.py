@@ -67,7 +67,7 @@ class PinterestConnectionTests(DatabaseCase):
         self.assertEqual(self.client.post('/auth/pinterest/login').status_code,403)
         self.user.is_superadmin=False
         for method,path in [('get',pinterest.HOME),('post','/auth/pinterest/login'),('get','/auth/pinterest/callback'),
-                            ('get','/api/pinterest/boards'),('post','/api/pinterest/board'),('post','/auth/pinterest/disconnect')]:
+                            ('get','/api/pinterest/boards'),('post','/api/pinterest/board'),('post','/api/pinterest/sandbox-board'),('post','/auth/pinterest/disconnect')]:
             self.assertEqual(getattr(self.client,method)(path).status_code,403)
         self.api.exchange_code.assert_not_called()
 
@@ -192,3 +192,36 @@ class PinterestConnectionTests(DatabaseCase):
         self.assertEqual(self.db.query(Attempt).count(),0)
         self.assertEqual(self.client.post('/api/pinterest/board',json={'board_id':'../x'},headers={'Origin':ORIGIN}).status_code,422)
         self.api.board.assert_not_called()
+
+    def test_sandbox_board_setup_checks_environment_and_reuses_saved_board(self):
+        self.connect();self.api.create_test_board.return_value=BOARD
+        self.assertEqual(self.client.post('/api/pinterest/sandbox-board').status_code,403)
+        with patch.object(settings,'pinterest_sandbox',False):
+            self.assertEqual(self.client.post('/api/pinterest/sandbox-board',headers={'Origin':ORIGIN}).status_code,422)
+        self.api.create_test_board.assert_not_called()
+        first=self.client.post('/api/pinterest/sandbox-board',headers={'Origin':ORIGIN})
+        self.assertEqual(first.status_code,200,first.text);self.assertEqual(first.json()['id'],'123')
+        self.assertTrue(self.client.post('/api/pinterest/sandbox-board',headers={'Origin':ORIGIN}).json()['reused'])
+        self.api.create_test_board.assert_called_once();self.api.create_pin.assert_not_called()
+
+    def test_sandbox_board_unknown_result_and_save_failure_never_retry_the_write(self):
+        from app.services.channels.pinterest import PinterestOutcomeUnknown
+        self.connect();self.api.create_test_board.side_effect=PinterestOutcomeUnknown('Load boards before continuing.')
+        self.assertEqual(self.client.post('/api/pinterest/sandbox-board',headers={'Origin':ORIGIN}).status_code,422)
+        self.api.create_test_board.assert_called_once();self.assertIsNone(self.db.query(Connection).one().board_id)
+        self.api.create_test_board.side_effect=None;self.api.create_test_board.return_value=BOARD
+        commit=self.db.commit;calls=0
+        def fail_save():
+            nonlocal calls
+            calls+=1
+            if calls==2:raise RuntimeError('Interrupted save')
+            commit()
+        with patch.object(self.db,'commit',side_effect=fail_save):
+            response=self.client.post('/api/pinterest/sandbox-board',headers={'Origin':ORIGIN})
+        self.assertEqual(response.status_code,422);self.assertIn('Load your boards',response.text)
+        self.assertIsNone(self.db.query(Connection).one().board_id);self.assertEqual(self.api.create_test_board.call_count,2)
+
+    def test_test_board_foreign_owner_is_not_selected(self):
+        self.connect();self.api.create_test_board.return_value={**BOARD,'owner':{'username':'other'}}
+        self.assertEqual(self.client.post('/api/pinterest/sandbox-board',headers={'Origin':ORIGIN}).status_code,422)
+        self.assertIsNone(self.db.query(Connection).one().board_id)
