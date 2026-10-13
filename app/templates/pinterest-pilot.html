@@ -13,7 +13,7 @@
 {% if sandbox %}<p>Sandbox needs a board created through the test API. If you already have one, load and select it. Otherwise create one below.</p><button id="createTestBoard" type="button" {% if board_name %}disabled{% endif %}>Create one Sandbox test board</button>{% endif %}
 <form id="boardForm" hidden><label for="boardChoice">Your public board</label><select id="boardChoice" required></select><button type="submit">Use this board</button></form>
 <button id="moreBoards" type="button" hidden>Load more boards</button>
-<p>Only public boards owned by this account are listed. If none appear, create a public board in Pinterest, then reload.</p>
+<p>Only public boards owned by this account are listed.{% if not sandbox %} If none appear, create a public board in Pinterest, then reload.{% endif %}</p>
 <form method="post" action="/auth/pinterest/disconnect"><button type="submit">Disconnect from Sabeel</button></form>
 </section>{% endif %}
 {% if connected %}<section id="pinPilot"><h2>Test a saved Pin</h2>
