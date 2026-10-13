@@ -132,6 +132,52 @@ class SourceRouteTests(DatabaseCase):
         self.client = TestClient(app)
         self.addCleanup(self.client.close)
 
+    def test_ornament_render_checks_source_before_visual_work(self):
+        from app.services.visual_service import VisualResult
+        card={"eyebrow":FIXTURE["reference"],"headline":FIXTURE["translation_text"],"arabic_text":FIXTURE["arabic_text"]}
+        payload={"source_type":"quran","source_metadata":FIXTURE,"card_message":card,
+                 "style":"editorial","brand_kit":{"quran_ornaments":{"brackets":True,"verse_number":True}}}
+        with patch.object(studio,"generate_visual",return_value=VisualResult(url="fixture")) as render:
+            result=self.client.post('/api/studio/generate-visual',json=payload)
+            self.assertEqual(result.status_code,200,result.text)
+            self.assertEqual(render.call_args.args[0].card_message,card)
+            render.reset_mock()
+            for changes in ({"source_type":"manual"},{"source_metadata":{**FIXTURE,"reference":"Qur'an 2:4"}},
+                            {"card_message":{**card,"arabic_text":"changed"}},{"source_metadata":{}}):
+                response=self.client.post('/api/studio/generate-visual',json={**payload,**changes})
+                self.assertEqual(response.status_code,422,response.text)
+            render.assert_not_called()
+
+    def test_ornaments_save_reopen_export_and_tamper_rejection_preserve_source(self):
+        from app.services import media_sequence as media
+        from app.services.brand_kit import normalize_brand
+        import io, zipfile
+        card={"eyebrow":FIXTURE["reference"],"headline":FIXTURE["translation_text"],"arabic_text":FIXTURE["arabic_text"]}
+        kit=normalize_brand({"quran_ornaments":{"brackets":True,"verse_number":True}})
+        url='https://res.cloudinary.com/fixture/image/upload/ornaments.jpg'
+        manifest=media.seal_manifest({"version":1,"format":"feed_4_5","card_digest":media.card_digest(card),"brand_kit":kit,
+            "pages":[{"index":0,"url":url,"label":"Complete source","width":1080,"height":1350,"quality":{"status":"passed"},
+                "slices":[{"role":role,"start":0,"end":len(card[field])} for role,field in (("source_arabic","arabic_text"),("source_translation","headline"))]}]},1)
+        payload={"ig_account_id":1,"source_type":"quran","source_metadata":FIXTURE,"source_reference":FIXTURE["reference"],
+                 "card_message":card,"brand_kit":kit,"media_url":url,"visual_design":{"brand_kit":kit,"media_manifest":manifest},"reviewed":True}
+        saved=self.client.post('/api/studio/create-post',json=payload)
+        self.assertEqual(saved.status_code,200,saved.text)
+        post_id=saved.json()['id'];post=self.db.get(Post,post_id)
+        reopened=self.client.get(f'/api/studio/post/{post_id}').json()
+        self.assertEqual(reopened['card_message'],card)
+        self.assertEqual(reopened['flags']['media_manifest']['brand_kit'],kit)
+        with patch.object(media,'download_image',return_value=b'fixture-jpeg'):
+            archive=media.export_post(post)
+        with zipfile.ZipFile(archive) as bundle:
+            data=json.loads(bundle.read('source.json'))
+            self.assertEqual(data['card_message'],card)
+            self.assertEqual(data['brand_kit'],kit)
+            self.assertEqual(bundle.read('01.jpg'),b'fixture-jpeg')
+        changed={**payload,"post_id":post_id,"brand_kit":normalize_brand()}
+        self.assertEqual(self.client.post('/api/studio/create-post',json=changed).status_code,422)
+        manifest['brand_kit']={**kit,"quran_ornaments":{"brackets":False,"verse_number":True}}
+        with self.assertRaises(ValueError):media.validate_manifest(manifest,card,1)
+
     def test_modified_source_and_conflicting_reference_rejected_before_ai(self):
         with patch.object(studio, "build_quote_card_message") as build:
             for changes in ({"translation_text": "Changed fixture"}, {"reference": "Qur'an 2:4"}, {"id": 999}):

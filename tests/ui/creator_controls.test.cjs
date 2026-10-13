@@ -10,6 +10,24 @@ function setup(fetch) {
  return {c,el,alerts,invalidated:()=>invalidated,run:s=>vm.runInNewContext(s,c)};
 }
 const kit={version:1,palette:'night',typography:'classic',signature:'@fixture',series_name:'A series',family:'minimal_paper',composition:'airy'};
+test('Quran styling roundtrips without changing text or the retained photograph',()=>{
+ const f=setup();f.c.studioBackgroundToken='kept-photo';
+ f.c.studioCardMessage={eyebrow:"Qur'an 2:3",arabic_text:'Synthetic fixture',headline:'Unchanged'};
+ const before=JSON.stringify(f.c.studioCardMessage);
+ f.c.window.selectedAyahMetadata={reference:"Qur'an 2:3"};
+ f.c.window.restoreCreatorControls({brand_kit:{...kit,quran_ornaments:{brackets:true,verse_number:true}}});
+ assert.equal(f.el('quranStyling').hidden,false);
+ assert.equal(f.el('quranBrackets').checked,true);assert.equal(f.el('quranVerseNumber').checked,true);
+ f.el('quranBrackets').checked=false;f.c.window.changeStudioBrand();
+ assert.equal(f.invalidated(),1);assert.equal(f.c.studioBackgroundToken,'kept-photo');
+ assert.equal(JSON.stringify(f.c.studioCardMessage),before);
+ assert.equal(f.c.window.studioBrandSnapshot().quran_ornaments.brackets,false);
+ f.c.window.restoreCreatorControls({brand_kit:kit});
+ assert.equal(f.el('quranVerseNumber').checked,false);assert.equal(f.c.window.studioBrandSnapshot().quran_ornaments,undefined);
+ f.c.window.selectedHadithMetadata={reference:'Hadith fixture'};f.c.window.renderSourceReview();
+ assert.equal(f.el('quranStyling').hidden,true);
+ f.c.window.resetCreatorControls();assert.equal(f.el('quranStyling').open,false);
+});
 test('switching source families reloads the workspace brand after resetting the session',async()=>{
  let finish,calls=0;
  const f=setup(()=>{calls++;return new Promise(r=>finish=r);});

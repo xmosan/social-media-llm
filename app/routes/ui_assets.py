@@ -688,6 +688,7 @@ STUDIO_SCRIPTS_JS = r"""
     let studioSourceEpoch = 0;
 
     window.resetStudioSourceOutput = function() {
+        const styling=document.getElementById('quranStyling'); if(styling) {styling.hidden=true;styling.open=false;}
         studioSourceEpoch++;
         window.clearReflectionBusy?.();
         window.clearCreatorSuggestion?.();
@@ -766,6 +767,8 @@ STUDIO_SCRIPTS_JS = r"""
         try {
             const payload = {
                 card_message: studioCardMessage,
+                source_type: window.selectedHadithMetadata ? 'hadith' : window.selectedAyahMetadata ? 'quran' : 'manual',
+                source_metadata: window.selectedHadithMetadata || window.selectedAyahMetadata || null,
                 brand_kit: window.studioBrandSnapshot?.(),
                 style: studioGalleryImage || document.getElementById('studioStyle').value,
                 layout: document.getElementById('studioLayout')?.value || 'bilingual',
@@ -835,14 +838,21 @@ STUDIO_SCRIPTS_JS = r"""
         for (const [key,id] of Object.entries(brandFields)) kit[key] = document.getElementById(id)?.value ?? kit[key];
         const identity = document.getElementById('brandVisualIdentity')?.value?.trim();
         if(identity) kit.visual_identity = identity;
+        const brackets = !!document.getElementById('quranBrackets')?.checked;
+        const verse_number = !!document.getElementById('quranVerseNumber')?.checked;
+        if(brackets || verse_number) kit.quran_ornaments = {brackets,verse_number};
         return kit;
     };
     function setBrandControls(kit) {
+        for(const [key,id] of [['brackets','quranBrackets'],['verse_number','quranVerseNumber']]) {
+            const el=document.getElementById(id); if(el) el.checked=kit.quran_ornaments?.[key] === true;
+        }
         const identity = document.getElementById('brandVisualIdentity'); if(identity) identity.value = kit.visual_identity || '';
         for (const [key,id] of Object.entries(brandFields)) { const el=document.getElementById(id); if(el) el.value=kit[key] ?? brandDefaults[key]; }
     }
     window.acceptRenderedBrand = function(kit) { if(kit) {setBrandControls(kit);studioBrandReady=true;} };
     window.resetCreatorControls = function() {
+        const styling=document.getElementById('quranStyling'); if(styling) {styling.hidden=true;styling.open=false;}
         studioBrandRevision=null; studioBrandTouched=false; studioBrandReady=false; studioBrandSaveBusy=false; studioReflectionBusy=false;
         setBrandControls(brandDefaults);
         for (const [id,value] of [['studioAudience','english_muslims'],['studioPurpose','reminder']]) { const el=document.getElementById(id); if(el) el.value=value; }
@@ -914,6 +924,8 @@ STUDIO_SCRIPTS_JS = r"""
         window.renderSourceReview();
     };
     window.renderSourceReview = function() {
+        const styling=document.getElementById('quranStyling');
+        if(styling) styling.hidden=!(window.selectedAyahMetadata && !window.selectedHadithMetadata && studioCardMessage?.arabic_text);
         const meta=window.selectedHadithMetadata || window.selectedAyahMetadata || {};
         const out=document.getElementById('sourceAttribution');
         const lines=[['Reference',meta.reference],['Source',meta.api_source || (window.selectedAyahMetadata ? "Connected Qur’an library" : null)],
@@ -3159,6 +3171,12 @@ STUDIO_COMPONENTS_HTML = """
                         <button type="button" id="btnGenerateCard" onclick="generateQuoteCard()" class="cw-primary w-full">Create design</button>
                         <button type="button" id="newStudioPhotoButton" hidden onclick="newStudioPhotograph()" class="cw-secondary w-full">Generate a different background</button>
                     </div>
+                    <details id="quranStyling" class="cw-preferences" hidden>
+                      <summary>Qur’an styling</summary>
+                      <label class="flex items-center gap-3 min-h-[44px]"><input id="quranBrackets" type="checkbox" onchange="changeStudioBrand()" class="w-5 h-5"> Decorative brackets</label>
+                      <label class="flex items-center gap-3 min-h-[44px]"><input id="quranVerseNumber" type="checkbox" onchange="changeStudioBrand()" class="w-5 h-5"> Ayah number ornament</label>
+                      <p class="cw-note">Appearance only. The full verse and its reference stay intact. Apply design changes to update your preview.</p>
+                    </details>
                     <details id="creatorReadingOptions" class="cw-preferences">
                       <summary>Reading order & format details</summary>
                       <label class="block">Reading order<select id="studioLayout" onchange="invalidateQuoteCard()" class="mt-2 w-full p-3 border rounded-xl bg-white">
