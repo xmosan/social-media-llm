@@ -722,51 +722,7 @@ CONTACT_HTML = """<!doctype html>
 </html>
 """
 
-PRIVACY_HTML = """<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Privacy Policy | Sabeel Studio</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <style>
-    :root { --primary: #0F3D2E; --bg-cream: #F8F6F2; --accent: #C9A96E; --text-muted: #4A4A4A; }
-    body { font-family: 'Inter', sans-serif; background-color: var(--bg-cream); color: #1A1A1A; line-height: 1.6; }
-  </style>
-</head>
-<body class="p-8 md:p-20">
-  <div class="max-w-3xl mx-auto space-y-12">
-    <a href="/" class="text-[10px] font-bold uppercase tracking-widest text-text-muted hover:text-primary transition-colors">&larr; Back to Home</a>
-    <div class="space-y-4">
-        <h1 class="text-4xl font-black text-primary tracking-tight">Privacy Policy</h1>
-        <p class="text-[10px] font-bold uppercase tracking-widest text-accent italic">Last updated: April 2026</p>
-    </div>
-    <div class="space-y-8 text-sm font-medium text-gray-700">
-        <section class="space-y-3">
-            <h2 class="text-lg font-bold text-primary">1. Information We Collect</h2>
-            <p>We collect information you provide directly to us (name, email, organization) and data from third-party services you connect, specifically Meta (Facebook/Instagram) for the purpose of content management and publishing.</p>
-        </section>
-        <section class="space-y-3">
-            <h2 class="text-lg font-bold text-primary">2. How We Use Information</h2>
-            <p>Your data is used to provide, maintain, and improve Sabeel Studio. We use your connected Instagram data solely to facilitate content drafting, scheduling, and publishing at your explicit request.</p>
-        </section>
-        <section class="space-y-3">
-            <h2 class="text-lg font-bold text-primary">3. Data Security</h2>
-            <p>All data is transmitted via secure HTTPS and stored using industry-standard encryption. We do not sell your personal data to third parties.</p>
-        </section>
-        <section class="space-y-3">
-            <h2 class="text-lg font-bold text-primary">4. Contact</h2>
-            <p>For any privacy-related inquiries, contact <span class="text-primary font-bold">hello@sabeel.studio</span>.</p>
-        </section>
-    </div>
-    <footer class="pt-12 border-t border-primary/5 text-[10px] font-bold uppercase tracking-widest text-text-muted">
-       &copy; 2026 Mohammed Hassan. Sabeel Studio&trade;
-    </footer>
-  </div>
-</body>
-</html>
-"""
+
 
 TERMS_HTML = """<!doctype html>
 <html lang="en">
@@ -1029,8 +985,8 @@ COMING_SOON_HTML = """<!doctype html>
 # --- ROUTES ---
 
 @router.get("/privacy", response_class=HTMLResponse)
-def privacy_page():
-    return PRIVACY_HTML
+def privacy_page(request: Request):
+    return templates.TemplateResponse("privacy.html", {"request": request})
 
 @router.get("/terms", response_class=HTMLResponse)
 def terms_page():
@@ -1142,9 +1098,6 @@ def api_debug_automations(db: Session = Depends(get_db)):
     autos = db.query(TopicAutomation).all()
     return [{"id": a.id, "name": a.name, "topic": a.topic_prompt, "last_error": a.last_error} for a in autos]
 
-@router.get("/privacy", response_class=HTMLResponse)
-def privacy_page(request: Request):
-    return templates.TemplateResponse("privacy.html", {"request": request})
 
 @router.get("/terms", response_class=HTMLResponse)
 def terms_page(request: Request):
