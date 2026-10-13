@@ -70,6 +70,7 @@ class PinterestPublicationTests(DatabaseCase):
         self.assertTrue(second.json()['already_sent']);self.api.create_pin.assert_called_once()
         self.assertEqual(original,(self.post.source_text,self.post.source_metadata,self.post.card_message,self.post.caption,self.post.status))
         self.assertEqual(self.client.get('/api/pinterest/posts/1').json()['pin_id'],'456')
+        self.assertEqual(self.client.get('/api/pinterest/posts/1').json()['copy'],COPY)
 
     def test_manual_review_owner_origin_and_workspace_required(self):
         receipt=self.review()
