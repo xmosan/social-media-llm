@@ -1,0 +1,18 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pinterest trial · Sabeel Studio</title><link rel="stylesheet" href="/static/tester-access.css"><script defer src="/static/pinterest-pilot.js"></script><style>main>section{padding:24px 0;border-top:1px solid #d7dfd4;margin-top:24px}code{overflow-wrap:anywhere;font-size:14px}details{margin-top:18px}h2{line-height:1.35}select{max-width:100%}</style></head>
+<body><header><a class="wordmark" href="/app">Sabeel <span>Studio</span></a><a href="/admin">Owner dashboard</a></header>
+<main><p>PRIVATE CONNECTION TEST</p><h1>Pinterest</h1><p>This area is available only to the Sabeel owner. Connecting an account or choosing a board does not publish anything.</p>
+{% if message %}<p role="status">{{ message }}</p>{% endif %}
+<section><h2>{% if sandbox %}Sandbox{% else %}Trial production connection{% endif %}</h2>
+<p>{% if sandbox %}Use test boards and test API data. Sandbox results do not prove that public publishing works.{% else %}Use only the app owner’s account during Trial access. Independent creators need the appropriate Pinterest approval.{% endif %}</p>
+{% if configured %}<form method="post" action="/auth/pinterest/login"><button type="submit">{% if connected %}Reconnect Pinterest{% else %}Connect Pinterest{% endif %}</button></form>
+{% else %}<p>Connection setup is incomplete. Add PINTEREST_CLIENT_ID and PINTEREST_CLIENT_SECRET to the app service in Railway. Keep the secret out of messages and screenshots.</p>{% endif %}
+<details><summary>Connection setup</summary><p>Register this exact redirect URL in the Pinterest app:</p><code>{{ callback }}</code><p>Requested permissions cover account identity, public boards and Pins. No advertising or private-message access is requested. The secret remains on the server.</p></details>
+</section>
+{% if connected %}<section><h2>Connected as @{{ username }}</h2><p id="chosenBoard">{% if board_name %}Selected board: {{ board_name }}{% else %}No board selected.{% endif %}</p>
+<button id="loadBoards" type="button">Load public boards</button><p id="boardStatus" role="status" aria-live="polite"></p>
+<form id="boardForm" hidden><label for="boardChoice">Your public board</label><select id="boardChoice" required></select><button type="submit">Use this board</button></form>
+<button id="moreBoards" type="button" hidden>Load more boards</button>
+<p>Only public boards owned by this account are listed. If none appear, create a public board in Pinterest, then reload.</p>
+<form method="post" action="/auth/pinterest/disconnect"><button type="submit">Disconnect from Sabeel</button></form>
+</section>{% endif %}
+<section><h2>Next: a reviewed test Pin</h2><p>Publishing is not enabled in this connection stage. The next stage must preserve the complete source, use separately reviewed Pin copy, and save the publishing result safely. Existing Studio drafts and Instagram schedules are unchanged.</p></section></main></body></html>

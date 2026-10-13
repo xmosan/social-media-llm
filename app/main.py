@@ -421,6 +421,8 @@ app.include_router(creator_feedback.router)
 app.include_router(auth_google.router)
 app.include_router(auth_ig.router)
 app.include_router(auth_ig.meta_alias_router)
+from app.routes import pinterest
+app.include_router(pinterest.router)
 app.include_router(profiles.router)
 app.include_router(sources.router)
 app.include_router(library.router)

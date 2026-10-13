@@ -159,7 +159,7 @@ class PinterestClient:
         if (not isinstance(data.get('access_token'), str) or not data['access_token']
                 or not isinstance(data.get('refresh_token'), str) or not data['refresh_token']
                 or str(data.get('token_type', '')).lower() != 'bearer'
-                or type(data.get('expires_in')) is not int or data['expires_in'] <= 0
+                or type(data.get('expires_in')) is not int or not 0 < data['expires_in'] <= 366 * 86400
                 or not set(SCOPES).issubset(scopes)):
             raise PinterestError('Pinterest did not return complete publishing access. Reconnect and approve the requested permissions.')
         # A caller must atomically persist the rotated refresh token encrypted.
