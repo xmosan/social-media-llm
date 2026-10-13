@@ -19,6 +19,9 @@ from app.logging_setup import log_event
 router=APIRouter(tags=['owner-pinterest-pilot'])
 templates=Jinja2Templates(directory=str(Path(__file__).resolve().parents[1]/'templates'))
 HOME='/admin/connections/pinterest'
+# Native POST forms need a non-null Origin for the owner/CSRF checks. Keep
+# referrers inside Sabeel; OAuth redirects and callbacks still use no-referrer.
+PAGE_HEADERS={**OWNER_HEADERS,'Referrer-Policy':'same-origin'}
 
 
 @contextmanager
@@ -49,7 +52,7 @@ def page(request:Request,db:Session=Depends(get_db),user:User=Depends(require_su
         'connected':bool(row and row.active and row.sandbox==settings.pinterest_sandbox),
         'username':row.username if row else '', 'board_name':row.board_name if row else '',
         'sandbox':settings.pinterest_sandbox,'message':messages.get(request.query_params.get('result'),''),
-        'callback':settings.public_base_url.rstrip('/')+'/auth/pinterest/callback'},headers=OWNER_HEADERS)
+        'callback':settings.public_base_url.rstrip('/')+'/auth/pinterest/callback'},headers=PAGE_HEADERS)
 
 
 @router.post('/auth/pinterest/login')
