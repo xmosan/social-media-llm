@@ -198,6 +198,9 @@ class PinterestPublicationTests(DatabaseCase):
                 if size==(1080,1350):self.assertEqual(len(module.image_digest(self.post.media_url)),64)
                 else:
                     with self.assertRaises(PinterestError):module.image_digest(self.post.media_url)
+            if size==(1080,1350):
+                with patch.object(module,'download_image',return_value=data.getvalue()[:-128]):
+                    with self.assertRaises(PinterestError):module.image_digest(self.post.media_url)
         with patch.object(module,'download_image',return_value=b'not an image'):
             with self.assertRaisesRegex(PinterestError,'saved image could not be read'):
                 module.image_digest(self.post.media_url)

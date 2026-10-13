@@ -66,7 +66,7 @@ def image_digest(url):
         with Image.open(BytesIO(data)) as image:
             if image.size != (1080, 1350) or image.format != 'JPEG':
                 raise PinterestError('The final single-card image must be a 1080 × 1350 JPEG.')
-            image.verify()
+            image.load()  # Decode all JPEG pixels; header verification alone misses truncation.
     except (OSError, SyntaxError, Image.DecompressionBombError):
         raise PinterestError('The saved image could not be read. Regenerate or restore it in Studio before publishing.') from None
     return sha256(data).hexdigest()
