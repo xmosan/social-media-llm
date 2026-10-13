@@ -1,7 +1,7 @@
 /* Owner-only, explicit review; no auto-publish, auto-retry or schedule. */
 (() => {
     const el=id=>document.getElementById(id);
-    let busy=false,receipt=null,copy=null,reviewedPost=null,posts=[],imageReady=false;
+    let busy=false,receipt=null,copy=null,reviewedPost=null,posts=[],imageReady=false,copyLocked=false;
     const message=text=>{el('pinStatus').textContent=text;};
     const endpoint=suffix=>'/api/pinterest/posts/'+encodeURIComponent(el('pinPost').value)+(suffix||'');
     async function request(url,options={}) {
@@ -13,19 +13,23 @@
     function pending(value) {
         busy=value;
         ['loadPinPosts','pinPost','pinTitle','pinDescription','pinAlt','pinAI','reviewPin','verifyPin'].forEach(id=>el(id).disabled=value);
+        ['pinTitle','pinDescription','pinAlt','pinAI','reviewPin'].forEach(id=>el(id).disabled=value||copyLocked);
         el('publishPin').disabled=value||!receipt||!imageReady||!el('pinReviewed').checked;
     }
     function resetReview() {receipt=null;copy=null;reviewedPost=null;imageReady=false;el('pinReviewed').checked=false;el('pinReviewed').disabled=true;el('pinReview').hidden=true;el('publishPin').disabled=true;}
     function result(data) {
         const published=data.status==='published';
+        copyLocked=['published','publishing','unknown'].includes(data.status);
+        if(data.copy){el('pinTitle').value=data.copy.title||'';el('pinDescription').value=data.copy.description||'';el('pinAlt').value=data.copy.alt_text||'';el('pinAI').value=data.copy.ai_modified?'yes':'no';}
         el('pinLink').hidden=!published;el('verifyPin').hidden=!published;
         if(published)el('pinLink').href=data.url;
         message(published?'Pinterest confirmed this Pin. Its ID is saved; repeating the request will not create another.':
             ['publishing','unknown'].includes(data.status)?'Delivery is pending or uncertain. Do not send again; check Pinterest and the saved result.':
             data.error||'Ready to prepare a reviewed test Pin.');
-        if(['published','publishing','unknown'].includes(data.status))resetReview();
+        if(copyLocked)resetReview();
     }
     async function selectPost() {
+        copyLocked=true; // Only a confirmed editable state may enable a fresh review.
         resetReview();el('pinLink').hidden=true;el('verifyPin').hidden=true;
         const post=posts.find(p=>String(p.id)===el('pinPost').value);
         el('pinTitle').value=post?.reference||'';el('pinDescription').value=post?.reference||'';
@@ -47,7 +51,7 @@
     });
     ['pinTitle','pinDescription','pinAlt','pinAI'].forEach(id=>el(id).addEventListener('input',resetReview));
     el('pinCopyForm').addEventListener('submit',async event=>{
-        event.preventDefault();if(busy)return;pending(true);resetReview();message('Checking the source and final image…');
+        event.preventDefault();if(busy||copyLocked)return;pending(true);resetReview();message('Checking the source and final image…');
         try{
             if(!['yes','no'].includes(el('pinAI').value))throw Error('Choose the AI disclosure.');
             const draft={title:el('pinTitle').value,description:el('pinDescription').value,alt_text:el('pinAlt').value,ai_modified:el('pinAI').value==='yes',link:null};
@@ -69,7 +73,7 @@
         if(busy||!receipt||!imageReady||!el('pinReviewed').checked||reviewedPost!==el('pinPost').value)return;
         const body={...copy,receipt,reviewed:true};pending(true);message('Sending one reviewed test Pin…');
         try{result(await request(endpoint('/publish'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}));}
-        catch(error){resetReview();message(error.name==='TimeoutError'?'The result was not received. Reload saved cards before doing anything else.':error.message);}
+        catch(error){copyLocked=true;resetReview();message(error.name==='TimeoutError'?'The result was not received. Reload saved cards before doing anything else.':error.message);}
         finally{resetReview();pending(false);}
     });
     el('verifyPin').addEventListener('click',async()=>{

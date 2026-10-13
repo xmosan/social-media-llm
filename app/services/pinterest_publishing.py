@@ -36,9 +36,12 @@ def get_post(db, post_id, org_id, *, lock=False):
 def state(post):
     record = (post.flags or {}).get(KEY) or {}
     pin_id = record.get('pin_id')
+    payload = record.get('payload') or {}
+    copy = ({key: payload.get(key) for key in ('title', 'description', 'alt_text', 'link')}
+            | {'ai_modified': 'AI_MODIFIED' in (payload.get('ai_disclosures') or {}).get('values', [])}) if payload else None
     return {'post_id': post.id, 'status': record.get('status', 'not_sent'),
             'pin_id': pin_id, 'url': 'https://www.pinterest.com/pin/' + pin_id + '/' if pin_id else None,
-            'error': record.get('error'), 'board_name': record.get('board_name')}
+            'error': record.get('error'), 'board_name': record.get('board_name'), 'copy': copy}
 
 
 def eligible(post):
