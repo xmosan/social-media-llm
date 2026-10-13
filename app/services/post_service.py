@@ -240,6 +240,8 @@ def get_mutable_post(db: Session, post_id: int, org_id: int) -> Post:
     post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).populate_existing().with_for_update().first()
     if post is None:
         raise HTTPException(status_code=404, detail="Post not found")
+    if ((post.flags or {}).get("pinterest_publication") or {}).get("status") in {"publishing", "unknown", "published"}:
+        raise HTTPException(status_code=409, detail="This post has a Pinterest publishing attempt. Keep its source and image unchanged; create a new draft for edits.")
     publication = (post.flags or {}).get("publication") or {}
     if post.status == "published" or post.published_time or publication.get("remote_id"):
         raise HTTPException(status_code=409, detail="This post has already been published. Editing and sharing it again are disabled.")
@@ -259,6 +261,8 @@ def publish_post(db: Session, post_id: int, org_id: int) -> PostResult:
     post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).populate_existing().with_for_update().first()
     if post is None:
         return PostResult(error="Post not found", status_code=404)
+    if ((post.flags or {}).get("pinterest_publication") or {}).get("status") in {"publishing", "unknown"}:
+        return PostResult(post=post, error="Resolve the pending Pinterest delivery before sharing this post again", status_code=409)
     publication = (post.flags or {}).get("publication") or {}
     if post.status == "published" or post.published_time or publication.get("remote_id"):
         return PostResult(post=post)  # Already published: never send it again.

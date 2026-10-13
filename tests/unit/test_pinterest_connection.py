@@ -61,7 +61,7 @@ class PinterestConnectionTests(DatabaseCase):
         self.assertEqual(self.db.query(Attempt).count(),0)
         page=self.client.get(pinterest.HOME);self.assertEqual(page.status_code,200)
         self.assertNotIn('synthetic-access',page.text);self.assertEqual(page.headers['cache-control'],'no-store')
-        self.assertIn('Publishing is not enabled',page.text);self.api.create_pin.assert_not_called()
+        self.assertIn('Carousels, Stories and Pinterest scheduling are not enabled',page.text);self.api.create_pin.assert_not_called()
 
     def test_owner_guard_and_origin_are_required_on_all_entry_points(self):
         self.assertEqual(self.client.post('/auth/pinterest/login').status_code,403)
