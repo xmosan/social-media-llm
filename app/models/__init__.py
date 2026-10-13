@@ -8,6 +8,31 @@ from sqlalchemy.sql import func
 
 Base = declarative_base()
 
+class PinterestConnectionAttempt(Base):
+    __tablename__ = "pinterest_connection_attempts"
+    id = Column(String(64), primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    org_id = Column(Integer, ForeignKey("orgs.id", ondelete="CASCADE"), nullable=False)
+    state_hash = Column(String(64), nullable=False)
+    stage = Column(String(16), nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False, index=True)
+
+
+class PinterestConnection(Base):
+    """One connection per workspace during the owner-only trial."""
+    __tablename__ = "pinterest_connections"
+    id = Column(Integer, primary_key=True)
+    org_id = Column(Integer, ForeignKey("orgs.id"), nullable=False, unique=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    username = Column(String(150), nullable=False)
+    encrypted_tokens = Column(Text, nullable=True)
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    active = Column(Boolean, nullable=False, default=False)
+    sandbox = Column(Boolean, nullable=False, default=True)
+    refresh_pending = Column(Boolean, nullable=False, default=False)
+    board_id = Column(String(64), nullable=True)
+    board_name = Column(String(255), nullable=True)
+
 class InstagramConnectionAttempt(Base):
     """Short-lived, user/workspace-bound OAuth handoff; no provider token in cookies."""
     __tablename__ = "instagram_connection_attempts"

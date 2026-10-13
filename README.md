@@ -169,8 +169,39 @@ For rollback, retain the nullable column and the saved unassigned drafts. Do not
 restore `NOT NULL`, delete drafts or assign accounts merely to fit an older app.
 An older app may hide unassigned work; prefer a forward fix for such a rollback.
 
-Pinterest is the next planned connection. App registration and Trial access are
-separate from Standard access for independent creators. There is no enabled
-Pinterest publishing route in this release. Do not present it as connected or
-send scheduled jobs to it until OAuth, token refresh/revocation, board selection,
-per-destination persistence and uncertain-outcome recovery pass live validation.
+Pinterest is an owner-only connection pilot at `/admin/connections/pinterest`.
+Run `scripts/migrate_pinterest_connections.py` before deploying it. This adds only
+`pinterest_connections` and expiring `pinterest_connection_attempts`; existing
+posts, Instagram accounts and schedules remain unchanged. Keep these tables on
+rollback to retain connection records. Startup validates their presence.
+
+Set `PINTEREST_CLIENT_ID`, `PINTEREST_CLIENT_SECRET` and the explicit
+`PINTEREST_SANDBOX` environment (`true` by default). Register exactly
+`https://app.sabeelstudio.com/auth/pinterest/callback` with Pinterest. Only the
+configured platform owner can use these routes, even when credentials are set.
+Production Trial is limited to the app owner's account; independent creators
+need the appropriate Pinterest access tier. Do not use the dashboard's limited
+read-only token in place of OAuth. No token is returned to the browser or stored
+in its session; stored credentials use contextual encryption derived from the
+existing server secret. Rotating that secret requires reconnecting Pinterest.
+
+OAuth is user/workspace/browser-bound and consumed once before token exchange.
+Refresh rotation is serialized in PostgreSQL. An unknown refresh result requires
+reconnection instead of repeating the refresh. Disconnect removes local tokens
+and outstanding callbacks; users can also revoke Sabeel in Pinterest settings.
+Only public boards owned by the connected account can be selected. Environment
+changes require reconnection. Changing or disconnecting a Pinterest connection
+does not modify Instagram or Studio data.
+
+The transport follows Pinterest's official v5.28.0 API description and preserves
+separately reviewed Pin copy without truncation, canonical Cloudinary media and
+explicit AI disclosure. It never retries a possibly completed write. Offline
+HTTP mocks do not demonstrate app approval or real publication.
+
+**Publishing and scheduling are not enabled in this connection stage.** Before
+enabling them, add durable per-destination publication claims and uncertain-result
+reconciliation. Reuse source, signed media-manifest and review checks. Initially
+accept only a complete single-image source: never publish just the cover of a
+carousel or Story sequence. Review Pin title, description and alt text separately
+from scripture and the Instagram caption. A real owner-account Pin check is a
+release gate before wider rollout.

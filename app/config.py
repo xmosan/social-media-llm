@@ -147,6 +147,10 @@ class Settings(BaseSettings):
     bootstrap_superadmin: bool = False
     # Runtime owner allowlist; separate from one-time administrator bootstrap.
     platform_owner_email: str | None = None
+    # Owner-only Pinterest pilot. Never expose secrets to templates or cookies.
+    pinterest_client_id: str | None = None
+    pinterest_client_secret: str | None = Field(default=None, repr=False)
+    pinterest_sandbox: bool = True
     superadmin_email: str | None = Field(default=None, env="SUPERADMIN_EMAIL")
     superadmin_password: str | None = Field(default=None, env="SUPERADMIN_PASSWORD", repr=False)
 
