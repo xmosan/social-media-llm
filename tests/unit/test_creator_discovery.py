@@ -132,3 +132,13 @@ class CreatorWorkspaceRenderingTests(DatabaseCase):
                 self.assertIn('current_fixture',page);self.assertNotIn('other_fixture',page)
                 self.assertIn('data-workspace="1:5"',page);self.assertNotIn('user-scalable=no',page)
                 self.assertIn('aria-label="Main navigation"',page)
+
+    def test_unassigned_and_disconnected_drafts_remain_visible_only_in_own_workspace(self):
+        self.db.add_all([
+            Post(org_id=1, ig_account_id=None, source_reference='Unassigned draft', status='drafted'),
+            Post(org_id=2, ig_account_id=None, source_reference='Foreign draft', status='drafted')])
+        self.db.commit()
+        page = asyncio.run(app_pages.app_dashboard_page(self.user, self.db, 'posts'))
+        self.assertIn('Unassigned draft', page)
+        self.assertNotIn('Foreign draft', page)
+        self.assertIn('Save or export without a connection', page)

@@ -20,6 +20,8 @@ def resource_id(value) -> int:
 
 
 def require_account(db: Session, org_id: int, account_id, *, active: bool = False) -> IGAccount:
+    if account_id is None:
+        raise HTTPException(422, "Choose a connected Instagram account before publishing or scheduling. You can still save and export this draft.")
     account = db.query(IGAccount).filter(
         IGAccount.id == resource_id(account_id), IGAccount.org_id == org_id,
     ).first()
@@ -30,6 +32,15 @@ def require_account(db: Session, org_id: int, account_id, *, active: bool = Fals
     from app.security.tester_access import require_workspace_access
     require_workspace_access(db, org_id)
     return account
+
+
+def draft_account_id(db: Session, org_id: int, account_id) -> int | None:
+    """Saving is workspace-scoped; a disconnected channel must not trap work."""
+    from app.security.tester_access import require_workspace_access
+    require_workspace_access(db, org_id)
+    if account_id is None or account_id == "":
+        return None
+    return require_account(db, org_id, account_id).id
 
 
 def require_media(db: Session, org_id: int, asset_id) -> MediaAsset:

@@ -50,7 +50,7 @@ class MetaAccountOption(BaseModel):
 class PostOut(BaseModel):
     id: int
     org_id: int
-    ig_account_id: int
+    ig_account_id: int | None
     status: str
     source_type: str
     source_text: str | None = None

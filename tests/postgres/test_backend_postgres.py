@@ -54,6 +54,31 @@ class PostgresChecks(unittest.TestCase):
         self.db.commit()
         return post.id
 
+    def test_workspace_draft_migration_preserves_legacy_posts_and_is_repeatable(self):
+        from scripts.migrate_workspace_drafts import migrate
+        post_id = self.post()
+        with engine.begin() as connection:
+            connection.execute(text('ALTER TABLE posts ALTER COLUMN ig_account_id SET NOT NULL'))
+        tree = ast.parse((ROOT / 'app/db.py').read_text())
+        function = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'validate_database_schema')
+        namespace = {'engine': engine, 'inspect': inspect}
+        exec(compile(ast.Module(body=[function], type_ignores=[]), '<schema-check>', 'exec'), namespace)
+        with self.assertRaisesRegex(RuntimeError, 'migrate_workspace_drafts'):
+            namespace['validate_database_schema']()
+        with engine.begin() as connection:
+            migrate(connection)
+            migrate(connection)
+        namespace['validate_database_schema']()
+        self.db.expire_all()
+        self.assertEqual(self.db.get(Post, post_id).ig_account_id, 1)
+        draft = post_service.create_post(self.db, post_service.PostCreateRequest(
+            org_id=1, caption_message={'body': 'Separate caption'}))
+        self.assertTrue(draft.ok, draft.error)
+        self.assertIsNone(draft.post.ig_account_id)
+        with self.assertRaises(Exception):
+            with engine.begin() as connection:
+                connection.execute(text('UPDATE posts SET ig_account_id = 999999 WHERE id = :id'), {'id': draft.post.id})
+
     def test_new_creator_registration_login_and_workspace_are_isolated(self):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient

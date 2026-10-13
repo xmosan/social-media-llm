@@ -153,3 +153,24 @@ To enable remote streaming, configure the following environment variables in you
 Legacy superadmin flags alone and `ADMIN_API_KEY` do not grant platform access. Workspace API keys retain only their own workspace scope. Cookie-authenticated admin writes require a same-origin request using `PUBLIC_BASE_URL`. Tester invitations, feedback, diagnostics, waitlist exports and platform actions share the owner guard. `/api/admin/library` still contains creator workspace operations; its global operations use the same owner check.
 
 Dashboard checks distinguish credential configuration from live provider/alert delivery or backup recovery. Loading a section never sends email, runs generation or publishes a post. Resume uses the existing automation account/schedule validation. Pausing does not cancel posts already scheduled. No database migration is required.
+
+## Workspace drafts and publishing connections
+
+Studio drafts and exports belong to the workspace and no longer require Instagram.
+The Posts view shows the workspace's latest 30 posts across accounts. The Instagram
+choice lives in Share. Only a valid active owned account can schedule or publish;
+source integrity, media review and publication recovery rules still apply.
+
+Before deploying this change, run `scripts/migrate_workspace_drafts.py` with an
+explicit production `DATABASE_URL` using the established private operator setup.
+It only drops `NOT NULL` on `posts.ig_account_id`; it preserves all rows, foreign
+keys and existing account associations. Startup rejects an unmigrated schema.
+For rollback, retain the nullable column and the saved unassigned drafts. Do not
+restore `NOT NULL`, delete drafts or assign accounts merely to fit an older app.
+An older app may hide unassigned work; prefer a forward fix for such a rollback.
+
+Pinterest is the next planned connection. App registration and Trial access are
+separate from Standard access for independent creators. There is no enabled
+Pinterest publishing route in this release. Do not present it as connected or
+send scheduled jobs to it until OAuth, token refresh/revocation, board selection,
+per-destination persistence and uncertain-outcome recovery pass live validation.

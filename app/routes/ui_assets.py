@@ -982,7 +982,7 @@ STUDIO_SCRIPTS_JS = r"""
         const meta = window.selectedHadithMetadata || window.selectedAyahMetadata;
         const type = window.selectedHadithMetadata ? 'hadith' : window.selectedAyahMetadata ? 'quran' : 'manual';
         return {post_id: studioPostId, draft_key: studioDraftKey,
-            ig_account_id: Number(document.getElementById('studioAccount')?.value),
+            ig_account_id: document.getElementById('studioAccount')?.value ? Number(document.getElementById('studioAccount').value) : null,
             source_type: type, source_metadata: meta, source_reference: meta?.reference,
             topic: document.getElementById('studioTopic')?.value || '',
             card_message: studioCardMessage, visual_design: studioVisualDesign ? {...studioVisualDesign, background_token:studioBackgroundToken} : null,
@@ -1181,7 +1181,6 @@ STUDIO_SCRIPTS_JS = r"""
     async function persistStudioDraft(scheduledAt=null) {
         if (studioSaveBusy) return null;
         if (isQuoteCardOutOfDate || studioVisualController || !currentQuoteCardUrl) throw Error('Apply your visual changes before saving.');
-        if (!document.getElementById('studioAccount')?.value) throw Error('Choose an account before saving.');
         const sessionEpoch = studioSessionEpoch;
         const payload = studioPayload();
         payload.scheduled_at = scheduledAt;
@@ -1205,11 +1204,9 @@ STUDIO_SCRIPTS_JS = r"""
         } finally { if (sessionEpoch === studioSessionEpoch) {studioSaveBusy = false; window.creatorSaveBusy?.(false);} }
     }
     window.saveStudioDraft = async function() {
-        if (!studioCardMessage || !currentQuoteCardUrl || !document.getElementById('studioAccount')?.value) {
+        if (!studioCardMessage || !currentQuoteCardUrl) {
             const kept = window.rememberStudio();
-            if (kept) document.getElementById('studioSaveStatus').textContent = !document.getElementById('studioAccount')?.value
-                ? 'Kept on this device. Connect Instagram in Your workspace to save and export posts.'
-                : 'Kept on this device. Create your design to save it to your workspace.';
+            if (kept) document.getElementById('studioSaveStatus').textContent = 'Kept on this device. Create your design to save it to your workspace.';
             return;
         }
         try { await persistStudioDraft(); } catch(e) { document.getElementById('studioSaveStatus').textContent=e.message; }
@@ -1229,6 +1226,7 @@ STUDIO_SCRIPTS_JS = r"""
         const sessionEpoch=studioSessionEpoch;
         const button=document.getElementById('studioShareNowBtn'); button.disabled=true;
         try {
+            if (!document.getElementById('studioAccount')?.value) throw Error('Connect and choose Instagram before publishing. You can save or download this post now.');
             if (!studioSequenceReviewed) throw Error('Confirm the visual review first.');
             const post=await persistStudioDraft(); if(!post) return;
             studioSaveBusy=true;
@@ -1493,9 +1491,12 @@ STUDIO_SCRIPTS_JS = r"""
 
     window.setStudioShareTiming = function(timing) {
         const now = timing === 'now';
-        document.getElementById('studioScheduleFields').hidden = now;
-        document.getElementById('studioSubmitBtn').hidden = now;
-        document.getElementById('studioShareNowBtn').hidden = !now;
+        const connected = !!document.getElementById('studioAccount')?.value;
+        document.getElementById('studioScheduleFields').hidden = now || !connected;
+        document.getElementById('studioSubmitBtn').hidden = now || !connected;
+        document.getElementById('studioShareNowBtn').hidden = !now || !connected;
+        const choice = document.getElementById('studioShareTimingChoice');
+        if (choice) choice.hidden = !connected;
         document.querySelectorAll('[name="shareTiming"]').forEach(input => {input.checked = input.value === (now ? 'now' : 'later');});
     };
     window.prepareShare = function() {
@@ -1506,6 +1507,7 @@ STUDIO_SCRIPTS_JS = r"""
         if (note) note.textContent = story ? 'Every reviewed Story is published in order. If interrupted, check the saved post before resuming.' : pages.length > 1 ? `All ${pages.length} reviewed pages will publish together as one carousel with your caption.` : 'Your reviewed image and caption will publish together.';
         const accountSel = document.getElementById('studioAccount');
         const accountId = accountSel ? accountSel.value : null;
+        if (!accountId && note) note.textContent = 'Your post can be saved and downloaded now. Connect Instagram in Your workspace when you want to publish or schedule through Sabeel.';
         const accountText = accountSel
             ? (accountSel.options[accountSel.selectedIndex]?.text || 'No Account')
             : 'No Account';
@@ -1543,6 +1545,9 @@ STUDIO_SCRIPTS_JS = r"""
                     statusEl.innerHTML = '<span class="w-1 h-1 rounded-full bg-amber-500"></span> Check unavailable';
                     statusEl.className = 'flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-50 text-[7px] font-black uppercase tracking-widest text-amber-600';
                 });
+    } else if (statusEl) {
+        statusEl.textContent = 'Optional for export';
+        statusEl.className = 'text-sm text-brand/60';
     }
 
     // ── Caption preview ──────────────────────────────────────────────────────
@@ -3338,7 +3343,7 @@ STUDIO_COMPONENTS_HTML = """
                   </div>
                 </div>
 
-                <fieldset class="cw-share-choice"><legend>When would you like to share?</legend>
+                <fieldset id="studioShareTimingChoice" class="cw-share-choice"><legend>When would you like to share?</legend>
                   <label><input type="radio" name="shareTiming" value="later" checked onchange="setStudioShareTiming('later')"> Schedule later</label>
                   <label><input type="radio" name="shareTiming" value="now" onchange="setStudioShareTiming('now')"> Publish now</label>
                 </fieldset>
@@ -3759,7 +3764,7 @@ CONNECT_INSTAGRAM_MODAL_HTML = """<div id="connectInstagramModal" class="fixed i
             <li class="flex items-start gap-2"><svg class="w-3.5 h-3.5 text-accent mt-0.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg><span>If you have multiple pages, explicitly select the correct one.</span></li>
           </ul>
           <div class="mt-4 pt-3 border-t border-brand/5">
-            <p class="text-[10px] text-brand/50 leading-relaxed font-medium">Note: If connection fails, the issue is usually an incomplete setup inside your Facebook Page or Instagram app settings, not Sabeel Studio.</p>
+            <p class="text-[10px] text-brand/50 leading-relaxed font-medium">During the private preview, Instagram connections may also require a Meta app tester invitation. If Meta says “App not active,” contact Sabeel; changing your account type alone will not resolve that restriction. You can still save and export your work.</p>
           </div>
       </div>
 

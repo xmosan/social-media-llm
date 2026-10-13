@@ -38,6 +38,16 @@ test('saving is idempotent across recovery and retains every page with separate 
   assert.equal(payloads[1].reviewed,false);
   assert.equal(JSON.parse([...f.storage.values()][0]).payload.post_id,51);
 });
+test('a finished design saves and exports without an Instagram account',async()=>{
+  const calls=[]; const f=setup(async(url,opts)=>{calls.push(JSON.parse(opts.body));return {ok:true,json:async()=>({id:52})};});
+  f.c.window.location={href:''};
+  f.el('studioAccount').value='';
+  await f.c.window.saveStudioDraft();
+  assert.equal(calls[0].ig_account_id,null);
+  await f.c.window.exportStudioSequence();
+  assert.equal(f.c.window.location.href,'/posts/52/export');
+  assert.equal(calls[1].post_id,52);
+});
 test('duplicate saves cannot create two requests; failure preserves draft key and permits retry',async()=>{
   let finish,calls=0;const f=setup(()=>{calls++;return new Promise(r=>finish=r);});
   const pending=f.c.window.saveStudioDraft();await f.c.window.saveStudioDraft();assert.equal(calls,1);

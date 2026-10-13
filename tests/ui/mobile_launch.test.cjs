@@ -7,8 +7,16 @@ const node=()=>({getAttribute:()=> '4',value:'',textContent:'',innerText:'',inne
 function context(){const nodes={};const el=id=>nodes[id]||=(node());const radios=[{value:'later'},{value:'now'}];return {el,radios,c:{window:{},document:{getElementById:el,querySelectorAll:()=>radios},Date,Intl,AbortSignal,studioSessionEpoch:1,studioSaveBusy:false,currentQuoteCardUrl:null,studioVisualDesign:null,sequencePages:()=>[]}};}
 test('timing selection exposes one explicit action; returning to share defaults safely to later',()=>{
  const f=context();vm.runInNewContext(section('    window.setStudioShareTiming =','    window.prepareShare ='),f.c);
+ f.el('studioAccount').value='7';
  f.c.window.setStudioShareTiming('now');assert.equal(f.el('studioSubmitBtn').hidden,true);assert.equal(f.el('studioScheduleFields').hidden,true);assert.equal(f.el('studioShareNowBtn').hidden,false);assert.equal(f.radios[1].checked,true);
  f.c.window.setStudioShareTiming('later');assert.equal(f.el('studioShareNowBtn').hidden,true);assert.equal(f.el('studioScheduleFields').hidden,false);assert.equal(f.radios[0].checked,true);
+});
+test('without a destination Share keeps saving available and hides publish and schedule actions',()=>{
+ const f=context();vm.runInNewContext(section('    window.setStudioShareTiming =','    window.prepareShare ='),f.c);
+ for (const timing of ['now','later']) {
+   f.c.window.setStudioShareTiming(timing);
+   for (const id of ['studioSubmitBtn','studioShareNowBtn','studioScheduleFields','studioShareTimingChoice']) assert.equal(f.el(id).hidden,true);
+ }
 });
 test('Enter cannot schedule while publish-now is selected or while a save is busy',async()=>{
  const f=context();let called=0;f.c.persistStudioDraft=async()=>{called++};vm.runInNewContext(section('    window.submitNewPost =',"    window.addEventListener('load'"),f.c);

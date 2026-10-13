@@ -47,7 +47,7 @@ def render_creator_workspace(user, org, posts, account, view="home", accounts=()
         body = recovery + '<div class="cw-post-list">' + ''.join(post_card(p) for p in posts) + '</div>'
         if not posts:
             body += '<div class="cw-empty"><h2>Your first post starts with an idea.</h2><p>Once saved, drafts will appear here.</p><button type="button" class="cw-primary" onclick="openNewPostModal()">Create a post</button></div>'
-        body += '<p class="cw-note">Showing the most recent 30 posts for the selected account.</p>'
+        body += '<p class="cw-note">Showing the most recent 30 posts in your workspace.</p>'
     elif view == "you":
         header = '<header class="cw-heading"><p class="cw-eyebrow">Your workspace</p><h1>Make it yours.</h1><p>Your brand, account and creative tools.</p></header>'
         account_choice = ''
@@ -70,5 +70,5 @@ def render_creator_workspace(user, org, posts, account, view="home", accounts=()
         <a class="cw-brand-strip" href="/app?view=you"><span class="cw-swatches" aria-hidden="true">{swatches}</span><span><strong>Your signature, every time</strong><small id="workspaceBrandSignature">{escape(signature)}</small></span><b aria-hidden="true">→</b></a>'''
     setup = ''
     if account is None and view != 'you':
-        setup = '<section class="cw-recovery"><div><strong>Connect Instagram to save your posts</strong><p>You can explore sources and keep ideas on this device. Workspace drafts, exports and publishing need a connected account.</p><a class="cw-secondary" href="/app?view=you">Set up your account →</a></div></section>'
+        setup = '<section class="cw-recovery"><div><strong>Create now. Connect when you’re ready.</strong><p>Create, save and download your posts without connecting a social account. Connect Instagram when you want Sabeel to publish for you.</p><a class="cw-secondary" href="/app?view=you">Manage connections →</a></div></section>'
     return f'<div class="creator-workspace" data-view="{escape(view)}">{header}{setup}{body}</div>'

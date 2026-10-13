@@ -45,10 +45,15 @@
   const extras = [...sourceFields.children].slice(1);
   sourceFields.append(prefs);
   for (const node of extras) prefs.append(node);
+  // Choose a destination at Share; creating and saving need no social account.
+  const accountField = byId("studioAccount").parentElement;
+  accountField.querySelector("label").textContent = "Publish to Instagram";
+  byId("studioSection4").prepend(accountField);
+  byId("studioAccount").addEventListener("change", () => window.prepareShare());
   byId("studioTopic").setAttribute("aria-label", "Search Qur’an or Hadith");
   byId("studioAccount").setAttribute(
     "aria-label",
-    "Instagram account for saving and publishing",
+    "Instagram publishing account (optional for saving and export)",
   );
   byId("studioCustomPrompt").setAttribute(
     "aria-label",
