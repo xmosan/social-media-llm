@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pinterest trial · Sabeel Studio</title><link rel="stylesheet" href="/static/tester-access.css"><script defer src="/static/pinterest-pilot.js"></script><style>main>section{padding:24px 0;border-top:1px solid #d7dfd4;margin-top:24px}code{overflow-wrap:anywhere;font-size:14px}details{margin-top:18px}h2{line-height:1.35}select{max-width:100%}</style></head>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pinterest trial · Sabeel Studio</title><link rel="stylesheet" href="/static/tester-access.css"><script defer src="/static/pinterest-pilot.js"></script><style>main>section{padding:24px 0;border-top:1px solid #d7dfd4;margin-top:24px}code{overflow-wrap:anywhere;font-size:14px}details{margin-top:18px}h2{line-height:1.35}select{max-width:100%}#pinCopyForm label{display:block;margin-top:18px}#pinCopyForm input,#pinCopyForm select,#pinCopyForm textarea{box-sizing:border-box;width:100%;font:inherit;padding:12px;border:1px solid #c7d2c5;border-radius:8px}#pinReview label{display:block;margin:18px 0}#pinArabic{font-size:24px;line-height:1.9}</style></head>
 <body><header><a class="wordmark" href="/app">Sabeel <span>Studio</span></a><a href="/admin">Owner dashboard</a></header>
 <main><p>PRIVATE CONNECTION TEST</p><h1>Pinterest</h1><p>This area is available only to the Sabeel owner. Connecting an account or choosing a board does not publish anything.</p>
 {% if message %}<p role="status">{{ message }}</p>{% endif %}
@@ -15,4 +15,26 @@
 <p>Only public boards owned by this account are listed. If none appear, create a public board in Pinterest, then reload.</p>
 <form method="post" action="/auth/pinterest/disconnect"><button type="submit">Disconnect from Sabeel</button></form>
 </section>{% endif %}
-<section><h2>Next: a reviewed test Pin</h2><p>Publishing is not enabled in this connection stage. The next stage must preserve the complete source, use separately reviewed Pin copy, and save the publishing result safely. Existing Studio drafts and Instagram schedules are unchanged.</p></section></main></body></html>
+{% if connected %}<section id="pinPilot"><h2>Test a saved Pin</h2>
+<p>Owner-only Trial. Pinterest limits API-created test Pins to your account. This test supports complete single-card feed posts. Carousels, Stories and Pinterest scheduling are not enabled.</p>
+<button type="button" id="loadPinPosts">Load saved cards</button>
+<form id="pinCopyForm" hidden>
+<label for="pinPost">Saved post</label><select id="pinPost" required></select>
+<label for="pinTitle">Pin title</label><input id="pinTitle" maxlength="100" required>
+<label for="pinDescription">Pin description</label><textarea id="pinDescription" maxlength="800" rows="4" required></textarea>
+<label for="pinAlt">Image description for accessibility</label><textarea id="pinAlt" maxlength="500" rows="3" required></textarea>
+<label for="pinAI">Does this Pin include AI-generated or AI-modified imagery?</label><select id="pinAI" required><option value="">Choose a disclosure</option><option value="yes">Yes</option><option value="no">No</option></select>
+<p>Pin copy stays separate from your saved source and Instagram caption. Keep the exact source reference.</p>
+<button type="submit" id="reviewPin">Preview this Pin</button></form>
+<div id="pinReview" hidden>
+<img id="pinImage" alt="Saved source card to review" style="width:100%;max-width:390px;height:auto">
+<p id="pinDestination"></p><h3>Full source</h3><p id="pinReference"></p><p id="pinArabic" dir="rtl" lang="ar"></p><p id="pinTranslation"></p><p id="pinSourceDetails" style="white-space:pre-wrap"></p>
+<div id="pinReflectionBlock" hidden><h3>Separate reflection</h3><p id="pinReflection"></p></div>
+<h3>Pin copy</h3><p id="pinCopyPreview" style="white-space:pre-wrap"></p>
+<label><input type="checkbox" id="pinReviewed"> I reviewed the complete source, Arabic, image, separate copy, disclosure and destination.</label>
+<button id="publishPin" type="button" disabled>Create one test Pin</button></div>
+<p id="pinStatus" role="status" aria-live="polite"></p><a id="pinLink" hidden target="_blank" rel="noopener noreferrer">Open saved Pin on Pinterest</a>
+<button id="verifyPin" type="button" hidden>Check saved Pin</button>
+<p>If a request times out, check its saved result. Sabeel never automatically resends an uncertain Pin.</p>
+</section><script defer src="/static/pinterest-publishing.js"></script>{% endif %}
+</main></body></html>

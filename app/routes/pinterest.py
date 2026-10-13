@@ -1,20 +1,20 @@
-"""Owner-only Pinterest trial: authorization and board selection, no Pin writes."""
+"""Owner-only Pinterest trial: connection, board selection and reviewed test Pins."""
 from contextlib import contextmanager
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool
 from sqlalchemy.orm import Session
 from app.config import settings
 from app.db import get_db
-from app.models import User
+from app.models import User, Post
 from app.security.rbac import require_superadmin, get_current_org_id, OWNER_HEADERS
 from app.services import pinterest_connection as connection
-from app.services.channels.pinterest import PinterestError
 from app.services.instagram_connection import require_same_origin
 from app.services.usage_limits import check_auth_attempt
 from app.logging_setup import log_event
+from app.services import pinterest_publishing as publishing
 
 router=APIRouter(tags=['owner-pinterest-pilot'])
 templates=Jinja2Templates(directory=str(Path(__file__).resolve().parents[1]/'templates'))
@@ -29,7 +29,7 @@ def api_client():
     api=None
     try:
         api=connection.client();yield api
-    except PinterestError as error:
+    except ValueError as error:
         raise HTTPException(422,str(error),headers=OWNER_HEADERS) from None
     finally:
         if api:api.close()
@@ -105,3 +105,55 @@ def disconnect(request:Request,db:Session=Depends(get_db),user:User=Depends(requ
                org_id:int=Depends(get_current_org_id)):
     require_same_origin(request);connection.disconnect(db,request,user.id,org_id)
     return redirect('disconnected')
+
+
+class PinCopy(BaseModel):
+    title: str = Field(min_length=1, max_length=100)
+    description: str = Field(min_length=1, max_length=800)
+    alt_text: str = Field(min_length=1, max_length=500)
+    ai_modified: StrictBool
+    link: str | None = Field(default=None, max_length=2048)
+
+
+class ReviewedPin(PinCopy):
+    receipt: str = Field(min_length=1, max_length=2048)
+    reviewed: StrictBool
+
+
+@router.get('/api/pinterest/posts')
+def available_posts(db:Session=Depends(get_db),user:User=Depends(require_superadmin),
+                    org_id:int=Depends(get_current_org_id)):
+    rows=db.query(Post).filter(Post.org_id==org_id,Post.post_format=='feed_4_5').order_by(Post.id.desc()).limit(50).all()
+    return {'items':[{'id':p.id,'reference':p.source_reference or 'Saved card',
+                       'publication':publishing.state(p)} for p in rows]}
+
+
+@router.get('/api/pinterest/posts/{post_id}')
+def post_status(post_id:int,db:Session=Depends(get_db),user:User=Depends(require_superadmin),
+                org_id:int=Depends(get_current_org_id)):
+    return publishing.state(publishing.get_post(db,post_id,org_id))
+
+
+@router.post('/api/pinterest/posts/{post_id}/review')
+def review_pin(post_id:int,payload:PinCopy,request:Request,db:Session=Depends(get_db),
+               user:User=Depends(require_superadmin),org_id:int=Depends(get_current_org_id)):
+    require_same_origin(request)
+    with api_client():
+        return publishing.review(db,post_id,org_id,user.id,payload.model_dump())
+
+
+@router.post('/api/pinterest/posts/{post_id}/publish')
+def publish_pin(post_id:int,payload:ReviewedPin,request:Request,db:Session=Depends(get_db),
+                 user:User=Depends(require_superadmin),org_id:int=Depends(get_current_org_id)):
+    require_same_origin(request)
+    if payload.reviewed is not True:
+        raise HTTPException(422,'Review the complete card, source, Pin copy and destination first.')
+    with api_client() as api:
+        return publishing.publish(db,post_id,org_id,user.id,
+            payload.model_dump(exclude={'receipt','reviewed'}),payload.receipt,api)
+
+
+@router.get('/api/pinterest/posts/{post_id}/verify')
+def verify_pin(post_id:int,db:Session=Depends(get_db),user:User=Depends(require_superadmin),
+                org_id:int=Depends(get_current_org_id)):
+    with api_client() as api:return publishing.verify(db,post_id,org_id,api)

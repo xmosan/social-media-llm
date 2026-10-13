@@ -449,7 +449,7 @@ def update_post(
         raise HTTPException(status_code=422, detail="This status is controlled by the publishing service")
     if "flags" in data:
         incoming = dict(data["flags"] or {})
-        protected = {"publication", "media_manifest", "reviewed_manifest", "visual_design", "draft_key", "relevance_check", "automation_error", "rotation_topic", "rotation_style_id", "rotation_pillar", "rotation_used_at", "scheduled_occurrence"}
+        protected = {"publication", "pinterest_publication", "media_manifest", "reviewed_manifest", "visual_design", "draft_key", "relevance_check", "automation_error", "rotation_topic", "rotation_style_id", "rotation_pillar", "rotation_used_at", "scheduled_occurrence"}
         for key in protected:
             incoming.pop(key, None)
             if key in (post.flags or {}):
@@ -728,6 +728,8 @@ def delete_post(
     
     if post.status in {"publishing", "publish_unknown", "publish_partial"}:
         raise HTTPException(status_code=409, detail="Reconcile the publishing attempt before deleting this post")
+    if ((post.flags or {}).get("pinterest_publication") or {}).get("status") in {"publishing", "unknown", "published"}:
+        raise HTTPException(status_code=409, detail="Keep this Pinterest publication record for delivery checks. Deleting it would remove its duplicate protection.")
 
     try:
         # 1. Manual Cleanup of linked records that might block deletion

@@ -198,10 +198,24 @@ separately reviewed Pin copy without truncation, canonical Cloudinary media and
 explicit AI disclosure. It never retries a possibly completed write. Offline
 HTTP mocks do not demonstrate app approval or real publication.
 
-**Publishing and scheduling are not enabled in this connection stage.** Before
-enabling them, add durable per-destination publication claims and uncertain-result
-reconciliation. Reuse source, signed media-manifest and review checks. Initially
-accept only a complete single-image source: never publish just the cover of a
-carousel or Story sequence. Review Pin title, description and alt text separately
-from scripture and the Instagram caption. A real owner-account Pin check is a
-release gate before wider rollout.
+The owner pilot can publish one reviewed single-card feed post at a time. It reuses
+canonical source, signed media-manifest, manual visual review and bounded CDN
+checks. Pin title, description, accessibility text and AI disclosure are reviewed
+separately from scripture and the Instagram caption. The short-lived review is
+bound to the owner, workspace, exact source/card, image bytes, copy and destination.
+
+`Post.flags.pinterest_publication` holds the immutable snapshot, committed claim,
+provider ID and result independently of Instagram state. The PostgreSQL post lock
+serializes concurrent submissions. Confirmed publication returns the stored ID;
+uncertain delivery or interrupted persistence blocks retries and edits. Only an
+explicit provider rejection allows a fresh manual review and send. The read-only
+Pin check compares the saved remote ID, board and copy. If no remote ID was saved,
+inspect Pinterest and investigate the durable claim; never reset or resend it
+merely because a timeout elapsed. Editing/deleting a sent or uncertain post is
+blocked to retain source integrity and duplicate protection.
+
+No new migration is required for publication. On rollback retain all Pinterest
+publication flags; do not discard those records. Carousels, Stories, Pinterest
+scheduling and creator-wide access are not enabled. Trial API-created Pins are
+visible only to their creator; a successful Trial test is not public launch
+approval. Complete real account publication and readback before wider rollout.
