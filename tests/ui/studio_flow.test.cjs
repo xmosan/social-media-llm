@@ -71,3 +71,22 @@ test('saving after a Story format change saves Studio, not stale Pinterest copy'
  f.el('studioPinterestEditor').hidden=false;f.el('newPostModal').dataset.step='3';await f.c.window.saveStudioDraft();
  assert.equal(f.calls.filter(c=>c==='saveStudio').length,2);
 });
+
+
+test('visual generation locks navigation and the footer until the operation settles',()=>{
+ const f=setup();f.el('newPostModal').dataset.step='2';f.state.busy=true;f.state.generating=true;f.refresh();
+ assert.equal(f.el('studioStepNext').textContent,'Creating your design…');assert.equal(f.el('studioStepNext').disabled,true);
+ assert.equal(f.c.window.beforeStudioStep(3),false);assert.equal(f.c.window.beforeStudioClose(),false);
+ f.state.busy=false;f.state.generating=false;f.refresh();assert.equal(f.c.window.beforeStudioStep(3),true);
+});
+test('an ineligible style leads directly to suitable choices instead of a rejected generation',()=>{
+ const f=setup();f.el('newPostModal').dataset.step='2';f.state.payload.media_url=null;
+ f.c.window.studioSelectedFit=()=>({available:false});f.refresh();
+ assert.equal(f.el('studioStepNext').textContent,'Choose a fitting style');f.el('studioStepNext').onclick();assert.ok(f.calls.includes('studioChooseFamily'));
+});
+
+test('an existing unchanged reviewed image remains usable even if a new fit estimate differs',()=>{
+ const f=setup();f.el('newPostModal').dataset.step='2';f.el('sequenceReviewCheck').checked=true;
+ f.c.window.studioSelectedFit=()=>({available:false});f.refresh();
+ assert.equal(f.el('studioStepNext').textContent,'Continue to caption');assert.equal(f.el('studioStepNext').disabled,false);
+});

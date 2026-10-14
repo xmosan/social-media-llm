@@ -96,7 +96,7 @@
   editDesign.type = "button";
   editDesign.className = "cw-edit-design";
   editDesign.textContent = "Edit design ↓";
-  editDesign.onclick = () => { showTool("design"); toolbar.scrollIntoView({block:"start",behavior:"smooth"}); };
+  editDesign.onclick = () => { showTool("design"); toolbar.scrollIntoView({block:"start",behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth"}); };
   visual.querySelector(".cw-preview-column").prepend(editDesign);
   visual
     .querySelector(".cw-visual-grid")
@@ -123,7 +123,7 @@
       showTool(key);
       design
         .querySelector('[data-editor-pane="' + key + '"]')
-        .scrollIntoView({ block: "start", behavior: "smooth" });
+        .scrollIntoView({ block: "start", behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
     };
     toolbar.append(b);
   }
@@ -266,6 +266,7 @@
   };
   window.closeNewPostModal = function () {
     if (reader.open) reader.close();
+    document.getElementById("studioFamilyDialog")?.close();
     if (oldClose() === false) return;
     cancelDiscovery();
     isolatePage(false);
@@ -302,9 +303,10 @@
     window.rememberStudio();
   };
   window.onCreatorVisualReady = () => {
+    if (byId('newPostModal').dataset.step !== '2') return;
     byId("cardPreviewContainer").scrollIntoView({
       block: "start",
-      behavior: "smooth",
+      behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
     });
   };
   window.onCreatorSection = (step) => {

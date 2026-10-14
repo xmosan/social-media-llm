@@ -26,6 +26,61 @@ def is_arabic_segment(text: str) -> bool:
     """Detects if a string contains Arabic characters."""
     return contains_arabic(text)
 
+def structured_card_segments(card_message, sizes=(36, 68, 48), *, is_hadith=False, ornaments=None):
+    """Canonical source/display segments for fit checks and final rendering."""
+    segments = []
+    # Map structured message to zones
+    # 1. Eyebrow
+    if card_message.get("eyebrow"):
+        segments.append({
+            "text": card_message["eyebrow"],
+            "role": "reference",
+            "size": sizes[0],
+            "is_arabic": is_arabic_segment(card_message["eyebrow"]),
+            "color": (255, 255, 255)
+        })
+
+    # 1.5 Arabic Text (Specific to Quranic content or if provided in payload)
+    if card_message.get("arabic_text"):
+        from app.services.source_display import display_range, narration_boundary
+        start, end = display_range(card_message)
+        boundary = narration_boundary(card_message, "arabic_text")
+        segments.append({
+            "text": card_message["arabic_text"][start:end],
+            "role": "source_arabic",
+            **({"quran_ornaments": ornaments} if ornaments else {}),
+            "narration_end": max(0, boundary-start) if boundary is not None else None,
+            "label": (card_message.get("arabic_display") or {}).get("label"),
+            "size": sizes[1],
+            "is_arabic": True,
+            "color": (255, 255, 255)
+        })
+
+    # 2. Headline (The Quote/Verse)
+    if card_message.get("headline"):
+        from app.services.source_display import narration_boundary
+        segments.append({
+            "text": card_message["headline"],
+            "role": "source_translation",
+            "narration_end": narration_boundary(card_message, "headline"),
+            "label": "Translation excerpt" if is_hadith and card_message.get("was_excerpted") else None,
+            "size": sizes[1] if not card_message.get("arabic_text") else sizes[2],
+            "is_arabic": is_arabic_segment(card_message["headline"]),
+            "color": (255, 255, 255)
+        })
+
+    # 3. Supporting Text (Reference/Explanation)
+    if card_message.get("supporting_text"):
+         segments.append({
+            "text": card_message["supporting_text"],
+            "role": "reflection",
+            "size": sizes[2],
+            "is_arabic": is_arabic_segment(card_message["supporting_text"]),
+            "color": (255, 255, 255)
+        })
+    return segments
+
+
 def generate_quote_card(
     caption: str = None,
     style: str = "quran",
@@ -62,7 +117,7 @@ def generate_quote_card(
         raise CardTypographyError(str(error)) from None
 
     print(f"\n🖼️  [ImageCard] mode={mode} | style={style}")
-    
+
     # ── Determine effective mode ──────────────────────────────────────────────
     if style == "custom":
         mode = "custom"
@@ -90,55 +145,7 @@ def generate_quote_card(
 
     if card_message:
         print(f"📦 [ImageCard] Using structured card_message")
-        # Map structured message to zones
-        # 1. Eyebrow
-        if card_message.get("eyebrow"):
-            segments.append({
-                "text": card_message["eyebrow"],
-                "role": "reference",
-                "size": sizes[0],
-                "is_arabic": is_arabic_segment(card_message["eyebrow"]),
-                "color": (255, 255, 255)
-            })
-        
-        # 1.5 Arabic Text (Specific to Quranic content or if provided in payload)
-        if card_message.get("arabic_text"):
-            from app.services.source_display import display_range, narration_boundary
-            start, end = display_range(card_message)
-            boundary = narration_boundary(card_message, "arabic_text")
-            segments.append({
-                "text": card_message["arabic_text"][start:end],
-                "role": "source_arabic",
-                **({"quran_ornaments": ornaments} if ornaments else {}),
-                "narration_end": max(0, boundary-start) if boundary is not None else None,
-                "label": (card_message.get("arabic_display") or {}).get("label"),
-                "size": sizes[1],
-                "is_arabic": True,
-                "color": (255, 255, 255)
-            })
-
-        # 2. Headline (The Quote/Verse)
-        if card_message.get("headline"):
-            from app.services.source_display import narration_boundary
-            segments.append({
-                "text": card_message["headline"],
-                "role": "source_translation",
-                "narration_end": narration_boundary(card_message, "headline"),
-                "label": "Translation excerpt" if is_hadith and card_message.get("was_excerpted") else None,
-                "size": sizes[1] if not card_message.get("arabic_text") else sizes[2],
-                "is_arabic": is_arabic_segment(card_message["headline"]),
-                "color": (255, 255, 255)
-            })
-        
-        # 3. Supporting Text (Reference/Explanation)
-        if card_message.get("supporting_text"):
-             segments.append({
-                "text": card_message["supporting_text"],
-                "role": "reflection",
-                "size": sizes[2],
-                "is_arabic": is_arabic_segment(card_message["supporting_text"]),
-                "color": (255, 255, 255)
-            })
+        segments = structured_card_segments(card_message, sizes, is_hadith=is_hadith, ornaments=ornaments)
     else:
         # Fallback to legacy caption parsing
         print(f"📝 [ImageCard] Fallback to caption parsing: caption[:120]={repr(caption[:120]) if caption else 'None'}")

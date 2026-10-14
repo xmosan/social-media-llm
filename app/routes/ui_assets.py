@@ -137,6 +137,11 @@ STUDIO_SCRIPTS_JS = r"""
             alert("Please build your card message first.");
             return;
         }
+        if(stepIndex === 3 && !currentQuoteCardUrl) {
+            window.switchStudioSection(2);
+            window.studioNotice?.('Create your design first. Your source and writing are kept here.');
+            return;
+        }
         if (stepIndex === 4 && (!studioSequenceReviewed || isQuoteCardOutOfDate)) {
             window.switchStudioSection(2);
             if(window.studioNotice)window.studioNotice('Review every page and confirm the latest version before sharing.');
@@ -726,6 +731,7 @@ STUDIO_SCRIPTS_JS = r"""
         const btn = document.getElementById('btnGenerateCard');
         if (btn) { btn.disabled = false; btn.innerText = 'Create layout'; }
         document.getElementById('cardLoader')?.classList.add('hidden');
+        window.setStudioVisualState?.('idle');
     }
 
     window.sabeelPhotoFamilies = ['quiet_photography', 'luxury_editorial', 'desert_glow', 'midnight_oasis', 'emerald_forest'];
@@ -757,17 +763,20 @@ STUDIO_SCRIPTS_JS = r"""
         const loader = document.getElementById('cardLoader');
         const preview = document.getElementById('quoteCardPreview');
         const note = document.getElementById('visualQualityNote');
-        try { window.requireStudioBrand?.(); } catch(e) { if(note) note.textContent=e.message; return; }
+        try { window.requireStudioBrand?.(); } catch(e) { if(note) note.textContent=e.message; window.setStudioVisualState?.('error',e.message); return; }
         const controller = new AbortController();
         studioVisualController = controller;
         const epoch = ++studioVisualEpoch;
         const timer = setTimeout(() => controller.abort(), 180000);
         btn.disabled = true;
+        window.setStudioVisualState?.('generating', studioBackgroundToken ? 'Updating your layout with the same background…' : 'Preparing your design. Your source stays unchanged.');
         btn.innerText = studioBackgroundToken ? 'Applying layout…' : 'Creating your sequence…';
         loader?.classList.remove('hidden');
         if (note) note.textContent = '';
         document.getElementById('cardActions')?.classList.add('hidden');
         try {
+            if(window.checkStudioVisualFit && !await window.checkStudioVisualFit()) return;
+            if(epoch !== studioVisualEpoch) return;
             const payload = {
                 card_message: studioCardMessage,
                 source_type: window.selectedHadithMetadata ? 'hadith' : window.selectedAyahMetadata ? 'quran' : 'manual',
@@ -808,13 +817,16 @@ STUDIO_SCRIPTS_JS = r"""
             document.getElementById('cardActions')?.classList.remove('hidden');
             document.getElementById('outOfSyncBanner')?.classList.add('hidden');
             isQuoteCardOutOfDate = false;
-            window.showStudioPage(0); window.rememberStudio(); window.onCreatorVisualReady?.();
+            window.showStudioPage(0); window.rememberStudio();
             if (note) note.textContent = (studioVisualDesign?.background_reused ? 'Your photograph was reused. ' : '') +
                 (studioVisualDesign?.quality?.background_repaired ? 'Lighting was adjusted behind the text for readability. ' : '') +
                 'Check every page before continuing.';
         } catch (e) {
-            if (epoch === studioVisualEpoch && note) note.textContent = e.name === 'AbortError'
-                ? 'This took too long. Your source is safe; please retry.' : e.message;
+            if (epoch === studioVisualEpoch) {
+                const message = e.name === 'AbortError' ? 'This took too long. Your source is safe; please retry.' : e.message;
+                if(note) note.textContent=message;
+                window.setStudioVisualState?.('error', message);
+            }
         } finally {
             clearTimeout(timer);
             if (epoch === studioVisualEpoch) {
@@ -1041,25 +1053,29 @@ STUDIO_SCRIPTS_JS = r"""
         const pages = sequencePages();
         if (!pages.length) return;
         studioPageIndex = Math.max(0, Math.min(index, pages.length-1));
-        const viewingIndex=studioPageIndex;
+        const viewingIndex=studioPageIndex, viewingEpoch=studioVisualEpoch;
         const page = pages[studioPageIndex];
         const image = document.getElementById('quoteCardPreview');
         const review=document.getElementById('sequenceReviewCheck');
         document.getElementById('studioImageRetry')?.classList.add('hidden');
         image.onload=()=>{
-            if(pages!==sequencePages() || image.src!==page.url) return;
+            if(viewingEpoch!==studioVisualEpoch || pages!==sequencePages() || image.src!==page.url) return;
             studioViewedPages.add(viewingIndex);
             const note=document.getElementById('visualQualityNote');
             if(note?.textContent?.startsWith('This page could not load.')) note.textContent='Image loaded. Review this page before continuing.';
             review.disabled=studioViewedPages.size!==pages.length;
+            window.setStudioVisualState?.('ready');
+            window.onCreatorVisualReady?.();
         };
         image.onerror=()=>{
-            if(pages!==sequencePages() || image.src!==page.url) return;
+            if(viewingEpoch!==studioVisualEpoch || pages!==sequencePages() || image.src!==page.url) return;
             studioViewedPages.delete(viewingIndex);studioSequenceReviewed=false;
             review.checked=false;review.disabled=true;
             document.getElementById('studioImageRetry')?.classList.remove('hidden');
             document.getElementById('visualQualityNote').textContent='This page could not load. Retry the image before confirming your review.';
+            window.setStudioVisualState?.('image-error', 'Your design was created, but the preview could not load. Reload the image without generating again.');
         };
+        window.setStudioVisualState?.('loading', 'Loading your image…');
         image.src = page.url;
         image.alt = `Page ${studioPageIndex+1} of ${pages.length}: ${page.label}`;
         image.classList.remove('hidden');
@@ -1232,7 +1248,7 @@ STUDIO_SCRIPTS_JS = r"""
         try { await persistStudioDraft(); } catch(e) { document.getElementById('studioSaveStatus').textContent=e.message; }
     };
     window.persistStudioDraft = persistStudioDraft;
-    window.studioShareSnapshot = () => ({postId:studioPostId, busy:studioSaveBusy || studioDownloadBusy, payload:studioPayload(), pages:sequencePages(), dirty:isQuoteCardOutOfDate, reviewed:studioSequenceReviewed});
+    window.studioShareSnapshot = () => ({postId:studioPostId, busy:studioSaveBusy || studioDownloadBusy || !!studioVisualController, generating:!!studioVisualController, payload:studioPayload(), pages:sequencePages(), dirty:isQuoteCardOutOfDate, reviewed:studioSequenceReviewed});
     window.preparePinterestDraft = () => window.chooseStudioDestination?.('pinterest');
     window.captionChanged = function() {
         // A caption edit does not change the reviewed source image. Final sharing is explicit.
@@ -3150,6 +3166,10 @@ STUDIO_COMPONENTS_HTML = """
                 <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
                 <span class="text-[9px] font-black text-amber-800 uppercase tracking-widest">Source, reflection or layout changed. Apply the changes before sharing.</span>
             </div>
+             <section id="studioVisualStatus" class="cw-visual-status" hidden tabindex="-1" aria-live="polite" role="status">
+               <span class="cw-working-mark" aria-hidden="true"></span><div><strong id="studioVisualStatusTitle"></strong><p id="studioVisualStatusText"></p>
+               <button id="studioStatusReload" type="button" hidden onclick="retryStudioImage()">Reload image</button></div>
+             </section>
              <div class="cw-visual-grid">
                 <div class="cw-design-column space-y-8">
                     <details id="creatorBrandKit" class="p-5 border border-brand/15 rounded-xl space-y-4 text-sm">
@@ -3175,7 +3195,7 @@ STUDIO_COMPONENTS_HTML = """
                           <label>Format<select id="studioFormat" onchange="changeStudioFormat()">
                             <option value="feed_4_5">Feed · 4:5</option><option value="story_9_16">Story · 9:16</option>
                           </select></label>
-                          <label>Visual family<select id="studioFamilyPicker" onchange="setStudioScene(this.value, null)">
+                          <label id="studioFamilyFallback">Visual family<select id="studioFamilyPicker" onchange="setStudioScene(this.value, null)">
                             <optgroup label="Sabeel Vision · AI backgrounds"><!-- VISION_FAMILY_OPTIONS --></optgroup>
                             <optgroup label="Typography & paper"><option value="editorial">Editorial typography</option><option value="quiet_photography">Quiet photography</option><option value="minimal_paper">Minimal paper</option></optgroup>
                           </select></label>
@@ -3740,7 +3760,7 @@ APP_LAYOUT_HTML = """<!doctype html>
     .text-brand {{ color: var(--brand) !important; }}
     .border-brand {{ border-color: var(--brand) !important; }}
   </style>
-<link rel="stylesheet" href="/static/creator-workspace.css?v=flow-5"><link rel="stylesheet" href="/static/studio-flow.css?v=1">
+<link rel="stylesheet" href="/static/creator-workspace.css?v=visual-6"><link rel="stylesheet" href="/static/studio-flow.css?v=visual-2">
 </head>
 <body class="min-h-screen">
 <header class="cw-topbar"><a class="cw-wordmark" href="/app">sabeel<span> studio</span></a><a href="/app?view=you" aria-label="Your workspace">Your space ↗</a></header>

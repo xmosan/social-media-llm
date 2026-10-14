@@ -220,6 +220,19 @@ def studio_generate_caption(data: dict, db: Session = Depends(get_db),
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
+@router.post("/visual-fit", dependencies=[Depends(require_user)])
+def studio_visual_fit(data: dict, org_id: int = Depends(get_current_org_id), db: Session = Depends(get_db)):
+    # A layout estimate only: no AI call, save, usage charge or publish approval.
+    from app.services.visual_service import assess_visual_fit
+    from app.services.brand_kit import workspace_brand
+    try:
+        return assess_visual_fit(data.get("card_message"), layout=data.get("layout", "bilingual"),
+            post_format=data.get("post_format", "feed_4_5"),
+            brand_kit=data["brand_kit"] if "brand_kit" in data else workspace_brand(db, org_id))
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from None
+
+
 @router.post("/generate-visual", dependencies=[Depends(require_user)])
 def studio_generate_visual(data: dict, org_id: int = Depends(get_current_org_id), db: Session = Depends(get_db),
                            user: User | None = Depends(get_current_user)):

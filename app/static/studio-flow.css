@@ -82,3 +82,55 @@
 #newPostModal .cw-search-recovery input {font-size:16px;min-height:48px;padding:10px;border:1px solid #bdccbf;border-radius:10px;width:100%}
 
 #newPostModal .pin-download-links {display:none}
+
+/* Visual styles are choices with examples, not another stack of settings. */
+#newPostModal .cw-design-pickers {grid-template-columns:1fr;gap:20px}
+#newPostModal .cw-field-label {display:block;font-size:14px;font-weight:600;margin-bottom:8px}
+#newPostModal .cw-selected-family {display:flex;align-items:center;gap:16px;width:100%;padding:10px;border:1px solid #bdccbf;border-radius:18px;text-align:left;background:#f8faf4;transition:border-color .18s,box-shadow .18s}
+#newPostModal .cw-selected-family:hover {border-color:#527762;box-shadow:0 3px 16px #163e3010}
+#newPostModal .cw-selected-family img {width:88px;height:88px;object-fit:cover;border-radius:11px;flex:none}
+#newPostModal .cw-selected-family span {min-width:0}
+#newPostModal .cw-selected-family strong {display:block;font-size:17px;line-height:1.3}
+#newPostModal .cw-selected-family small {display:block;color:#596f63;font-size:12px;line-height:1.5;margin:5px 0}
+#newPostModal .cw-selected-family b {font-size:13px;font-weight:600;color:#245e48}
+#newPostModal .cw-fit-note {font-size:13px;line-height:1.5;color:#596f63;margin-top:8px}
+#newPostModal .cw-fit-note:empty {display:none}
+#newPostModal .cw-format-options {display:flex;gap:10px;margin-top:8px}
+#newPostModal .cw-format-options button {display:flex;align-items:center;gap:8px;flex:1;min-height:48px;padding:10px 14px;border:1px solid #c6d3c7;border-radius:13px;background:white;font-size:15px;transition:background .18s,border-color .18s}
+#newPostModal .cw-format-options [aria-pressed=true] {background:#eaf0e3;border-color:#567461}
+#newPostModal .cw-format-options small {font-size:12px;color:#5c7064;margin-left:auto}
+#newPostModal .cw-format-options span {display:block;border:1.5px solid currentColor;border-radius:2px;font-size:0;width:14px;height:18px}
+#newPostModal .cw-format-options .cw-format-story_9_16 {width:11px;height:20px}
+#newPostModal #studioFamilyDialog {width:min(620px,100%);max-width:100vw;max-height:90dvh;margin:auto auto 0;border:0;border-radius:24px 24px 0 0;padding:22px 18px max(24px,env(safe-area-inset-bottom));background:#fafbf7;color:#183d31;overflow-y:auto;overscroll-behavior:contain;box-shadow:0 -16px 60px #102c3025}
+#studioFamilyDialog::backdrop {background:#142b2a66;backdrop-filter:blur(3px)}
+#newPostModal #studioFamilyDialog header {display:flex;align-items:center;justify-content:space-between;gap:18px;position:sticky;top:-22px;z-index:2;background:#fafbf7;padding:10px 0}
+#newPostModal #studioFamilyDialog h4 {font-size:23px;line-height:1.25;font-weight:650}
+#newPostModal #studioFamilyClose {width:44px;height:44px;border:1px solid #d2dbd0;border-radius:50%;background:#fff;font-size:25px;flex:none}
+#newPostModal .cw-family-intro,#newPostModal .cw-family-footnote {font-size:13px;line-height:1.6;color:#596f63;margin:14px 0 18px}
+#newPostModal #studioFamilyGrid {display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#newPostModal .cw-family-tile {position:relative;padding:7px 7px 12px;border:2px solid transparent;border-radius:15px;background:white;box-shadow:0 0 0 1px #dfe5d9;text-align:left;min-width:0;transition:transform .18s,border-color .18s,background .18s}
+#newPostModal .cw-family-tile img {width:100%;height:92px;object-fit:cover;border-radius:9px}
+#newPostModal .cw-family-tile strong {font-size:14px;display:block;margin:10px 5px 4px;line-height:1.3}
+#newPostModal .cw-family-tile > span {display:block;font-size:12px;line-height:1.4;color:#596f63;margin:0 5px;min-height:34px}
+#newPostModal .cw-family-fit {display:block;margin:6px 5px 0;font-size:11px;color:#466d50;min-height:16px}
+#newPostModal .cw-family-check {display:none;position:absolute;top:12px;right:12px;align-items:center;justify-content:center;width:25px;height:25px;background:#173f30;color:white;border:2px solid white;border-radius:50%;font-size:13px}
+#newPostModal .cw-family-tile[aria-checked=true] {border-color:#315d44;background:#edf4e6}
+#newPostModal .cw-family-tile[aria-checked=true] .cw-family-check {display:flex}
+#newPostModal .cw-family-tile[aria-disabled=true] {opacity:.65;cursor:not-allowed}
+#newPostModal .cw-family-tile[aria-disabled=true] .cw-family-fit {color:#8c4f29}
+#newPostModal .cw-family-tile:active:not([aria-disabled=true]) {transform:scale(.98)}
+#newPostModal .cw-visual-status {display:flex;gap:14px;align-items:flex-start;padding:16px;margin:0 0 20px;border:1px solid #d3dfcb;border-radius:16px;background:#eff4e8;scroll-margin:16px}
+#newPostModal .cw-visual-status strong {font-size:16px;display:block}
+#newPostModal .cw-visual-status p {font-size:14px;line-height:1.5;margin-top:5px;color:#52685b}
+#newPostModal .cw-working-mark {width:23px;height:23px;border:2px solid #c3d5bb;border-top-color:#234e36;border-radius:50%;flex:none;margin-top:3px;animation:cw-turn 1s linear infinite}
+#newPostModal .cw-visual-status[data-state=error],#newPostModal .cw-visual-status[data-state=image-error] {background:#faf4e8;border-color:#e2d3b4}
+#newPostModal .cw-visual-status[data-state=error] .cw-working-mark,#newPostModal .cw-visual-status[data-state=image-error] .cw-working-mark {animation:none;border:0;width:0;margin:0}
+#newPostModal #studioStatusReload {min-height:44px;text-decoration:underline;margin-top:8px}
+#newPostModal .studio-section:not(.hidden) {animation:cw-step-in .18s ease-out}
+#newPostModal #studioFamilyDialog[open] {animation:cw-sheet-in .2s ease-out}
+#newPostModal #quoteCardPreview:not(.hidden) {height:auto;width:100%;max-height:100%;object-fit:contain}
+@keyframes cw-step-in {from{opacity:.6;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@keyframes cw-sheet-in {from{opacity:.6;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes cw-turn {to{transform:rotate(360deg)}}
+@media(min-width:768px) {#newPostModal #studioFamilyDialog {margin:auto;border-radius:24px;max-height:85dvh} #newPostModal .cw-family-tile img {height:125px}}
+@media(prefers-reduced-motion:reduce) {#newPostModal .studio-section,#newPostModal #studioFamilyDialog,#newPostModal .cw-working-mark {animation:none!important} #newPostModal .cw-selected-family,#newPostModal .cw-family-tile,#newPostModal .cw-format-options button {transition:none!important}}
