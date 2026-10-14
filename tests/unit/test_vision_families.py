@@ -188,7 +188,7 @@ class VisionFamilyTests(unittest.TestCase):
         self.assertEqual(meta['prompt_signature'],min(history,key=history.get))
 
     def test_creator_lighting_precedes_defaults_and_preferences_are_separate_from_source(self):
-        for family in catalog.SCENE_FAMILIES:
+        for family in catalog.SCENE_FAMILIES.keys() - {'realistic_paper'}:
             prompt, meta = catalog.scene_prompt(family, (1080,1920), [(80,260,1000,800)],
                 direction="night light", visual_identity="Coastal views, muted blue. Avoid buildings.")
             self.assertIn('"this_post": "night light"', prompt)

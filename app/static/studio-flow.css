@@ -134,3 +134,13 @@
 @keyframes cw-turn {to{transform:rotate(360deg)}}
 @media(min-width:768px) {#newPostModal #studioFamilyDialog {margin:auto;border-radius:24px;max-height:85dvh} #newPostModal .cw-family-tile img {height:125px}}
 @media(prefers-reduced-motion:reduce) {#newPostModal .studio-section,#newPostModal #studioFamilyDialog,#newPostModal .cw-working-mark {animation:none!important} #newPostModal .cw-selected-family,#newPostModal .cw-family-tile,#newPostModal .cw-format-options button {transition:none!important}}
+/* Material samples show the finish; source text is always rendered separately. */
+#newPostModal #studioPaperOptions {min-width:0;max-width:100%;overflow:hidden}
+#newPostModal #studioPaperOptions[hidden] {display:none}
+#newPostModal #studioPaperChoices {display:flex;gap:10px;overflow-x:auto;padding:6px 2px 12px;scroll-snap-type:x proximity}
+#newPostModal #studioPaperChoices button {flex:0 0 116px;padding:5px;border:2px solid #dbe3d5;border-radius:14px;background:#fff;color:#193c2d;text-align:left;scroll-snap-align:start;transition:border-color .16s,background .16s}
+#newPostModal #studioPaperChoices img {width:100%;height:116px;object-fit:cover;border-radius:9px}
+#newPostModal #studioPaperChoices span {display:block;font-size:13px;font-weight:650;line-height:1.3;padding:8px 3px;min-height:48px}
+#newPostModal #studioPaperChoices button[aria-pressed=true] {border-color:#315d44;background:#edf4e6}
+#newPostModal #studioPaperChoices button:focus-visible {outline:3px solid #769263;outline-offset:2px}
+@media(prefers-reduced-motion:reduce) {#newPostModal #studioPaperChoices button {transition:none}}

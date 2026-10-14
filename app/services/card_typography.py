@@ -216,6 +216,9 @@ def layout_card(segments, *, serif=False, family="editorial", layout="bilingual"
         brand_kit = normalize_brand(brand_kit)
         composition = composition_for(brand_kit, next((s["text"] for s in segments if s["role"] == "reference"), ""))
         margin = 104 if composition == "airy" else 80
+    if family == "realistic_paper":
+        # Keep real edge wear, flowers and illumination outside the reading area.
+        margin = max(margin, 120)
     top_margin = 250 if story else margin
     bottom_margin = 310 if story else margin
     short = not any(s.get("sequence_page") for s in segments) and all(len(s["text"]) <= (80 if s["role"] == "source_arabic" else 100) for s in segments)

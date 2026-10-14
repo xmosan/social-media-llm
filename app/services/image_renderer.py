@@ -1527,7 +1527,8 @@ def render_minimal_quote_card(
         if raw_photo is None:
             prompt, recipe = scene_prompt(family, target_size, scene_bounds or [b["bounds"] for b in text_blocks],
                                           direction=visual_prompt, history=visual_history,
-                                          visual_identity=(brand_kit or {}).get("visual_identity"))
+                                          visual_identity=(brand_kit or {}).get("visual_identity"),
+                                          **({"paper_finish": (brand_kit or {}).get("paper_finish")} if family == "realistic_paper" else {}))
             if render_metadata is not None:
                 render_metadata.update(recipe)
             raw_photo = generate_background(prompt, target_size, engine=engine, render_metadata=render_metadata,

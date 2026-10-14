@@ -90,3 +90,11 @@ test('an existing unchanged reviewed image remains usable even if a new fit esti
  f.c.window.studioSelectedFit=()=>({available:false});f.refresh();
  assert.equal(f.el('studioStepNext').textContent,'Continue to caption');assert.equal(f.el('studioStepNext').disabled,false);
 });
+
+test('changed paper finish clearly requests a new background while typography edits keep the finish action',()=>{
+ const f=setup();f.el('newPostModal').dataset.step='2';f.state.dirty=true;
+ f.c.window.studioPreviewRequest=()=>({style:'realistic_paper',background_token:null});f.refresh();
+ assert.equal(f.el('studioStepNext').textContent,'Create new paper background');
+ f.c.window.studioPreviewRequest=()=>({style:'realistic_paper',background_token:'retained'});f.el('newPostModal').dataset.editPreview='true';f.refresh();
+ assert.equal(f.el('studioStepNext').textContent,'Finish design');
+});
