@@ -13,6 +13,42 @@ from test_image_provider import load_real_service
 
 
 class VisionFamilyTests(unittest.TestCase):
+    def test_fit_menu_matches_incident_and_renderer_without_provider_or_source_edits(self):
+        from copy import deepcopy
+        from app.services.visual_service import assess_visual_fit
+        record=json.loads((Path(__file__).resolve().parents[1]/'fixtures/quran_13_28.json').read_text())
+        source={'eyebrow':record['reference'],'headline':record['translation_text'],'arabic_text':record['arabic_text']}
+        before=deepcopy(source)
+        brand=normalize_brand({'palette':'night','typography':'classic','signature':'@sabeel_studio','series_name':'A moment to reflect','composition':'airy'})
+        renderer=load_real_service('image_renderer')
+        with patch.dict('sys.modules',{'app.services.image_renderer':renderer}):card=load_real_service('image_card')
+        with patch.dict('sys.modules',{'app.services.image_card':card}), patch.object(renderer,'generate_background') as provider:
+            results=assess_visual_fit(source,brand_kit=brand)['families']
+            by_id={r['family']:r for r in results}
+            self.assertFalse(by_id['emerald_forest']['available'])
+            self.assertIn('Quiet Nature',by_id['emerald_forest']['reason'])
+            for family in ('luxury_editorial','midnight_oasis','minimal_paper','editorial'):
+                self.assertTrue(by_id[family]['available'])
+            with self.assertRaises(typography.CardTypographyError):
+                card.generate_quote_card(card_message=source,style='emerald_forest',brand_kit=brand,allow_sequence=True,render_metadata={})
+            provider.assert_not_called()
+        self.assertEqual(source,before)
+
+    def test_fit_measures_story_ornaments_and_complete_hadith_sequences(self):
+        from app.services.visual_service import assess_visual_fit
+        renderer=load_real_service('image_renderer')
+        with patch.dict('sys.modules',{'app.services.image_renderer':renderer}):card=load_real_service('image_card')
+        with patch.dict('sys.modules',{'app.services.image_card':card}):
+            for name in ('quran_94_6','hadith_bukhari_1'):
+                record=json.loads((Path(__file__).resolve().parents[1]/f'fixtures/{name}.json').read_text())
+                source={'eyebrow':record['reference'],'headline':record['translation_text'],'arabic_text':record['arabic_text']}
+                result=assess_visual_fit(source,post_format='story_9_16')['families']
+                paper=next(r for r in result if r['family']=='minimal_paper')
+                self.assertTrue(paper['available']);self.assertGreaterEqual(paper['pages'],1)
+                if name=='hadith_bukhari_1':self.assertGreater(paper['pages'],1)
+            for source in (None,{}, {'headline':12}, {'headline':'x'*24001}, {'headline':'text','was_excerpted':True}):
+                with self.assertRaises(ValueError):assess_visual_fit(source)
+
     def test_nature_blocks_dense_source_before_provider_and_keeps_short_source_exact(self):
         renderer = load_real_service('image_renderer')
         record=json.loads((Path(__file__).resolve().parents[1]/'fixtures/hadith_bukhari_1.json').read_text())

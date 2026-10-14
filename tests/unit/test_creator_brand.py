@@ -40,6 +40,18 @@ class BrandRoutesTests(DatabaseCase):
         app.dependency_overrides[require_user]=lambda:User(id=1)
         app.dependency_overrides[get_current_user]=lambda:User(id=1)
         self.client=TestClient(app);self.addCleanup(self.client.close)
+    def test_fit_route_uses_workspace_brand_without_generation_or_writes(self):
+        from app.services import visual_service
+        with patch.object(visual_service,'assess_visual_fit',return_value={'families':[]}) as measure, patch.object(studio,'generate_visual') as generate:
+            response=self.client.post('/api/studio/visual-fit',json={'card_message':CARD})
+            self.assertEqual(response.status_code,200)
+            self.assertEqual(measure.call_args.kwargs['brand_kit'],workspace_brand(self.db,1))
+            self.assertEqual(self.db.query(Post).count(),0);generate.assert_not_called()
+        with patch.object(visual_service,'assess_visual_fit',side_effect=ValueError('Choose a source')):
+            self.assertEqual(self.client.post('/api/studio/visual-fit',json={}).status_code,422)
+        routes=[r for r in studio.router.routes if r.path=='/api/studio/visual-fit']
+        self.assertIn(require_user,[d.call for d in routes[0].dependant.dependencies])
+
     def test_visual_preferences_persist_without_changing_legacy_snapshots(self):
         self.assertEqual(normalize_brand({**BRAND, 'visual_identity':'  '}), BRAND)
         identity='Coastal scenes, muted blue, night lighting. No buildings.'

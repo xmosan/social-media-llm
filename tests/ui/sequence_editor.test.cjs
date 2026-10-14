@@ -12,7 +12,7 @@ function setup(fetch=async()=>({ok:true,json:async()=>({id:51})})) {
   const card={headline:'Exact source',arabic_text:'نص تجريبي',eyebrow:'Fixture reference'};
   const pages=[0,1,2].map(i=>({url:`https://cdn.test/${i}.jpg`,label:`Source part ${i+1}`}));
   const c={window:{selectedAyahMetadata:{id:1,reference:'Fixture reference'},switchStudioSection:p=>phase=p},document:{getElementById:el,querySelectorAll:()=>[],body:{appendChild(){}},createElement:()=>({click(){downloads.push(this.download)},remove(){}})},
-    studioCardMessage:card,studioVisualDesign:{family:'editorial',media_manifest:{format:'carousel_4_5',pages}},studioVisualController:null,
+    studioCardMessage:card,studioVisualDesign:{family:'editorial',media_manifest:{format:'carousel_4_5',pages}},studioVisualController:null,studioVisualEpoch:0,
     studioBackgroundToken:null,studioCaptionMessage:null,selectedAyahId:1,selectedHadithId:null,currentQuoteCardUrl:pages[0].url,isQuoteCardOutOfDate:false,
     URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},setTimeout:()=>{},crypto:require('node:crypto').webcrypto,AbortSignal,fetch,alert:m=>alerts.push(m),
     localStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k),removeItem:k=>storage.delete(k)}};
@@ -168,4 +168,12 @@ test('caption preferences survive device recovery and saved-post reopen independ
 test('legacy Pinterest action selects the in-editor destination without navigation',async()=>{
   const f=setup();let chosen;f.c.window.chooseStudioDestination=async name=>chosen=name;
   await f.c.window.preparePinterestDraft();assert.equal(chosen,'pinterest');
+});
+
+test('a late old preview cannot clear progress for a newer generation',()=>{
+ const f=setup();f.el('quoteCardPreview').complete=false;const states=[];
+ f.c.window.setStudioVisualState=state=>states.push(state);
+ f.c.window.showStudioPage(0);const oldLoad=f.el('quoteCardPreview').onload,oldError=f.el('quoteCardPreview').onerror;
+ f.c.studioVisualEpoch++;states.push('generating');oldLoad();oldError();
+ assert.equal(states.at(-1),'generating');assert.equal(f.el('sequenceReviewCheck').disabled,true);
 });

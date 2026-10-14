@@ -100,3 +100,20 @@ test('budget denial retains a valid previous image and its review actions withou
  await f.generate();assert.equal(calls,1);assert.equal(hidden,false);assert.equal(f.context.studioSequenceReviewed,true);
  assert.equal(f.el('quoteCardPreview').src,'saved-image');assert.match(f.el('visualQualityNote').textContent,/generation limit/);assert.equal(f.el('btnGenerateCard').disabled,false);
 });
+
+
+test('first-image rejection reports outside the preview and can retry',async()=>{
+ let fail=true;const states=[];
+ const f=setup(async()=>fail?{ok:false,json:async()=>({detail:'Quiet Nature needs more open space.'})}:response({image_url:'new-preview'}));
+ f.context.window.setStudioVisualState=(state,message)=>states.push({state,message});
+ await f.generate();assert.equal(f.context.currentQuoteCardUrl,null);
+ assert.equal(states.at(-1).state,'error');assert.match(states.at(-1).message,/Quiet Nature/);
+ assert.equal(f.el('btnGenerateCard').disabled,false);fail=false;await f.generate();assert.equal(f.context.currentQuoteCardUrl,'new-preview');
+ assert.ok(source.indexOf('id="studioVisualStatus"')<source.indexOf('<div class="cw-visual-grid"'));
+});
+test('failed fit never generates and a closed-session fit cannot start a late provider call',async()=>{
+ let calls=0;const f=setup(async()=>{calls++;return response({image_url:'unexpected'})});
+ f.context.window.checkStudioVisualFit=async()=>false;await f.generate();assert.equal(calls,0);assert.equal(f.el('btnGenerateCard').disabled,false);
+ let finish;f.context.window.checkStudioVisualFit=()=>new Promise(r=>finish=r);
+ const pending=f.generate();f.cancel();finish(true);await pending;assert.equal(calls,0);
+});

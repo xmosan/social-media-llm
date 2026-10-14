@@ -81,6 +81,38 @@ class VisualResult:
 # CORE SERVICE FUNCTIONS
 # ─────────────────────────────────────────────────────────────────────────────
 
+def assess_visual_fit(card_message, *, layout="bilingual", post_format="feed_4_5", brand_kit=None):
+    """Measure available styles without generating, uploading or approving media."""
+    from app.services.image_card import structured_card_segments
+    from app.services.card_typography import plan_sequence, layout_card
+    from app.services.brand_kit import normalize_brand
+    from app.services.quran_ornaments import card_ornaments
+    from app.services.vision_families import SCENE_FAMILIES
+    if not isinstance(card_message, dict) or not (card_message.get("headline") or card_message.get("arabic_text")):
+        raise ValueError("Choose a source before checking styles")
+    fields = ("eyebrow", "headline", "arabic_text", "supporting_text")
+    if any(not isinstance(card_message.get(key, ""), str) for key in fields):
+        raise ValueError("Source and reflection must be text")
+    if sum(len(card_message.get(key, "")) for key in fields) > 24000:
+        raise ValueError("This complete source exceeds the current sequence limit")
+    if card_message.get("was_excerpted"):
+        raise ValueError("Rebuild this legacy card from its full source before checking styles")
+    if layout not in {"bilingual", "english_first"} or post_format not in {"feed_4_5", "story_9_16"}:
+        raise ValueError("Choose a supported format and reading order")
+    brand = normalize_brand(brand_kit)
+    segments = structured_card_segments(card_message, ornaments=card_ornaments(card_message, brand))
+    result = []
+    for family in [*SCENE_FAMILIES, "editorial", "quiet_photography", "minimal_paper"]:
+        try:
+            pages = plan_sequence(segments, family=family, layout=layout, post_format=post_format, brand_kit=brand)
+            for page in pages:
+                layout_card(page["segments"], family=family, layout=layout, post_format=post_format, brand_kit=brand)
+            result.append({"family": family, "available": True, "pages": len(pages)})
+        except CardTypographyError as error:
+            result.append({"family": family, "available": False, "reason": str(error)})
+    return {"families": result}
+
+
 def generate_visual(request: VisualRequest) -> VisualResult:
     """
     Main entry point for visual generation.

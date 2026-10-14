@@ -104,12 +104,13 @@
     const guided = el('creatorGuided') && !el('creatorGuided').hidden;
     const visible=!modal.dataset.brandOnly && (n!==1 || !guided);
     if(bar.hidden===visible) bar.hidden=!visible;
-    let target=null, label='', disabled=opening || pin.busy();
+    let target=null, label='', disabled=opening || pin.busy() || state.busy;
     if(n===1) { target=el('btnBuildMessage'); label=target?.disabled ? 'Choose a source to continue' : 'Continue to design'; }
     if(n===2) {
       if(!state.payload.media_url || state.dirty) {target=el('btnGenerateCard'); label=state.payload.media_url ? 'Apply design changes' : 'Create my design';}
       else { target=el('cardActions')?.querySelector('button'); label='Continue to caption'; disabled ||= !el('sequenceReviewCheck').checked || el('sequenceReviewCheck').disabled; }
     }
+    if(n===2 && (!state.payload.media_url || state.dirty) && window.studioSelectedFit?.()?.available === false && !state.generating) { target=el('studioChooseFamily'); label='Choose a fitting style'; }
     if(n===4) {
       if(destination==='instagram') {
         target=el('studioAccount').value ? (el('studioShareNowBtn').hidden ? el('studioSubmitBtn') : el('studioShareNowBtn')) : el('studioSaveDraftButton');
@@ -124,7 +125,7 @@
     if(n===3) { label='Choose where to share'; action=()=>window.switchStudioSection(4); }
     else action=()=>target?.click();
     disabled ||= !!target?.disabled;
-    if(n===2 && target===el('btnGenerateCard') && target.disabled) label='Creating your design…';
+    if(n===2 && state.generating) label='Creating your design…';
     if(n===3 && el('creatorSuggestion')?.dataset.pending==='true') { disabled=true; label='Choose a caption version above'; }
     if(next.textContent!==label) next.textContent=label;
     if(next.disabled!==disabled) next.disabled=disabled;
@@ -160,5 +161,6 @@
       notice(params.get('result')==='connected' ? 'Pinterest connected. Check your saved design, then continue to Share to choose a board.' : 'Pinterest connection was not completed. Your saved design is kept.');
     })();
   }
+  window.refreshStudioFlow=refresh;
   refresh();
 })();
