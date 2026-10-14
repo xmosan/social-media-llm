@@ -25,7 +25,13 @@ def post_card(post):
         image = f'<img src="{escape(post.media_url)}" alt="" loading="lazy">'
     direct = post.status in {'draft', 'drafted', 'ready'} and bool(getattr(post, 'card_message', None)) and bool(pages)
     handler = f'resumeStudioPost({post.id})' if direct else f'openEditPostModal(...{arguments})'
+    pin_status = (flags.get("pinterest_publication") or {}).get("status")
+    if pin_status in {"published", "publishing", "unknown"}:
+        handler = f"window.location.href='/app/pinterest?post={post.id}'"
+        status = ("Pinterest sandbox test" if flags["pinterest_publication"].get("sandbox") else "Published to Pinterest") if pin_status == "published" else "Check Pinterest outcome"
     action = "Continue editing" if post.status in {"draft", "drafted", "ready"} else "View post"
+    if pin_status in {"published", "publishing", "unknown"}:
+        action = "View Pinterest result"
     page_label = f" · {len(pages)} {'page' if len(pages) == 1 else 'pages'}" if pages else ""
     return f'''<button type="button" class="cw-post" onclick="{handler}">
         <span class="cw-post-image">{image}</span><span class="cw-post-copy"><span class="cw-status">{status} · {format_label}{page_label}</span>
@@ -38,8 +44,8 @@ def render_creator_workspace(user, org, posts, account, view="home", accounts=()
     palette = PALETTES.get(brand.get("palette"), PALETTES["olive"])
     swatches = "".join(f'<i style="background:rgb{palette[key]}"></i>' for key in ("ink", "accent", "paper"))
     account_name = "@" + account.username if account and account.username else "No Instagram account connected"
-    draft_posts = [p for p in posts if p.status in {"draft", "drafted", "ready"}]
-    attention = [p for p in posts if p.status in {"failed", "needs_review", "publish_unknown", "publish_partial", "publishing"}]
+    draft_posts = [p for p in posts if p.status in {"draft", "drafted", "ready"} and (p.flags or {}).get("pinterest_publication", {}).get("status") not in {"published", "publishing", "unknown"}]
+    attention = [p for p in posts if p.status in {"failed", "needs_review", "publish_unknown", "publish_partial", "publishing"} or (p.flags or {}).get("pinterest_publication", {}).get("status") in {"publishing", "unknown"}]
     header = f'<header class="cw-heading"><p class="cw-eyebrow">Your creative space</p><h1>Make something meaningful.</h1><p>A source you trust. A post that feels like you.</p></header>'
     recovery = '''<div id="creatorRecovery" class="cw-recovery hidden"><div><strong>Pick up where you left off</strong><p id="creatorRecoverySummary">Unfinished work on this device</p></div><button type="button" onclick="resumeCreatorRecovery()">Continue →</button></div>'''
     if view == "posts":

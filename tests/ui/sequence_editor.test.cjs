@@ -6,18 +6,18 @@ const path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../../app/routes/ui_assets.py'),'utf8');
 const code=source.slice(source.indexOf('    // Sequence editor:'),source.indexOf('    // End sequence editor.'));
 function setup(fetch=async()=>({ok:true,json:async()=>({id:51})})) {
-  const nodes={}, storage=new Map(),alerts=[];let phase=0;
+  const nodes={}, storage=new Map(),alerts=[],downloads=[];let phase=0;
   const el=id=>nodes[id] ||= {value:'',complete:true,naturalWidth:1080,checked:false,disabled:false,style:{},dataset:{workspace:'1:2'},classList:{add(){},remove(){},toggle(){}}};
   el('studioAccount').value='7';el('studioStyle').value='editorial';el('studioFormat').value='feed_4_5';el('studioCaption').value='Social copy';
   const card={headline:'Exact source',arabic_text:'نص تجريبي',eyebrow:'Fixture reference'};
   const pages=[0,1,2].map(i=>({url:`https://cdn.test/${i}.jpg`,label:`Source part ${i+1}`}));
-  const c={window:{selectedAyahMetadata:{id:1,reference:'Fixture reference'},switchStudioSection:p=>phase=p},document:{getElementById:el,querySelectorAll:()=>[]},
+  const c={window:{selectedAyahMetadata:{id:1,reference:'Fixture reference'},switchStudioSection:p=>phase=p},document:{getElementById:el,querySelectorAll:()=>[],body:{appendChild(){}},createElement:()=>({click(){downloads.push(this.download)},remove(){}})},
     studioCardMessage:card,studioVisualDesign:{family:'editorial',media_manifest:{format:'carousel_4_5',pages}},studioVisualController:null,
     studioBackgroundToken:null,studioCaptionMessage:null,selectedAyahId:1,selectedHadithId:null,currentQuoteCardUrl:pages[0].url,isQuoteCardOutOfDate:false,
-    crypto:require('node:crypto').webcrypto,AbortSignal,fetch,alert:m=>alerts.push(m),
+    URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},setTimeout:()=>{},crypto:require('node:crypto').webcrypto,AbortSignal,fetch,alert:m=>alerts.push(m),
     localStorage:{setItem:(k,v)=>storage.set(k,v),getItem:k=>storage.get(k),removeItem:k=>storage.delete(k)}};
   vm.runInNewContext(code,c);vm.runInNewContext('studioDraftKey=crypto.randomUUID()',c);
-  return {c,el,alerts,storage,phase:()=>phase,run:s=>vm.runInNewContext(s,c)};
+  return {c,el,alerts,storage,downloads,phase:()=>phase,run:s=>vm.runInNewContext(s,c)};
 }
 test('every page must be visited and explicitly reviewed; preview keeps the correct aspect ratio',()=>{
   const f=setup();f.c.window.showStudioPage(0);f.c.window.confirmStudioSequence();assert.equal(f.phase(),0);
@@ -38,15 +38,16 @@ test('saving is idempotent across recovery and retains every page with separate 
   assert.equal(payloads[1].reviewed,false);
   assert.equal(JSON.parse([...f.storage.values()][0]).payload.post_id,51);
 });
-test('a finished design saves and exports without an Instagram account',async()=>{
-  const calls=[]; const f=setup(async(url,opts)=>{calls.push(JSON.parse(opts.body));return {ok:true,json:async()=>({id:52})};});
-  f.c.window.location={href:''};
-  f.el('studioAccount').value='';
-  await f.c.window.saveStudioDraft();
-  assert.equal(calls[0].ig_account_id,null);
-  await f.c.window.exportStudioSequence();
-  assert.equal(f.c.window.location.href,'/posts/52/export');
-  assert.equal(calls[1].post_id,52);
+test('a finished design downloads original files and source ZIP without Instagram or regeneration',async()=>{
+ const calls=[];const f=setup(async(url,opts)=>{calls.push({url,body:opts.body&&JSON.parse(opts.body)});return {ok:true,json:async()=>({id:52}),headers:{get:()=>url.endsWith('/export')?'application/zip':'image/jpeg'},blob:async()=>Buffer.from('original')};});
+ f.el('studioAccount').value='';await f.c.window.exportStudioSequence();await f.c.window.downloadStudioImage(2);
+ assert.equal(calls[0].body.ig_account_id,null);assert.equal(calls[1].url,'/posts/52/export');assert.equal(calls[3].url,'/posts/52/images/2/download');
+ assert.deepEqual(f.downloads,['sabeel-post-52.zip','sabeel-post-52-02.jpg']);assert.ok(calls.every(c=>!c.url.includes('generate')));
+});
+test('download failure stays in Studio, preserves recovery and permits a retry',async()=>{
+ let fail=true;const f=setup(async(url)=>url.includes('create-post')?{ok:true,json:async()=>({id:52})}:{ok:!fail,json:async()=>({detail:'Image unavailable'}),headers:{get:()=> 'image/jpeg'},blob:async()=>Buffer.from('original')});
+ await f.c.window.downloadStudioImage(1);assert.equal(f.el('studioSaveStatus').textContent,'Image unavailable');assert.equal(f.run('studioDownloadBusy'),false);assert.ok(f.storage.size);assert.equal(f.downloads.length,0);
+ fail=false;await f.c.window.downloadStudioImage(1);assert.equal(f.downloads.length,1);
 });
 test('duplicate saves cannot create two requests; failure preserves draft key and permits retry',async()=>{
   let finish,calls=0;const f=setup(()=>{calls++;return new Promise(r=>finish=r);});
@@ -92,10 +93,10 @@ test('storage failure is reported instead of claiming that early work is safe',(
  const f=setup();let success;f.c.window.creatorRecoveryStatus=ok=>success=ok;
  f.c.localStorage.setItem=()=>{throw Error('Quota');};assert.equal(f.c.window.rememberStudio(),false);assert.equal(success,false);
 });
-test('editing a caption clears prior publishing approval without invalidating the background',()=>{
- const f=setup();f.run('studioSequenceReviewed=true');f.el('sequenceReviewCheck').checked=true;
+test('caption edits invalidate final sharing approval while keeping the unchanged image reviewed',()=>{
+ const f=setup();let invalidated=0;f.c.window.invalidateStudioShareReview=()=>invalidated++;f.run('studioSequenceReviewed=true');f.el('sequenceReviewCheck').checked=true;
  f.el('studioCaption').value='My edited caption';f.c.window.captionChanged();
- assert.equal(f.run('studioSequenceReviewed'),false);assert.equal(f.el('sequenceReviewCheck').checked,false);assert.equal(f.c.isQuoteCardOutOfDate,false);
+ assert.equal(f.run('studioSequenceReviewed'),true);assert.equal(f.el('sequenceReviewCheck').checked,true);assert.equal(f.c.isQuoteCardOutOfDate,false);assert.equal(invalidated,1);
  assert.equal(JSON.parse([...f.storage.values()][0]).payload.caption_message.caption,'My edited caption');
 });
 test('starting another idea preserves the previous local draft and can recover it',async()=>{
@@ -164,13 +165,7 @@ test('caption preferences survive device recovery and saved-post reopen independ
  await f.c.window.resumeStudioPost(51);assert.equal(f.el('captionPurpose').value,'reflection');assert.equal(f.el('captionTone').value,'warm');assert.equal(f.el('studioCaption').value,'Saved');
 });
 
-test('Pinterest handoff saves a reviewed single card before navigation without publishing',async()=>{
-  let payload;const f=setup(async(url,opts)=>{payload=JSON.parse(opts.body);return {ok:true,json:async()=>({id:51})}});
-  f.c.window.location={};f.c.studioVisualDesign.media_manifest={format:'feed_4_5',pages:[{url:'https://cdn.test/card.jpg'}]};f.run('studioSequenceReviewed=true');
-  await f.c.window.preparePinterestDraft();assert.equal(f.c.window.location.href,'/app/pinterest?post=51');assert.equal(payload.status,'drafted');assert.equal(payload.reviewed,true);assert.equal(payload.card_message.headline,'Exact source');
-});
-test('Pinterest handoff never drops pages or bypasses visual review',async()=>{
-  let calls=0;const f=setup(async()=>{calls++;return {ok:true,json:async()=>({id:1})}});
-  await f.c.window.preparePinterestDraft();assert.equal(calls,0);assert.match(f.el('studioSaveStatus').textContent,/every page/);
-  f.c.studioVisualDesign.media_manifest={format:'feed_4_5',pages:[{url:'https://cdn.test/card.jpg'}]};await f.c.window.preparePinterestDraft();assert.equal(calls,0);assert.match(f.el('studioSaveStatus').textContent,/Review the complete/);
+test('legacy Pinterest action selects the in-editor destination without navigation',async()=>{
+  const f=setup();let chosen;f.c.window.chooseStudioDestination=async name=>chosen=name;
+  await f.c.window.preparePinterestDraft();assert.equal(chosen,'pinterest');
 });

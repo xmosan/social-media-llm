@@ -48,7 +48,7 @@
   // Choose a destination at Share; creating and saving need no social account.
   const accountField = byId("studioAccount").parentElement;
   accountField.querySelector("label").textContent = "Publish to Instagram";
-  byId("studioSection4").prepend(accountField);
+  byId("studioInstagramPanel").prepend(accountField);
   byId("studioAccount").addEventListener("change", () => window.prepareShare());
   byId("studioTopic").setAttribute("aria-label", "Search Qur’an or Hadith");
   byId("studioAccount").setAttribute(
@@ -235,6 +235,7 @@
     cancelDiscovery();
     suggestion = undo = null;
     byId("creatorSuggestion")?.remove();
+    byId("studioCaption").parentNode.hidden = false;
     restoreBrand();
     byId("creatorIdea").value = "";
     byId("creatorDiscoveryResults").replaceChildren();
@@ -265,7 +266,7 @@
   };
   window.closeNewPostModal = function () {
     if (reader.open) reader.close();
-    oldClose();
+    if (oldClose() === false) return;
     cancelDiscovery();
     isolatePage(false);
     previousFocus?.focus();
@@ -321,6 +322,31 @@
       byId("creatorDiscoveryResults").replaceChildren();
       window.rememberStudio();
     });
+  // Source discovery recovery: no invented text, automatic retries or unrelated replacements.
+  function showDiscoveryRecovery(type, terms = []) {
+    const results=byId("creatorDiscoveryResults"), panel=document.createElement("section");
+    panel.className="cw-search-recovery";
+    const title=document.createElement("h5");title.textContent="Let’s try another way";
+    const note=document.createElement("p");note.textContent="Your idea is kept. Browse a broader topic or search a reference; you will still choose and review the source.";
+    const label=document.createElement("label");label.textContent="One simple topic";
+    const input=document.createElement("input");input.type="text";input.maxLength=100;input.placeholder="For example: patience or fasting";
+    input.value=terms.find(term=>typeof term==='string' && /^[A-Za-z]{2,32}$/.test(term)) || '';
+    label.append(input);
+    const direct = query => {
+      const brief=window.readCreatorBrief();window.switchSourceTab(type);
+      window.restoreCreatorBrief({...brief,mode:'direct'});setEntry('direct');
+      byId('studioTopic').value=query;window.rememberStudio();
+      if(query) window.onSourceInput();
+    };
+    const browse=document.createElement("button");browse.type='button';browse.className='cw-primary';browse.textContent='Search the source library';
+    browse.onclick=()=>{if(input.value.trim().length<2){input.focus();return;}direct(input.value.trim());};
+    input.onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();browse.click();}};
+    const swap=document.createElement("button");swap.type='button';swap.className='cw-secondary';swap.textContent=type==='quran' ? 'Try Hadith for this idea' : 'Try Qur’an for this idea';
+    swap.onclick=()=>{byId('creatorSourceType').value=type==='quran' ? 'hadith' : 'quran';byId('creatorDiscover').click();};
+    const reference=document.createElement("button");reference.type='button';reference.className='cw-secondary';reference.textContent='Search an exact reference';reference.onclick=()=>direct('');
+    panel.append(title,note,label,browse,swap,reference);results.append(panel);
+  }
+  // End source discovery recovery.
   byId("creatorDiscover").onclick = async () => {
     if (discovery) return;
     const idea = byId("creatorIdea").value.trim(),
@@ -355,7 +381,8 @@
         throw Error(data.detail || "Source suggestions are unavailable.");
       status.textContent = data.sources?.length
         ? data.notice
-        : "No sources found in this search batch. Try a simpler idea or choose a source directly.";
+        : "No close match in this search. Your idea is still here.";
+      if(!data.sources?.length) showDiscoveryRecovery(type,data.terms || []);
       for (const source of data.sources || []) {
         const card = document.createElement("article");
         card.className = "cw-candidate";
@@ -405,11 +432,12 @@
         results.append(card);
       }
     } catch (e) {
-      if (epoch === discoveryEpoch)
-        status.textContent =
-          e.name === "AbortError"
-            ? "This took too long. Your idea is kept. Retry or choose a source."
-            : e.message;
+      if (epoch === discoveryEpoch) {
+        status.textContent = e.name === "AbortError"
+          ? "Suggestions took too long. Your idea is kept. You can search the library directly below."
+          : e.message;
+        showDiscoveryRecovery(type);
+      }
     } finally {
       clearTimeout(timer);
       if (epoch === discoveryEpoch) {
@@ -468,7 +496,9 @@
       byId("workspaceBrandSignature").textContent =
         kit.signature || "Add your signature";
   };
+  let savedStudioPayload = null;
   window.creatorCloudSaved = () => {
+    savedStudioPayload = JSON.stringify(window.studioShareSnapshot?.().payload);
     byId("creatorSaveState").textContent = "Saved to your workspace";
   };
   window.creatorSaveBusy = (busy) => {
@@ -478,9 +508,11 @@
   };
   window.creatorRecoveryStatus = (ok) => {
     byId("studioSaveStatus").textContent = "";
-    byId("creatorSaveState").textContent = ok
-      ? "Saved on this device · not yet synced"
-      : "Recovery could not be saved on this device. Keep this window open.";
+    const cloudSaved = savedStudioPayload && savedStudioPayload === JSON.stringify(window.studioShareSnapshot?.().payload);
+    const pinDirty = window.readStudioSharing?.().pin?.dirty;
+    byId("creatorSaveState").textContent = !ok
+      ? "Recovery could not be saved on this device. Keep this window open."
+      : cloudSaved && !pinDirty ? "Saved to your workspace" : "Changes kept on this device";
   };
   // Persist every editable field, including early ideas. Never write when Studio is closed.
   modal.addEventListener("input", (e) => {
@@ -496,6 +528,7 @@
   window.clearCreatorSuggestion = () => {
     suggestion = undo = null;
     byId("creatorSuggestion")?.remove();
+    byId("studioCaption").parentNode.hidden = false;
   };
   function suggestionTarget(kind) {
     return byId(kind === "caption" ? "studioCaption" : "editSupporting");
@@ -508,8 +541,10 @@
       source: JSON.stringify(window.studioSourceContext),
     };
     byId("creatorSuggestion")?.remove();
+    byId("studioCaption").parentNode.hidden = false;
     const panel = document.createElement("section");
     panel.id = "creatorSuggestion";
+    panel.dataset.pending = "true";
     panel.className = "cw-suggestion";
     panel.tabIndex = -1;
     const heading = document.createElement("h5");
@@ -526,7 +561,9 @@
       h.textContent = label;
       const content = document.createElement("pre");
       content.textContent = value;
-      panel.append(h, content);
+      if (label === "Your version") {
+        if (before) { const old = document.createElement("details"), summary = document.createElement("summary"); summary.textContent = "Compare with my current caption"; old.append(summary, content); panel.append(old); }
+      } else { panel.append(content); }
     }
     const actions = document.createElement("div");
     actions.className = "cw-guided-actions";
@@ -535,6 +572,7 @@
         "Keep mine",
         () => {
           panel.remove();
+          byId("studioCaption").parentNode.hidden = false;
           suggestion = null;
         },
       ],
@@ -555,6 +593,7 @@
       showTool("words");
       byId("editSupporting").parentNode.before(panel);
     }
+    if (kind === "caption") byId("studioCaption").parentNode.hidden = true;
     panel.focus();
   };
   function applySuggestion() {
@@ -570,6 +609,7 @@
       );
       return;
     }
+    target.parentNode.hidden = false;
     target.value = s.after;
     undo = s;
     suggestion = null;
@@ -577,6 +617,7 @@
     else window.updateStudioCardFromUI();
     window.rememberStudio();
     const p = byId("creatorSuggestion");
+    p.dataset.pending = "false";
     p.replaceChildren();
     const note = document.createElement("p");
     note.textContent = "Suggestion applied. Your source is unchanged.";

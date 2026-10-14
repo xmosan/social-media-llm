@@ -149,6 +149,24 @@ class SequenceLifecycleTests(DatabaseCase):
         self.assertEqual(self.db.get(Post,id).caption,'Edited social copy')
         with patch.object(media,'download_image',side_effect=ValueError('Unavailable')):
             self.assertEqual(self.client.get(f'/posts/{id}/export').status_code,422)
+    def test_image_download_preserves_original_bytes_and_checks_page_and_workspace(self):
+        id,payload=self.save(account=None)
+        original=b'\xff\xd8original-full-resolution-jpeg'
+        with patch.object(media,'download_image',return_value=original) as fetch:
+            response=self.client.get(f'/posts/{id}/images/2/download')
+            self.assertEqual(response.status_code,200);self.assertEqual(response.content,original)
+            self.assertEqual(response.headers['content-type'],'image/jpeg')
+            self.assertIn('-02.jpg',response.headers['content-disposition'])
+            fetch.assert_called_once_with(payload['visual_design']['media_manifest']['pages'][1]['url'])
+        with patch.object(media,'download_image') as fetch:
+            for page in (0,-1,3):self.assertEqual(self.client.get(f'/posts/{id}/images/{page}/download').status_code,422)
+            self.app.dependency_overrides[get_current_org_id]=lambda:2
+            self.assertEqual(self.client.get(f'/posts/{id}/images/1/download').status_code,404);fetch.assert_not_called()
+        self.app.dependency_overrides[get_current_org_id]=lambda:1
+        with patch.object(media,'download_image',side_effect=ValueError('Unavailable')):
+            self.assertEqual(self.client.get(f'/posts/{id}/images/1/download').status_code,422)
+        self.assertEqual(self.db.get(Post,id).status,'drafted')
+
     def test_manifest_tampering_wrong_owner_incomplete_source_and_stale_edits_fail(self):
         m=manifest();media.validate_manifest(m,CARD,1)
         for change in ('owner','page','text','omitted'):

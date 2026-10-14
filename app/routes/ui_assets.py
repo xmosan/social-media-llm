@@ -132,6 +132,7 @@ STUDIO_SCRIPTS_JS = r"""
     };
 
     window.switchStudioSection = function(stepIndex) {
+        if (window.beforeStudioStep && !window.beforeStudioStep(stepIndex)) return;
         if ((stepIndex === 2 || stepIndex === 3) && !studioCardMessage) {
             alert("Please build your card message first.");
             return;
@@ -143,10 +144,8 @@ STUDIO_SCRIPTS_JS = r"""
             return;
         }
         if (stepIndex === 4) {
-            const manualCaption = document.getElementById('studioCaption')?.value || "";
-            const story = (studioVisualDesign?.media_manifest?.format || '') === 'story_9_16';
-            if (!currentQuoteCardUrl || (!story && !manualCaption)) {
-                alert("Please ensure your visual and caption are ready before moving to Share.");
+            if (!currentQuoteCardUrl) {
+                alert("Create your design before moving to Share.");
                 return;
             }
         }
@@ -226,6 +225,7 @@ STUDIO_SCRIPTS_JS = r"""
         studioCardMessage = null;
         studioCaptionMessage = null;
         window.resetCreatorEntry?.();
+        window.resetStudioSharing?.();
         window.selectedAyahMetadata = null;
         window.selectedHadithMetadata = null;
         window.studioSourceContext = null;
@@ -253,6 +253,7 @@ STUDIO_SCRIPTS_JS = r"""
         // Clear scheduling fields
         setVal('scheduleDate', '');
         setVal('scheduleTime', '');
+        document.querySelectorAll('[name="shareTiming"]').forEach(input => { input.checked = input.value === 'now'; });
         
         hide('quranSearchResults');
         hide('selectedAyahBadge');
@@ -289,6 +290,7 @@ STUDIO_SCRIPTS_JS = r"""
     };
 
     window.closeNewPostModal = function() {
+        if (window.beforeStudioClose && !window.beforeStudioClose()) return false;
         window.rememberStudio();
         studioResumeEpoch++;
         const modal = document.getElementById('newPostModal');
@@ -608,6 +610,7 @@ STUDIO_SCRIPTS_JS = r"""
             return;
         }
 
+        if (btn.disabled) return;
         btn.disabled = true;
         if(icon) icon.classList.add('animate-spin');
         if(text) text.innerText = 'Preparing your source…';
@@ -692,7 +695,7 @@ STUDIO_SCRIPTS_JS = r"""
         studioSourceEpoch++;
         window.clearReflectionBusy?.();
         window.clearCreatorSuggestion?.();
-        const captionButton=document.getElementById('btnGenerateCaption'); if(captionButton) { captionButton.disabled=false; const label=captionButton.querySelector('.btn-text'); if(label)label.textContent='Generate Caption'; }
+        const captionButton=document.getElementById('btnGenerateCaption'); if(captionButton) { captionButton.disabled=false; const label=captionButton.querySelector('.btn-text'); if(label)label.textContent='Suggest a caption'; }
         const reflectionButton=document.getElementById('draftReflectionButton'); if(reflectionButton) {reflectionButton.disabled=false;reflectionButton.textContent='Draft a reflection';}
         document.getElementById('arabicExcerptControls')?.classList.add('hidden');
         document.getElementById('sourceTranslationNotesBlock')?.classList.add('hidden');
@@ -984,6 +987,7 @@ STUDIO_SCRIPTS_JS = r"""
     let studioPostId = null;
     let studioDraftKey = null;
     let studioSaveBusy = false;
+    let studioDownloadBusy = false;
     let studioPageIndex = 0;
     let studioViewedPages = new Set();
     let studioSequenceReviewed = false;
@@ -1028,6 +1032,7 @@ STUDIO_SCRIPTS_JS = r"""
             include_reflection:document.getElementById('includeStudioReflection')?.checked,
             schedule:{date:document.getElementById('scheduleDate')?.value,time:document.getElementById('scheduleTime')?.value},
             dirty: isQuoteCardOutOfDate, format: document.getElementById('studioFormat')?.value,
+            sharing:window.readStudioSharing?.(),
             layout: document.getElementById('studioLayout')?.value, direction: document.getElementById('studioCustomDirection')?.value}));
             window.creatorRecoveryStatus?.(true); return true;
         } catch (_) { window.creatorRecoveryStatus?.(false); return false; }
@@ -1100,7 +1105,7 @@ STUDIO_SCRIPTS_JS = r"""
         if (!document.getElementById('sequenceReviewCheck').checked) studioSequenceReviewed = false;
         window.rememberStudio();
     };
-    function restoreStudioPayload(data, {dirty=false, format, layout, direction, entry, source_tab, custom_prompt, tone, include_reflection, schedule}={}) {
+    function restoreStudioPayload(data, {dirty=false, format, layout, direction, entry, source_tab, custom_prompt, tone, include_reflection, schedule, sharing}={}) {
         if (source_tab && window.switchSourceTab) window.switchSourceTab(source_tab);
         studioPostId = data.post_id || null;
         studioDraftKey = data.draft_key || crypto.randomUUID();
@@ -1151,6 +1156,7 @@ STUDIO_SCRIPTS_JS = r"""
         document.getElementById('cardActions')?.classList.toggle('hidden', !currentQuoteCardUrl || dirty);
         document.getElementById('outOfSyncBanner')?.classList.toggle('hidden', !dirty);
         window.switchStudioSection(studioCardMessage ? 2 : 1);
+        window.restoreStudioSharing?.(sharing);
         window.creatorRecoveryStatus?.(true);
         document.getElementById('visualQualityNote').textContent = 'Draft restored. Review every page before sharing. Source and caption remain separate.';
     }
@@ -1164,6 +1170,7 @@ STUDIO_SCRIPTS_JS = r"""
                 const post = await res.json();
                 if (epoch !== studioResumeEpoch) return;
                 if (!res.ok) throw Error(post.detail || 'Saved draft unavailable');
+                if (['published','publishing','unknown'].includes(post.flags?.pinterest_publication?.status)) { window.location.href='/app/pinterest?post='+post.id; return; }
                 if (['published','publishing','publish_unknown','publish_partial'].includes(post.status)) throw Error('This post has published or pending frames. Open its publication recovery controls.');
             }
             // Preserve unsaved caption, source and layout edits on this device.
@@ -1178,6 +1185,7 @@ STUDIO_SCRIPTS_JS = r"""
             const post = await res.json();
             if (epoch !== studioResumeEpoch) return;
             if (!res.ok) throw Error(post.detail || 'Draft unavailable');
+            if (['published','publishing','unknown'].includes(post.flags?.pinterest_publication?.status)) { window.location.href='/app/pinterest?post='+post.id; return; }
             if (['published','publishing','publish_unknown','publish_partial'].includes(post.status)) throw Error('This post has published or pending frames. Use its publication recovery controls.');
             window.closeEditPostModal(); window.openNewPostModal();
             const meta = {...(post.source_metadata?.metadata || {}), ...(post.source_metadata || {})};
@@ -1223,31 +1231,40 @@ STUDIO_SCRIPTS_JS = r"""
         }
         try { await persistStudioDraft(); } catch(e) { document.getElementById('studioSaveStatus').textContent=e.message; }
     };
-    window.preparePinterestDraft = async function() {
-        if (studioSaveBusy) return;
-        const button = document.getElementById('studioPinterestButton');
-        button.disabled = true;
-        try {
-            if (sequencePages().length !== 1 || studioVisualDesign?.media_manifest?.format !== 'feed_4_5')
-                throw Error('Pinterest drafts currently support one complete 4:5 card. Keep every page of this sequence for export or Instagram.');
-            if (!studioSequenceReviewed) throw Error('Review the complete visual in the Visual step before preparing a Pin.');
-            const post = await persistStudioDraft();
-            if (post) window.location.href = `/app/pinterest?post=${post.id}`;
-        } catch(e) { document.getElementById('studioSaveStatus').textContent = e.message; }
-        finally { button.disabled = false; }
-    };
+    window.persistStudioDraft = persistStudioDraft;
+    window.studioShareSnapshot = () => ({postId:studioPostId, busy:studioSaveBusy || studioDownloadBusy, payload:studioPayload(), pages:sequencePages(), dirty:isQuoteCardOutOfDate, reviewed:studioSequenceReviewed});
+    window.preparePinterestDraft = () => window.chooseStudioDestination?.('pinterest');
     window.captionChanged = function() {
-        studioSequenceReviewed=false;
-        document.getElementById('sequenceReviewCheck').checked=false;
+        // A caption edit does not change the reviewed source image. Final sharing is explicit.
+        window.invalidateStudioShareReview?.();
         studioCaptionMessage={caption:document.getElementById('studioCaption')?.value || '',options:window.readCaptionOptions?.() || {purpose:'explanation',tone:'clear'}};
         window.rememberStudio();
     };
-    window.exportStudioSequence = async function() {
-        try { const post=await persistStudioDraft(); if(post) window.location.href=`/posts/${post.id}/export`; }
-        catch(e) { document.getElementById('studioSaveStatus').textContent=e.message; }
+    window.downloadStudioFile = async function(page=null) {
+        if(studioSaveBusy || studioDownloadBusy) return;
+        const button=document.getElementById('studioDownloadAll');
+        try {
+            const post=window.studioSharingSubmitted?.() ? {id:studioPostId} : await persistStudioDraft();
+            if(!post?.id) return;
+            studioDownloadBusy=true; if(button) button.disabled=true;
+            document.getElementById('studioSaveStatus').textContent='Preparing full-resolution download…';
+            const path=page===null ? `/posts/${post.id}/export` : `/posts/${post.id}/images/${page}/download`;
+            const response=await fetch(path,{signal:AbortSignal.timeout(90000)});
+            if(!response.ok) { const error=await response.json().catch(()=>({})); throw Error(error.detail || 'Download could not be prepared. Your saved images are safe; try again.'); }
+            const expected=page===null ? 'application/zip' : 'image/jpeg';
+            if(!response.headers.get('content-type')?.startsWith(expected)) throw Error('Download was not an image file. Sign in again if your session expired, then try again.');
+            const blob=await response.blob(), url=URL.createObjectURL(blob), link=document.createElement('a');
+            link.href=url; link.download=page===null ? `sabeel-post-${post.id}.zip` : `sabeel-post-${post.id}-${String(page).padStart(2,'0')}.jpg`;
+            document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+            document.getElementById('studioSaveStatus').textContent='Download ready. Check your browser’s downloads or Files. On a phone, open the image and choose Save Image to add it to Photos.';
+        } catch(e) { document.getElementById('studioSaveStatus').textContent=e.message; }
+        finally {studioDownloadBusy=false;if(button) button.disabled=false;}
     };
+    window.exportStudioSequence = () => window.downloadStudioFile();
+    window.downloadStudioImage = page => window.downloadStudioFile(page);
     window.shareStudioNow = async function() {
         if (studioSaveBusy) return;
+        if (window.validateStudioInstagramReview && !window.validateStudioInstagramReview()) return;
         const sessionEpoch=studioSessionEpoch;
         const button=document.getElementById('studioShareNowBtn'); button.disabled=true;
         try {
@@ -1525,7 +1542,7 @@ STUDIO_SCRIPTS_JS = r"""
         document.querySelectorAll('[name="shareTiming"]').forEach(input => {input.checked = input.value === (now ? 'now' : 'later');});
     };
     window.prepareShare = function() {
-        window.setStudioShareTiming('later');
+        window.setStudioShareTiming(document.querySelector('[name="shareTiming"]:checked')?.value || 'now');
         const pages = sequencePages();
         const story = studioVisualDesign?.media_manifest?.format === 'story_9_16';
         const note = document.getElementById('studioShareFormatNote');
@@ -1666,6 +1683,7 @@ STUDIO_SCRIPTS_JS = r"""
         // Phone keyboards submit forms from source/design inputs too. Only Share may schedule.
         if (document.getElementById('newPostModal')?.getAttribute('data-step') !== '4') return;
         if (document.getElementById('studioSubmitBtn').hidden || studioSaveBusy) return;
+        if (window.validateStudioInstagramReview && !window.validateStudioInstagramReview()) return;
         const btn = document.getElementById('studioSubmitBtn');
         const original = btn.innerHTML;
 
@@ -2964,7 +2982,7 @@ STUDIO_COMPONENTS_HTML = """
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
       </button>
 
-      <form id="composerForm" onsubmit="submitNewPost(event)" class="flex-1 overflow-hidden flex flex-col relative bg-white">
+      <div id="composerForm" class="flex-1 overflow-hidden flex flex-col relative bg-white">
         <input type="hidden" name="visual_mode" id="studioVisualMode" value="quote_card">
         <input type="hidden" name="visual_style" id="studioStyle" value="editorial">
         <input type="hidden" name="media_url" id="finalMediaUrl">
@@ -2976,7 +2994,7 @@ STUDIO_COMPONENTS_HTML = """
         <div class="flex-1 overflow-y-auto p-6 md:p-12 pb-32 custom-scrollbar">
           <div class="cw-save-row flex flex-wrap items-center gap-3 mb-6 text-sm">
               <button type="button" id="studioSaveDraftButton" onclick="saveStudioDraft()" title="Save without scheduling or publishing" class="px-4 py-2 border border-brand/20 rounded-xl">Save draft</button>
-              <details class="cw-draft-menu"><summary>More</summary><div><button type="button" onclick="exportStudioSequence()">Export images + source</button><p>Saving a draft never schedules or publishes it.</p></div></details>
+              <details class="cw-draft-menu" id="studioDownloads"><summary>↓ Download</summary><div><strong>Full-quality images</strong><p>Original resolution. No extra image generation. Download every page for a complete sequence.</p><div id="studioDownloadPages"></div><button id="studioDownloadAll" type="button" onclick="exportStudioSequence()">All images + source · ZIP</button><p id="studioDownloadHelp">Create a design to download your images.</p></div></details>
               <span id="creatorSaveState" role="status" aria-live="polite"></span><span id="studioSaveStatus" role="status" aria-live="polite" class="text-brand/70"></span>
           </div>
           <div id="studioSection1" class="studio-section space-y-10 animate-in slide-in-from-right-8 duration-500">
@@ -3092,7 +3110,7 @@ STUDIO_COMPONENTS_HTML = """
                 </div>
             </div>
           </div>
-          <div id="studioSection2" class="studio-section hidden space-y-10">
+          <div id="studioSection2" class="studio-section hidden space-y-10"><header class="cw-design-heading"><h4>Make it yours</h4><p>Choose a style, create your design, then check the full source.</p></header>
             <div id="cardMessageWorkspace" class="hidden animate-in fade-in slide-in-from-top-4 duration-500 space-y-6 bg-brand/[0.02] p-8 rounded-[2.5rem] border border-brand/5">
                 <div class="space-y-4">
                     <div class="space-y-2">
@@ -3312,7 +3330,7 @@ STUDIO_COMPONENTS_HTML = """
 
                   <!-- Continue -->
                   <div class="flex justify-end pt-2">
-                      <button type="button" onclick="switchStudioSection(4)" class="px-10 py-5 bg-brand text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-brand/15 hover:shadow-brand/25 hover:scale-[1.01] transition-all">Review sharing options &rarr;</button>
+                      <button type="button" id="studioCaptionContinue" onclick="switchStudioSection(4)" class="px-10 py-5 bg-brand text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-brand/15 hover:shadow-brand/25 hover:scale-[1.01] transition-all">Review sharing options &rarr;</button>
                   </div>
 
               </div>
@@ -3320,11 +3338,16 @@ STUDIO_COMPONENTS_HTML = """
           <div id="studioSection4" class="studio-section hidden space-y-10">
             <!-- Phase Header -->
             <div>
-              <h4 class="text-3xl font-bold text-brand">Ready to share?</h4>
-              <p class="text-sm text-text-muted mt-2">Check your account and choose when. Nothing is published until you confirm.</p>
+              <h4 id="studioShareTitle" class="text-3xl font-bold text-brand">Ready to share?</h4>
+              <p class="text-sm text-text-muted mt-2">Choose where this post goes. Nothing publishes until you confirm.</p>
             </div>
 
-            <details class="cw-panel"><summary>Prepare for Pinterest</summary><p class="text-sm text-text-muted">Save a separate Pin draft from this card. Connect your account and review the Pin before publishing.</p><button type="button" id="studioPinterestButton" onclick="preparePinterestDraft()" class="cw-secondary">Save & prepare Pin</button></details>
+            <fieldset class="cw-destinations"><legend>Share to</legend>
+              <label><input type="radio" name="studioDestination" value="instagram" checked onchange="chooseStudioDestination('instagram')"> <img class="cw-platform-icon" src="/static/icons/instagram.svg" alt="" width="22" height="22" aria-hidden="true"> Instagram</label>
+              <label><input type="radio" name="studioDestination" value="pinterest" onchange="chooseStudioDestination('pinterest')"> <img class="cw-platform-icon" src="/static/icons/pinterest.svg" alt="" width="22" height="22" aria-hidden="true"> Pinterest</label>
+            </fieldset>
+            <div id="studioPinterestPanel" class="pin-editor" hidden><p id="studioPinterestStatus" role="status"></p><button type="button" id="studioPinterestRetry" hidden class="cw-secondary" onclick="chooseStudioDestination('pinterest')">Try again</button><div id="studioPinterestEditor" hidden><!-- PINTEREST_EDITOR --></div></div>
+            <div id="studioInstagramPanel">
             <div class="cw-share-grid grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
               <!-- Full preview remains available without pushing phone actions below it. -->
               <details class="cw-share-preview space-y-5"><summary>Review image & caption</summary>
@@ -3376,8 +3399,8 @@ STUDIO_COMPONENTS_HTML = """
                 </div>
 
                 <fieldset id="studioShareTimingChoice" class="cw-share-choice"><legend>When would you like to share?</legend>
-                  <label><input type="radio" name="shareTiming" value="later" checked onchange="setStudioShareTiming('later')"> Schedule later</label>
-                  <label><input type="radio" name="shareTiming" value="now" onchange="setStudioShareTiming('now')"> Publish now</label>
+                  <label><input type="radio" name="shareTiming" value="later" onchange="setStudioShareTiming('later')"> Schedule later</label>
+                  <label><input type="radio" name="shareTiming" value="now" checked onchange="setStudioShareTiming('now')"> Publish now</label>
                 </fieldset>
                 <div id="studioScheduleFields" class="space-y-4">
 
@@ -3410,20 +3433,22 @@ STUDIO_COMPONENTS_HTML = """
 
                 </div>
                 <!-- CTA -->
+                <label class="cw-final-review"><input id="studioInstagramReviewed" type="checkbox"> I checked the caption and Instagram account.</label>
                 <p id="studioShareFormatNote" class="text-sm text-brand/70">The whole reviewed sequence will be shared in order. Stories are separate posts; interrupted sequences can be checked and resumed from the saved post.</p>
                 <button type="button" id="studioShareNowBtn" hidden onclick="shareStudioNow()" class="w-full py-4 border border-brand/20 text-brand rounded-2xl font-bold">Publish now to Instagram</button>
-                <button type="submit" id="studioSubmitBtn"
+                <button type="submit" id="studioSubmitBtn" onclick="submitNewPost(event)"
                   class="w-full py-6 bg-brand text-white rounded-3xl font-black text-[12px] uppercase tracking-[0.3em] shadow-2xl shadow-brand/20 hover:bg-brand-hover hover:scale-[1.005] transition-all flex items-center justify-center gap-3">
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/></svg>
-                  Schedule Reminder
+                  Schedule Instagram post
                 </button>
 
-                <button type="button" onclick="saveStudioDraft()" class="cw-secondary w-full">Keep as a draft instead</button>
               </div>
+            </div>
             </div>
           </div>
         </div>
-      </form>
+        <div id="studioStepBar" class="cw-step-bar" hidden><button type="button" id="studioStepBack" class="cw-secondary">Back</button><button type="button" id="studioStepNext" class="cw-primary">Continue</button></div>
+      </div>
     </div>
 </div>
 
@@ -3715,7 +3740,7 @@ APP_LAYOUT_HTML = """<!doctype html>
     .text-brand {{ color: var(--brand) !important; }}
     .border-brand {{ border-color: var(--brand) !important; }}
   </style>
-<link rel="stylesheet" href="/static/creator-workspace.css?v=5">
+<link rel="stylesheet" href="/static/creator-workspace.css?v=flow-5"><link rel="stylesheet" href="/static/studio-flow.css?v=1">
 </head>
 <body class="min-h-screen">
 <header class="cw-topbar"><a class="cw-wordmark" href="/app">sabeel<span> studio</span></a><a href="/app?view=you" aria-label="Your workspace">Your space ↗</a></header>
@@ -3814,3 +3839,7 @@ STUDIO_COMPONENTS_HTML = STUDIO_COMPONENTS_HTML.replace("<!-- VISION_BRAND_OPTIO
     "<!-- VISION_FAMILY_OPTIONS -->", "".join(
         f'<option value="{key}">{_escape(spec["label"])}</option>'
         for key, spec in _VISION_FAMILIES.items()))
+
+from pathlib import Path as _Path
+STUDIO_COMPONENTS_HTML = STUDIO_COMPONENTS_HTML.replace("<!-- PINTEREST_EDITOR -->", (_Path(__file__).resolve().parents[1] / "templates/pinterest-editor.html").read_text())
+STUDIO_SCRIPTS_JS += '<script src="/static/pinterest-creator.js?v=3"></script>'

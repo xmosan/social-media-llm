@@ -109,6 +109,15 @@ class CreatorDiscoveryTests(unittest.TestCase):
         output=render_creator_workspace(None,SimpleNamespace(brand_kit={},name='<Workspace>'),[post],None,'you')
         self.assertIn('&lt;Workspace&gt;',output);self.assertIn('No Instagram account connected',output)
 
+    def test_pinterest_results_are_not_editable_drafts_and_uncertain_results_need_attention(self):
+        post=SimpleNamespace(id=4,flags={'media_manifest':{'pages':[{}]},'pinterest_publication':{'status':'unknown'}},source_reference="Qur'an 94:6",topic='',status='drafted',post_format='feed_4_5',card_message={},caption='',scheduled_time=None,media_url='')
+        card=post_card(post)
+        self.assertIn('View Pinterest result',card);self.assertNotIn('Continue editing',card)
+        output=render_creator_workspace(None,SimpleNamespace(brand_kit={},name='Workspace'),[post],None)
+        self.assertIn('Needs your attention',output);self.assertEqual(output.count('Check Pinterest outcome'),1)
+        post.flags['pinterest_publication']={'status':'published','sandbox':True}
+        self.assertIn('Pinterest sandbox test',post_card(post));self.assertNotIn('Published to Pinterest',post_card(post))
+
 from test_security import DatabaseCase
 from app.models import Org, User, OrgMember, IGAccount, Post
 from app.routes import app_pages

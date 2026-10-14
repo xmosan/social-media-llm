@@ -3,9 +3,9 @@ process.env.TZ='America/Detroit';
 const source=fs.readFileSync(path.join(__dirname,'../../app/routes/ui_assets.py'),'utf8');
 const workspace=fs.readFileSync(path.join(__dirname,'../../app/static/creator-workspace.js'),'utf8');
 const section=(start,end)=>source.slice(source.indexOf(start),source.indexOf(end,source.indexOf(start)));
-const node=()=>({getAttribute:()=> '4',value:'',textContent:'',innerText:'',innerHTML:'',hidden:false,style:{},classList:{add(){},remove(){},toggle(){}}});
-function context(){const nodes={};const el=id=>nodes[id]||=(node());const radios=[{value:'later'},{value:'now'}];return {el,radios,c:{window:{},document:{getElementById:el,querySelectorAll:()=>radios},Date,Intl,AbortSignal,studioSessionEpoch:1,studioSaveBusy:false,currentQuoteCardUrl:null,studioVisualDesign:null,sequencePages:()=>[]}};}
-test('timing selection exposes one explicit action; returning to share defaults safely to later',()=>{
+const node=()=>({parentNode:{},dataset:{},getAttribute:()=> '4',value:'',textContent:'',innerText:'',innerHTML:'',hidden:false,style:{},classList:{add(){},remove(){},toggle(){}}});
+function context(){const nodes={};const el=id=>nodes[id]||=(node());const radios=[{value:'later'},{value:'now'}];return {el,radios,c:{window:{},document:{getElementById:el,querySelectorAll:()=>radios,querySelector:()=>radios.find(r=>r.checked)},Date,Intl,AbortSignal,studioSessionEpoch:1,studioSaveBusy:false,currentQuoteCardUrl:null,studioVisualDesign:null,sequencePages:()=>[]}};}
+test('timing selection exposes one explicit action; returning to Share keeps the chosen timing',()=>{
  const f=context();vm.runInNewContext(section('    window.setStudioShareTiming =','    window.prepareShare ='),f.c);
  f.el('studioAccount').value='7';
  f.c.window.setStudioShareTiming('now');assert.equal(f.el('studioSubmitBtn').hidden,true);assert.equal(f.el('studioScheduleFields').hidden,true);assert.equal(f.el('studioShareNowBtn').hidden,false);assert.equal(f.radios[1].checked,true);

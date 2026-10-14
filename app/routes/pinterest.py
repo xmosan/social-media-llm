@@ -36,7 +36,9 @@ def api_client():
         if api:api.close()
 
 
-def redirect(result, *, creator=False):
+def redirect(result, *, creator=False, studio_post=None):
+    if creator and type(studio_post) is int and studio_post > 0:
+        return RedirectResponse(f"/app?studio_post={studio_post}&destination=pinterest&result={result}", status_code=303, headers=OWNER_HEADERS)
     return RedirectResponse(('/app/pinterest' if creator else HOME)+'?result='+result,status_code=303,headers=OWNER_HEADERS)
 
 
@@ -74,8 +76,9 @@ def callback(request:Request,code:str|None=None,state:str|None=None,db:Session=D
     else:
         require_superadmin(user, request)
     attempt=connection.claim(db,request,user.id,org_id,state)
+    studio_post = request.session.pop('pinterest_studio_post', None)
     if request.query_params.get('error') or not code:
-        connection.abandon(db,request,attempt);return redirect('cancelled', creator=creator)
+        connection.abandon(db,request,attempt);return redirect('cancelled', creator=creator, studio_post=studio_post)
     try:
         with api_client() as api:
             tokens=api.exchange_code(code);identity=api.account(tokens['access_token'])
@@ -85,8 +88,8 @@ def callback(request:Request,code:str|None=None,state:str|None=None,db:Session=D
     except Exception:
         db.rollback();connection.abandon(db,request,attempt)
         log_event('pinterest_connection_failed',level='warning')
-        return redirect('unavailable', creator=creator)
-    return redirect('connected', creator=creator)
+        return redirect('unavailable', creator=creator, studio_post=studio_post)
+    return redirect('connected', creator=creator, studio_post=studio_post)
 
 
 @router.get('/api/pinterest/boards')

@@ -95,12 +95,16 @@ def status(db: Session = Depends(get_db), org_id: int = Depends(get_current_org_
 
 
 @router.post('/api/creator/pinterest/connect', dependencies=[Depends(connection.require_creator_enabled)])
-def connect(request: Request, db: Session = Depends(get_db), user: User = Depends(require_user),
+def connect(request: Request, studio_post: int | None = Query(default=None, gt=0), db: Session = Depends(get_db), user: User = Depends(require_user),
             org_id: int = Depends(get_current_org_id)):
     require_same_origin(request)
     check_auth_attempt(str(user.id))
+    if studio_post is not None:
+        publishing.get_post(db, studio_post, org_id)
     with api_client() as api:
         state = connection.begin(db, request, user.id, org_id, creator=True)
+        if studio_post is not None:
+            request.session['pinterest_studio_post'] = studio_post
         from fastapi.responses import RedirectResponse
         return RedirectResponse(api.authorization_url(state), status_code=303, headers=OWNER_HEADERS)
 

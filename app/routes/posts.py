@@ -769,3 +769,19 @@ def export_saved_post(post_id: int, db: Session = Depends(get_db), org_id: int =
         raise HTTPException(status_code=422, detail=str(error)) from None
     return StreamingResponse(archive, media_type="application/zip", headers={
         "Content-Disposition": f'attachment; filename="sabeel-post-{post_id}.zip"', "Cache-Control": "no-store"})
+
+
+@router.get("/{post_id}/images/{page_number}/download")
+def download_saved_image(post_id: int, page_number: int, db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
+    from fastapi.responses import Response
+    from app.services.media_sequence import export_image
+    post = db.query(Post).filter(Post.id == post_id, Post.org_id == org_id).first()
+    if post is None:
+        raise HTTPException(status_code=404, detail="Post not found")
+    try:
+        data = export_image(post, page_number)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from None
+    return Response(data, media_type="image/jpeg", headers={
+        "Content-Disposition": f'attachment; filename="sabeel-post-{post_id}-{page_number:02d}.jpg"',
+        "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})

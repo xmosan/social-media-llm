@@ -1,0 +1,84 @@
+/* Isolated Pin component styles: no global resets inside Studio. */
+#newPostModal .pin-editor {font-size:15px;line-height:1.55;color:#153c31;max-width:680px;margin:auto}
+#newPostModal .pin-editor p {margin:12px 0;overflow-wrap:anywhere}
+#newPostModal .pin-editor .hint {font-size:13px;color:#52685d}
+#newPostModal .pin-editor .availability {padding:16px;background:#f1f5eb;border:1px solid #d4decf;border-radius:16px;margin:16px 0}
+#newPostModal .pin-editor .availability button {width:100%}
+#newPostModal .pin-editor label {display:block;margin:18px 0 7px;font-weight:600}
+#newPostModal .pin-editor input,#newPostModal .pin-editor textarea,#newPostModal .pin-editor select {width:100%;padding:12px;border:1px solid #bdccbf;border-radius:12px;background:white;min-height:48px;color:inherit}
+#newPostModal .pin-editor small {font-size:12px;font-weight:400;color:#607268;margin-left:6px}
+#newPostModal .pin-editor .primary,#newPostModal .pin-editor .secondary {display:inline-flex;align-items:center;justify-content:center;padding:12px 18px;border-radius:14px;background:#173e32;color:white;font-weight:600;min-height:48px}
+#newPostModal .pin-editor .secondary {background:#edf1e7;color:#173e32}
+#newPostModal .pin-editor .text-button {color:#245849;text-decoration:underline;text-underline-offset:4px;padding:8px 4px}
+#newPostModal .pin-editor button:disabled {opacity:.5;cursor:not-allowed}
+#newPostModal .pin-editor .tabs {display:flex;gap:5px;border-radius:14px;padding:4px;background:#eef2e9;margin:20px 0}
+#newPostModal .pin-editor .tabs button {flex:1;border-radius:10px}
+#newPostModal .pin-editor [aria-selected=true] {background:white;box-shadow:0 2px 6px #163c3015;font-weight:650}
+#newPostModal .pin-editor .pin-preview {max-width:390px;margin:auto;border:1px solid #d8e1d3;border-radius:16px;overflow:hidden}
+#newPostModal .pin-editor .pin-preview img {width:100%;aspect-ratio:4/5;object-fit:contain}
+#newPostModal .pin-editor .pin-preview>div {padding:14px}
+#newPostModal .pin-editor .pin-preview p,#newPostModal .pin-editor .source p {white-space:pre-wrap}
+#newPostModal .pin-editor h2 {font-size:22px;font-weight:600;overflow-wrap:anywhere}
+#newPostModal .pin-editor .source {padding:12px 0;border-bottom:1px solid #d8e1d3}
+#newPostModal .pin-editor [lang=ar] {font-size:24px;line-height:1.9}
+#newPostModal .pin-editor .publish-panel {padding:18px 0}
+#newPostModal .pin-editor .publish-panel .primary {width:100%;margin:12px 0}
+#newPostModal .pin-editor .review-check,#newPostModal .cw-final-review {display:flex;gap:12px;align-items:flex-start;font-size:14px;line-height:1.5}
+#newPostModal .pin-editor .review-check input,#newPostModal .cw-final-review input {width:22px;min-height:22px;flex-shrink:0;margin-top:3px}
+#newPostModal .pin-editor .save-bar {display:flex;align-items:center;justify-content:space-between;gap:16px;margin:20px 0;border-top:1px solid #d8e1d3;padding-top:14px}
+#newPostModal .pin-editor .save-bar p {font-size:13px}
+#newPostModal .pin-editor .notice {padding:14px;background:#f7f0e1;border-radius:12px}
+#newPostModal .cw-destinations {display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:22px}
+#newPostModal .cw-destinations legend {font-weight:650;margin-bottom:10px}
+#newPostModal .cw-destinations label {display:flex;align-items:center;gap:10px;min-height:52px;padding:12px;border:1px solid #bdccbf;border-radius:14px;font-size:15px}
+#newPostModal .cw-destinations label:has(:checked) {background:#e9f0e2;border-color:#65826b}
+#newPostModal .cw-destinations input {width:18px;height:18px;accent-color:#173e32}
+#newPostModal #studioInstagramPanel {margin-top:20px}
+#newPostModal .cw-mirrored-action {display:none!important}
+#newPostModal .cw-step-bar {display:flex;gap:12px;padding:12px 20px max(12px,env(safe-area-inset-bottom));border-top:1px solid #dbe3d7;background:#fff;flex-shrink:0;z-index:5}
+#newPostModal .cw-step-bar .cw-primary {flex:1;font-size:15px}
+#newPostModal[data-has-visual=false] .cw-preview-column {display:none}
+#newPostModal[data-has-visual=false] .cw-visual-grid {grid-template-columns:1fr}
+#newPostModal #composerForm > .cw-step-bar {padding:12px 18px max(12px,env(safe-area-inset-bottom))!important}
+#newPostModal .cw-suggestion details pre {max-height:220px;overflow:auto}
+#newPostModal #studioSection3 .cw-suggestion {margin-top:16px}
+#newPostModal #studioSection3 #studioCaptionContinue {width:100%}
+#newPostModal #creatorPinImageStatus:empty {display:none}
+@media(max-width:767px) {#newPostModal .cw-destinations {gap:8px} #newPostModal .cw-destinations label {padding:10px} #newPostModal .pin-editor small {display:block;margin:2px 0}}
+#newPostModal .cw-design-heading h4 {font-size:26px;font-weight:650;line-height:1.2}
+#newPostModal .cw-design-heading p {font-size:14px;line-height:1.5;color:#586f60;margin:8px 0 18px}
+#newPostModal .cw-share-panel > div:has(#manifestAccount) {padding:0;background:transparent;border:0;box-shadow:none}
+#newPostModal #manifestAccountIcon,#newPostModal #manifestAccount,#newPostModal #manifestAccountStatus~* {display:none}
+#newPostModal .cw-share-panel div:has(> #manifestAccountStatus) > div:first-child {display:none}
+#newPostModal #shareSourceBadge {display:none!important}
+#newPostModal .cw-share-panel {border:0;padding:0;box-shadow:none;border-radius:0}
+#newPostModal .cw-share-choice {display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#newPostModal .cw-share-choice label {margin:0;padding:10px;font-size:14px}
+#newPostModal .cw-share-choice legend {padding-top:8px}
+#newPostModal .cw-share-panel .cw-final-review {margin-top:18px}
+#newPostModal #studioInstagramPanel > .space-y-3 {margin-bottom:14px}
+#newPostModal .pin-editor .save-bar button {display:none}
+
+@media(max-width:767px) {#newPostModal .cw-share-preview {order:0} #newPostModal .cw-share-panel {order:1}}
+
+#newPostModal .cw-platform-icon {width:22px;height:22px;flex:none;object-fit:contain}
+#newPostModal .cw-destinations label {gap:8px}
+@media(max-width:350px) {#newPostModal .cw-destinations label {font-size:14px;padding:10px 8px;gap:6px} #newPostModal .cw-platform-icon {width:20px;height:20px}}
+
+#newPostModal .pin-editor .availability {padding:12px 16px}
+#newPostModal .pin-editor .availability > p:first-child {margin:0 0 4px}
+#newPostModal .pin-editor .availability > p.hint {display:none}
+#newPostModal .pin-editor .availability summary {min-height:44px;padding:10px 0}
+#newPostModal .pin-editor .availability > p:empty {display:none}
+
+#newPostModal #studioDownloads > div {max-height:min(65dvh,480px);overflow:auto;width:min(300px,calc(100vw - 40px))}
+#newPostModal #studioDownloadPages button {display:block;width:100%;text-align:left;min-height:44px;border-bottom:1px solid #e0e6dc}
+#newPostModal #studioDownloadAll {min-height:48px}
+
+#newPostModal .cw-search-recovery {padding:18px;background:#f2f5ec;border:1px solid #dbe4d4;border-radius:16px;display:grid;gap:12px}
+#newPostModal .cw-search-recovery h5 {font-size:19px;font-weight:650}
+#newPostModal .cw-search-recovery p {font-size:14px;line-height:1.5}
+#newPostModal .cw-search-recovery label {font-size:14px;display:grid;gap:6px}
+#newPostModal .cw-search-recovery input {font-size:16px;min-height:48px;padding:10px;border:1px solid #bdccbf;border-radius:10px;width:100%}
+
+#newPostModal .pin-download-links {display:none}
