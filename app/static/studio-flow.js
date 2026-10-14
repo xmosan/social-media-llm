@@ -107,7 +107,7 @@
     let target=null, label='', disabled=opening || pin.busy() || state.busy;
     if(n===1) { target=el('btnBuildMessage'); label=target?.disabled ? 'Choose a source to continue' : 'Continue to design'; }
     if(n===2) {
-      if(!state.payload.media_url || state.dirty) {target=el('btnGenerateCard'); label=state.payload.media_url ? 'Apply design changes' : 'Create my design';}
+      if(!state.payload.media_url || state.dirty) {target=el('btnGenerateCard'); label=modal.dataset.editPreview==='true' ? 'Finish design' : state.payload.media_url ? 'Apply design changes' : 'Create my design';}
       else { target=el('cardActions')?.querySelector('button'); label='Continue to caption'; disabled ||= !el('sequenceReviewCheck').checked || el('sequenceReviewCheck').disabled; }
     }
     if(n===2 && (!state.payload.media_url || state.dirty) && window.studioSelectedFit?.()?.available === false && !state.generating) { target=el('studioChooseFamily'); label='Choose a fitting style'; }

@@ -206,6 +206,7 @@ STUDIO_SCRIPTS_JS = r"""
     }
 
     window.resetStudioSession = function() {
+        window.clearStudioEditPreview?.();
         invalidateHadithSearch();
         window.resetStudioSourceOutput();
         studioVisualDesign = null;
@@ -696,6 +697,7 @@ STUDIO_SCRIPTS_JS = r"""
     let studioSourceEpoch = 0;
 
     window.resetStudioSourceOutput = function() {
+        window.clearStudioEditPreview?.();
         const styling=document.getElementById('quranStyling'); if(styling) {styling.hidden=true;styling.open=false;}
         studioSourceEpoch++;
         window.clearReflectionBusy?.();
@@ -764,6 +766,7 @@ STUDIO_SCRIPTS_JS = r"""
         const preview = document.getElementById('quoteCardPreview');
         const note = document.getElementById('visualQualityNote');
         try { window.requireStudioBrand?.(); } catch(e) { if(note) note.textContent=e.message; window.setStudioVisualState?.('error',e.message); return; }
+        window.clearStudioEditPreview?.();
         const controller = new AbortController();
         studioVisualController = controller;
         const epoch = ++studioVisualEpoch;
@@ -1248,6 +1251,12 @@ STUDIO_SCRIPTS_JS = r"""
         try { await persistStudioDraft(); } catch(e) { document.getElementById('studioSaveStatus').textContent=e.message; }
     };
     window.persistStudioDraft = persistStudioDraft;
+    window.studioPreviewRequest = () => ({card_message:studioCardMessage,
+        source_type:window.selectedHadithMetadata?'hadith':window.selectedAyahMetadata?'quran':'manual',
+        source_metadata:window.selectedHadithMetadata || window.selectedAyahMetadata || null,
+        brand_kit:window.studioBrandSnapshot(), style:document.getElementById('studioStyle').value,
+        layout:document.getElementById('studioLayout').value, post_format:document.getElementById('studioFormat').value,
+        visual_prompt:document.getElementById('studioCustomDirection').value, background_token:studioBackgroundToken});
     window.studioShareSnapshot = () => ({postId:studioPostId, busy:studioSaveBusy || studioDownloadBusy || !!studioVisualController, generating:!!studioVisualController, payload:studioPayload(), pages:sequencePages(), dirty:isQuoteCardOutOfDate, reviewed:studioSequenceReviewed});
     window.preparePinterestDraft = () => window.chooseStudioDestination?.('pinterest');
     window.captionChanged = function() {
@@ -1464,6 +1473,7 @@ STUDIO_SCRIPTS_JS = r"""
         }
         window.rememberStudio();
         window.updateStudioVisualAction?.();
+        window.queueStudioEditPreview?.();
     };
 
     window.setStudioIntent = function(intent, el) {
@@ -3760,10 +3770,11 @@ APP_LAYOUT_HTML = """<!doctype html>
     .text-brand {{ color: var(--brand) !important; }}
     .border-brand {{ border-color: var(--brand) !important; }}
   </style>
-<link rel="stylesheet" href="/static/creator-workspace.css?v=visual-6"><link rel="stylesheet" href="/static/studio-flow.css?v=visual-2">
+<link rel="stylesheet" href="/static/creator-workspace.css?v=live-1"><link rel="stylesheet" href="/static/studio-flow.css?v=live-1">
+<link rel="stylesheet" href="/static/studio-design.css?v=1"><link rel="stylesheet" href="/static/workspace-refresh.css?v=1">
 </head>
 <body class="min-h-screen">
-<header class="cw-topbar"><a class="cw-wordmark" href="/app">sabeel<span> studio</span></a><a href="/app?view=you" aria-label="Your workspace">Your space ↗</a></header>
+<header class="cw-topbar"><a class="cw-wordmark" href="/app">sabeel<span> studio</span></a><a class="cw-profile-link" href="/app?view=you" aria-label="Your workspace"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 22v-2a8 8 0 0 1 16 0v2"/></svg></a></header>
   <nav class="border-b border-brand/5 bg-white/80 backdrop-blur-md sticky top-0 z-50 hidden md:block">
     <div class="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
       <div class="flex items-center gap-8">

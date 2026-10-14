@@ -291,7 +291,7 @@
     brandHolder.hidden = false;
     brandHolder.append(brand);
     brand.open = true;
-    brand.querySelector("select").focus();
+    (brand.querySelector('.sd-choices button[aria-pressed="true"]') || brand.querySelector("select")).focus();
   };
   window.resumeCreatorRecovery = async (key = null) => {
     window.openNewPostModal();
@@ -485,6 +485,7 @@
           list.append(button);
         }
         banner.after(list);
+        window.organizeWorkspaceRecovery?.();
       }
     } catch (_) {}
   }
