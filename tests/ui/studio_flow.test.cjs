@@ -63,3 +63,11 @@ test('footer refresh is idempotent for attributes observed by MutationObserver',
  }
  f.refresh();f.refresh();assert.equal(mutations,0);
 });
+
+test('saving after a Story format change saves Studio, not stale Pinterest copy',async()=>{
+ const f=setup();await f.c.window.chooseStudioDestination('pinterest');f.state.payload.post_format='story_9_16';
+ await f.c.window.chooseStudioDestination('pinterest');await f.c.window.saveStudioDraft();
+ assert.ok(f.calls.includes('saveStudio'));assert.ok(!f.calls.includes('savePin'));
+ f.el('studioPinterestEditor').hidden=false;f.el('newPostModal').dataset.step='3';await f.c.window.saveStudioDraft();
+ assert.equal(f.calls.filter(c=>c==='saveStudio').length,2);
+});

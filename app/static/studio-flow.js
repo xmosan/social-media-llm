@@ -82,7 +82,7 @@
   const originalSave=window.saveStudioDraft;
   window.saveStudioDraft = async () => {
     if(blocked()) return;
-    if(destination==='pinterest' && pin.snapshot()) {
+    if(destination==='pinterest' && step()===4 && !el('studioPinterestEditor').hidden && pin.snapshot()) {
       await pin.save(); window.rememberStudio();
     } else await originalSave();
   };
