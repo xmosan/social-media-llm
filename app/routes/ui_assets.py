@@ -3324,7 +3324,7 @@ STUDIO_COMPONENTS_HTML = """
               <p class="text-sm text-text-muted mt-2">Check your account and choose when. Nothing is published until you confirm.</p>
             </div>
 
-            <details class="cw-panel"><summary>Prepare for Pinterest</summary><p class="text-sm text-text-muted">Save a separate Pin draft from this card. Pinterest connecting and publishing are awaiting approval.</p><button type="button" id="studioPinterestButton" onclick="preparePinterestDraft()" class="cw-secondary">Save & prepare Pin</button></details>
+            <details class="cw-panel"><summary>Prepare for Pinterest</summary><p class="text-sm text-text-muted">Save a separate Pin draft from this card. Connect your account and review the Pin before publishing.</p><button type="button" id="studioPinterestButton" onclick="preparePinterestDraft()" class="cw-secondary">Save & prepare Pin</button></details>
             <div class="cw-share-grid grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
               <!-- Full preview remains available without pushing phone actions below it. -->
               <details class="cw-share-preview space-y-5"><summary>Review image & caption</summary>

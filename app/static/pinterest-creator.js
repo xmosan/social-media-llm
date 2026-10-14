@@ -1,14 +1,15 @@
-/* Creator preparation has no OAuth, scheduling or publishing request path. */
+/* Saved drafts enter the shared publisher only after an explicit review. */
 (() => {
   const el = id => document.getElementById('creatorPin' + id);
   let current = null, busy = false, dirty = false, before = null, epoch = 0;
   const initial = document.body.dataset.post;
   const fields = ['Title', 'Description', 'Alt', 'AI', 'Link'];
+  let account = null, receipt = null, imageReady = false, deliveryUncertain = false, boardBookmark = null;
   async function api(path, options = {}) {
-    const response = await fetch('/api/creator/pinterest/' + path, {...options, signal: AbortSignal.timeout(20000)});
+    const response = await fetch('/api/creator/pinterest/' + path, {...options, signal: AbortSignal.timeout(90000)});
     let data;
     try { data = await response.json(); } catch { throw Error('Sabeel could not load this draft. Sign in again if your session expired.'); }
-    if (!response.ok) throw Error(typeof data.detail === 'string' ? data.detail : 'Check the Pin fields and try again.');
+    if (!response.ok) throw Object.assign(Error(typeof data.detail === 'string' ? data.detail : 'Check the Pin fields and try again.'), {status:response.status});
     return data;
   }
   function setBusy(value) {
@@ -19,6 +20,56 @@
     el('Fields').disabled = value || !current || current.locked;
     el('Reload').disabled = value;
     el('Save').textContent = value ? 'Please wait…' : 'Save draft';
+    for (const id of ['LoadBoards','MoreBoards','Board','UseBoard','Disconnect','CheckStatus','Verify']) if (el(id)) el(id).disabled = value;
+    controls();
+  }
+  function controls() {
+    const ready = account?.enabled && account?.connected && account?.board_id && current && !current.locked && !deliveryUncertain;
+    el('Review').disabled = busy || !ready || !imageReady;
+    el('Publish').disabled = busy || !ready || !receipt || dirty || !imageReady || !el('Reviewed').checked;
+  }
+  function invalidateReview() { receipt = null; el('Approval').hidden = true; el('Reviewed').checked = false; controls(); }
+  function version() { return {revision:current.revision, source_version:current.source_version}; }
+  function json(method, value) { return {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(value)}; }
+  function publication(data) {
+    const locked = ['published','publishing','unknown'].includes(data.status);
+    if (current && data.status) current.locked = locked;
+    el('PublishedLink').hidden = data.status !== 'published';
+    if (data.status === 'published') el('PublishedLink').href = data.url;
+    el('PublishedLink').textContent = data.sandbox ? 'View sandbox result ↗' : 'View on Pinterest ↗';
+    el('Verify').hidden = data.status !== 'published' || !account?.enabled || data.sandbox;
+    el('CheckStatus').hidden = !deliveryUncertain && !['publishing','unknown'].includes(data.status);
+    const messages = {published:'Published to ' + (data.board_name || 'your board') + '. Your saved result is kept here.',
+      publishing:'Pinterest delivery is pending. Do not send again; check the saved result.',
+      unknown:'Pinterest delivery is uncertain. Do not send again. Check Pinterest and contact Sabeel support if needed.',
+      failed:data.error || 'Pinterest rejected this Pin. Review the details before trying again.'};
+    if (data.sandbox && data.status === 'published') messages.published = 'Sandbox test result. This was not published publicly. Create a new card for a public Pin.';
+    el('PublishStatus').textContent = messages[data.status] || (deliveryUncertain ? 'Delivery could not be confirmed. Check the saved result before taking further action.' : 'Save your copy and review the image before publishing.');
+    if (locked) { invalidateReview(); el('Fields').disabled = true; el('Save').disabled = true; }
+    controls();
+  }
+  function applyAccount(data) {
+    account = data;
+    el('AccountStatus').textContent = data.connected ? 'Connected as @' + data.username : data.enabled ? 'Connect your Pinterest' : 'Draft access';
+    if (el('Connect')) el('Connect').hidden = !data.enabled || data.connected;
+    if (el('Connected')) el('Connected').hidden = !data.enabled || !data.connected;
+    if (el('BoardSummary')) el('BoardSummary').textContent = data.board_name ? 'Publishing to ' + data.board_name : 'Choose a public board';
+    invalidateReview();
+  }
+  async function loadAccount() {
+    try { applyAccount(await api('connection')); }
+    catch (error) { el('AccountStatus').textContent = 'Connection could not load. Reload this page to try again.'; }
+  }
+  async function boards(more = false) {
+    if (busy) return; setBusy(true); el('ConnectionNotice').textContent = 'Loading your boards…';
+    try {
+      const data = await api('boards' + (more && boardBookmark ? '?bookmark=' + encodeURIComponent(boardBookmark) : ''));
+      if (!more) el('Board').replaceChildren(new Option('Choose a public board…',''));
+      for (const board of data.items) if (![...el('Board').options].some(o => o.value === board.id)) el('Board').add(new Option(board.name,board.id));
+      boardBookmark = data.bookmark; el('MoreBoards').hidden = !boardBookmark;
+      el('ConnectionNotice').textContent = data.items.length ? '' : 'No boards on this page. Load more if available, or create a public board in Pinterest.';
+    } catch (error) { el('ConnectionNotice').textContent = error.message; }
+    finally { setBusy(false); }
   }
   function copy() {
     return {title: el('Title').value, description: el('Description').value, alt_text: el('Alt').value,
@@ -44,6 +95,7 @@
   }
   function apply(data) {
     current = data; dirty = false;
+    invalidateReview(); imageReady = false;
     const value = data.copy;
     el('Title').value = value.title; el('Description').value = value.description;
     el('Alt').value = value.alt_text; el('AI').value = value.ai_modified === null ? '' : value.ai_modified ? 'yes' : 'no';
@@ -52,22 +104,23 @@
     el('ReflectionBlock').hidden = !data.reflection;
     el('Thumb').src = data.image_url;
     el('ImageStatus').textContent = 'Loading saved image…';
-    el('Image').onload = () => { el('ImageStatus').textContent = ''; };
-    el('Image').onerror = () => { el('ImageStatus').textContent = 'The saved image could not load. Your copy is kept; reload the page to try again.'; };
+    el('Image').onload = () => { imageReady = true; el('ImageStatus').textContent = ''; controls(); };
+    el('Image').onerror = () => { imageReady = false; controls(); el('ImageStatus').textContent = 'The saved image could not load. Your copy is kept; reload the page to try again.'; };
     el('Image').src = data.image_url;
     el('Editor').hidden = false;
     el('SaveStatus').textContent = data.locked ? 'Submitted copy · Read-only' : data.saved_at ? 'Saved draft · Not published' : 'Not saved yet';
     el('Notice').hidden = !(data.locked || data.source_changed);
     el('Notice').textContent = data.locked ? 'This card has a Pinterest publishing attempt. Its submitted copy is kept read-only.' : 'The card changed in Studio. Review its latest source and image before saving this copy again.';
-    el('Issues').textContent = data.issues.length ? 'You can save an unfinished draft. ' + data.issues.join(' ') : 'Copy prepared. Publishing stays disabled pending approval.';
+    el('Issues').textContent = data.issues.length ? 'You can save an unfinished draft. ' + data.issues.join(' ') : 'Copy prepared. Review the full card before sharing.';
     el('Reload').hidden = true;
     preview();
+    publication(data.publication || {status:data.publication_status});
   }
   function discard() { return !dirty || window.confirm('Leave your unsaved Pin edits? Cancel to save them first.'); }
   async function load(id) {
     if (!id || busy) return;
     const request = ++epoch;
-    current = null; dirty = false; el('Editor').hidden = true; el('LoadStatus').textContent = 'Loading card…';
+    current = null; dirty = false; deliveryUncertain = false; invalidateReview(); el('Editor').hidden = true; el('LoadStatus').textContent = 'Loading card…';
     el('Retry').hidden = true; setBusy(true);
     try {
       const data = await api('posts/' + encodeURIComponent(id));
@@ -103,7 +156,7 @@
   el('Retry').addEventListener('click', () => { const id = el('Post').value || initial; if (id) load(id); else list(); });
   el('Reload').addEventListener('click', () => { if (current && discard()) load(current.post_id); });
   for (const field of fields) el(field).addEventListener('input', () => {
-    dirty = true; el('SaveStatus').textContent = 'Unsaved changes'; el('Issues').textContent = ''; preview();
+    dirty = true; invalidateReview(); el('SaveStatus').textContent = 'Unsaved changes'; el('Issues').textContent = ''; preview();
   });
   for (const name of ['Write','Preview']) {
     el(name + 'Tab').addEventListener('click', () => tab(name));
@@ -125,5 +178,65 @@
     } finally { setBusy(false); }
   });
   window.addEventListener('beforeunload', event => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
-  (async () => { await list(); if (initial) await load(initial); })();
+  if (el('LoadBoards')) el('LoadBoards').addEventListener('click', () => boards());
+  if (el('MoreBoards')) el('MoreBoards').addEventListener('click', () => boards(true));
+  if (el('Board')) el('Board').addEventListener('change', invalidateReview);
+  if (el('UseBoard')) el('UseBoard').addEventListener('click', async () => {
+    if (busy || !el('Board').value) return; invalidateReview(); setBusy(true);
+    try { applyAccount(await api('board',json('POST',{board_id:el('Board').value}))); el('BoardDetails').open = false; el('ConnectionNotice').textContent = 'Board saved.'; }
+    catch (error) { el('ConnectionNotice').textContent = error.message; }
+    finally { setBusy(false); }
+  });
+  for (const id of ['Connect','Reconnect']) if (el(id)) el(id).addEventListener('submit', event => {
+    if (busy || !discard()) { event.preventDefault(); return; }
+    dirty = false; setBusy(true); el('ConnectionNotice').textContent = 'Opening Pinterest…';
+  });
+  if (el('Disconnect')) el('Disconnect').addEventListener('click', async () => {
+    if (busy || !window.confirm('Disconnect Pinterest from Sabeel? Your drafts will stay saved.')) return;
+    invalidateReview(); setBusy(true);
+    try { await api('disconnect',{method:'POST'}); await loadAccount(); el('ConnectionNotice').textContent = 'Disconnected. Your drafts are kept.'; }
+    catch (error) { el('ConnectionNotice').textContent = error.message; }
+    finally { setBusy(false); }
+  });
+  el('Reviewed').addEventListener('change', controls);
+  el('Review').addEventListener('click', async () => {
+    if (busy || !current || current.locked || deliveryUncertain) return;
+    invalidateReview(); setBusy(true); el('PublishStatus').textContent = 'Checking the saved card and destination…';
+    try {
+      if (dirty || !current.saved_at) apply(await api('posts/' + current.post_id,json('PUT',{...copy(),...version()})));
+      const data = await api('posts/' + current.post_id + '/review',json('POST',version()));
+      receipt = data.receipt; el('Destination').textContent = '@' + data.username + ' → ' + data.board_name;
+      el('Approval').hidden = false; el('PublishStatus').textContent = 'Review your image and copy above, then confirm below.';
+    } catch (error) { el('PublishStatus').textContent = error.message; }
+    finally { setBusy(false); }
+  });
+  el('Publish').addEventListener('click', async () => {
+    if (el('Publish').disabled || busy || !receipt || !el('Reviewed').checked || dirty) return;
+    const payload = {...version(), receipt, reviewed:true}; setBusy(true); el('PublishStatus').textContent = 'Publishing your Pin…';
+    try {
+      const data = await api('posts/' + current.post_id + '/publish',json('POST',payload));
+      invalidateReview(); publication(data);
+      if (data.status === 'published') { current.locked = true; el('SaveStatus').textContent = 'Published · Read-only'; }
+    } catch (error) {
+      invalidateReview();
+      if (error.status >= 400 && error.status < 500) {
+        try { publication(await api('posts/' + current.post_id + '/status')); }
+        catch { deliveryUncertain = true; publication({status:'unknown'}); }
+      } else { deliveryUncertain = true; publication({status:'unknown'}); }
+      el('PublishStatus').textContent = error.message + (current.locked || deliveryUncertain ? ' Check the saved result before trying anything else.' : ' Review this Pin again before publishing.');
+    } finally { setBusy(false); }
+  });
+  el('CheckStatus').addEventListener('click', async () => {
+    if (busy || !current) return; setBusy(true);
+    try { const data = await api('posts/' + current.post_id + '/status'); deliveryUncertain = false; publication(data); }
+    catch (error) { el('PublishStatus').textContent = error.message; }
+    finally { setBusy(false); }
+  });
+  el('Verify').addEventListener('click', async () => {
+    if (busy || !current) return; setBusy(true);
+    try { const data = await api('posts/' + current.post_id + '/verify'); el('PublishStatus').textContent = data.message; }
+    catch (error) { el('PublishStatus').textContent = error.message; }
+    finally { setBusy(false); }
+  });
+  (async () => { await loadAccount(); await list(); if (initial) await load(initial); })();
 })();

@@ -1,4 +1,4 @@
-"""Owner trial publishing from an immutable, reviewed single-card snapshot.
+"""Shared Pinterest publishing from an immutable, reviewed single-card snapshot.
 
 The existing Post.flags stores a separate Pinterest claim. Instagram state and
 copy remain untouched. Commit before the external write; never replay an unknown
@@ -41,7 +41,8 @@ def state(post):
             | {'ai_modified': 'AI_MODIFIED' in (payload.get('ai_disclosures') or {}).get('values', [])}) if payload else None
     return {'post_id': post.id, 'status': record.get('status', 'not_sent'),
             'pin_id': pin_id, 'url': 'https://www.pinterest.com/pin/' + pin_id + '/' if pin_id else None,
-            'error': record.get('error'), 'board_name': record.get('board_name'), 'copy': copy}
+            'error': record.get('error'), 'board_name': record.get('board_name'), 'copy': copy,
+            'sandbox': record.get('sandbox', False)}
 
 
 def eligible(post):
@@ -54,12 +55,12 @@ def eligible(post):
     validate_saved_source_snapshot(post)
     manifest = saved_manifest(post)
     if not manifest or manifest['format'] != 'feed_4_5' or len(manifest['pages']) != 1:
-        raise PinterestError('This pilot supports complete single-card feed posts only. Export every page of a carousel or Story instead.')
+        raise PinterestError('Pinterest currently supports complete single-card feed posts only. Carousels and Stories stay in Studio.')
     require_sequence_review(post, manifest)
     metadata = {**((post.source_metadata or {}).get('metadata') or {}), **(post.source_metadata or {})}
     if (not metadata.get('arabic_text') or post.card_message.get('headline') != metadata.get('translation_text')
             or post.card_message.get('arabic_display') is not None):
-        raise PinterestError('Use the complete Arabic and translation in this first Pinterest test.')
+        raise PinterestError('Use a card with the complete Arabic and translation for Pinterest.')
     return manifest
 
 
@@ -119,7 +120,7 @@ def source_preview(post):
             'reflection': post.card_message.get('supporting_text') or '', 'source_details': '\n'.join(details)}
 
 
-def publish(db, post_id, org_id, user_id, copy, receipt, api):
+def publish(db, post_id, org_id, user_id, copy, receipt, api, *, draft_version=None):
     # Fast idempotent response, including after a client loses a successful reply.
     post = get_post(db, post_id, org_id)
     existing = state(post)
@@ -138,6 +139,9 @@ def publish(db, post_id, org_id, user_id, copy, receipt, api):
         return {**state(post), 'already_sent': True}
     if state(post)['status'] in {'publishing', 'unknown'}:
         raise HTTPException(409, 'Another request already claimed this Pin. Check its saved result.')
+    if draft_version is not None:
+        from app.services.pinterest_drafts import reviewed_copy
+        copy = reviewed_copy(post, *draft_version)
     row = db.query(PinterestConnection).filter_by(org_id=org_id).populate_existing().with_for_update().one()
     if not row.active or row.sandbox != api.sandbox or connection.decrypt(row).get('access_token') != access:
         raise PinterestError('The Pinterest connection changed. Review this Pin again.')

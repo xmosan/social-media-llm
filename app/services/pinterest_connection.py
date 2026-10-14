@@ -1,4 +1,4 @@
-"""Owner-pilot connection lifecycle; no scheduler or public Pin writes."""
+"""Workspace-scoped OAuth, encrypted credentials and verified board selection."""
 import base64
 from datetime import datetime, timedelta, timezone
 import hashlib
@@ -40,13 +40,26 @@ def decrypt(row):
         raise PinterestError('Reconnect Pinterest to restore secure access.') from None
 
 
-def begin(db, request, user_id, org_id):
+def creator_enabled():
+    return settings.pinterest_creator_enabled and not settings.pinterest_sandbox
+
+
+def require_creator_enabled():
+    if not creator_enabled():
+        raise HTTPException(403, 'Pinterest publishing is not available right now. Your saved drafts are kept.')
+
+
+def begin(db, request, user_id, org_id, *, creator=False):
     state, handle = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
     db.execute(delete(Attempt).where(or_(Attempt.expires_at <= utcnow(), Attempt.user_id == user_id)))
     db.add(Attempt(id=digest(handle),user_id=user_id,org_id=org_id,state_hash=digest(state),
                    stage='pending',expires_at=utcnow()+timedelta(minutes=15)))
     db.commit()
     request.session['pinterest_connection'] = handle
+    if creator:
+        request.session['pinterest_creator_return'] = True
+    else:
+        request.session.pop('pinterest_creator_return', None)
     return state
 
 
@@ -68,6 +81,7 @@ def claim(db, request, user_id, org_id, state):
 def abandon(db, request, attempt_id):
     db.execute(delete(Attempt).where(Attempt.id==attempt_id));db.commit()
     request.session.pop('pinterest_connection',None)
+    request.session.pop('pinterest_creator_return',None)
 
 
 def store(db, attempt_id, tokens, identity, sandbox):
@@ -101,7 +115,7 @@ def token(db, org_id, api):
     # commit after provider rotation must not replay a consumed refresh token.
     row=db.query(Connection).filter_by(org_id=org_id).populate_existing().with_for_update().first()
     if not row or not row.active or row.sandbox != api.sandbox:
-        db.rollback();raise PinterestError('Connect Pinterest in the current test environment first.')
+        db.rollback();raise PinterestError('Connect Pinterest again to use the current connection.')
     if row.refresh_pending:
         db.rollback();raise PinterestError('Pinterest renewal is in progress or was interrupted. Reload shortly; reconnect if it persists.')
     try:
@@ -170,6 +184,7 @@ def disconnect(db, request, user_id, org_id):
     # Revoke outstanding local handoffs so an in-flight callback cannot reconnect.
     db.execute(delete(Attempt).where(Attempt.user_id==user_id,Attempt.org_id==org_id))
     db.commit();request.session.pop('pinterest_connection',None)
+    request.session.pop('pinterest_creator_return',None)
 
 
 def setup_test_board(db, org_id, api):

@@ -169,7 +169,8 @@ For rollback, retain the nullable column and the saved unassigned drafts. Do not
 restore `NOT NULL`, delete drafts or assign accounts merely to fit an older app.
 An older app may hide unassigned work; prefer a forward fix for such a rollback.
 
-Pinterest is an owner-only connection pilot at `/admin/connections/pinterest`.
+Pinterest creator drafts and manual publishing live at `/app/pinterest`.
+Owner diagnostics remain owner-only at `/admin/connections/pinterest`.
 Run `scripts/migrate_pinterest_connections.py` before deploying it. This adds only
 `pinterest_connections` and expiring `pinterest_connection_attempts`; existing
 posts, Instagram accounts and schedules remain unchanged. Keep these tables on
@@ -177,10 +178,10 @@ rollback to retain connection records. Startup validates their presence.
 
 Set `PINTEREST_CLIENT_ID`, `PINTEREST_CLIENT_SECRET` and the explicit
 `PINTEREST_SANDBOX` environment (`true` by default). Register exactly
-`https://app.sabeelstudio.com/auth/pinterest/callback` with Pinterest. Only the
-configured platform owner can use these routes, even when credentials are set.
-Production Trial is limited to the app owner's account; independent creators
-need the appropriate Pinterest access tier. Do not use the dashboard's limited
+`https://app.sabeelstudio.com/auth/pinterest/callback` with Pinterest. Creator
+connections and publishing additionally require `PINTEREST_CREATOR_ENABLED=true`
+and `PINTEREST_SANDBOX=false`; the switch defaults off. Standard access was
+confirmed in the developer dashboard on 2026-10-14. Do not use the dashboard's limited
 read-only token in place of OAuth. No token is returned to the browser or stored
 in its session; stored credentials use contextual encryption derived from the
 existing server secret. Rotating that secret requires reconnecting Pinterest.
@@ -214,11 +215,14 @@ separately reviewed Pin copy without truncation, canonical Cloudinary media and
 explicit AI disclosure. It never retries a possibly completed write. Offline
 HTTP mocks do not demonstrate app approval or real publication.
 
-The owner pilot can publish one reviewed single-card feed post at a time. It reuses
+Creators and owner diagnostics share one publisher for reviewed single-card feed posts. It reuses
 canonical source, signed media-manifest, manual visual review and bounded CDN
 checks. Pin title, description, accessibility text and AI disclosure are reviewed
 separately from scripture and the Instagram caption. The short-lived review is
-bound to the owner, workspace, exact source/card, image bytes, copy and destination.
+bound to the reviewing user, workspace, exact source/card, image bytes, copy and destination.
+Creator requests also bind the saved Pin draft revision and source version,
+rechecked under the post lock after token refresh. Unsaved or stale copy cannot
+be published. Existing sandbox results stay read-only and are labeled as tests.
 
 `Post.flags.pinterest_publication` holds the immutable snapshot, committed claim,
 provider ID and result independently of Instagram state. The PostgreSQL post lock
@@ -231,7 +235,10 @@ merely because a timeout elapsed. Editing/deleting a sent or uncertain post is
 blocked to retain source integrity and duplicate protection.
 
 No new migration is required for publication. On rollback retain all Pinterest
-publication flags; do not discard those records. Carousels, Stories, Pinterest
-scheduling and creator-wide access are not enabled. Trial API-created Pins are
-visible only to their creator; a successful Trial test is not public launch
-approval. Complete real account publication and readback before wider rollout.
+publication flags; do not discard those records. Carousels, Stories and Pinterest
+scheduling are not enabled. For release, first switch the owner to production,
+reconnect using production OAuth, and verify public board selection. After the
+creator switch is enabled, verify manual publication, saved-result recovery and
+provider readback through the creator interface. Pause new creator connections
+and publication by setting `PINTEREST_CREATOR_ENABLED=false`; drafts, results and
+disconnect remain available. Never change or delete saved claims to retry a Pin.

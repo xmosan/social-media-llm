@@ -1,7 +1,15 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Pinterest drafts · Sabeel Studio</title><link rel="stylesheet" href="/static/pinterest-creator.css?v=1"><script defer src="/static/pinterest-creator.js?v=1"></script></head>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Pinterest · Sabeel Studio</title><link rel="stylesheet" href="/static/pinterest-creator.css?v=2"><script defer src="/static/pinterest-creator.js?v=2"></script></head>
 <body data-post="{{ post_id }}"><header class="top"><a href="/app?view=you" aria-label="Back to your workspace">← Your workspace</a><a class="wordmark" href="/app">Sabeel Studio</a></header>
-<main><header class="heading"><p class="eyebrow">A new place for your reminders</p><h1>Pinterest drafts</h1><p>Shape your Pin. Keep your source intact.</p></header>
-<details class="availability"><summary><span class="dot" aria-hidden="true"></span> Draft access · Publishing not yet available</summary><p>We’re waiting for Pinterest’s Standard approval. You can save Pin copy now. After approval and final checks, you’ll be able to connect your own account and choose a public board.</p><button type="button" disabled>Connect Pinterest · Awaiting approval</button><p>Nothing here is published or scheduled automatically.</p></details>
+<main><header class="heading"><p class="eyebrow">A new place for your reminders</p><h1>Your Pinterest</h1><p>Shape your Pin. Keep your source intact.</p></header>
+<section class="availability" aria-label="Pinterest connection">
+<p id="creatorPinAccountStatus" role="status">Loading your connection…</p>
+{% if enabled %}
+<form id="creatorPinConnect" method="post" action="/api/creator/pinterest/connect" hidden><p>Connect your Pinterest account to choose one of your public boards.</p><button type="submit" class="primary">Connect Pinterest</button></form>
+<div id="creatorPinConnected" hidden><details id="creatorPinBoardDetails"><summary id="creatorPinBoardSummary">Choose a public board</summary>
+<button id="creatorPinLoadBoards" type="button" class="text-button">Load my boards</button><label for="creatorPinBoard">Your public boards</label><select id="creatorPinBoard"><option value="">Load your boards first</option></select><button id="creatorPinMoreBoards" type="button" class="text-button" hidden>Load more boards</button><button id="creatorPinUseBoard" type="button" class="secondary">Use this board</button><p class="hint">No boards listed? Create a public board in Pinterest, then reload this list.</p></details>
+<details><summary>Manage connection</summary><form id="creatorPinReconnect" method="post" action="/api/creator/pinterest/connect"><button type="submit" class="text-button">Reconnect Pinterest</button></form><button id="creatorPinDisconnect" type="button" class="text-button">Disconnect from Sabeel</button><p class="hint">Your drafts stay saved. You can also remove Sabeel in Pinterest’s settings.</p></details></div>
+{% else %}<p>Connections and publishing are temporarily unavailable. You can still prepare and save your drafts.</p>{% endif %}
+<p id="creatorPinConnectionNotice" role="status">{{ connection_message }}</p><p class="hint">One Pin at a time, after your review. Scheduling is not available yet.</p></section>
 <section class="choose"><label for="creatorPinPost">Choose a saved card</label><select id="creatorPinPost" disabled><option value="">Loading your cards…</option></select><button id="creatorPinMore" type="button" class="text-button" hidden>Load older cards</button><p class="hint">One complete 4:5 card. Carousels and Stories stay in Studio.</p></section>
 <p id="creatorPinLoadStatus" class="status" role="status" aria-live="polite"></p><button id="creatorPinRetry" type="button" class="secondary" hidden>Try loading again</button>
 <section id="creatorPinEmpty" class="empty" hidden><h2>Start with a source.</h2><p>Create and review a single-card feed post in Studio, then save it here as a Pin draft.</p><a class="primary" href="/app">Create in Studio</a></section>
@@ -20,8 +28,14 @@
 <p class="hint">Draft preview · Your current edits</p><article class="pin-preview"><img id="creatorPinImage" alt="Your saved source card"><div><h2 id="creatorPinPreviewTitle"></h2><p id="creatorPinPreviewDescription"></p></div></article><p id="creatorPinImageStatus" role="status"></p>
 <details class="source"><summary>Check the full source & attribution</summary><strong id="creatorPinSourceReference"></strong><p id="creatorPinArabic" dir="rtl" lang="ar"></p><p id="creatorPinTranslation"></p><p id="creatorPinSourceDetails"></p><div id="creatorPinReflectionBlock" hidden><h3>Separate AI reflection</h3><p id="creatorPinReflection"></p></div></details>
 <details class="source"><summary>Accessibility & disclosure</summary><p id="creatorPinPreviewAlt"></p><p id="creatorPinPreviewAI"></p><p id="creatorPinPreviewLink"></p></details>
-<button class="publish-disabled" type="button" disabled>Publish to Pinterest · Awaiting approval</button><p class="hint">Board selection and scheduling are not available yet.</p>
+<section class="publish-panel" aria-label="Publish your Pin">
+<p id="creatorPinPublishStatus" role="status" aria-live="polite"></p>
+<button id="creatorPinReview" type="button" class="primary" disabled>Review for publishing</button>
+<div id="creatorPinApproval" hidden><h2>Ready to share?</h2><p id="creatorPinDestination"></p><label class="review-check"><input id="creatorPinReviewed" type="checkbox"> I reviewed the full image, source, Pin copy and destination.</label><p class="hint">This creates a public Pin now. It does not publish to Instagram.</p><button id="creatorPinPublish" type="button" class="primary" disabled>Publish Pin now</button></div>
+<a id="creatorPinPublishedLink" class="primary" hidden target="_blank" rel="noopener noreferrer">View on Pinterest ↗</a>
+<button id="creatorPinCheckStatus" type="button" class="text-button" hidden>Check saved result</button><button id="creatorPinVerify" type="button" class="text-button" hidden>Verify with Pinterest</button>
+</section>
 </section>
 <p id="creatorPinIssues" class="hint"></p><p id="creatorPinNotice" class="notice" hidden></p><button id="creatorPinReload" type="button" class="text-button" hidden>Reload saved version</button>
 <footer class="save-bar"><p id="creatorPinSaveStatus" role="status" aria-live="polite">Not saved yet</p><button type="submit" form="creatorPinForm" id="creatorPinSave" class="primary">Save draft</button></footer>
-</div><noscript><p>Enable JavaScript to prepare and save a Pin draft. Publishing is disabled.</p></noscript></main></body></html>
+</div><noscript><p>Enable JavaScript to prepare, review and publish your Pin.</p></noscript></main></body></html>
