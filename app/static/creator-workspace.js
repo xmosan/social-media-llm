@@ -322,6 +322,31 @@
       byId("creatorDiscoveryResults").replaceChildren();
       window.rememberStudio();
     });
+  // Source discovery recovery: no invented text, automatic retries or unrelated replacements.
+  function showDiscoveryRecovery(type, terms = []) {
+    const results=byId("creatorDiscoveryResults"), panel=document.createElement("section");
+    panel.className="cw-search-recovery";
+    const title=document.createElement("h5");title.textContent="Let’s try another way";
+    const note=document.createElement("p");note.textContent="Your idea is kept. Browse a broader topic or search a reference; you will still choose and review the source.";
+    const label=document.createElement("label");label.textContent="One simple topic";
+    const input=document.createElement("input");input.type="text";input.maxLength=100;input.placeholder="For example: patience or fasting";
+    input.value=terms.find(term=>typeof term==='string' && /^[A-Za-z]{2,32}$/.test(term)) || '';
+    label.append(input);
+    const direct = query => {
+      const brief=window.readCreatorBrief();window.switchSourceTab(type);
+      window.restoreCreatorBrief({...brief,mode:'direct'});setEntry('direct');
+      byId('studioTopic').value=query;window.rememberStudio();
+      if(query) window.onSourceInput();
+    };
+    const browse=document.createElement("button");browse.type='button';browse.className='cw-primary';browse.textContent='Search the source library';
+    browse.onclick=()=>{if(input.value.trim().length<2){input.focus();return;}direct(input.value.trim());};
+    input.onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();browse.click();}};
+    const swap=document.createElement("button");swap.type='button';swap.className='cw-secondary';swap.textContent=type==='quran' ? 'Try Hadith for this idea' : 'Try Qur’an for this idea';
+    swap.onclick=()=>{byId('creatorSourceType').value=type==='quran' ? 'hadith' : 'quran';byId('creatorDiscover').click();};
+    const reference=document.createElement("button");reference.type='button';reference.className='cw-secondary';reference.textContent='Search an exact reference';reference.onclick=()=>direct('');
+    panel.append(title,note,label,browse,swap,reference);results.append(panel);
+  }
+  // End source discovery recovery.
   byId("creatorDiscover").onclick = async () => {
     if (discovery) return;
     const idea = byId("creatorIdea").value.trim(),
@@ -356,7 +381,8 @@
         throw Error(data.detail || "Source suggestions are unavailable.");
       status.textContent = data.sources?.length
         ? data.notice
-        : "No sources found in this search batch. Try a simpler idea or choose a source directly.";
+        : "No close match in this search. Your idea is still here.";
+      if(!data.sources?.length) showDiscoveryRecovery(type,data.terms || []);
       for (const source of data.sources || []) {
         const card = document.createElement("article");
         card.className = "cw-candidate";
@@ -406,11 +432,12 @@
         results.append(card);
       }
     } catch (e) {
-      if (epoch === discoveryEpoch)
-        status.textContent =
-          e.name === "AbortError"
-            ? "This took too long. Your idea is kept. Retry or choose a source."
-            : e.message;
+      if (epoch === discoveryEpoch) {
+        status.textContent = e.name === "AbortError"
+          ? "Suggestions took too long. Your idea is kept. You can search the library directly below."
+          : e.message;
+        showDiscoveryRecovery(type);
+      }
     } finally {
       clearTimeout(timer);
       if (epoch === discoveryEpoch) {

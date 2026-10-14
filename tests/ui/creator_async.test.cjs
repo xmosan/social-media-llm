@@ -188,3 +188,22 @@ test("source-only disables tone; changing choices clears a pending suggestion wi
  assert.equal(f.el('captionTone').disabled,true);assert.equal(cleared,true);assert.equal(saved,true);
  assert.equal(f.el('studioCaption').value,'My caption');
 });
+
+const workspace=fs.readFileSync(path.join(__dirname,'../../app/static/creator-workspace.js'),'utf8');
+const recoveryCode=workspace.slice(workspace.indexOf('  // Source discovery recovery:'),workspace.indexOf('  // End source discovery recovery.'));
+test('empty discovery offers a library search while preserving the creator brief and choosing no source',()=>{
+ const f=setup();const calls=[];const brief={idea:'My specific reminder',instructions:'Keep my direction',mode:'guided'};
+ f.c.byId=f.el;f.c.setEntry=mode=>calls.push({mode});f.c.window.readCreatorBrief=()=>brief;f.c.window.switchSourceTab=type=>calls.push({type});
+ f.c.window.restoreCreatorBrief=value=>calls.push({brief:value});f.c.window.rememberStudio=()=>{};f.c.window.onSourceInput=()=>calls.push('search');
+ f.run(recoveryCode);f.run("showDiscoveryRecovery('quran',['patience'])");
+ const panel=f.el('creatorDiscoveryResults').children[0];assert.equal(panel.children[2].children[0].value,'patience');panel.children[3].onclick();
+ assert.equal(f.el('studioTopic').value,'patience');assert.ok(calls.includes('search'));assert.equal(calls.find(x=>x.brief).brief.idea,brief.idea);
+ assert.equal(f.c.window.studioSourceContext.reference,'Fixture');
+});
+test('empty discovery reference and source-type alternatives require an explicit action',()=>{
+ const f=setup();let searches=0,restored;f.c.byId=f.el;f.c.setEntry=()=>{};
+ f.c.window.readCreatorBrief=()=>({idea:'Retained'});f.c.window.switchSourceTab=()=>{};f.c.window.restoreCreatorBrief=v=>restored=v;f.c.window.rememberStudio=()=>{};f.c.window.onSourceInput=()=>searches++;
+ f.el('creatorDiscover').click=()=>searches++;f.run(recoveryCode);f.run("showDiscoveryRecovery('hadith',[])");
+ assert.equal(searches,0);const panel=f.el('creatorDiscoveryResults').children[0];panel.children[5].onclick();assert.equal(restored.idea,'Retained');assert.equal(searches,0);
+ panel.children[4].onclick();assert.equal(f.el('creatorSourceType').value,'quran');assert.equal(searches,1);
+});
