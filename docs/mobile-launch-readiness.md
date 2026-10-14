@@ -91,3 +91,25 @@ forms complete on a creator's or qualified reviewer's behalf.
 4. Develop the series planner privately using the shared canonical services,
    resumable per-post jobs, explicit batch budgets, and creator review. It is not a
    prerequisite that should expand this interface release.
+
+## Live design editing — 2026-10-14
+
+Studio's appearance sheet previews palette, current typography, composition and
+creator identity using the canonical full-size JPEG renderer and its readability
+checks. It reuses the signed, workspace-owned photograph. Preview requests cannot
+call an image provider, upload media, save a post or issue a publishable manifest.
+A bounded five-minute decoded-photo cache avoids repeated downloads; receipt
+ownership, recipe and direction are revalidated before every cache hit.
+
+The client debounces and cancels superseded requests. Failed previews retain the
+last image and selected controls, with a retry. An unchanged saved design retains
+its final review controls. Finish design performs the existing full sequence,
+stable-media upload and manual review flow. Source changes clear preview state.
+New scene directions and incompatible formats still require explicit background
+generation. Preview data URIs are transient and are not draft/export media.
+
+Home uses photographic style examples and a source shortcut; Posts filters the
+existing most-recent 30 workspace posts; You groups brand and connections; the
+phone Plan agenda uses the existing account-scoped Instagram calendar and its
+timezone. Pinterest scheduling has not been added. Motion respects reduced-motion
+preferences. No schema migration or QPC font/license change is included.

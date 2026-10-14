@@ -529,7 +529,7 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
         active_library=active_map["library"],
         active_media=active_map["media"],
         studio_modal=STUDIO_COMPONENTS_HTML.replace("{account_options}", '<option value="">Save or export without a connection</option>' + account_options).replace("{workspace_key}", f"{org.id}:{user.id}"),
-        studio_js=STUDIO_SCRIPTS_JS + '<script src="/static/creator-workspace.js?v=7"></script><script src="/static/studio-flow.js?v=2"></script><script src="/static/studio-visual.js?v=1"></script>',
+        studio_js=STUDIO_SCRIPTS_JS + '<script src="/static/creator-workspace.js?v=8"></script><script src="/static/studio-flow.js?v=3"></script><script src="/static/studio-visual.js?v=1"></script><script src="/static/studio-design.js?v=1"></script><script src="/static/workspace-refresh.js?v=1"></script>',
         connected_account_info=(extras.get("connected_account_info", "") if extras else ""),
         connect_instagram_modal=CONNECT_INSTAGRAM_MODAL_HTML,
         navbar_account_switcher=switcher_html,
@@ -776,13 +776,16 @@ async def app_calendar_page(
             </div>
         """
 
+    from app.routes.creator_workspace import mobile_plan
+    phone_plan = mobile_plan(posts, display_times, today, tz)
+
     content = f"""
-    <div class="space-y-8 pb-20 max-w-[1600px] mx-auto">
+    <div class="cw-planner space-y-8 pb-20 max-w-[1600px] mx-auto">
         <!-- Header -->
         <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-brand/5 pb-6">
             <div>
-                <h1 class="heading-premium text-4xl tracking-tight">Content Planner</h1>
-                <p class="text-premium-muted mt-2 text-sm">Organize and schedule your upcoming guidance</p>
+                <h1 class="heading-premium text-4xl tracking-tight">Plan</h1>
+                <p class="text-premium-muted mt-2 text-sm">Give your next reminder a place in the week.</p>
                 <p class="text-premium-muted mt-1 text-xs">Times shown in {html.escape(tz)}</p>
             </div>
             <div class="flex items-center gap-4">
@@ -793,11 +796,12 @@ async def app_calendar_page(
                 </div>
                 <button onclick="openNewPostModal()" class="px-6 py-4 bg-brand text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-brand/20 hover:bg-brand-hover hover:-translate-y-0.5 transition-all flex items-center gap-3">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
-                    New Share
+                    Create a post
                 </button>
             </div>
         </div>
         
+        {phone_plan}
         <div class="grid grid-cols-1 xl:grid-cols-4 gap-8 items-start">
             <!-- Main Calendar Area -->
             <div class="cw-calendar-grid xl:col-span-3 space-y-4">

@@ -233,12 +233,7 @@ def studio_visual_fit(data: dict, org_id: int = Depends(get_current_org_id), db:
         raise HTTPException(422, str(error)) from None
 
 
-@router.post("/generate-visual", dependencies=[Depends(require_user)])
-def studio_generate_visual(data: dict, org_id: int = Depends(get_current_org_id), db: Session = Depends(get_db),
-                           user: User | None = Depends(get_current_user)):
-    """
-    Phase 3: Route explicitly into Visual Service Facade for all Studio image generation.
-    """
+def _visual_request(data, org_id, db, user, *, preview=False):
     from app.services.brand_kit import normalize_brand, workspace_brand
     try:
         brand = normalize_brand(data["brand_kit"]) if "brand_kit" in data else workspace_brand(db, org_id)
@@ -263,7 +258,7 @@ def studio_generate_visual(data: dict, org_id: int = Depends(get_current_org_id)
         raise HTTPException(422, "Background direction must be up to 600 characters")
     from app.services.rotation_engine import workspace_visual_history
     from app.services.vision_families import SCENE_FAMILIES
-    history = workspace_visual_history(db, org_id) if data.get("style") in SCENE_FAMILIES and not data.get("background_token") else None
+    history = workspace_visual_history(db, org_id) if not preview and data.get("style") in SCENE_FAMILIES and not data.get("background_token") else None
     req = VisualRequest(
         theme=data.get("theme", data.get("style", "sacred_black")),
         atmosphere=data.get("atmosphere", "contemplative"),
@@ -284,6 +279,27 @@ def studio_generate_visual(data: dict, org_id: int = Depends(get_current_org_id)
         brand_kit=brand, visual_history=history,
     )
 
+    return req
+
+
+@router.post("/preview-visual", dependencies=[Depends(require_user)])
+def studio_preview_visual(data: dict, org_id: int = Depends(get_current_org_id), db: Session = Depends(get_db),
+                          user: User | None = Depends(get_current_user)):
+    from app.services.visual_service import preview_visual, PreviewBusyError
+    try:
+        result = preview_visual(_visual_request(data, org_id, db, user, preview=True), data.get("page_index", 0))
+        return JSONResponse(result, headers={"Cache-Control": "private, no-store",
+            "Server-Timing": ", ".join(f"{key};dur={value}" for key, value in result["timings_ms"].items())})
+    except PreviewBusyError as error:
+        raise HTTPException(429, str(error), headers={"Retry-After": "2"}) from None
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from None
+
+
+@router.post("/generate-visual", dependencies=[Depends(require_user)])
+def studio_generate_visual(data: dict, org_id: int = Depends(get_current_org_id), db: Session = Depends(get_db),
+                           user: User | None = Depends(get_current_user)):
+    req = _visual_request(data, org_id, db, user)
     res = generate_visual(req)
     if not res.ok:
         return JSONResponse(status_code=res.error_status, content={"error": res.error, "visual_design": res.design})

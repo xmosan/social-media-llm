@@ -9,12 +9,63 @@ from app.services.usage_limits import UsageLimitError
 import logging
 import os
 import hashlib
+import time
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Optional
 from app.services.card_typography import CardTypographyError
 from app.services.vision_families import DESIGN_FAMILIES, REUSABLE_FAMILIES, recipe_binding
 
 logger = logging.getLogger(__name__)
+
+# Short-lived, bounded decoded-photo cache for editing. Receipts are validated
+# on EVERY access; cache entries never confer ownership or publishing approval.
+_preview_photos = OrderedDict()
+_preview_lock = threading.Lock()
+_preview_slots = threading.BoundedSemaphore(2)
+_PREVIEW_BYTES = 48 * 1024 * 1024
+
+
+def preview_visual(request: VisualRequest, page_index=0):
+    """Same compositor, one page, no image provider, upload, save or manifest."""
+    from tempfile import TemporaryDirectory
+    from app.services.image_card import generate_quote_card
+    from app.services.brand_kit import normalize_brand
+    if request.style not in DESIGN_FAMILIES:
+        raise CardTypographyError("Choose a current visual style to preview edits")
+    card = request.card_message
+    if not isinstance(card, dict) or not (card.get("headline") or card.get("arabic_text")):
+        raise CardTypographyError("Choose a source before previewing its design")
+    if len(str(card)) > 32000 or type(page_index) is not int or not 0 <= page_index < 20:
+        raise CardTypographyError("This preview is too large or its page is unavailable")
+    if request.style in REUSABLE_FAMILIES and not request.background_token:
+        raise CardTypographyError("Create a background once, then preview design edits with that photograph")
+    if not _preview_slots.acquire(blocking=False):
+        raise PreviewBusyError("The preview is busy. Try again in a moment; your changes are kept.")
+    started = time.perf_counter()
+    try:
+        request.brand_kit = normalize_brand(request.brand_kit)
+        photo = _load_background(request.background_token, request, use_cache=True) if request.style in REUSABLE_FAMILIES else None
+        loaded = time.perf_counter()
+        metadata = {}
+        with TemporaryDirectory(prefix="sabeel-preview-") as directory:
+            image = generate_quote_card(style=request.style, card_message=card,
+                layout=request.layout, post_format=request.post_format,
+                brand_kit=request.brand_kit, background_image=photo,
+                visual_prompt=request.custom_prompt, allow_sequence=True,
+                render_metadata=metadata, preview_page=page_index, output_dir=directory)
+        finished = time.perf_counter()
+        return {"preview_only": True, "image_data": image, **metadata,
+                "timings_ms": {"background": round((loaded-started)*1000),
+                               "render": round((finished-loaded)*1000),
+                               "total": round((finished-started)*1000)}}
+    finally:
+        _preview_slots.release()
+
+
+class PreviewBusyError(ValueError):
+    pass
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -315,7 +366,7 @@ def _background_signer():
     return URLSafeSerializer(settings.secret_key, salt="sabeel-visual-background-v1")
 
 
-def _load_background(token, request):
+def _load_background(token, request, *, use_cache=False):
     """Only server-issued, same-organization Cloudinary photographs can be reused.
 
     Receipts deliberately survive refresh/deploy; they contain no credentials.
@@ -334,6 +385,16 @@ def _load_background(token, request):
                 or data.get("identity", "") != (_hash_prompt(request.brand_kit["visual_identity"]) if (request.brand_kit or {}).get("visual_identity") else "")
                 or not is_durable_media_url(data.get("url"))):
             raise ValueError("Invalid receipt")
+        cache_key = (request.owner_id, data["url"])
+        if use_cache:
+            with _preview_lock:
+                for key, (expires, _) in list(_preview_photos.items()):
+                    if expires <= time.monotonic():
+                        del _preview_photos[key]
+                cached = _preview_photos.get(cache_key)
+                if cached:
+                    _preview_photos.move_to_end(cache_key)
+                    return cached[1].copy()
         with requests.get(data["url"], timeout=(5, 20), allow_redirects=False, stream=True) as response:
             if response.status_code != 200:
                 raise ValueError("Unavailable image")
@@ -346,6 +407,12 @@ def _load_background(token, request):
             with Image.open(buffer) as photo:
                 if photo.width * photo.height > 16_000_000:
                     raise ValueError("Oversize image")
-                return photo.convert("RGB")
+                decoded = photo.convert("RGB")
+        if use_cache and decoded.width * decoded.height * 3 <= _PREVIEW_BYTES:
+            with _preview_lock:
+                _preview_photos[cache_key] = (time.monotonic()+300, decoded.copy())
+                while sum(img.width*img.height*3 for _, img in _preview_photos.values()) > _PREVIEW_BYTES:
+                    _preview_photos.popitem(last=False)
+        return decoded
     except (BadData, ValueError, TypeError, OSError, requests.RequestException):
         raise CardTypographyError("The saved photograph could not be reused. Choose a new photograph and try again.") from None

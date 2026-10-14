@@ -151,3 +151,24 @@ class CreatorWorkspaceRenderingTests(DatabaseCase):
         self.assertIn('Unassigned draft', page)
         self.assertNotIn('Foreign draft', page)
         self.assertIn('Save or export without a connection', page)
+
+class WorkspaceViewStateTests(unittest.TestCase):
+    def test_search_keeps_reference_and_topic_and_uncertain_status_is_not_a_draft(self):
+        post=SimpleNamespace(id=4,flags={},source_reference="Qur'an 13:28",topic='Remembrance <daily>',status='publish_unknown',post_format='feed_4_5',caption='',scheduled_time=None,media_url='')
+        markup=post_card(post)
+        self.assertIn('data-post-category="attention"',markup)
+        self.assertIn('remembrance &lt;daily&gt;',markup)
+        self.assertIn('13:28',markup)
+
+    def test_mobile_plan_uses_local_calendar_dates_and_only_future_scheduled_posts_are_up_next(self):
+        from app.routes.creator_workspace import mobile_plan
+        from datetime import datetime, timedelta
+        from zoneinfo import ZoneInfo
+        now=datetime(2026,10,14,10,tzinfo=ZoneInfo('America/Detroit'))
+        def post(number,status):
+            return SimpleNamespace(id=number,flags={},source_reference='Fixture',topic='',status=status,post_format='feed_4_5',caption='',scheduled_time=now,media_url='')
+        output=mobile_plan([post(1,'scheduled'),post(2,'published'),post(3,'scheduled')],{1:now+timedelta(days=1),2:now-timedelta(days=1),3:now-timedelta(hours=1)},now,'America/Detroit')
+        self.assertEqual(output.count('data-plan-upcoming="true"'),1)
+        self.assertIn('data-plan-date="2026-10-15"',output)
+        self.assertIn('Times shown in America/Detroit',output)
+        self.assertIn('Instagram schedule',output)
