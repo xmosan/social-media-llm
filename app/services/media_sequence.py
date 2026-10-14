@@ -129,6 +129,15 @@ def download_image(url):
         raise ValueError("A sequence image could not be downloaded. Please try again.") from None
 
 
+def export_image(post, page_number):
+    """Return the original stored JPEG bytes; never resize or regenerate."""
+    manifest = saved_manifest(post)
+    pages = manifest["pages"] if manifest else [{"url": post.media_url}]
+    if type(page_number) is not int or not 1 <= page_number <= len(pages):
+        raise ValueError("That image is not part of this saved post")
+    return download_image(pages[page_number - 1]["url"])
+
+
 def export_post(post):
     manifest = saved_manifest(post)
     pages = manifest["pages"] if manifest else [{"url": post.media_url}]

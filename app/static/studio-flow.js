@@ -60,7 +60,7 @@
     const state=snapshot();
     el('studioPinterestEditor').hidden=true; el('studioPinterestRetry').hidden=true;
     if (state.pages.length !== 1 || state.payload.post_format !== 'feed_4_5') {
-      el('studioPinterestStatus').textContent='Pinterest needs one complete 4:5 card. Your full sequence stays intact: share it to Instagram or download it from More. You can change the format in Design.'; return;
+      el('studioPinterestStatus').textContent='Pinterest needs one complete 4:5 card. Your full sequence stays intact: share it to Instagram or use Download above. You can change the format in Design.'; return;
     }
     if (!state.reviewed || state.dirty) { el('studioPinterestStatus').textContent='Review your latest design before preparing this Pin.'; return; }
     opening=true; refresh(); el('studioPinterestStatus').textContent='Saving your card and opening Pinterest options…';
@@ -87,10 +87,20 @@
     } else await originalSave();
   };
   // Reuse the actual controls: no parallel source/design/caption state.
-  let action=null;
+  window.studioSharingSubmitted=()=>submitted;
+  let action=null, downloadKey='';
   function refresh() {
     const n=step(), state=snapshot(), bar=el('studioStepBar'), next=el('studioStepNext');
     document.querySelectorAll('[name="studioDestination"]').forEach(input=>{const locked=opening || pin.busy() || submitted; if(input.disabled!==locked) input.disabled=locked;});
+    const downloads=el('studioDownloadPages'), key=JSON.stringify(state.pages.map(p=>[p.url,p.width,p.height]));
+    if(downloads && key!==downloadKey) {
+      downloadKey=key;downloads.replaceChildren();
+      state.pages.forEach((page,index)=>{const button=document.createElement('button');button.type='button';button.textContent=`Image ${index+1} · ${page.width || 1080} × ${page.height || (state.payload.post_format==='story_9_16' ? 1920 : 1350)} · JPG`;button.onclick=()=>window.downloadStudioImage(index+1);downloads.appendChild(button);});
+    }
+    const downloadDisabled=!!(opening || pin.busy() || state.busy || state.dirty || !state.payload.media_url);
+    for(const button of [el('studioDownloadAll'),...(downloads?.querySelectorAll('button') || [])]) if(button && button.disabled!==downloadDisabled) button.disabled=downloadDisabled;
+    const help=el('studioDownloadHelp'), downloadHelp=state.dirty ? 'Apply design changes first.' : state.payload.media_url ? 'On a phone, open the downloaded JPG in Files and choose Save Image to add it to Photos.' : 'Create a design to download your images.';
+    if(help && help.textContent!==downloadHelp) help.textContent=downloadHelp;
     const guided = el('creatorGuided') && !el('creatorGuided').hidden;
     const visible=!modal.dataset.brandOnly && (n!==1 || !guided);
     if(bar.hidden===visible) bar.hidden=!visible;

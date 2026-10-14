@@ -987,6 +987,7 @@ STUDIO_SCRIPTS_JS = r"""
     let studioPostId = null;
     let studioDraftKey = null;
     let studioSaveBusy = false;
+    let studioDownloadBusy = false;
     let studioPageIndex = 0;
     let studioViewedPages = new Set();
     let studioSequenceReviewed = false;
@@ -1231,7 +1232,7 @@ STUDIO_SCRIPTS_JS = r"""
         try { await persistStudioDraft(); } catch(e) { document.getElementById('studioSaveStatus').textContent=e.message; }
     };
     window.persistStudioDraft = persistStudioDraft;
-    window.studioShareSnapshot = () => ({postId:studioPostId, busy:studioSaveBusy, payload:studioPayload(), pages:sequencePages(), dirty:isQuoteCardOutOfDate, reviewed:studioSequenceReviewed});
+    window.studioShareSnapshot = () => ({postId:studioPostId, busy:studioSaveBusy || studioDownloadBusy, payload:studioPayload(), pages:sequencePages(), dirty:isQuoteCardOutOfDate, reviewed:studioSequenceReviewed});
     window.preparePinterestDraft = () => window.chooseStudioDestination?.('pinterest');
     window.captionChanged = function() {
         // A caption edit does not change the reviewed source image. Final sharing is explicit.
@@ -1239,10 +1240,28 @@ STUDIO_SCRIPTS_JS = r"""
         studioCaptionMessage={caption:document.getElementById('studioCaption')?.value || '',options:window.readCaptionOptions?.() || {purpose:'explanation',tone:'clear'}};
         window.rememberStudio();
     };
-    window.exportStudioSequence = async function() {
-        try { const post=await persistStudioDraft(); if(post) window.location.href=`/posts/${post.id}/export`; }
-        catch(e) { document.getElementById('studioSaveStatus').textContent=e.message; }
+    window.downloadStudioFile = async function(page=null) {
+        if(studioSaveBusy || studioDownloadBusy) return;
+        const button=document.getElementById('studioDownloadAll');
+        try {
+            const post=window.studioSharingSubmitted?.() ? {id:studioPostId} : await persistStudioDraft();
+            if(!post?.id) return;
+            studioDownloadBusy=true; if(button) button.disabled=true;
+            document.getElementById('studioSaveStatus').textContent='Preparing full-resolution download…';
+            const path=page===null ? `/posts/${post.id}/export` : `/posts/${post.id}/images/${page}/download`;
+            const response=await fetch(path,{signal:AbortSignal.timeout(90000)});
+            if(!response.ok) { const error=await response.json().catch(()=>({})); throw Error(error.detail || 'Download could not be prepared. Your saved images are safe; try again.'); }
+            const expected=page===null ? 'application/zip' : 'image/jpeg';
+            if(!response.headers.get('content-type')?.startsWith(expected)) throw Error('Download was not an image file. Sign in again if your session expired, then try again.');
+            const blob=await response.blob(), url=URL.createObjectURL(blob), link=document.createElement('a');
+            link.href=url; link.download=page===null ? `sabeel-post-${post.id}.zip` : `sabeel-post-${post.id}-${String(page).padStart(2,'0')}.jpg`;
+            document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
+            document.getElementById('studioSaveStatus').textContent='Download ready. Check your browser’s downloads or Files. On a phone, open the image and choose Save Image to add it to Photos.';
+        } catch(e) { document.getElementById('studioSaveStatus').textContent=e.message; }
+        finally {studioDownloadBusy=false;if(button) button.disabled=false;}
     };
+    window.exportStudioSequence = () => window.downloadStudioFile();
+    window.downloadStudioImage = page => window.downloadStudioFile(page);
     window.shareStudioNow = async function() {
         if (studioSaveBusy) return;
         if (window.validateStudioInstagramReview && !window.validateStudioInstagramReview()) return;
@@ -2975,7 +2994,7 @@ STUDIO_COMPONENTS_HTML = """
         <div class="flex-1 overflow-y-auto p-6 md:p-12 pb-32 custom-scrollbar">
           <div class="cw-save-row flex flex-wrap items-center gap-3 mb-6 text-sm">
               <button type="button" id="studioSaveDraftButton" onclick="saveStudioDraft()" title="Save without scheduling or publishing" class="px-4 py-2 border border-brand/20 rounded-xl">Save draft</button>
-              <details class="cw-draft-menu"><summary>More</summary><div><button type="button" onclick="exportStudioSequence()">Export images + source</button><p>Saving a draft never schedules or publishes it.</p></div></details>
+              <details class="cw-draft-menu" id="studioDownloads"><summary>↓ Download</summary><div><strong>Full-quality images</strong><p>Original resolution. No extra image generation. Download every page for a complete sequence.</p><div id="studioDownloadPages"></div><button id="studioDownloadAll" type="button" onclick="exportStudioSequence()">All images + source · ZIP</button><p id="studioDownloadHelp">Create a design to download your images.</p></div></details>
               <span id="creatorSaveState" role="status" aria-live="polite"></span><span id="studioSaveStatus" role="status" aria-live="polite" class="text-brand/70"></span>
           </div>
           <div id="studioSection1" class="studio-section space-y-10 animate-in slide-in-from-right-8 duration-500">

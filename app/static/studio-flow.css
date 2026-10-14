@@ -70,3 +70,15 @@
 #newPostModal .pin-editor .availability > p.hint {display:none}
 #newPostModal .pin-editor .availability summary {min-height:44px;padding:10px 0}
 #newPostModal .pin-editor .availability > p:empty {display:none}
+
+#newPostModal #studioDownloads > div {max-height:min(65dvh,480px);overflow:auto;width:min(300px,calc(100vw - 40px))}
+#newPostModal #studioDownloadPages button {display:block;width:100%;text-align:left;min-height:44px;border-bottom:1px solid #e0e6dc}
+#newPostModal #studioDownloadAll {min-height:48px}
+
+#newPostModal .cw-search-recovery {padding:18px;background:#f2f5ec;border:1px solid #dbe4d4;border-radius:16px;display:grid;gap:12px}
+#newPostModal .cw-search-recovery h5 {font-size:19px;font-weight:650}
+#newPostModal .cw-search-recovery p {font-size:14px;line-height:1.5}
+#newPostModal .cw-search-recovery label {font-size:14px;display:grid;gap:6px}
+#newPostModal .cw-search-recovery input {font-size:16px;min-height:48px;padding:10px;border:1px solid #bdccbf;border-radius:10px;width:100%}
+
+#newPostModal .pin-download-links {display:none}

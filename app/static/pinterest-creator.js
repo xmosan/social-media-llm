@@ -100,6 +100,8 @@ window.createPinterestEditor = (options = {}) => {
   }
   function apply(data) {
     current = data; dirty = false;
+    if(el('DownloadImage')) el('DownloadImage').href='/posts/'+data.post_id+'/images/1/download';
+    if(el('DownloadSource')) el('DownloadSource').href='/posts/'+data.post_id+'/export';
     invalidateReview(); imageReady = false;
     const value = data.copy;
     el('Title').value = value.title; el('Description').value = value.description;
