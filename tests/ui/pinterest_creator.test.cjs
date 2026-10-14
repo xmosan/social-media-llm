@@ -1,13 +1,14 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const code=fs.readFileSync(require('node:path').join(__dirname,'../../app/static/pinterest-creator.js'),'utf8');
 const saved={post_id:1,revision:0,source_version:'a'.repeat(64),source_reference:'Fixture 1',image_url:'https://cdn.test/card.jpg',arabic:'نص تجريبي',translation:'Exact source',reflection:'',source_details:'Fixture provider',issues:[],copy:{title:'Fixture 1',description:'Separate social copy',alt_text:'Image description',ai_modified:false,link:null},locked:false,publishing_enabled:false};
-async function setup(handler){
+async function setup(handler,embedded=false){
   const nodes={},calls=[],listeners={},events={preventDefault(){}};
   const el=id=>nodes[id] ||= {value:'',textContent:'',hidden:false,disabled:false,options:[],events:{},addEventListener(n,f){this.events[n]=f},setAttribute(n,v){this[n]=v},add(o){this.options.push(o)},replaceChildren(...o){this.options=o},focus(){},scrollIntoView(){}};
-  const c={document:{body:{dataset:{post:'1'}},getElementById:id=>el(id.replace('creatorPin',''))},window:{confirm:()=>true,addEventListener:(n,f)=>listeners[n]=f},history:{replaceState(){}},Option:function(text,value){this.text=text;this.value=value},AbortSignal,encodeURIComponent,
+  const c={document:{body:{dataset:embedded?{}:{post:'1'}},getElementById:id=>el(id.replace('creatorPin',''))},window:{confirm:()=>true,addEventListener:(n,f)=>listeners[n]=f},history:{replaceState(){}},Option:function(text,value){this.text=text;this.value=value},AbortSignal,encodeURIComponent,
     fetch:async(path,options)=>{calls.push({path,options});if(handler){const result=await handler(path,options);if(result)return result}return {ok:true,json:async()=>path.endsWith('/posts')?{items:[{id:1,reference:'Fixture 1'}],next_before:null}:structuredClone(saved)}}};
   vm.runInNewContext(code,c);await new Promise(setImmediate);
-  return {el,calls,listeners,submit:()=>el('Form').events.submit(events),c};
+  const editor=embedded?c.window.createPinterestEditor({embedded:true,caption:()=>"Fixture 1: saved caption"}):null;
+  return {el,calls,listeners,editor,submit:()=>el('Form').events.submit(events),c};
 }
 test('creator writes separate copy, can save incomplete fields, and never calls publishing or OAuth',async()=>{
   const f=await setup((path,opts)=>opts.method==='PUT'?{ok:true,json:async()=>({...saved,revision:1,saved_at:'2026-10-13',copy:JSON.parse(opts.body)})}:null);
@@ -78,4 +79,26 @@ test('board request failure keeps the current destination and offers a usable re
   let attempts=0;const f=await publishingSetup(path=>{if(path.endsWith('/boards')){if(++attempts===1)throw Error('Pinterest unavailable');return ok({items:[{id:'789',name:'Other board'}],bookmark:null})}});
   await f.el('LoadBoards').events.click();assert.match(f.el('ConnectionNotice').textContent,/unavailable/);assert.equal(f.el('LoadBoards').disabled,false);
   await f.el('LoadBoards').events.click();assert.equal(f.el('Board').options[1].value,'789');assert.equal(f.el('BoardSummary').textContent,'Publishing to Reminders');
+});
+
+test('embedded editor reuses caption only when it fits and restores independent unsaved Pin edits',async()=>{
+ const f=await setup((path)=>path.endsWith('/connection')?ok(connected):path.endsWith('/1')?ok({...saved,copy:{...saved.copy,description:''}}):null,true);
+ await f.editor.open(1);assert.equal(f.el('Description').value,'Fixture 1: saved caption');assert.equal(f.editor.snapshot().dirty,true);
+ const recovery={post_id:1,revision:0,source_version:saved.source_version,dirty:true,copy:{...saved.copy,description:'Pin-specific copy'}};
+ await f.editor.open(1,recovery);assert.equal(f.el('Description').value,'Pin-specific copy');assert.equal(f.el('Publish').disabled,true);
+});
+test('newer saved Pin revisions preserve recoverable copy and require an explicit conflict choice',async()=>{
+ const f=await setup(path=>path.endsWith('/connection')?ok(connected):path.endsWith('/1')?ok({...ready,revision:2}):null,true);
+ await f.editor.open(1,{post_id:1,revision:1,source_version:saved.source_version,dirty:true,copy:{...saved.copy,description:'Older local edit'}});
+ assert.equal(f.el('Description').value,ready.copy.description);assert.equal(f.el('Recovered').hidden,false);assert.equal(f.el('Review').disabled,true);assert.equal(f.editor.snapshot().recovered.copy.description,'Older local edit');
+ f.el('UseRecovered').events.click();assert.equal(f.el('Description').value,'Older local edit');assert.equal(f.el('Recovered').hidden,true);assert.equal(f.editor.snapshot().revision,2);
+});
+test('a changed Studio image retains local Pin copy but requires fresh review',async()=>{
+ const f=await setup(path=>path.endsWith('/connection')?ok(connected):path.endsWith('/1')?ok({...ready,source_version:'b'.repeat(64)}):null,true);
+ await f.editor.open(1,{post_id:1,revision:1,source_version:saved.source_version,dirty:true,copy:{...saved.copy,description:'Retain my copy'}});
+ assert.equal(f.el('Description').value,'Retain my copy');assert.match(f.el('Notice').textContent,/design changed/);assert.equal(f.el('Publish').disabled,true);
+});
+test('embedded reset prevents a late image event from approving another post',async()=>{
+ const f=await setup(path=>path.endsWith('/connection')?ok(connected):path.endsWith('/1')?ok(ready):null,true);
+ await f.editor.open(1);const oldLoad=f.el('Image').onload;f.editor.reset();oldLoad();assert.equal(f.editor.snapshot(),null);assert.equal(f.el('Editor').hidden,true);
 });

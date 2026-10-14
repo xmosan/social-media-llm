@@ -92,10 +92,10 @@ test('storage failure is reported instead of claiming that early work is safe',(
  const f=setup();let success;f.c.window.creatorRecoveryStatus=ok=>success=ok;
  f.c.localStorage.setItem=()=>{throw Error('Quota');};assert.equal(f.c.window.rememberStudio(),false);assert.equal(success,false);
 });
-test('editing a caption clears prior publishing approval without invalidating the background',()=>{
- const f=setup();f.run('studioSequenceReviewed=true');f.el('sequenceReviewCheck').checked=true;
+test('caption edits invalidate final sharing approval while keeping the unchanged image reviewed',()=>{
+ const f=setup();let invalidated=0;f.c.window.invalidateStudioShareReview=()=>invalidated++;f.run('studioSequenceReviewed=true');f.el('sequenceReviewCheck').checked=true;
  f.el('studioCaption').value='My edited caption';f.c.window.captionChanged();
- assert.equal(f.run('studioSequenceReviewed'),false);assert.equal(f.el('sequenceReviewCheck').checked,false);assert.equal(f.c.isQuoteCardOutOfDate,false);
+ assert.equal(f.run('studioSequenceReviewed'),true);assert.equal(f.el('sequenceReviewCheck').checked,true);assert.equal(f.c.isQuoteCardOutOfDate,false);assert.equal(invalidated,1);
  assert.equal(JSON.parse([...f.storage.values()][0]).payload.caption_message.caption,'My edited caption');
 });
 test('starting another idea preserves the previous local draft and can recover it',async()=>{
@@ -164,13 +164,7 @@ test('caption preferences survive device recovery and saved-post reopen independ
  await f.c.window.resumeStudioPost(51);assert.equal(f.el('captionPurpose').value,'reflection');assert.equal(f.el('captionTone').value,'warm');assert.equal(f.el('studioCaption').value,'Saved');
 });
 
-test('Pinterest handoff saves a reviewed single card before navigation without publishing',async()=>{
-  let payload;const f=setup(async(url,opts)=>{payload=JSON.parse(opts.body);return {ok:true,json:async()=>({id:51})}});
-  f.c.window.location={};f.c.studioVisualDesign.media_manifest={format:'feed_4_5',pages:[{url:'https://cdn.test/card.jpg'}]};f.run('studioSequenceReviewed=true');
-  await f.c.window.preparePinterestDraft();assert.equal(f.c.window.location.href,'/app/pinterest?post=51');assert.equal(payload.status,'drafted');assert.equal(payload.reviewed,true);assert.equal(payload.card_message.headline,'Exact source');
-});
-test('Pinterest handoff never drops pages or bypasses visual review',async()=>{
-  let calls=0;const f=setup(async()=>{calls++;return {ok:true,json:async()=>({id:1})}});
-  await f.c.window.preparePinterestDraft();assert.equal(calls,0);assert.match(f.el('studioSaveStatus').textContent,/every page/);
-  f.c.studioVisualDesign.media_manifest={format:'feed_4_5',pages:[{url:'https://cdn.test/card.jpg'}]};await f.c.window.preparePinterestDraft();assert.equal(calls,0);assert.match(f.el('studioSaveStatus').textContent,/Review the complete/);
+test('legacy Pinterest action selects the in-editor destination without navigation',async()=>{
+  const f=setup();let chosen;f.c.window.chooseStudioDestination=async name=>chosen=name;
+  await f.c.window.preparePinterestDraft();assert.equal(chosen,'pinterest');
 });

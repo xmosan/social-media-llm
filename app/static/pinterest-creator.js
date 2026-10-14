@@ -1,9 +1,10 @@
 /* Saved drafts enter the shared publisher only after an explicit review. */
-(() => {
+window.createPinterestEditor = (options = {}) => {
   const el = id => document.getElementById('creatorPin' + id);
   let current = null, busy = false, dirty = false, before = null, epoch = 0;
-  const initial = document.body.dataset.post;
+  const initial = options.embedded ? null : document.body.dataset.post;
   const fields = ['Title', 'Description', 'Alt', 'AI', 'Link'];
+  let unappliedRecovery = null;
   let account = null, receipt = null, imageReady = false, deliveryUncertain = false, boardBookmark = null;
   async function api(path, options = {}) {
     const response = await fetch('/api/creator/pinterest/' + path, {...options, signal: AbortSignal.timeout(90000)});
@@ -19,12 +20,14 @@
     el('Save').disabled = value || !current || current.locked;
     el('Fields').disabled = value || !current || current.locked;
     el('Reload').disabled = value;
-    el('Save').textContent = value ? 'Please wait…' : 'Save draft';
+    el('Save').textContent = value ? 'Please wait…' : options.embedded ? 'Save Pin draft' : 'Save draft';
     for (const id of ['LoadBoards','MoreBoards','Board','UseBoard','Disconnect','CheckStatus','Verify']) if (el(id)) el(id).disabled = value;
     controls();
+    options.onBusy?.(value);
   }
   function controls() {
-    const ready = account?.enabled && account?.connected && account?.board_id && current && !current.locked && !deliveryUncertain;
+    const ready = !unappliedRecovery && account?.enabled && account?.connected && account?.board_id && current && !current.locked && !deliveryUncertain;
+    el('Review').hidden=!!receipt || !!current?.locked;
     el('Review').disabled = busy || !ready || !imageReady;
     el('Publish').disabled = busy || !ready || !receipt || dirty || !imageReady || !el('Reviewed').checked;
   }
@@ -36,6 +39,7 @@
     if (current && data.status) current.locked = locked;
     el('PublishedLink').hidden = data.status !== 'published';
     if (data.status === 'published') el('PublishedLink').href = data.url;
+    options.onPublication?.(data);
     el('PublishedLink').textContent = data.sandbox ? 'View sandbox result ↗' : 'View on Pinterest ↗';
     el('Verify').hidden = data.status !== 'published' || !account?.enabled || data.sandbox;
     el('CheckStatus').hidden = !deliveryUncertain && !['publishing','unknown'].includes(data.status);
@@ -53,12 +57,13 @@
     el('AccountStatus').textContent = data.connected ? 'Connected as @' + data.username : data.enabled ? 'Connect your Pinterest' : 'Draft access';
     if (el('Connect')) el('Connect').hidden = !data.enabled || data.connected;
     if (el('Connected')) el('Connected').hidden = !data.enabled || !data.connected;
+    el('AccountStatus').textContent += !data.enabled ? ' · Publishing unavailable' : '';
     if (el('BoardSummary')) el('BoardSummary').textContent = data.board_name ? 'Publishing to ' + data.board_name : 'Choose a public board';
     invalidateReview();
   }
   async function loadAccount() {
-    try { applyAccount(await api('connection')); }
-    catch (error) { el('AccountStatus').textContent = 'Connection could not load. Reload this page to try again.'; }
+    try { applyAccount(await api('connection')); return true; }
+    catch (error) { account=null; controls(); el('AccountStatus').textContent = 'Connection could not load. Try again to check your account.'; return false; }
   }
   async function boards(more = false) {
     if (busy) return; setBusy(true); el('ConnectionNotice').textContent = 'Loading your boards…';
@@ -104,9 +109,10 @@
     el('ReflectionBlock').hidden = !data.reflection;
     el('Thumb').src = data.image_url;
     el('ImageStatus').textContent = 'Loading saved image…';
-    el('Image').onload = () => { imageReady = true; el('ImageStatus').textContent = ''; controls(); };
+    el('Image').onload = () => { if(current !== data || el('Image').src !== data.image_url) return; imageReady = true; el('ImageStatus').textContent = ''; controls(); };
     el('Image').onerror = () => { imageReady = false; controls(); el('ImageStatus').textContent = 'The saved image could not load. Your copy is kept; reload the page to try again.'; };
     el('Image').src = data.image_url;
+    if(el('Image').complete && el('Image').naturalWidth > 0) el('Image').onload();
     el('Editor').hidden = false;
     el('SaveStatus').textContent = data.locked ? 'Submitted copy · Read-only' : data.saved_at ? 'Saved draft · Not published' : 'Not saved yet';
     el('Notice').hidden = !(data.locked || data.source_changed);
@@ -129,7 +135,7 @@
       const match = [...el('Post').options].some(option => option.value === String(id));
       if (!match) el('Post').add(new Option(data.source_reference, String(id)));
       el('Post').value = String(id);
-      history.replaceState(null, '', '/app/pinterest?post=' + encodeURIComponent(id));
+      if (!options.embedded) history.replaceState(null, '', '/app/pinterest?post=' + encodeURIComponent(id));
     } catch (error) { el('LoadStatus').textContent = error.message; el('Retry').hidden = false; }
     finally { if (request === epoch) setBusy(false); }
   }
@@ -156,7 +162,7 @@
   el('Retry').addEventListener('click', () => { const id = el('Post').value || initial; if (id) load(id); else list(); });
   el('Reload').addEventListener('click', () => { if (current && discard()) load(current.post_id); });
   for (const field of fields) el(field).addEventListener('input', () => {
-    dirty = true; invalidateReview(); el('SaveStatus').textContent = 'Unsaved changes'; el('Issues').textContent = ''; preview();
+    dirty = true; invalidateReview(); options.onChange?.(); el('SaveStatus').textContent = 'Unsaved changes'; el('Issues').textContent = ''; preview();
   });
   for (const name of ['Write','Preview']) {
     el(name + 'Tab').addEventListener('click', () => tab(name));
@@ -165,18 +171,20 @@
     });
   }
   el('ReviewCard').addEventListener('click', () => { tab('Preview', true); el('PreviewTab').scrollIntoView({block:'start'}); });
-  el('Form').addEventListener('submit', async event => {
-    event.preventDefault(); if (busy || !current || current.locked) return;
+  async function save() {
+    if (busy) return false;
+    if (!current || current.locked || (!dirty && current.saved_at)) return true;
     setBusy(true); el('SaveStatus').textContent = 'Saving…';
     try {
-      const data = await api('posts/' + current.post_id, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({...copy(), revision: current.revision, source_version: current.source_version})});
-      apply(data);
+      const data = await api('posts/' + current.post_id, json('PUT',{...copy(), ...version()}));
+      apply(data); options.onChange?.(); return true;
     } catch (error) {
       dirty = true; el('SaveStatus').textContent = 'Not confirmed saved';
       el('Notice').hidden = false; el('Notice').textContent = error.message + ' Your edits are still on this page.';
-      el('Reload').hidden = false;
+      el('Reload').hidden = false; return false;
     } finally { setBusy(false); }
-  });
+  }
+  el('Form').addEventListener('submit', async event => { event.preventDefault(); await save(); });
   window.addEventListener('beforeunload', event => { if (dirty) { event.preventDefault(); event.returnValue = ''; } });
   if (el('LoadBoards')) el('LoadBoards').addEventListener('click', () => boards());
   if (el('MoreBoards')) el('MoreBoards').addEventListener('click', () => boards(true));
@@ -189,6 +197,10 @@
   });
   for (const id of ['Connect','Reconnect']) if (el(id)) el(id).addEventListener('submit', event => {
     if (busy || !discard()) { event.preventDefault(); return; }
+    if (options.embedded) {
+      if (!current || dirty) { event.preventDefault(); el('ConnectionNotice').textContent = 'Save your Pin edits before connecting. They are kept here.'; return; }
+      event.target.action = '/api/creator/pinterest/connect?studio_post=' + current.post_id;
+    }
     dirty = false; setBusy(true); el('ConnectionNotice').textContent = 'Opening Pinterest…';
   });
   if (el('Disconnect')) el('Disconnect').addEventListener('click', async () => {
@@ -203,11 +215,11 @@
     if (busy || !current || current.locked || deliveryUncertain) return;
     invalidateReview(); setBusy(true); el('PublishStatus').textContent = 'Checking the saved card and destination…';
     try {
-      if (dirty || !current.saved_at) apply(await api('posts/' + current.post_id,json('PUT',{...copy(),...version()})));
+      if (dirty || !current.saved_at) { apply(await api('posts/' + current.post_id,json('PUT',{...copy(),...version()}))); options.onChange?.(); }
       const data = await api('posts/' + current.post_id + '/review',json('POST',version()));
-      receipt = data.receipt; el('Destination').textContent = '@' + data.username + ' → ' + data.board_name;
+      receipt = data.receipt; if(options.embedded) { tab('Preview'); el('PreviewTab').scrollIntoView({block:'start'}); } el('Destination').textContent = '@' + data.username + ' → ' + data.board_name;
       el('Approval').hidden = false; el('PublishStatus').textContent = 'Review your image and copy above, then confirm below.';
-    } catch (error) { el('PublishStatus').textContent = error.message; }
+    } catch (error) { el('PublishStatus').textContent = error.message; el('Notice').hidden=false; el('Notice').textContent=error.message; el('Notice').scrollIntoView({block:'center'}); }
     finally { setBusy(false); }
   });
   el('Publish').addEventListener('click', async () => {
@@ -238,5 +250,46 @@
     catch (error) { el('PublishStatus').textContent = error.message; }
     finally { setBusy(false); }
   });
-  (async () => { await loadAccount(); await list(); if (initial) await load(initial); })();
-})();
+  function recoverCopy(record) {
+    const v=record.copy;
+    el('Title').value=v.title; el('Description').value=v.description; el('Alt').value=v.alt_text;
+    el('AI').value=v.ai_modified === null ? '' : v.ai_modified ? 'yes' : 'no'; el('Link').value=v.link || '';
+    dirty=true; invalidateReview(); preview(); el('SaveStatus').textContent='Restored unsaved Pin edits';
+  }
+  el('KeepSaved')?.addEventListener('click',()=>{ if(busy) return; unappliedRecovery=null; el('Recovered').hidden=true; controls(); options.onChange?.(); });
+  el('UseRecovered')?.addEventListener('click',()=>{
+    if(busy || current?.locked || !unappliedRecovery) return;
+    recoverCopy(unappliedRecovery); unappliedRecovery=null; el('Recovered').hidden=true; options.onChange?.();
+  });
+  if (!options.embedded) (async () => { await loadAccount(); await list(); if (initial) await load(initial); })();
+  return {
+    save, busy:()=>busy, dirty:()=>dirty, locked:()=>!!current?.locked,
+    invalidate:invalidateReview,
+    snapshot:()=>current ? {post_id:current.post_id, source_version:current.source_version, revision:current.revision, copy:copy(), dirty, recovered:unappliedRecovery} : null,
+    async open(id, recovery) {
+      if (busy) return;
+      if (!await loadAccount()) return false;
+      await load(id);
+      if (options.embedded && current && !current.locked && !current.saved_at && !current.copy.description && !recovery?.dirty) {
+        const caption=options.caption?.() || '';
+        if(caption && caption.length<=800) { el('Description').value=caption; dirty=true; preview(); el('SaveStatus').textContent='Caption copied · edit it for Pinterest'; }
+      }
+      recovery=recovery?.recovered || recovery;
+      unappliedRecovery=null; el('Recovered').hidden=true;
+      if (current && recovery?.post_id === current.post_id && recovery.dirty && !current.locked) {
+        if (recovery.revision === current.revision) {
+          recoverCopy(recovery);
+          if(recovery.source_version !== current.source_version) {el('Notice').hidden=false;el('Notice').textContent='Your design changed. Your Pin copy is kept; review it against the new image and source.';}
+        } else {
+          unappliedRecovery=recovery; el('Recovered').hidden=false;
+          el('RecoveredCopy').textContent=JSON.stringify(recovery.copy,null,2);
+          el('Notice').hidden=false;el('Notice').textContent='A newer version is saved. Your previous copy is available below. Choose which version to keep before publishing.';
+        }
+      }
+      if (options.embedded && account?.connected && !account.board_id) { el('BoardDetails').open=true; await boards(); }
+      controls(); return !!current;
+    },
+    reset() { if(busy) return false; epoch++; current=null; dirty=false; receipt=null; unappliedRecovery=null; deliveryUncertain=false; el('Editor').hidden=true; return true; }
+  };
+};
+if (document.body.dataset.post !== undefined) window.createPinterestEditor();

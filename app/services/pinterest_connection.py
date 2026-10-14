@@ -50,6 +50,7 @@ def require_creator_enabled():
 
 
 def begin(db, request, user_id, org_id, *, creator=False):
+    request.session.pop("pinterest_studio_post", None)
     state, handle = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
     db.execute(delete(Attempt).where(or_(Attempt.expires_at <= utcnow(), Attempt.user_id == user_id)))
     db.add(Attempt(id=digest(handle),user_id=user_id,org_id=org_id,state_hash=digest(state),
@@ -82,6 +83,7 @@ def abandon(db, request, attempt_id):
     db.execute(delete(Attempt).where(Attempt.id==attempt_id));db.commit()
     request.session.pop('pinterest_connection',None)
     request.session.pop('pinterest_creator_return',None)
+    request.session.pop('pinterest_studio_post',None)
 
 
 def store(db, attempt_id, tokens, identity, sandbox):
@@ -185,6 +187,7 @@ def disconnect(db, request, user_id, org_id):
     db.execute(delete(Attempt).where(Attempt.user_id==user_id,Attempt.org_id==org_id))
     db.commit();request.session.pop('pinterest_connection',None)
     request.session.pop('pinterest_creator_return',None)
+    request.session.pop('pinterest_studio_post',None)
 
 
 def setup_test_board(db, org_id, api):

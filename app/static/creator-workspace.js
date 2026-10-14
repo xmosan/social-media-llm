@@ -48,7 +48,7 @@
   // Choose a destination at Share; creating and saving need no social account.
   const accountField = byId("studioAccount").parentElement;
   accountField.querySelector("label").textContent = "Publish to Instagram";
-  byId("studioSection4").prepend(accountField);
+  byId("studioInstagramPanel").prepend(accountField);
   byId("studioAccount").addEventListener("change", () => window.prepareShare());
   byId("studioTopic").setAttribute("aria-label", "Search Qur’an or Hadith");
   byId("studioAccount").setAttribute(
@@ -235,6 +235,7 @@
     cancelDiscovery();
     suggestion = undo = null;
     byId("creatorSuggestion")?.remove();
+    byId("studioCaption").parentNode.hidden = false;
     restoreBrand();
     byId("creatorIdea").value = "";
     byId("creatorDiscoveryResults").replaceChildren();
@@ -265,7 +266,7 @@
   };
   window.closeNewPostModal = function () {
     if (reader.open) reader.close();
-    oldClose();
+    if (oldClose() === false) return;
     cancelDiscovery();
     isolatePage(false);
     previousFocus?.focus();
@@ -468,7 +469,9 @@
       byId("workspaceBrandSignature").textContent =
         kit.signature || "Add your signature";
   };
+  let savedStudioPayload = null;
   window.creatorCloudSaved = () => {
+    savedStudioPayload = JSON.stringify(window.studioShareSnapshot?.().payload);
     byId("creatorSaveState").textContent = "Saved to your workspace";
   };
   window.creatorSaveBusy = (busy) => {
@@ -478,9 +481,11 @@
   };
   window.creatorRecoveryStatus = (ok) => {
     byId("studioSaveStatus").textContent = "";
-    byId("creatorSaveState").textContent = ok
-      ? "Saved on this device · not yet synced"
-      : "Recovery could not be saved on this device. Keep this window open.";
+    const cloudSaved = savedStudioPayload && savedStudioPayload === JSON.stringify(window.studioShareSnapshot?.().payload);
+    const pinDirty = window.readStudioSharing?.().pin?.dirty;
+    byId("creatorSaveState").textContent = !ok
+      ? "Recovery could not be saved on this device. Keep this window open."
+      : cloudSaved && !pinDirty ? "Saved to your workspace" : "Changes kept on this device";
   };
   // Persist every editable field, including early ideas. Never write when Studio is closed.
   modal.addEventListener("input", (e) => {
@@ -496,6 +501,7 @@
   window.clearCreatorSuggestion = () => {
     suggestion = undo = null;
     byId("creatorSuggestion")?.remove();
+    byId("studioCaption").parentNode.hidden = false;
   };
   function suggestionTarget(kind) {
     return byId(kind === "caption" ? "studioCaption" : "editSupporting");
@@ -508,8 +514,10 @@
       source: JSON.stringify(window.studioSourceContext),
     };
     byId("creatorSuggestion")?.remove();
+    byId("studioCaption").parentNode.hidden = false;
     const panel = document.createElement("section");
     panel.id = "creatorSuggestion";
+    panel.dataset.pending = "true";
     panel.className = "cw-suggestion";
     panel.tabIndex = -1;
     const heading = document.createElement("h5");
@@ -526,7 +534,9 @@
       h.textContent = label;
       const content = document.createElement("pre");
       content.textContent = value;
-      panel.append(h, content);
+      if (label === "Your version") {
+        if (before) { const old = document.createElement("details"), summary = document.createElement("summary"); summary.textContent = "Compare with my current caption"; old.append(summary, content); panel.append(old); }
+      } else { panel.append(content); }
     }
     const actions = document.createElement("div");
     actions.className = "cw-guided-actions";
@@ -535,6 +545,7 @@
         "Keep mine",
         () => {
           panel.remove();
+          byId("studioCaption").parentNode.hidden = false;
           suggestion = null;
         },
       ],
@@ -555,6 +566,7 @@
       showTool("words");
       byId("editSupporting").parentNode.before(panel);
     }
+    if (kind === "caption") byId("studioCaption").parentNode.hidden = true;
     panel.focus();
   };
   function applySuggestion() {
@@ -570,6 +582,7 @@
       );
       return;
     }
+    target.parentNode.hidden = false;
     target.value = s.after;
     undo = s;
     suggestion = null;
@@ -577,6 +590,7 @@
     else window.updateStudioCardFromUI();
     window.rememberStudio();
     const p = byId("creatorSuggestion");
+    p.dataset.pending = "false";
     p.replaceChildren();
     const note = document.createElement("p");
     note.textContent = "Suggestion applied. Your source is unchanged.";

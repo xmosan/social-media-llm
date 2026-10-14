@@ -150,3 +150,32 @@ class PinterestStandardTests(DatabaseCase):
             self.assertEqual(self.request('disconnect').status_code,200)
         self.db.refresh(self.row);self.assertFalse(self.row.active);self.assertIsNone(self.row.encrypted_tokens)
         self.assertEqual(self.post.flags[drafts.KEY]['copy'],COPY)
+
+    def test_studio_connection_returns_to_same_workspace_post_without_sending(self):
+        result=self.request('connect?studio_post=1')
+        self.assertEqual(result.status_code,303)
+        state=parse_qs(urlsplit(result.headers['location']).query)['state'][0]
+        response=self.client.get('/auth/pinterest/callback',params={'state':state,'code':'fixture'})
+        self.assertEqual(response.headers['location'],'/app?studio_post=1&destination=pinterest&result=connected')
+        self.api.create_pin.assert_not_called()
+        # A later standalone connection must not inherit a previous Studio return.
+        state=self.start()
+        response=self.client.get('/auth/pinterest/callback',params={'state':state,'error':'denied'})
+        self.assertEqual(response.headers['location'],'/app/pinterest?result=cancelled')
+
+    def test_studio_connection_rejects_missing_cross_workspace_and_non_numeric_posts(self):
+        for value in ['999','-1','https://outside.example']:
+            response=self.request('connect?studio_post='+value)
+            self.assertIn(response.status_code,[404,422])
+        self.post.org_id=2;self.db.commit()
+        self.assertEqual(self.request('connect?studio_post=1').status_code,404)
+        self.api.authorization_url.assert_not_called()
+
+    def test_studio_connection_cancellation_preserves_post_and_returns_to_it(self):
+        original=deepcopy(self.post.flags)
+        result=self.request('connect?studio_post=1')
+        state=parse_qs(urlsplit(result.headers['location']).query)['state'][0]
+        response=self.client.get('/auth/pinterest/callback',params={'state':state,'error':'denied'})
+        self.assertEqual(response.headers['location'],'/app?studio_post=1&destination=pinterest&result=cancelled')
+        self.assertEqual(self.post.flags,original)
+        self.api.exchange_code.assert_not_called()
