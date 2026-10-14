@@ -66,3 +66,5 @@ small{float:right;padding-top:4px}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}
 }
 
+
+.publish-panel{padding:20px 0 8px}.publish-panel>.primary,.publish-panel #creatorPinPublish{width:100%;margin:12px 0}.review-check{display:flex;align-items:flex-start;gap:12px;margin:18px 0}.review-check input{width:24px;min-height:24px;flex-shrink:0;margin:3px 0}.availability label{display:block;margin:12px 0 6px}.availability .text-button{background:transparent;color:#245849;text-align:left}.availability .secondary{margin-top:12px}.availability #creatorPinAccountStatus{font-weight:650}.availability #creatorPinConnectionNotice:empty{display:none}

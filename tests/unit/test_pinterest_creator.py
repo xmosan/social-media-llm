@@ -37,7 +37,7 @@ class PinterestCreatorTests(DatabaseCase):
     def test_regular_tester_can_prepare_save_and_reopen_without_provider_or_instagram_mutation(self):
         original=(self.post.source_text,deepcopy(self.post.source_metadata),deepcopy(self.post.card_message),self.post.caption,self.post.status,self.post.media_url,self.post.ig_account_id)
         r=self.client.get('/app/pinterest');self.assertEqual(r.status_code,200);self.assertIn('no-store',r.headers['cache-control'])
-        self.assertIn('Awaiting approval',r.text);self.assertNotIn('/admin/',r.text)
+        self.assertIn('temporarily unavailable',r.text);self.assertNotIn('/admin/',r.text)
         self.assertEqual(self.save().status_code,200);data=self.get()
         self.assertEqual(data['copy'],COPY);self.assertEqual(data['revision'],1);self.assertFalse(data['publishing_enabled'])
         self.assertEqual(original,(self.post.source_text,self.post.source_metadata,self.post.card_message,self.post.caption,self.post.status,self.post.media_url,self.post.ig_account_id))
@@ -69,7 +69,7 @@ class PinterestCreatorTests(DatabaseCase):
             with patch.object(settings,'pinterest_sandbox',sandbox):
                 for suffix in ('connect','posts/1/publish','posts/1/schedule'):
                     r=self.client.post('/api/creator/pinterest/'+suffix,headers={'Origin':ORIGIN},json={'approved':True,'publishing_enabled':True})
-                    self.assertEqual(r.status_code,403);self.assertIn('Standard approval',r.text)
+                    self.assertEqual(r.status_code,403);self.assertIn('not available',r.text)
         self.user.is_superadmin=True
         with patch.object(settings,'platform_owner_email',self.user.email):
             self.assertEqual(self.client.post('/api/creator/pinterest/posts/1/publish',headers={'Origin':ORIGIN}).status_code,403)

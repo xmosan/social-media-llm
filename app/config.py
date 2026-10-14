@@ -151,6 +151,9 @@ class Settings(BaseSettings):
     pinterest_client_id: str | None = None
     pinterest_client_secret: str | None = Field(default=None, repr=False)
     pinterest_sandbox: bool = True
+    # Enable only after Standard approval and production verification. Sandbox
+    # credentials can never enable creator publishing, even with this switch on.
+    pinterest_creator_enabled: bool = False
     superadmin_email: str | None = Field(default=None, env="SUPERADMIN_EMAIL")
     superadmin_password: str | None = Field(default=None, env="SUPERADMIN_PASSWORD", repr=False)
 

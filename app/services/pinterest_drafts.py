@@ -1,12 +1,12 @@
-"""Creator Pin preparation only. No credentials, provider calls or publish claims."""
+"""Versioned creator copy, separate from canonical sources and publications."""
 from datetime import datetime, timezone
 from fastapi import HTTPException
 from app.services import pinterest_publishing as publishing
+from app.services.pinterest_connection import creator_enabled
 from app.services.channels.pinterest import PinDraft, PinterestError
 from app.services.media_sequence import card_digest
 
 KEY = 'pinterest_draft'
-APPROVAL_MESSAGE = 'Pinterest connections and publishing are awaiting Standard approval. You can prepare and save Pin drafts now.'
 
 
 def source_version(post):
@@ -40,7 +40,22 @@ def read(post):
             'revision': record.get('revision', 0), 'source_version': current,
             'source_changed': bool(record and record.get('source_version') != current),
             'saved_at': record.get('saved_at'), 'locked': locked, 'publication_status': publication['status'],
-            'issues': copy_issues(post, copy), 'publishing_enabled': False}
+            'issues': copy_issues(post, copy), 'publishing_enabled': creator_enabled(),
+            'publication': publication}
+
+
+def reviewed_copy(post, revision, expected_source):
+    """Only the saved revision may enter the shared review/publish pipeline."""
+    record = (post.flags or {}).get(KEY) or {}
+    if (not record or record.get('revision') != revision
+            or record.get('source_version') != expected_source
+            or source_version(post) != expected_source):
+        raise HTTPException(409, 'Your card or Pin draft changed. Save and review the latest version before publishing.')
+    copy = record['copy']
+    issues = copy_issues(post, copy)
+    if issues:
+        raise HTTPException(422, issues[0])
+    return copy
 
 
 def save(db, post_id, org_id, copy, revision, expected_source):

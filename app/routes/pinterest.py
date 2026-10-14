@@ -10,6 +10,7 @@ from app.config import settings
 from app.db import get_db
 from app.models import User, Post
 from app.security.rbac import require_superadmin, get_current_org_id, OWNER_HEADERS
+from app.security.auth import require_user
 from app.services import pinterest_connection as connection
 from app.services.instagram_connection import require_same_origin
 from app.services.usage_limits import check_auth_attempt
@@ -35,8 +36,8 @@ def api_client():
         if api:api.close()
 
 
-def redirect(result):
-    return RedirectResponse(HOME+'?result='+result,status_code=303,headers=OWNER_HEADERS)
+def redirect(result, *, creator=False):
+    return RedirectResponse(('/app/pinterest' if creator else HOME)+'?result='+result,status_code=303,headers=OWNER_HEADERS)
 
 
 @router.get(HOME)
@@ -66,20 +67,26 @@ def login(request:Request,db:Session=Depends(get_db),user:User=Depends(require_s
 
 @router.get('/auth/pinterest/callback')
 def callback(request:Request,code:str|None=None,state:str|None=None,db:Session=Depends(get_db),
-             user:User=Depends(require_superadmin),org_id:int=Depends(get_current_org_id)):
+             user:User=Depends(require_user),org_id:int=Depends(get_current_org_id)):
+    creator = request.session.get('pinterest_creator_return') is True
+    if creator:
+        connection.require_creator_enabled()
+    else:
+        require_superadmin(user, request)
     attempt=connection.claim(db,request,user.id,org_id,state)
     if request.query_params.get('error') or not code:
-        connection.abandon(db,request,attempt);return redirect('cancelled')
+        connection.abandon(db,request,attempt);return redirect('cancelled', creator=creator)
     try:
         with api_client() as api:
             tokens=api.exchange_code(code);identity=api.account(tokens['access_token'])
             connection.store(db,attempt,tokens,identity,api.sandbox)
         request.session.pop('pinterest_connection',None)
+        request.session.pop('pinterest_creator_return',None)
     except Exception:
         db.rollback();connection.abandon(db,request,attempt)
         log_event('pinterest_connection_failed',level='warning')
-        return redirect('unavailable')
-    return redirect('connected')
+        return redirect('unavailable', creator=creator)
+    return redirect('connected', creator=creator)
 
 
 @router.get('/api/pinterest/boards')

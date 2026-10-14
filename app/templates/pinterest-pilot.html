@@ -1,9 +1,9 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pinterest trial · Sabeel Studio</title><link rel="stylesheet" href="/static/tester-access.css"><script defer src="/static/pinterest-pilot.js"></script><style>main>section{padding:24px 0;border-top:1px solid #d7dfd4;margin-top:24px}code{overflow-wrap:anywhere;font-size:14px}details{margin-top:18px}h2{line-height:1.35}select{max-width:100%}#pinCopyForm label{display:block;margin-top:18px}#pinCopyForm input,#pinCopyForm select,#pinCopyForm textarea{box-sizing:border-box;width:100%;font:inherit;padding:12px;border:1px solid #c7d2c5;border-radius:8px}#pinReview label{display:block;margin:18px 0}#pinArabic{font-size:24px;line-height:1.9}</style></head>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pinterest checks · Sabeel Studio</title><link rel="stylesheet" href="/static/tester-access.css"><script defer src="/static/pinterest-pilot.js"></script><style>main>section{padding:24px 0;border-top:1px solid #d7dfd4;margin-top:24px}code{overflow-wrap:anywhere;font-size:14px}details{margin-top:18px}h2{line-height:1.35}select{max-width:100%}#pinCopyForm label{display:block;margin-top:18px}#pinCopyForm input,#pinCopyForm select,#pinCopyForm textarea{box-sizing:border-box;width:100%;font:inherit;padding:12px;border:1px solid #c7d2c5;border-radius:8px}#pinReview label{display:block;margin:18px 0}#pinArabic{font-size:24px;line-height:1.9}</style></head>
 <body><header><a class="wordmark" href="/app">Sabeel <span>Studio</span></a><a href="/admin">Owner dashboard</a></header>
-<main><p>PRIVATE CONNECTION TEST</p><h1>Pinterest</h1><p>This area is available only to the Sabeel owner. Connecting an account or choosing a board does not publish anything.</p>
+<main><p>OWNER CONNECTION CHECKS</p><h1>Pinterest</h1><p>This area is available only to the Sabeel owner. Connecting an account or choosing a board does not publish anything.</p>
 {% if message %}<p role="status">{{ message }}</p>{% endif %}
-<section><h2>{% if sandbox %}Sandbox{% else %}Trial production connection{% endif %}</h2>
-<p>{% if sandbox %}Use test boards and test API data. Sandbox results do not prove that public publishing works.{% else %}Use only the app owner’s account during Trial access. Independent creators need the appropriate Pinterest approval.{% endif %}</p>
+<section><h2>{% if sandbox %}Sandbox{% else %}Production connection{% endif %}</h2>
+<p>{% if sandbox %}Use test boards and test API data. Sandbox results do not prove that public publishing works.{% else %}Production connection. Standard access has been approved; real Pins are publicly visible.{% endif %}</p>
 {% if configured %}<form method="post" action="/auth/pinterest/login"><button type="submit">{% if connected %}Reconnect Pinterest{% else %}Connect Pinterest{% endif %}</button></form>
 {% else %}<p>Connection setup is incomplete. Add PINTEREST_CLIENT_ID and PINTEREST_CLIENT_SECRET to the app service in Railway. Keep the secret out of messages and screenshots.</p>{% endif %}
 <details><summary>Connection setup</summary><p>Register this exact redirect URL in the Pinterest app:</p><code>{{ callback }}</code><p>Requested permissions cover account identity, public boards and Pins. No advertising or private-message access is requested. The secret remains on the server.</p></details>
@@ -17,7 +17,7 @@
 <form method="post" action="/auth/pinterest/disconnect"><button type="submit">Disconnect from Sabeel</button></form>
 </section>{% endif %}
 {% if connected %}<section id="pinPilot"><h2>Test a saved Pin</h2>
-<p>Owner-only Trial. Pinterest limits API-created test Pins to your account. This test supports complete single-card feed posts. Carousels, Stories and Pinterest scheduling are not enabled.</p>
+<p>Owner connection checks. In production, publishing creates a real public Pin. This flow supports complete single-card feed posts. Carousels, Stories and Pinterest scheduling are not enabled.</p>
 <button type="button" id="loadPinPosts">Load saved cards</button>
 <form id="pinCopyForm" hidden>
 <label for="pinPost">Saved post</label><select id="pinPost" required></select>

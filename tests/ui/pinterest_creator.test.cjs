@@ -13,7 +13,7 @@ test('creator writes separate copy, can save incomplete fields, and never calls 
   const f=await setup((path,opts)=>opts.method==='PUT'?{ok:true,json:async()=>({...saved,revision:1,saved_at:'2026-10-13',copy:JSON.parse(opts.body)})}:null);
   f.el('Description').value='Edited description';f.el('Description').events.input();await f.submit();
   const sent=JSON.parse(f.calls.find(c=>c.options.method==='PUT').options.body);assert.equal(sent.description,'Edited description');assert.equal(sent.source_version,saved.source_version);assert.equal(sent.revision,0);assert.equal(sent.caption,undefined);assert.equal(sent.source_text,undefined);
-  assert.match(f.el('SaveStatus').textContent,/Saved draft/);assert.ok(f.calls.every(c=>!/(publish|connect|schedule)/.test(c.path)));
+  assert.match(f.el('SaveStatus').textContent,/Saved draft/);assert.ok(f.calls.every(c=>!c.options.method || !/(publish|connect|schedule)/.test(c.path)));
 });
 test('a lost save response preserves edits and lets the creator retry',async()=>{
   const f=await setup((path,opts)=>{if(opts.method==='PUT')throw Error('Connection interrupted');});
@@ -32,4 +32,50 @@ test('submitted Pinterest copy is displayed read-only without enabling creator p
 test('preview shows current edits as text, while source text remains unchanged',async()=>{
   const f=await setup();f.el('Description').value='<img src=x onerror=alert(1)>';f.el('Description').events.input();f.el('PreviewTab').events.click();
   assert.equal(f.el('PreviewDescription').textContent,'<img src=x onerror=alert(1)>');assert.equal(f.el('Translation').textContent,saved.translation);assert.equal(f.el('Preview').hidden,false);assert.equal(f.el('Write').hidden,true);
+});
+
+const connected={enabled:true,connected:true,username:'fixture',board_id:'123',board_name:'Reminders'};
+const ready={...saved,revision:1,saved_at:'now',publishing_enabled:true,publication:{status:'not_sent'}};
+const ok=data=>({ok:true,json:async()=>structuredClone(data)});
+async function publishingSetup(handler){
+  const f=await setup(async(path,opts)=>{
+    const override=handler&&await handler(path,opts);if(override)return override;
+    if(path.endsWith('/connection'))return ok(connected);
+    if(path.endsWith('/1'))return ok(ready);
+    if(path.endsWith('/review'))return ok({receipt:'signed-fixture',username:'fixture',board_name:'Reminders'});
+    if(path.endsWith('/status'))return ok({status:'not_sent'});
+  });
+  f.el('Image').onload();return f;
+}
+async function approve(f){await f.el('Review').events.click();f.el('Reviewed').checked=true;f.el('Reviewed').events.change();}
+test('Standard review needs a loaded image and explicit confirmation; duplicate publish taps send once',async()=>{
+  let finish;const f=await publishingSetup((path,opts)=>path.endsWith('/publish')?new Promise(resolve=>{finish=()=>resolve(ok({status:'published',url:'https://www.pinterest.com/pin/456/'}))}):null);
+  assert.equal(f.el('Publish').disabled,true);await f.el('Review').events.click();assert.equal(f.el('Publish').disabled,true);
+  f.el('Reviewed').checked=true;f.el('Reviewed').events.change();assert.equal(f.el('Publish').disabled,false);
+  const pending=f.el('Publish').events.click();await f.el('Publish').events.click();assert.equal(f.calls.filter(c=>c.path.endsWith('/publish')).length,1);
+  finish();await pending;assert.equal(f.el('Fields').disabled,true);assert.equal(f.el('PublishedLink').hidden,false);
+  const payload=JSON.parse(f.calls.find(c=>c.path.endsWith('/publish')).options.body);assert.deepEqual(Object.keys(payload).sort(),['receipt','reviewed','revision','source_version']);
+});
+test('editing copy or changing board invalidates approval and requires another review',async()=>{
+  const f=await publishingSetup();await approve(f);assert.equal(f.el('Publish').disabled,false);
+  f.el('Description').value='Changed Fixture 1';f.el('Description').events.input();assert.equal(f.el('Approval').hidden,true);assert.equal(f.el('Publish').disabled,true);
+  const g=await publishingSetup();await approve(g);g.el('Board').events.change();assert.equal(g.el('Publish').disabled,true);assert.equal(g.el('Reviewed').checked,false);
+});
+test('lost publish response only checks saved status, never repeats the write, and recovers confirmed success',async()=>{
+  const f=await publishingSetup((path,opts)=>{if(path.endsWith('/publish'))throw Error('Response lost');if(path.endsWith('/status'))return ok({status:'published',url:'https://www.pinterest.com/pin/456/'});});
+  await approve(f);await f.el('Publish').events.click();assert.equal(f.el('Publish').disabled,true);assert.equal(f.el('CheckStatus').hidden,false);
+  await f.el('CheckStatus').events.click();assert.equal(f.el('PublishedLink').hidden,false);assert.equal(f.calls.filter(c=>c.path.endsWith('/publish')).length,1);assert.equal(f.el('Fields').disabled,true);
+});
+test('a confirmed unsubmitted result can be reviewed again after a connection failure',async()=>{
+  const f=await publishingSetup((path,opts)=>{if(path.endsWith('/publish'))throw Error('Offline before request');});
+  await approve(f);await f.el('Publish').events.click();await f.el('CheckStatus').events.click();assert.equal(f.el('Fields').disabled,false);assert.equal(f.el('Review').disabled,false);assert.equal(f.el('Publish').disabled,true);
+});
+test('sandbox result stays read-only and is explicitly distinct from a public Pin',async()=>{
+  const f=await publishingSetup(path=>path.endsWith('/1')?ok({...ready,locked:true,publication:{status:'published',sandbox:true,url:'https://www.pinterest.com/pin/456/'}}):null);
+  assert.match(f.el('PublishStatus').textContent,/not published publicly/);assert.equal(f.el('Verify').hidden,true);assert.equal(f.el('Review').disabled,true);
+});
+test('board request failure keeps the current destination and offers a usable retry',async()=>{
+  let attempts=0;const f=await publishingSetup(path=>{if(path.endsWith('/boards')){if(++attempts===1)throw Error('Pinterest unavailable');return ok({items:[{id:'789',name:'Other board'}],bookmark:null})}});
+  await f.el('LoadBoards').events.click();assert.match(f.el('ConnectionNotice').textContent,/unavailable/);assert.equal(f.el('LoadBoards').disabled,false);
+  await f.el('LoadBoards').events.click();assert.equal(f.el('Board').options[1].value,'789');assert.equal(f.el('BoardSummary').textContent,'Publishing to Reminders');
 });

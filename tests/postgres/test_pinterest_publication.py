@@ -88,3 +88,24 @@ class PinterestPublicationPostgresChecks(unittest.TestCase):
             self.assertIn('media_manifest',post.flags);self.assertNotIn('pinterest_publication',post.flags)
             self.assertEqual(post.caption,'Preserved caption');self.assertEqual(post.status,'drafted')
         self.api.create_pin.assert_not_called()
+
+    def test_creator_revision_is_rechecked_after_another_session_saves_during_token_refresh(self):
+        from app.services import pinterest_drafts as drafts
+        with Session(engine) as db:
+            version = drafts.source_version(db.get(Post, 1))
+            drafts.save(db, 1, 1, self.copy, 0, version)
+        original = connection.token
+        def refreshed(db, org_id, api):
+            access = original(db, org_id, api)
+            with Session(engine) as other:
+                drafts.save(other, 1, 1, {**self.copy, 'description': 'Changed Fixture 1'}, 1, version)
+            return access
+        with patch.object(connection, 'token', side_effect=refreshed), Session(engine) as db:
+            with self.assertRaises(HTTPException) as error:
+                service.publish(db, 1, 1, 1, self.copy, self.receipt, self.api, draft_version=(1, version))
+            self.assertEqual(error.exception.status_code, 409)
+            db.rollback()
+        self.api.create_pin.assert_not_called()
+        with Session(engine) as db:
+            self.assertEqual(db.get(Post, 1).flags[drafts.KEY]['revision'], 2)
+            self.assertEqual(service.state(db.get(Post, 1))['status'], 'not_sent')
