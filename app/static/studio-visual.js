@@ -37,6 +37,8 @@
   }
   el('studioChooseFamily').onclick=()=>{sync();dialog.showModal();(cards.get(native.value)||cards.values().next().value)?.focus();};
   el('studioFamilyClose').onclick=()=>dialog.close();
+  // Let the native dialog contain focus/Escape without closing the parent editor.
+  dialog.addEventListener('keydown',event=>event.stopPropagation());
   dialog.addEventListener('close',()=>el('studioChooseFamily').focus());
   dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}});
   // Keep native format values as the canonical source of truth.
