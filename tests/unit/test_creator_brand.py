@@ -40,6 +40,25 @@ class BrandRoutesTests(DatabaseCase):
         app.dependency_overrides[require_user]=lambda:User(id=1)
         app.dependency_overrides[get_current_user]=lambda:User(id=1)
         self.client=TestClient(app);self.addCleanup(self.client.close)
+    def test_preview_route_is_private_read_only_and_requires_authentication(self):
+        from app.services import visual_service
+        result={'preview_only':True,'image_data':'data:image/jpeg;base64,fixture','page_index':0,'page_count':1,'timings_ms':{'total':12}}
+        with patch.object(visual_service,'preview_visual',return_value=result) as preview, patch.object(studio,'generate_visual') as generate:
+            response=self.client.post('/api/studio/preview-visual',json={'card_message':CARD,'style':'editorial'})
+            self.assertEqual(response.status_code,200)
+            self.assertEqual(response.headers['cache-control'],'private, no-store')
+            self.assertEqual(preview.call_args.args[0].owner_id,1)
+            self.assertNotIn('media_manifest',response.json())
+            self.assertEqual(self.db.query(Post).count(),0);generate.assert_not_called()
+        with patch.object(visual_service,'preview_visual',side_effect=visual_service.PreviewBusyError('Busy')):
+            response=self.client.post('/api/studio/preview-visual',json={'card_message':CARD,'style':'editorial'})
+            self.assertEqual(response.status_code,429);self.assertEqual(response.headers['retry-after'],'2')
+        self.client.app.dependency_overrides.pop(require_user)
+        self.client.app.dependency_overrides.pop(get_current_user)
+        with patch.object(visual_service,'preview_visual') as preview:
+            self.assertEqual(self.client.post('/api/studio/preview-visual',json={}).status_code,401)
+            preview.assert_not_called()
+
     def test_fit_route_uses_workspace_brand_without_generation_or_writes(self):
         from app.services import visual_service
         with patch.object(visual_service,'assess_visual_fit',return_value={'families':[]}) as measure, patch.object(studio,'generate_visual') as generate:

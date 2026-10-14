@@ -100,12 +100,18 @@ def generate_quote_card(
     post_format: str = "feed_4_5",
     allow_sequence: bool = False,
     brand_kit: dict = None,
+    preview_page: int | None = None,
+    output_dir: str | None = None,
 ) -> str:
     """
     Parses an Islamic caption and renders a premium quote card.
     Supports Dual-Language (Arabic + English) detection and layout.
     """
     import re
+    if preview_page is not None:
+        from app.services.vision_families import DESIGN_FAMILIES, REUSABLE_FAMILIES
+        if style not in DESIGN_FAMILIES or (style in REUSABLE_FAMILIES and background_image is None):
+            raise ValueError("Preview requires a supported design and its existing background")
     if brand_kit is not None:
         from app.services.brand_kit import normalize_brand
         brand_kit = normalize_brand(brand_kit)
@@ -206,10 +212,14 @@ def generate_quote_card(
         if background_sink:
             background_sink(image)
     rendered = []
+    if preview_page is not None and (type(preview_page) is not int or not 0 <= preview_page < len(pages)):
+        raise ValueError("Choose an available preview page")
     for i, page in enumerate(pages):
+        if preview_page is not None and i != preview_page:
+            continue
         metadata = {}
         url = render_minimal_quote_card(
-            page["segments"], settings.uploads_dir, style=style,
+            page["segments"], output_dir or settings.uploads_dir, style=style,
             visual_prompt=visual_prompt, mode=mode, text_style_prompt=text_style_prompt,
             readability_priority=readability_priority, experimental_mode=experimental_mode,
             engine=engine, glossy=glossy, visual_history=visual_history,
@@ -217,7 +227,11 @@ def generate_quote_card(
             background_sink=keep_photo, post_format=post_format,
             brand_kit=brand_kit,
             **({"scene_bounds": scene_bounds} if scene_bounds is not None else {}),
+            **({"preview": True} if preview_page is not None else {}),
         )
+        if preview_page is not None:
+            render_metadata.update({"page_index": i, "page_count": len(pages), "label": page["label"]})
+            return url
         rendered.append({"index": i, "url": url, "label": page["label"], "slices": page["slices"],
                          "quality": metadata.get("quality", {}),
                          "width": 1080, "height": 1920 if post_format == "story_9_16" else 1350})

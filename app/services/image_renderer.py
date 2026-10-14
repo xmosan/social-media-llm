@@ -1476,6 +1476,7 @@ def render_minimal_quote_card(
     post_format="feed_4_5",
     brand_kit=None,
     scene_bounds=None,
+    preview=False,
 ) -> str:
     """
     Render every source block with measured typography, or fail without clipping.
@@ -1738,6 +1739,15 @@ def render_minimal_quote_card(
     else:
          print(f"❌ [RENDERER] CRITICAL SAVE FAILURE: File missing immediately after save() at {final_path}")
     
+    if preview:
+        # The exact full-size render and JPEG gate run above. A preview is never
+        # uploaded or granted a publishable media identity.
+        import base64
+        try:
+            with open(final_path, "rb") as image_file:
+                return "data:image/jpeg;base64," + base64.b64encode(image_file.read()).decode("ascii")
+        finally:
+            os.remove(final_path)
     from app.config import build_public_media_url
     return build_public_media_url(filename, local_path=final_path)
 def render_quote_card(background_local_path: Optional[str], quote: str,
