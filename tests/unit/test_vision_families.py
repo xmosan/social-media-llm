@@ -42,7 +42,11 @@ class VisionFamilyTests(unittest.TestCase):
             for name in ('quran_94_6','hadith_bukhari_1'):
                 record=json.loads((Path(__file__).resolve().parents[1]/f'fixtures/{name}.json').read_text())
                 source={'eyebrow':record['reference'],'headline':record['translation_text'],'arabic_text':record['arabic_text']}
-                result=assess_visual_fit(source,post_format='story_9_16')['families']
+                with patch.object(card,'structured_card_segments',wraps=card.structured_card_segments) as segments:
+                    result=assess_visual_fit(source,post_format='story_9_16',brand_kit={'quran_ornaments':{'brackets':True,'verse_number':True}})['families']
+                    ornaments=segments.call_args.kwargs['ornaments']
+                    if name=='quran_94_6':self.assertEqual(ornaments,{'opening':True,'closing':True,'verse_number':6})
+                    else:self.assertIsNone(ornaments)
                 paper=next(r for r in result if r['family']=='minimal_paper')
                 self.assertTrue(paper['available']);self.assertGreaterEqual(paper['pages'],1)
                 if name=='hadith_bukhari_1':self.assertGreater(paper['pages'],1)
