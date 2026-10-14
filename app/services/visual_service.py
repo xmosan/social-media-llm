@@ -217,7 +217,8 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
         nonlocal background_token
         background_token = store_background(image, request.owner_id, request.custom_prompt or "",
                                              family=request.style, post_format=request.post_format,
-                                             visual_identity=(brand or {}).get("visual_identity", ""))
+                                             visual_identity=(brand or {}).get("visual_identity", ""),
+                                             paper_finish=(brand or {}).get("paper_finish"))
 
 
 
@@ -245,7 +246,7 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
             design={"version": 1, "family": request.style, "layout": request.layout,
                     "brand_kit": brand, "direction": request.custom_prompt or "",
                     "background_token": background_token if request.style in REUSABLE_FAMILIES else None,
-                    "recipe": recipe_binding(request.style, request.post_format),
+                    "recipe": recipe_binding(request.style, request.post_format, (brand or {}).get("paper_finish")),
                     "quality": {"status": "rejected", "review_required": True}})
 
     # Keep the signed composition identity through free re-layouts so saved
@@ -279,7 +280,7 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
         design={"version": 1, "family": request.style, "layout": request.layout,
                 "brand_kit": brand,
                 "background_token": background_token if request.style in REUSABLE_FAMILIES else None,
-                "recipe": recipe_binding(request.style, request.post_format),
+                "recipe": recipe_binding(request.style, request.post_format, (brand or {}).get("paper_finish")),
                 "direction": request.custom_prompt or "", "quality": generation_metadata.get("quality", {}),
                 "media_manifest": manifest,
                 "background_reused": generation_metadata.get("background_reused", False),
@@ -287,7 +288,7 @@ def _generate_quote_card(request: VisualRequest) -> VisualResult:
     )
 
 
-def store_background(image, owner_id, prompt="", *, family="quiet_photography", post_format="feed_4_5", visual_identity=""):
+def store_background(image, owner_id, prompt="", *, family="quiet_photography", post_format="feed_4_5", visual_identity="", paper_finish=None):
     """Persist one raw photograph for Studio and automation draft re-layout."""
     from tempfile import TemporaryDirectory
     from pathlib import Path
@@ -301,7 +302,7 @@ def store_background(image, owner_id, prompt="", *, family="quiet_photography", 
     if not is_durable_media_url(url):
         raise CardTypographyError("The photograph could not be saved for reuse. Please try again.")
     return _background_signer().dumps({"url": url, "owner": owner_id, "prompt": _hash_prompt(prompt),
-                                       "recipe": recipe_binding(family, post_format), "identity": _hash_prompt(visual_identity) if visual_identity else ""})
+                                       "recipe": recipe_binding(family, post_format, paper_finish), "identity": _hash_prompt(visual_identity) if visual_identity else ""})
 
 
 def _generate_background_only(request: VisualRequest) -> VisualResult:
@@ -381,7 +382,7 @@ def _load_background(token, request, *, use_cache=False):
         data = _background_signer().loads(token)
         if (not isinstance(data, dict) or data.get("owner") != request.owner_id
                 or data.get("prompt") != _hash_prompt(request.custom_prompt or "")
-                or data.get("recipe") != recipe_binding(request.style, request.post_format)
+                or data.get("recipe") != recipe_binding(request.style, request.post_format, (request.brand_kit or {}).get("paper_finish"))
                 or data.get("identity", "") != (_hash_prompt(request.brand_kit["visual_identity"]) if (request.brand_kit or {}).get("visual_identity") else "")
                 or not is_durable_media_url(data.get("url"))):
             raise ValueError("Invalid receipt")

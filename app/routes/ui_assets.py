@@ -736,7 +736,7 @@ STUDIO_SCRIPTS_JS = r"""
         window.setStudioVisualState?.('idle');
     }
 
-    window.sabeelPhotoFamilies = ['quiet_photography', 'luxury_editorial', 'desert_glow', 'midnight_oasis', 'emerald_forest'];
+    window.sabeelPhotoFamilies = ['quiet_photography', 'luxury_editorial', 'desert_glow', 'midnight_oasis', 'emerald_forest', 'realistic_paper'];
 
     window.updateStudioVisualAction = function() {
         const photo = window.sabeelPhotoFamilies.includes(document.getElementById('studioStyle')?.value);
@@ -821,7 +821,7 @@ STUDIO_SCRIPTS_JS = r"""
             document.getElementById('outOfSyncBanner')?.classList.add('hidden');
             isQuoteCardOutOfDate = false;
             window.showStudioPage(0); window.rememberStudio();
-            if (note) note.textContent = (studioVisualDesign?.background_reused ? 'Your photograph was reused. ' : '') +
+            if (note) note.textContent = (studioVisualDesign?.background_reused ? (studioVisualDesign?.family==='realistic_paper' ? 'Your paper background was reused. ' : 'Your photograph was reused. ') : '') +
                 (studioVisualDesign?.quality?.background_repaired ? 'Lighting was adjusted behind the text for readability. ' : '') +
                 'Check every page before continuing.';
         } catch (e) {
@@ -856,12 +856,15 @@ STUDIO_SCRIPTS_JS = r"""
         for (const [key,id] of Object.entries(brandFields)) kit[key] = document.getElementById(id)?.value ?? kit[key];
         const identity = document.getElementById('brandVisualIdentity')?.value?.trim();
         if(identity) kit.visual_identity = identity;
+        const paper = document.getElementById('brandPaperFinish')?.value || 'handmade';
+        if(paper !== 'handmade') kit.paper_finish = paper;
         const brackets = !!document.getElementById('quranBrackets')?.checked;
         const verse_number = !!document.getElementById('quranVerseNumber')?.checked;
         if(brackets || verse_number) kit.quran_ornaments = {brackets,verse_number};
         return kit;
     };
     function setBrandControls(kit) {
+        const paper = document.getElementById('brandPaperFinish'); if(paper) paper.value=kit.paper_finish || 'handmade';
         for(const [key,id] of [['brackets','quranBrackets'],['verse_number','quranVerseNumber']]) {
             const el=document.getElementById(id); if(el) el.checked=kit.quran_ornaments?.[key] === true;
         }
@@ -897,8 +900,10 @@ STUDIO_SCRIPTS_JS = r"""
             }
             if(apply || (!studioBrandTouched && !studioPostId && !currentQuoteCardUrl)) {
                 const previousIdentity=window.studioBrandSnapshot().visual_identity || '';
+                const previousPaper=window.studioBrandSnapshot().paper_finish || 'handmade';
                 setBrandControls(data.brand_kit); studioBrandReady=true;
                 if(previousIdentity !== (data.brand_kit.visual_identity || '')) studioBackgroundToken=null;
+                if(data.brand_kit.family==='realistic_paper' && previousPaper !== (data.brand_kit.paper_finish || 'handmade')) studioBackgroundToken=null;
                 const family=document.getElementById('studioStyle');
                 if(family && family.value!==data.brand_kit.family) studioBackgroundToken=null;
                 if(family) family.value=data.brand_kit.family;
@@ -3210,6 +3215,12 @@ STUDIO_COMPONENTS_HTML = """
                             <optgroup label="Typography & paper"><option value="editorial">Editorial typography</option><option value="quiet_photography">Quiet photography</option><option value="minimal_paper">Minimal paper</option></optgroup>
                           </select></label>
                         </div>
+                        <section id="studioPaperOptions" hidden aria-label="Paper finish">
+                            <label for="brandPaperFinish" class="cw-field-label">Paper finish</label>
+                            <select id="brandPaperFinish" onchange="changeStudioBrand(true)"><!-- PAPER_FINISH_OPTIONS --></select>
+                            <div id="studioPaperChoices" role="group" aria-label="Paper finishes"></div>
+                            <p class="cw-note">Each background is AI-generated. Changing the paper finish creates a new background; text and layout edits reuse it.</p>
+                        </section>
                         <div id="photoDirectionControls" class="hidden">
                             <label class="block">This background <span class="text-brand/60">(optional)</span>
                                 <textarea id="studioCustomDirection" maxlength="600" rows="2" oninput="changeStudioBackground()" placeholder="Describe the scene, colours or lighting you want." class="w-full mt-2 p-3 border rounded-xl"></textarea>
@@ -3770,7 +3781,7 @@ APP_LAYOUT_HTML = """<!doctype html>
     .text-brand {{ color: var(--brand) !important; }}
     .border-brand {{ border-color: var(--brand) !important; }}
   </style>
-<link rel="stylesheet" href="/static/creator-workspace.css?v=live-1"><link rel="stylesheet" href="/static/studio-flow.css?v=live-1">
+<link rel="stylesheet" href="/static/creator-workspace.css?v=live-1"><link rel="stylesheet" href="/static/studio-flow.css?v=paper-1">
 <link rel="stylesheet" href="/static/studio-design.css?v=1"><link rel="stylesheet" href="/static/workspace-refresh.css?v=1">
 </head>
 <body class="min-h-screen">
@@ -3863,13 +3874,15 @@ CONNECT_INSTAGRAM_MODAL_HTML = """<div id="connectInstagramModal" class="fixed i
 </div>"""
 
 # Catalog-driven labels and choices; IDs remain compatible with saved drafts.
-from app.services.vision_families import SCENE_FAMILIES as _VISION_FAMILIES
+from app.services.vision_families import SCENE_FAMILIES as _VISION_FAMILIES, PAPER_FINISHES as _PAPER_FINISHES
 from html import escape as _escape
 STUDIO_COMPONENTS_HTML = STUDIO_COMPONENTS_HTML.replace("<!-- VISION_BRAND_OPTIONS -->", "".join(
     f'<option value="{key}">{_escape(spec["label"])}</option>' for key, spec in _VISION_FAMILIES.items())).replace(
     "<!-- VISION_FAMILY_OPTIONS -->", "".join(
         f'<option value="{key}">{_escape(spec["label"])}</option>'
         for key, spec in _VISION_FAMILIES.items()))
+STUDIO_COMPONENTS_HTML = STUDIO_COMPONENTS_HTML.replace("<!-- PAPER_FINISH_OPTIONS -->", "".join(
+    f'<option value="{key}">{_escape(value[0])}</option>' for key, value in _PAPER_FINISHES.items()))
 
 from pathlib import Path as _Path
 STUDIO_COMPONENTS_HTML = STUDIO_COMPONENTS_HTML.replace("<!-- PINTEREST_EDITOR -->", (_Path(__file__).resolve().parents[1] / "templates/pinterest-editor.html").read_text())

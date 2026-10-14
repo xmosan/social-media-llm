@@ -466,16 +466,16 @@ class PostgresChecks(unittest.TestCase):
                 return module.seed_style_dna(session, families=DESIGN_FAMILIES)
         with ThreadPoolExecutor(max_workers=2) as pool:
             results = list(pool.map(lambda _: seed(), range(2)))
-        self.assertEqual(sorted(results), [0, 7])
+        self.assertEqual(sorted(results), [0, 8])
         self.assertEqual(seed(), 0)
         rows = self.db.query(StyleDNA).all()
-        self.assertEqual(len(rows), 8)
+        self.assertEqual(len(rows), 9)
         self.assertEqual({row.family for row in rows if row.id != existing_id}, DESIGN_FAMILIES)
         self.db.expire_all()
         self.assertEqual(self.db.get(StyleDNA, existing_id).family, 'sacred_black')
         self.assertEqual(self.db.get(Post, post_id).media_url, CDN)
         visible = module.list_system_presets(self.db)
-        self.assertEqual(sum(p['family'] in DESIGN_FAMILIES for p in visible), 7)
+        self.assertEqual(sum(p['family'] in DESIGN_FAMILIES for p in visible), 8)
 
     def test_existing_nature_preset_keeps_its_id_and_does_not_gain_a_duplicate(self):
         from app.models import StyleDNA

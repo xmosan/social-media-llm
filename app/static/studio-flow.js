@@ -110,6 +110,7 @@
       if(!state.payload.media_url || state.dirty) {target=el('btnGenerateCard'); label=modal.dataset.editPreview==='true' ? 'Finish design' : state.payload.media_url ? 'Apply design changes' : 'Create my design';}
       else { target=el('cardActions')?.querySelector('button'); label='Continue to caption'; disabled ||= !el('sequenceReviewCheck').checked || el('sequenceReviewCheck').disabled; }
     }
+    if(n===2 && state.dirty && state.payload.media_url && window.studioPreviewRequest?.().style==='realistic_paper' && !window.studioPreviewRequest().background_token) label='Create new paper background';
     if(n===2 && (!state.payload.media_url || state.dirty) && window.studioSelectedFit?.()?.available === false && !state.generating) { target=el('studioChooseFamily'); label='Choose a fitting style'; }
     if(n===4) {
       if(destination==='instagram') {

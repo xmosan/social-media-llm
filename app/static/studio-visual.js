@@ -3,10 +3,20 @@
   const el=id=>document.getElementById(id), modal=el('newPostModal');
   if(!modal) return;
   const native=el('studioFamilyPicker'), format=el('studioFormat');
-  const descriptions={luxury_editorial:'Plaster, linen & natural light',desert_glow:'Open dunes & quiet horizons',midnight_oasis:'Stone & deep evening tones',emerald_forest:'Water & open skies · shorter sources',editorial:'Confident type & open space',quiet_photography:'A photograph with a separate reading area',minimal_paper:'Warm paper & restrained type'};
+  const descriptions={realistic_paper:'AI-made paper & delicate edge details',luxury_editorial:'Plaster, linen & natural light',desert_glow:'Open dunes & quiet horizons',midnight_oasis:'Stone & deep evening tones',emerald_forest:'Water & open skies · shorter sources',editorial:'Confident type & open space',quiet_photography:'A photograph with a separate reading area',minimal_paper:'Warm paper & restrained type'};
   const families=[...native.options].filter(o=>descriptions[o.value]).map(o=>({id:o.value,label:o.textContent,description:descriptions[o.value]}));
   let fitKey='', fits=new Map(), fitPromise=null, fitController=null, fitEpoch=0, fitTimer=null, progressTimer=null;
   let state='idle';
+  const paper=el('brandPaperFinish'), paperChoices=el('studioPaperChoices');
+  if(paper && paperChoices) {
+    for(const option of paper.options) {
+      const button=document.createElement('button');button.type='button';button.dataset.finish=option.value;
+      const img=document.createElement('img');img.src=`/static/img/paper/${option.value}.jpg`;img.alt='';img.width=120;img.height=150;img.loading='lazy';
+      const label=document.createElement('span');label.textContent=option.textContent;
+      button.append(img,label);button.onclick=()=>{if(paper.value===option.value)return;paper.value=option.value;window.changeStudioBrand(true);sync();};paperChoices.append(button);
+    }
+    paper.hidden=true;
+  }
   const selector=document.createElement('section');selector.className='cw-family-choice';
   selector.innerHTML='<span class="cw-field-label">Visual style</span><button type="button" id="studioChooseFamily" class="cw-selected-family" aria-haspopup="dialog"><img alt="" width="88" height="88"><span><strong></strong><small></small><b>Change style →</b></span></button><p id="studioFitNote" class="cw-fit-note" aria-live="polite"></p>';
   el('studioFamilyFallback').hidden=true;el('studioFamilyFallback').after(selector);
@@ -56,6 +66,10 @@
   function currentFit() { return fits.get(native.value); }
   window.studioSelectedFit=currentFit;
   function sync() {
+    if(paperChoices) {
+      el('studioPaperOptions').hidden=native.value!=='realistic_paper';
+      for(const button of paperChoices.children)button.setAttribute('aria-pressed',String(button.dataset.finish===paper.value));
+    }
     const selected=families.find(f=>f.id===native.value), button=el('studioChooseFamily');
     button.querySelector('strong').textContent=selected?.label || 'Saved design';
     button.querySelector('small').textContent=selected?.description || 'Your existing style is preserved';

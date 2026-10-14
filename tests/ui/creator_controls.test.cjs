@@ -106,3 +106,13 @@ test('translator notes remain separate, plain text and honest about missing prov
  f.c.window.selectedAyahMetadata={reference:'No notes'};f.c.window.renderSourceReview();
  assert.equal(f.el('sourceTranslationNotes').textContent,'');
 });
+test('paper finish survives draft recovery; changing it invalidates only media, not the source',()=>{
+ const f=setup();f.c.studioBackgroundToken='retained-paper';f.c.studioCardMessage={headline:'Exact translation',arabic_text:'النص'};
+ const before=JSON.stringify(f.c.studioCardMessage);
+ f.c.window.restoreCreatorControls({brand_kit:{...kit,family:'realistic_paper',paper_finish:'botanical'}});
+ assert.equal(f.el('brandPaperFinish').value,'botanical');assert.equal(f.c.window.studioBrandSnapshot().paper_finish,'botanical');
+ f.c.window.changeStudioBrand();assert.equal(f.c.studioBackgroundToken,'retained-paper');
+ f.el('brandPaperFinish').value='aged';f.c.window.changeStudioBrand(true);assert.equal(f.c.studioBackgroundToken,null);
+ assert.equal(JSON.stringify(f.c.studioCardMessage),before);
+ f.c.window.resetCreatorControls();assert.equal(f.el('brandPaperFinish').value,'handmade');assert.equal(f.c.window.studioBrandSnapshot().paper_finish,undefined);
+});

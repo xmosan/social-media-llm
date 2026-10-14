@@ -24,9 +24,15 @@ PURPOSES = {"reminder": "A gentle daily reminder", "learn": "Help readers unders
 def normalize_brand(value=None):
     if value is None:
         return dict(DEFAULT_BRAND)
-    if not isinstance(value, dict) or set(value) - (set(DEFAULT_BRAND) | {"visual_identity", "quran_ornaments"}):
+    if not isinstance(value, dict) or set(value) - (set(DEFAULT_BRAND) | {"visual_identity", "quran_ornaments", "paper_finish"}):
         raise ValueError("Choose a valid brand kit")
     result = {**DEFAULT_BRAND, **value}
+    from app.services.vision_families import PAPER_FINISHES
+    finish = result.pop("paper_finish", "handmade")
+    if not isinstance(finish, str) or finish not in PAPER_FINISHES:
+        raise ValueError("Choose a supported paper finish")
+    if finish != "handmade":
+        result["paper_finish"] = finish
     enums = {"palette": PALETTES, "typography": {"modern", "classic"},
              "family": DESIGN_FAMILIES,
              "composition": {"varied", "airy", "anchored"}}
