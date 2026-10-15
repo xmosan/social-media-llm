@@ -3,7 +3,7 @@
   const el=id=>document.getElementById(id), modal=el('newPostModal');
   if(!modal) return;
   const native=el('studioFamilyPicker'), format=el('studioFormat');
-  const descriptions={realistic_paper:'AI-made paper & delicate edge details',luxury_editorial:'Plaster, linen & natural light',desert_glow:'Open dunes & quiet horizons',midnight_oasis:'Stone & deep evening tones',emerald_forest:'Water & open skies · shorter sources',editorial:'Confident type & open space',quiet_photography:'A photograph with a separate reading area',minimal_paper:'Warm paper & restrained type'};
+  const descriptions={realistic_paper:'Fine paper textures & delicate edge details',luxury_editorial:'Plaster, linen & natural light',desert_glow:'Open dunes & quiet horizons',midnight_oasis:'Stone & deep evening tones',emerald_forest:'Water & open skies · shorter sources',editorial:'Confident type & open space',quiet_photography:'A photograph with a separate reading area',minimal_paper:'Warm paper & restrained type'};
   const families=[...native.options].filter(o=>descriptions[o.value]).map(o=>({id:o.value,label:o.textContent,description:descriptions[o.value]}));
   let fitKey='', fits=new Map(), fitPromise=null, fitController=null, fitEpoch=0, fitTimer=null, progressTimer=null;
   let state='idle';
