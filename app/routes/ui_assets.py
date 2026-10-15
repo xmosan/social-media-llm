@@ -3219,7 +3219,7 @@ STUDIO_COMPONENTS_HTML = """
                             <label for="brandPaperFinish" class="cw-field-label">Paper finish</label>
                             <select id="brandPaperFinish" onchange="changeStudioBrand(true)"><!-- PAPER_FINISH_OPTIONS --></select>
                             <div id="studioPaperChoices" role="group" aria-label="Paper finishes"></div>
-                            <p class="cw-note">Each background is AI-generated. Changing the paper finish creates a new background; text and layout edits reuse it.</p>
+                            <p class="cw-note">Changing the paper finish creates a new background; text and layout edits reuse it.</p>
                         </section>
                         <div id="photoDirectionControls" class="hidden">
                             <label class="block">This background <span class="text-brand/60">(optional)</span>

@@ -20,7 +20,7 @@ PAPER_FINISHES = {
 }
 SCENE_FAMILIES = {
     "realistic_paper": {
-        "label": "Realistic Paper", "description": "AI-made paper, texture and delicate edge details.",
+        "label": "Realistic Paper", "description": "Fine paper textures and delicate edge details.",
     },
     "luxury_editorial": {
         "label": "Material Editorial", "description": "Tactile interiors, plaster and linen.",
