@@ -46,7 +46,7 @@ test('a finished design downloads original files and source ZIP without Instagra
 });
 test('download failure stays in Studio, preserves recovery and permits a retry',async()=>{
  let fail=true;const f=setup(async(url)=>url.includes('create-post')?{ok:true,json:async()=>({id:52})}:{ok:!fail,json:async()=>({detail:'Image unavailable'}),headers:{get:()=> 'image/jpeg'},blob:async()=>Buffer.from('original')});
- await f.c.window.downloadStudioImage(1);assert.equal(f.el('studioSaveStatus').textContent,'Image unavailable');assert.equal(f.run('studioDownloadBusy'),false);assert.ok(f.storage.size);assert.equal(f.downloads.length,0);
+ await f.c.window.downloadStudioImage(1);assert.equal(f.el('studioDownloadStatus').textContent,'Image unavailable');assert.equal(f.run('studioDownloadBusy'),false);assert.ok(f.storage.size);assert.equal(f.downloads.length,0);
  fail=false;await f.c.window.downloadStudioImage(1);assert.equal(f.downloads.length,1);
 });
 test('duplicate saves cannot create two requests; failure preserves draft key and permits retry',async()=>{

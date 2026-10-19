@@ -243,7 +243,6 @@
     byId("creatorSaveState").textContent = "";
     window.creatorSaveBusy(false);
     byId("studioSaveStatus").textContent = "";
-    modal.querySelector(".cw-draft-menu").open = false;
     notice.classList.add("hidden");
     byId("captionResultArea").classList.remove("hidden");
     byId("btnGenerateCaption").disabled = false;

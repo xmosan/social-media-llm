@@ -1,14 +1,14 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const code=fs.readFileSync(path.join(__dirname,'../../app/static/studio-flow.js'),'utf8');
 function setup({pages=1,format='feed_4_5',reviewed=true}={}) {
-  const nodes={},events={},calls=[],classes=new Map();let saved=0,remembered=0,pinState=null,pinBusy=false,pinOptions,observer;
-  const el=id=>nodes[id] ||= {id,hidden:false,disabled:false,value:'',checked:false,textContent:'',dataset:{},classList:{contains:c=>(classes.get(id)||new Set()).has(c),toggle(c,on){const s=classes.get(id)||new Set();if(on)s.add(c);else s.delete(c);classes.set(id,s);}},addEventListener(n,f){events[id+':'+n]=f},querySelector:()=>null,querySelectorAll:()=>[],replaceChildren(){},appendChild(){},setAttribute(){},click(){calls.push(id);this.onclick?.()}};
+  const nodes={},events={},calls=[],classes=new Map();let saved=0,remembered=0,pinState=null,pinBusy=false,pinOptions,observer,created=0;
+  const el=id=>nodes[id] ||= {id,hidden:false,disabled:false,value:'',checked:false,textContent:'',dataset:{},classList:{contains:c=>(classes.get(id)||new Set()).has(c),toggle(c,on){const s=classes.get(id)||new Set();if(on)s.add(c);else s.delete(c);classes.set(id,s);}},addEventListener(n,f){events[id+':'+n]=f},children:[],querySelector(){return this.children[0] || null},querySelectorAll(){return this.children},replaceChildren(){this.children=[]},appendChild(child){this.children.push(child)},setAttribute(){},click(){calls.push(id);this.onclick?.()}};
   el('newPostModal').dataset.step='4';el('studioAccount').value='7';el('studioCaption').value='Separate caption';el('studioShareNowBtn').hidden=false;
   el('creatorPinApproval').hidden=el('creatorPinCheckStatus').hidden=el('creatorPinPublishedLink').hidden=true;
   el('cardActions').querySelector=()=>el('visualContinue');el('creatorGuided').hidden=true;
-  const state={postId:null,payload:{media_url:'https://cdn.test/a.jpg',post_format:format},pages:Array.from({length:pages},()=>({url:'https://cdn.test/a.jpg'})),dirty:false,reviewed};
+  const state={postId:null,busy:false,payload:{media_url:'https://cdn.test/a.jpg',post_format:format},pages:Array.from({length:pages},()=>({url:'https://cdn.test/a.jpg'})),dirty:false,reviewed};
   const api={busy:()=>pinBusy,snapshot:()=>pinState,reset(){pinState=null;return true},invalidate(){calls.push('invalidate')},save:async()=>{calls.push('savePin');return true},open:async(id,recovery)=>{calls.push({open:id,recovery});pinState=recovery||{post_id:id,revision:0,dirty:false,copy:{}};return true}};
-  const c={window:{createPinterestEditor:o=>{pinOptions=o;return api},studioShareSnapshot:()=>state,studioNotice:m=>calls.push({notice:m}),rememberStudio:()=>remembered++,setStudioShareTiming:t=>calls.push({timing:t}),persistStudioDraft:async()=>{saved++;return {id:51}},saveStudioDraft:async()=>calls.push('saveStudio'),switchStudioSection:n=>calls.push({step:n})},document:{getElementById:el,createElement:()=>el('dynamicDownload'),querySelector:()=>({value:'later'}),querySelectorAll:()=>[]},location:{search:''},URLSearchParams,MutationObserver:class{constructor(cb){observer=cb}observe(){}}};
+  const c={window:{createPinterestEditor:o=>{pinOptions=o;return api},studioShareSnapshot:()=>state,studioNotice:m=>calls.push({notice:m}),rememberStudio:()=>remembered++,setStudioShareTiming:t=>calls.push({timing:t}),persistStudioDraft:async()=>{saved++;return {id:51}},saveStudioDraft:async()=>calls.push('saveStudio'),switchStudioSection:n=>calls.push({step:n})},document:{getElementById:el,createElement:()=>el('dynamicDownload'+(++created)),querySelector:()=>({value:'later'}),querySelectorAll:()=>[]},location:{search:''},URLSearchParams,MutationObserver:class{constructor(cb){observer=cb}observe(){}}};
   vm.runInNewContext(code,c);
   return {el,c,calls,state,api,events,refresh:()=>observer(),pinOptions:()=>pinOptions,saved:()=>saved,setBusy:v=>pinBusy=v,setPin:v=>pinState=v,remembered:()=>remembered};
 }
@@ -97,4 +97,44 @@ test('changed paper finish clearly requests a new background while typography ed
  assert.equal(f.el('studioStepNext').textContent,'Create new paper background');
  f.c.window.studioPreviewRequest=()=>({style:'realistic_paper',background_token:'retained'});f.el('newPostModal').dataset.editPreview='true';f.refresh();
  assert.equal(f.el('studioStepNext').textContent,'Finish design');
+});
+
+
+test('Download is a sharing destination with no connection, Pin save or publishing action',async()=>{
+ const f=setup();f.el('studioAccount').value='';f.c.window.downloadStudioImage=n=>f.calls.push({download:n});
+ await f.c.window.chooseStudioDestination('download');
+ assert.equal(f.saved(),0);assert.equal(f.el('studioInstagramPanel').hidden,true);assert.equal(f.el('studioPinterestPanel').hidden,true);
+ assert.equal(f.el('studioDownloads').hidden,false);assert.equal(f.el('studioIndividualDownloads').hidden,true);
+ assert.equal(f.el('studioStepNext').textContent,'Download image');assert.equal(f.el('studioStepNext').disabled,false);
+ f.el('studioStepNext').onclick();assert.ok(f.calls.some(c=>c.download===1));assert.ok(!f.calls.includes('studioShareNowBtn'));
+});
+test('sequence downloads retain every page and offer the complete ZIP as the main action',async()=>{
+ const f=setup({pages:3,format:'story_9_16'});await f.c.window.chooseStudioDestination('download');
+ assert.equal(f.el('studioDownloadPages').children.length,3);assert.equal(f.el('studioIndividualDownloads').hidden,false);
+ assert.match(f.el('studioDownloadSummary').textContent,/3 full-resolution/);assert.equal(f.el('studioStepNext').textContent,'Download all images · ZIP');
+ f.el('studioStepNext').onclick();assert.ok(f.calls.includes('studioDownloadAll'));assert.equal(f.saved(),0);
+});
+test('dirty and missing designs or busy downloads cannot trigger another export',async()=>{
+ const f=setup();await f.c.window.chooseStudioDestination('download');
+ for(const change of [{dirty:true},{busy:true},{payload:{media_url:null}}]) {
+  const old={...f.state};Object.assign(f.state,change);f.refresh();
+  assert.equal(f.el('studioStepNext').disabled,true);assert.equal(f.el('studioDownloadAll').disabled,true);
+  const count=f.calls.length;f.el('studioStepNext').onclick();assert.equal(f.calls.length,count);Object.assign(f.state,old);
+ }
+ f.refresh();assert.equal(f.el('studioStepNext').disabled,false);
+});
+test('Download choice survives recovery and resets for a fresh post',async()=>{
+ const f=setup();await f.c.window.chooseStudioDestination('download');
+ const saved=f.c.window.readStudioSharing();assert.equal(saved.destination,'download');
+ f.c.window.resetStudioSharing();assert.equal(f.el('studioDownloads').hidden,true);
+ f.c.window.restoreStudioSharing(saved);f.refresh();assert.equal(f.el('studioDownloads').hidden,false);assert.equal(f.el('studioStepNext').textContent,'Download image');
+});
+test('switching through Download keeps unsaved Pinterest details and Instagram caption',async()=>{
+ const f=setup();await f.c.window.chooseStudioDestination('pinterest');
+ f.setPin({post_id:51,dirty:true,copy:{description:'Keep this Pin copy'}});
+ await f.c.window.chooseStudioDestination('download');await f.c.window.saveStudioDraft();
+ assert.ok(f.calls.includes('saveStudio'));assert.ok(!f.calls.includes('savePin'));
+ await f.c.window.chooseStudioDestination('pinterest');
+ assert.equal(f.calls.filter(c=>c.open).at(-1).recovery.copy.description,'Keep this Pin copy');
+ assert.equal(f.el('studioCaption').value,'Separate caption');
 });
