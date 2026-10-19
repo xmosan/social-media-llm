@@ -213,6 +213,7 @@ STUDIO_SCRIPTS_JS = r"""
         studioBackgroundToken = null;
         studioGalleryImage = null;
         studioSessionEpoch++;
+        window.resetStudioImageSaving?.();
         window.resetCreatorControls?.();
         studioSaveBusy = false;
         studioResumeEpoch++;
@@ -1008,6 +1009,7 @@ STUDIO_SCRIPTS_JS = r"""
     let studioDraftKey = null;
     let studioSaveBusy = false;
     let studioDownloadBusy = false;
+    let studioPreparedImage = null;
     let studioPageIndex = 0;
     let studioViewedPages = new Set();
     let studioSequenceReviewed = false;
@@ -1270,31 +1272,81 @@ STUDIO_SCRIPTS_JS = r"""
         studioCaptionMessage={caption:document.getElementById('studioCaption')?.value || '',options:window.readCaptionOptions?.() || {purpose:'explanation',tone:'clear'}};
         window.rememberStudio();
     };
-    window.downloadStudioFile = async function(page=null) {
-        if(studioSaveBusy || studioDownloadBusy) return;
+    // Keep one original JPEG in memory so the native menu opens directly on a tap.
+    // Browsers require transient user activation; never wait for a network request before
+    // opening a cached file, and never claim that handing it off confirms a Photos save.
+    function studioImageFileKey(page) {
+        // A caption/account edit must also reach the saved draft before the next handoff.
+        // Omit only the server ID allocated by the first save.
+        const {post_id,...payload}=studioPayload();
+        return JSON.stringify([studioSessionEpoch,page,payload]);
+    }
+    function studioFileStatus(message) {
+        (document.getElementById('studioDownloadStatus') || document.getElementById('studioSaveStatus')).textContent=message;
+    }
+    window.resetStudioImageSaving = () => { studioPreparedImage=null; studioDownloadBusy=false; };
+    window.canSaveStudioImageNative = () => {
+        try { return typeof navigator !== 'undefined' && typeof navigator.share==='function' && typeof navigator.canShare==='function' && typeof File==='function' && navigator.canShare({files:[new File([new Uint8Array([255,216,255,217])],'sabeel.jpg',{type:'image/jpeg'})]}); }
+        catch (_) { return false; }
+    };
+    async function openStudioImageMenu(file,epoch) {
+        studioDownloadBusy=true; window.refreshStudioFlow?.();
+        studioFileStatus('Choose Save Image if available, or an app from your device’s menu.');
+        try {
+            // Only the image: no private source metadata, account details or implicit caption.
+            await navigator.share({files:[file]});
+            if(epoch===studioSessionEpoch) studioFileStatus('Image handed to your device. Check Photos or the app you chose.');
+        } catch(error) {
+            if(epoch===studioSessionEpoch) studioFileStatus(error.name==='AbortError' ? 'Save menu closed. Your image is ready whenever you need it.' : 'The save menu could not open. Tap Save or share again, or use Download JPG.');
+        } finally { if(epoch===studioSessionEpoch) {studioDownloadBusy=false;window.refreshStudioFlow?.();} }
+    }
+    window.downloadStudioFile = async function(page=null,mode='download') {
+        if(studioSaveBusy || studioDownloadBusy || studioVisualController) return;
+        if(isQuoteCardOutOfDate || !currentQuoteCardUrl) { studioFileStatus('Apply your visual changes before saving an image.'); return; }
+        const epoch=studioSessionEpoch, key=studioImageFileKey(page);
+        if(mode!=='download' && !window.canSaveStudioImageNative()) {
+            if(mode==='share') return window.downloadStudioFile(page);
+            return;
+        }
+        if(mode!=='download' && studioPreparedImage?.key===key) {
+            if(mode==='share') return openStudioImageMenu(studioPreparedImage.file,epoch);
+            return;
+        }
         const button=document.getElementById('studioDownloadAll');
-        const downloadStatus=document.getElementById('studioDownloadStatus');
-        const setDownloadStatus=message=>{ (downloadStatus || document.getElementById('studioSaveStatus')).textContent=message; };
-        if(downloadStatus) downloadStatus.textContent='Preparing full-resolution download…';
+        studioFileStatus(mode==='download' ? 'Preparing full-resolution download…' : 'Preparing your full-quality image for the save menu…');
         try {
             const post=window.studioSharingSubmitted?.() ? {id:studioPostId} : await persistStudioDraft();
-            if(!post?.id) { if(downloadStatus) downloadStatus.textContent=document.getElementById('studioSaveStatus').textContent; return; }
-            studioDownloadBusy=true; if(button) button.disabled=true;
-            setDownloadStatus('Preparing full-resolution download…');
+            if(epoch!==studioSessionEpoch) return;
+            if(!post?.id) { studioFileStatus(document.getElementById('studioSaveStatus').textContent); return; }
+            studioDownloadBusy=true; if(button) button.disabled=true; window.refreshStudioFlow?.();
             const path=page===null ? `/posts/${post.id}/export` : `/posts/${post.id}/images/${page}/download`;
             const response=await fetch(path,{signal:AbortSignal.timeout(90000)});
-            if(!response.ok) { const error=await response.json().catch(()=>({})); throw Error(error.detail || 'Download could not be prepared. Your saved images are safe; try again.'); }
+            if(!response.ok) { const error=await response.json().catch(()=>({})); throw Error(error.detail || 'Image could not be prepared. Your saved images are safe; try again.'); }
             const expected=page===null ? 'application/zip' : 'image/jpeg';
             if(!response.headers.get('content-type')?.startsWith(expected)) throw Error('Download was not an image file. Sign in again if your session expired, then try again.');
-            const blob=await response.blob(), url=URL.createObjectURL(blob), link=document.createElement('a');
-            link.href=url; link.download=page===null ? `sabeel-post-${post.id}.zip` : `sabeel-post-${post.id}-${String(page).padStart(2,'0')}.jpg`;
+            const blob=await response.blob();
+            if(epoch!==studioSessionEpoch) return;
+            if(key!==studioImageFileKey(page) || isQuoteCardOutOfDate) { studioFileStatus('Your draft changed. Apply any design changes, then try saving the image again.'); return; }
+            const name=page===null ? `sabeel-post-${post.id}.zip` : `sabeel-post-${post.id}-${String(page).padStart(2,'0')}.jpg`;
+            if(mode!=='download') {
+                const file=new File([blob],name,{type:'image/jpeg'});
+                if(!navigator.canShare({files:[file]})) { studioFileStatus('Your device cannot open a save menu for this image. Use Download JPG instead.'); return; }
+                studioPreparedImage={key,file};
+                if(mode==='share' && navigator.userActivation?.isActive) await openStudioImageMenu(file,epoch);
+                else studioFileStatus('Image ready. Tap Save or share to open the menu.');
+                return;
+            }
+            const url=URL.createObjectURL(blob), link=document.createElement('a');
+            link.href=url; link.download=name;
             document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
-            setDownloadStatus(page===null ? 'ZIP ready. Open it from your downloads or Files to extract the images and source notes.' : 'Image ready. Check your browser’s downloads or Files. On a phone, open the JPG and choose Save Image to add it to Photos.');
-        } catch(e) { setDownloadStatus(e.message); }
-        finally {studioDownloadBusy=false;if(button) button.disabled=false;}
+            studioFileStatus(page===null ? 'ZIP ready. Open it from your downloads or Files to extract the images and source notes.' : 'Image ready. Check your browser’s downloads or Files. On a phone, open the JPG and choose Save Image to add it to Photos.');
+        } catch(error) { if(epoch===studioSessionEpoch) studioFileStatus(error.message); }
+        finally { if(epoch===studioSessionEpoch) {studioDownloadBusy=false;if(button) button.disabled=false;window.refreshStudioFlow?.();} }
     };
     window.exportStudioSequence = () => window.downloadStudioFile();
     window.downloadStudioImage = page => window.downloadStudioFile(page);
+    window.prepareStudioImage = page => window.downloadStudioFile(page,'prepare');
+    window.saveStudioImageToDevice = page => window.downloadStudioFile(page,'share');
     window.shareStudioNow = async function() {
         if (studioSaveBusy) return;
         if (window.validateStudioInstagramReview && !window.validateStudioInstagramReview()) return;
@@ -3795,7 +3847,7 @@ APP_LAYOUT_HTML = """<!doctype html>
     .text-brand {{ color: var(--brand) !important; }}
     .border-brand {{ border-color: var(--brand) !important; }}
   </style>
-<link rel="stylesheet" href="/static/creator-workspace.css?v=share-2"><link rel="stylesheet" href="/static/studio-flow.css?v=download-3">
+<link rel="stylesheet" href="/static/creator-workspace.css?v=share-2"><link rel="stylesheet" href="/static/studio-flow.css?v=save-4">
 <link rel="stylesheet" href="/static/studio-design.css?v=1"><link rel="stylesheet" href="/static/workspace-refresh.css?v=1">
 </head>
 <body class="min-h-screen">
