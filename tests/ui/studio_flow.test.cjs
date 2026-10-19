@@ -148,3 +148,16 @@ test('switching through Download keeps unsaved Pinterest details and Instagram c
  assert.equal(f.calls.filter(c=>c.open).at(-1).recovery.copy.description,'Keep this Pin copy');
  assert.equal(f.el('studioCaption').value,'Separate caption');
 });
+
+test('native save options preload only the first image and retain explicit JPG buttons for every page',async()=>{
+ const f=setup({pages:3});f.c.window.canSaveStudioImageNative=()=>true;
+ f.c.window.prepareStudioImage=async n=>f.calls.push({prepare:n});
+ f.c.window.saveStudioImageToDevice=n=>f.calls.push({native:n});f.c.window.downloadStudioImage=n=>f.calls.push({download:n});
+ await f.c.window.chooseStudioDestination('download');
+ assert.deepEqual(f.calls.filter(c=>c.prepare).map(c=>c.prepare),[1]);
+ const buttons=f.el('studioDownloadPages').children;assert.equal(buttons.length,6);
+ assert.equal(buttons[0].children[1].children[0].textContent,'Save or share image 1');
+ buttons[2].click();buttons[3].click();assert.ok(f.calls.some(c=>c.native===2));assert.ok(f.calls.some(c=>c.download===2));
+ assert.match(f.el('studioDownloadHelp').textContent,/Save Image/);assert.equal(f.el('studioDownloadAll').disabled,false);
+ f.state.busy=true;f.refresh();assert.ok(buttons.every(b=>b.disabled));
+});

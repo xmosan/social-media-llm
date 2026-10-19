@@ -59,7 +59,11 @@
     if (submitted) { if(name !== destination) notice('This post has been submitted. Close Studio to view its saved result.'); panes(); return; }
     recovery = pin.snapshot() || recovery;
     destination=name; panes(); window.invalidateStudioShareReview(); window.rememberStudio();
-    if (name !== 'pinterest') { refresh(); return; }
+    if (name !== 'pinterest') {
+      refresh();
+      if(name==='download') await window.prepareStudioImage?.(1);
+      refresh(); return;
+    }
     const state=snapshot();
     el('studioPinterestEditor').hidden=true; el('studioPinterestRetry').hidden=true;
     if (state.pages.length !== 1 || state.payload.post_format !== 'feed_4_5') {
@@ -80,6 +84,7 @@
   window.onCreatorSection = n => {
     originalSection?.(n);
     if(n===4 && destination==='pinterest') window.chooseStudioDestination('pinterest');
+    if(n===4 && destination==='download') window.prepareStudioImage?.(1);
     refresh();
   };
   const originalSave=window.saveStudioDraft;
@@ -95,24 +100,30 @@
   function refresh() {
     const n=step(), state=snapshot(), bar=el('studioStepBar'), next=el('studioStepNext');
     document.querySelectorAll('[name="studioDestination"]').forEach(input=>{const locked=opening || pin.busy() || state.busy || submitted; if(input.disabled!==locked) input.disabled=locked;});
-    const downloads=el('studioDownloadPages'), key=JSON.stringify([state.payload.post_format,state.pages.map(p=>[p.url,p.width,p.height])]);
+    const nativeSave=!!window.canSaveStudioImageNative?.();
+    const downloads=el('studioDownloadPages'), key=JSON.stringify([nativeSave,state.payload.post_format,state.pages.map(p=>[p.url,p.width,p.height])]);
     if(downloads && key!==downloadKey) {
       downloadKey=key;downloads.replaceChildren();
       state.pages.forEach((page,index)=>{
         const button=document.createElement('button');button.type='button';button.className='cw-image-download';
         const thumbnail=document.createElement('img');thumbnail.src=page.url;thumbnail.alt='';thumbnail.loading='lazy';
         const copy=document.createElement('span'), label=document.createElement('strong'), size=document.createElement('small');
-        label.textContent=state.pages.length===1 ? 'Download image · JPG' : `Download image ${index+1} · JPG`;
+        label.textContent=nativeSave ? (state.pages.length===1 ? 'Save or share image' : `Save or share image ${index+1}`) : (state.pages.length===1 ? 'Download image · JPG' : `Download image ${index+1} · JPG`);
         size.textContent=`${page.width || 1080} × ${page.height || (state.payload.post_format==='story_9_16' ? 1920 : 1350)} · Full quality`;
         copy.appendChild(label);copy.appendChild(size);button.appendChild(thumbnail);button.appendChild(copy);
-        button.onclick=()=>window.downloadStudioImage(index+1);downloads.appendChild(button);
+        button.onclick=()=>nativeSave ? window.saveStudioImageToDevice(index+1) : window.downloadStudioImage(index+1);downloads.appendChild(button);
+        if(nativeSave) {
+          const fallback=document.createElement('button');fallback.type='button';fallback.className='cw-image-file';
+          fallback.textContent=state.pages.length===1 ? 'Download JPG instead' : `Download image ${index+1} as JPG instead`;
+          fallback.onclick=()=>window.downloadStudioImage(index+1);downloads.appendChild(fallback);
+        }
       });
     }
     const downloadDisabled=!!(opening || pin.busy() || state.busy || state.dirty || !state.payload.media_url);
     for(const button of [el('studioDownloadAll'),...(downloads?.querySelectorAll('button') || [])]) if(button && button.disabled!==downloadDisabled) button.disabled=downloadDisabled;
-    const help=el('studioDownloadHelp'), downloadHelp=state.dirty ? 'Apply design changes first.' : state.payload.media_url ? 'On a phone, open the downloaded JPG in Files and choose Save Image to add it to Photos.' : 'Create a design to download your images.';
+    const help=el('studioDownloadHelp'), downloadHelp=state.dirty ? 'Apply design changes first.' : state.payload.media_url ? (nativeSave ? 'On iPhone, choose Save Image if offered in the menu. Other phones show their available save and sharing apps.' : 'On a phone, open the downloaded JPG in Files and choose Save Image to add it to Photos.') : 'Create a design to download your images.';
     if(help && help.textContent!==downloadHelp) help.textContent=downloadHelp;
-    const downloadSummary=el('studioDownloadSummary'), summary=state.pages.length===1 ? 'Save your full-quality image directly. No ZIP needed.' : `${state.pages.length} full-quality images. Save each JPG below and keep them in order when sharing.`;
+    const downloadSummary=el('studioDownloadSummary'), summary=nativeSave ? (state.pages.length===1 ? 'Open your device’s save and sharing options.' : `${state.pages.length} full-quality images. Save each through your device’s menu and keep them in order.`) : state.pages.length===1 ? 'Save your full-quality image directly. No ZIP needed.' : `${state.pages.length} full-quality images. Save each JPG below and keep them in order when sharing.`;
     if(downloadSummary.textContent!==summary) downloadSummary.textContent=summary;
     const guided = el('creatorGuided') && !el('creatorGuided').hidden;
     const visible=!modal.dataset.brandOnly && (n!==1 || !guided);

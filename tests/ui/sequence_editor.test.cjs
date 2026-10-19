@@ -177,3 +177,83 @@ test('a late old preview cannot clear progress for a newer generation',()=>{
  f.c.studioVisualEpoch++;states.push('generating');oldLoad();oldError();
  assert.equal(states.at(-1),'generating');assert.equal(f.el('sequenceReviewCheck').disabled,true);
 });
+
+function nativeSaving({share,canShare,active=false,fetch}={}) {
+ const requests=[],shared=[];
+ const f=setup(fetch || (async(url,opts)=>{requests.push({url,body:opts.body&&JSON.parse(opts.body)});return {ok:true,json:async()=>({id:52}),headers:{get:()=> 'image/jpeg'},blob:async()=>Buffer.from('original-jpeg-bytes')};}));
+ f.c.File=require('node:buffer').File;
+ f.c.navigator={canShare:canShare || (()=>true),share:share || (data=>{shared.push(data);return Promise.resolve()}),userActivation:{isActive:active}};
+ return {...f,requests,shared};
+}
+test('preparing an original JPEG opens no menu; the next tap shares the file synchronously without more network work',async()=>{
+ const f=nativeSaving();f.el('studioAccount').value='';
+ await f.c.window.prepareStudioImage(1);assert.equal(f.requests.length,2);assert.equal(f.shared.length,0);assert.equal(f.downloads.length,0);
+ const pending=f.c.window.saveStudioImageToDevice(1);
+ assert.equal(f.shared.length,1);assert.equal(f.requests.length,2);await pending;
+ const data=f.shared[0];assert.deepEqual(Object.keys(data),['files']);assert.equal(data.files.length,1);
+ assert.equal(data.files[0].name,'sabeel-post-52-01.jpg');assert.equal(data.files[0].type,'image/jpeg');assert.equal(await data.files[0].text(),'original-jpeg-bytes');
+ assert.equal(f.requests[0].body.card_message.headline,'Exact source');assert.equal(f.requests[0].body.caption_message.caption,'Social copy');
+ assert.match(f.el('studioDownloadStatus').textContent,/handed to your device/);assert.doesNotMatch(f.el('studioDownloadStatus').textContent,/saved to Photos/i);
+});
+test('a slow first request asks for a fresh tap instead of opening a menu after activation expires',async()=>{
+ const f=nativeSaving();await f.c.window.saveStudioImageToDevice(2);assert.equal(f.shared.length,0);assert.match(f.el('studioDownloadStatus').textContent,/Tap Save or share/);
+ const retry=f.c.window.saveStudioImageToDevice(2);assert.equal(f.shared.length,1);await retry;
+ assert.equal(f.shared[0].files[0].name,'sabeel-post-52-02.jpg');assert.equal(f.requests.length,2);
+});
+test('a fast first request can open the native menu while the user gesture is still active',async()=>{
+ const f=nativeSaving({active:true});await f.c.window.saveStudioImageToDevice(3);assert.equal(f.shared.length,1);assert.equal(f.shared[0].files[0].name,'sabeel-post-52-03.jpg');assert.equal(f.downloads.length,0);
+});
+test('cancelling the menu keeps the prepared image and never forces a download',async()=>{
+ let calls=0;const f=nativeSaving({share:()=>{calls++;return Promise.reject(Object.assign(Error('Cancelled'),{name:'AbortError'}))}});
+ await f.c.window.prepareStudioImage(1);await f.c.window.saveStudioImageToDevice(1);
+ assert.match(f.el('studioDownloadStatus').textContent,/menu closed/);assert.equal(f.downloads.length,0);assert.equal(f.run('studioDownloadBusy'),false);
+ await f.c.window.saveStudioImageToDevice(1);assert.equal(calls,2);assert.equal(f.requests.length,2);
+});
+test('a rejected native menu offers a retry and explicit JPG fallback without claiming a save',async()=>{
+ const f=nativeSaving({share:()=>Promise.reject(Object.assign(Error('Blocked'),{name:'NotAllowedError'}))});
+ await f.c.window.prepareStudioImage(1);await f.c.window.saveStudioImageToDevice(1);
+ assert.match(f.el('studioDownloadStatus').textContent,/could not open.*Download JPG/);assert.equal(f.downloads.length,0);assert.equal(f.run('studioDownloadBusy'),false);
+ await f.c.window.downloadStudioImage(1);assert.deepEqual(f.downloads,['sabeel-post-52-01.jpg']);
+});
+test('unsupported file sharing performs no background save or fetch and retains direct JPG download',async()=>{
+ const f=nativeSaving({canShare:()=>false});assert.equal(f.c.window.canSaveStudioImageNative(),false);
+ await f.c.window.prepareStudioImage(1);assert.equal(f.requests.length,0);
+ await f.c.window.saveStudioImageToDevice(1);assert.deepEqual(f.downloads,['sabeel-post-52-01.jpg']);assert.equal(f.shared.length,0);
+});
+test('a device may accept a probe but reject the actual file; JPG remains available',async()=>{
+ const f=nativeSaving({canShare:data=>data.files[0].size===4});await f.c.window.prepareStudioImage(1);
+ assert.match(f.el('studioDownloadStatus').textContent,/cannot open.*Download JPG/);assert.equal(f.run('studioPreparedImage'),null);assert.equal(f.run('studioDownloadBusy'),false);
+ await f.c.window.downloadStudioImage(1);assert.equal(f.downloads.length,1);assert.equal(f.shared.length,0);
+});
+test('a changed or dirty visual cannot reuse a prepared image from an earlier design',async()=>{
+ const f=nativeSaving();await f.c.window.prepareStudioImage(1);f.c.isQuoteCardOutOfDate=true;
+ await f.c.window.saveStudioImageToDevice(1);assert.equal(f.shared.length,0);assert.equal(f.requests.length,2);
+ f.c.isQuoteCardOutOfDate=false;f.c.studioVisualDesign.media_manifest.pages[0].url='https://cdn.test/replacement.jpg';
+ await f.c.window.saveStudioImageToDevice(1);assert.equal(f.shared.length,0);assert.equal(f.requests.length,4);
+ await f.c.window.saveStudioImageToDevice(1);assert.equal(f.shared.length,1);
+});
+test('a late prepared file cannot replace the cache or unlock a newer Studio session',async()=>{
+ let finish,started;const downloading=new Promise(r=>started=r);
+ const f=nativeSaving({fetch:async(url)=>url.includes('create-post')?{ok:true,json:async()=>({id:52})}:{ok:true,headers:{get:()=> 'image/jpeg'},blob:()=>{started();return new Promise(r=>finish=r)}}});
+ const pending=f.c.window.prepareStudioImage(1);await downloading;
+ f.run('studioSessionEpoch++; studioPreparedImage=null; studioDownloadBusy=true');finish(Buffer.from('old-image'));await pending;
+ assert.equal(f.run('studioPreparedImage'),null);assert.equal(f.run('studioDownloadBusy'),true);assert.equal(f.shared.length,0);
+});
+test('while the native menu is open duplicate taps cannot open another one',async()=>{
+ let finish,calls=0;const f=nativeSaving({share:()=>{calls++;return new Promise(r=>finish=r)}});
+ await f.c.window.prepareStudioImage(1);const pending=f.c.window.saveStudioImageToDevice(1);await f.c.window.saveStudioImageToDevice(1);
+ assert.equal(calls,1);assert.equal(f.run('studioDownloadBusy'),true);finish();await pending;assert.equal(f.run('studioDownloadBusy'),false);
+});
+
+test('failed image preparation releases controls and a retry keeps the same saved draft',async()=>{
+ let fail=true;const ids=[];
+ const f=nativeSaving({fetch:async(url,opts)=>{if(url.includes('create-post')) {ids.push(JSON.parse(opts.body).post_id);return {ok:true,json:async()=>({id:52})}};if(fail)throw Error('Connection interrupted');return {ok:true,headers:{get:()=> 'image/jpeg'},blob:async()=>Buffer.from('original')};}});
+ await f.c.window.prepareStudioImage(1);assert.equal(f.run('studioDownloadBusy'),false);assert.equal(f.run('studioPreparedImage'),null);assert.match(f.el('studioDownloadStatus').textContent,/Connection interrupted/);
+ fail=false;await f.c.window.prepareStudioImage(1);assert.deepEqual(ids,[null,52]);await f.c.window.saveStudioImageToDevice(1);assert.equal(f.shared.length,1);
+});
+test('caption edits are saved before reusing the image for another native handoff',async()=>{
+ const f=nativeSaving();await f.c.window.prepareStudioImage(1);
+ f.el('studioCaption').value='Revised social caption';await f.c.window.prepareStudioImage(1);
+ assert.equal(f.requests.length,4);assert.equal(f.requests[2].body.post_id,52);assert.equal(f.requests[2].body.caption_message.caption,'Revised social caption');
+ await f.c.window.saveStudioImageToDevice(1);assert.equal(f.shared.length,1);assert.equal(f.requests.length,4);
+});
