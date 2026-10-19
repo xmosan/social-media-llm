@@ -1289,7 +1289,7 @@ STUDIO_SCRIPTS_JS = r"""
             const blob=await response.blob(), url=URL.createObjectURL(blob), link=document.createElement('a');
             link.href=url; link.download=page===null ? `sabeel-post-${post.id}.zip` : `sabeel-post-${post.id}-${String(page).padStart(2,'0')}.jpg`;
             document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
-            setDownloadStatus('Download ready. Check your browser’s downloads or Files. On a phone, open the image and choose Save Image to add it to Photos.');
+            setDownloadStatus(page===null ? 'ZIP ready. Open it from your downloads or Files to extract the images and source notes.' : 'Image ready. Check your browser’s downloads or Files. On a phone, open the JPG and choose Save Image to add it to Photos.');
         } catch(e) { setDownloadStatus(e.message); }
         finally {studioDownloadBusy=false;if(button) button.disabled=false;}
     };
@@ -3393,10 +3393,13 @@ STUDIO_COMPONENTS_HTML = """
             <section id="studioDownloads" class="cw-download-panel" aria-labelledby="studioDownloadTitle" hidden>
               <h5 id="studioDownloadTitle">Save your images</h5>
               <p id="studioDownloadSummary">Your images at their original resolution.</p>
-              <details id="studioIndividualDownloads"><summary>Choose individual images</summary><div id="studioDownloadPages"></div></details>
-              <button id="studioDownloadAll" class="cw-secondary" type="button" onclick="exportStudioSequence()">Images + source notes · ZIP</button>
+              <div id="studioDownloadPages" aria-label="Individual image downloads"></div>
               <p id="studioDownloadHelp">Create a design to download your images.</p>
               <p id="studioDownloadStatus" role="status" aria-live="polite"></p>
+              <div class="cw-download-bundle">
+                <span>Prefer one file with everything?</span>
+                <button id="studioDownloadAll" type="button" onclick="exportStudioSequence()">Download images + source notes · ZIP</button>
+              </div>
             </section>
             <div id="studioPinterestPanel" class="pin-editor" hidden><p id="studioPinterestStatus" role="status"></p><button type="button" id="studioPinterestRetry" hidden class="cw-secondary" onclick="chooseStudioDestination('pinterest')">Try again</button><div id="studioPinterestEditor" hidden><!-- PINTEREST_EDITOR --></div></div>
             <div id="studioInstagramPanel">
@@ -3792,7 +3795,7 @@ APP_LAYOUT_HTML = """<!doctype html>
     .text-brand {{ color: var(--brand) !important; }}
     .border-brand {{ border-color: var(--brand) !important; }}
   </style>
-<link rel="stylesheet" href="/static/creator-workspace.css?v=share-2"><link rel="stylesheet" href="/static/studio-flow.css?v=share-2">
+<link rel="stylesheet" href="/static/creator-workspace.css?v=share-2"><link rel="stylesheet" href="/static/studio-flow.css?v=download-3">
 <link rel="stylesheet" href="/static/studio-design.css?v=1"><link rel="stylesheet" href="/static/workspace-refresh.css?v=1">
 </head>
 <body class="min-h-screen">

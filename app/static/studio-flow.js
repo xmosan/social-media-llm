@@ -95,17 +95,24 @@
   function refresh() {
     const n=step(), state=snapshot(), bar=el('studioStepBar'), next=el('studioStepNext');
     document.querySelectorAll('[name="studioDestination"]').forEach(input=>{const locked=opening || pin.busy() || state.busy || submitted; if(input.disabled!==locked) input.disabled=locked;});
-    const downloads=el('studioDownloadPages'), key=JSON.stringify(state.pages.map(p=>[p.url,p.width,p.height]));
+    const downloads=el('studioDownloadPages'), key=JSON.stringify([state.payload.post_format,state.pages.map(p=>[p.url,p.width,p.height])]);
     if(downloads && key!==downloadKey) {
       downloadKey=key;downloads.replaceChildren();
-      state.pages.forEach((page,index)=>{const button=document.createElement('button');button.type='button';button.textContent=`Image ${index+1} · ${page.width || 1080} × ${page.height || (state.payload.post_format==='story_9_16' ? 1920 : 1350)} · JPG`;button.onclick=()=>window.downloadStudioImage(index+1);downloads.appendChild(button);});
+      state.pages.forEach((page,index)=>{
+        const button=document.createElement('button');button.type='button';button.className='cw-image-download';
+        const thumbnail=document.createElement('img');thumbnail.src=page.url;thumbnail.alt='';thumbnail.loading='lazy';
+        const copy=document.createElement('span'), label=document.createElement('strong'), size=document.createElement('small');
+        label.textContent=state.pages.length===1 ? 'Download image · JPG' : `Download image ${index+1} · JPG`;
+        size.textContent=`${page.width || 1080} × ${page.height || (state.payload.post_format==='story_9_16' ? 1920 : 1350)} · Full quality`;
+        copy.appendChild(label);copy.appendChild(size);button.appendChild(thumbnail);button.appendChild(copy);
+        button.onclick=()=>window.downloadStudioImage(index+1);downloads.appendChild(button);
+      });
     }
-    const individual=el('studioIndividualDownloads'); if(individual.hidden!==(state.pages.length<=1)) individual.hidden=state.pages.length<=1;
     const downloadDisabled=!!(opening || pin.busy() || state.busy || state.dirty || !state.payload.media_url);
     for(const button of [el('studioDownloadAll'),...(downloads?.querySelectorAll('button') || [])]) if(button && button.disabled!==downloadDisabled) button.disabled=downloadDisabled;
     const help=el('studioDownloadHelp'), downloadHelp=state.dirty ? 'Apply design changes first.' : state.payload.media_url ? 'On a phone, open the downloaded JPG in Files and choose Save Image to add it to Photos.' : 'Create a design to download your images.';
     if(help && help.textContent!==downloadHelp) help.textContent=downloadHelp;
-    const downloadSummary=el('studioDownloadSummary'), summary=state.pages.length===1 ? 'One full-resolution JPG. Ready to save or share wherever you like.' : `${state.pages.length} full-resolution images. Download the complete sequence, or choose individual pages below.`;
+    const downloadSummary=el('studioDownloadSummary'), summary=state.pages.length===1 ? 'Save your full-quality image directly. No ZIP needed.' : `${state.pages.length} full-quality images. Save each JPG below and keep them in order when sharing.`;
     if(downloadSummary.textContent!==summary) downloadSummary.textContent=summary;
     const guided = el('creatorGuided') && !el('creatorGuided').hidden;
     const visible=!modal.dataset.brandOnly && (n!==1 || !guided);
@@ -124,16 +131,15 @@
         label=target===el('studioSubmitBtn') ? 'Schedule Instagram post' : target===el('studioShareNowBtn') ? 'Publish to Instagram' : 'Save draft';
         if(target!==el('studioSaveDraftButton')) disabled ||= !el('studioInstagramReviewed').checked;
       } else if(destination==='download') {
-        target=state.pages.length===1 ? downloads.querySelector('button') : el('studioDownloadAll');
-        label=state.pages.length===1 ? 'Download image' : 'Download all images · ZIP';
-        disabled ||= downloadDisabled || !target;
+        label='Done';
       } else {
         target=!el('creatorPinCheckStatus').hidden ? el('creatorPinCheckStatus') : !el('creatorPinPublishedLink').hidden ? el('creatorPinPublishedLink') : !el('creatorPinApproval').hidden ? el('creatorPinPublish') : el('creatorPinReview');
         label=target===el('creatorPinReview') ? 'Review Pin' : target.textContent;
         disabled ||= el('studioPinterestEditor').hidden;
       }
     }
-    if(n===3) { label='Choose where to share'; action=()=>window.switchStudioSection(4); }
+    if(n===4 && destination==='download') action=()=>window.closeNewPostModal();
+    else if(n===3) { label='Choose where to share'; action=()=>window.switchStudioSection(4); }
     else action=()=>target?.click();
     disabled ||= !!target?.disabled;
     if(n===2 && state.generating) label='Creating your design…';
