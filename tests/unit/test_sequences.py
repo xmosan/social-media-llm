@@ -39,8 +39,11 @@ def manifest(card=None, fmt='story_9_16', count=2, owner=1):
 
 class SequenceLayoutTests(unittest.TestCase):
     def test_honorific_keeps_translation_font_consistent_across_pages(self):
-        record=json.loads((Path(__file__).resolve().parents[1]/'fixtures/hadith_bukhari_1.json').read_text())
-        segments=[{'role':role,'text':record[key]} for role,key in [('reference','reference'),('source_translation','translation_text'),('source_arabic','arabic_text')]]
+        # Bukhari 1 now fits its English chapter on one page. Use an explicitly
+        # synthetic long chapter to keep exercising later pages without ﷺ.
+        segments=[{'role':'reference','text':'Synthetic typography fixture'},
+                  {'role':'source_translation','text':'Synthetic opening (ﷺ). '+
+                   'A synthetic paragraph to check consistent type across continuation pages. '*30}]
         pages=type_service.plan_sequence(segments,family='quiet_photography')
         fonts=[]
         for page in pages:

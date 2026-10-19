@@ -54,7 +54,22 @@ class CardTypographyTests(unittest.TestCase):
         for page in pages:
             _,blocks=typography.layout_card(page['segments'],post_format='story_9_16')
             sizes.update(block['size'] for block in blocks if block['role']=='source_translation')
-        self.assertEqual(sizes,{67})
+        self.assertEqual(sizes,{57})
+
+    def test_translation_supports_arabic_without_becoming_a_headline(self):
+        segments=[{'role':'source_arabic','text':'نَصٌّ تَجْرِيبِيٌّ'},
+                  {'role':'source_translation','text':'A complete synthetic translation.'}]
+        for family in ('editorial','minimal_paper','realistic_paper','midnight_oasis'):
+            for typeface in ('classic','modern'):
+                for fmt in ('feed_4_5','story_9_16'):
+                    with self.subTest(family=family, typography=typeface, fmt=fmt):
+                        _,blocks=typography.layout_card(segments, family=family,
+                            post_format=fmt, brand_kit={'typography':typeface})
+                        arabic,translation=blocks[:2]
+                        self.assertLess(translation['size'],arabic['size'])
+                        self.assertGreaterEqual(translation['size']*320/1080,16)
+                        self.assertGreaterEqual(translation['leading']/translation['size'],.4)
+                        self.assertEqual(' '.join(l['text'] for l in translation['lines']),segments[1]['text'])
 
     def test_honorific_uses_a_real_glyph_without_reversing_english(self):
         text = 'Synthetic English (ﷺ) typography fixture.'
