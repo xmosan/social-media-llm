@@ -40,7 +40,7 @@ test('saving is idempotent across recovery and retains every page with separate 
 });
 test('a finished design downloads original files and source ZIP without Instagram or regeneration',async()=>{
  const calls=[];const f=setup(async(url,opts)=>{calls.push({url,body:opts.body&&JSON.parse(opts.body)});return {ok:true,json:async()=>({id:52}),headers:{get:()=>url.endsWith('/export')?'application/zip':'image/jpeg'},blob:async()=>Buffer.from('original')};});
- f.el('studioAccount').value='';await f.c.window.exportStudioSequence();await f.c.window.downloadStudioImage(2);
+ f.el('studioAccount').value='';await f.c.window.exportStudioSequence();assert.match(f.el('studioDownloadStatus').textContent,/ZIP ready.*extract/);await f.c.window.downloadStudioImage(2);assert.match(f.el('studioDownloadStatus').textContent,/Image ready.*JPG/);
  assert.equal(calls[0].body.ig_account_id,null);assert.equal(calls[1].url,'/posts/52/export');assert.equal(calls[3].url,'/posts/52/images/2/download');
  assert.deepEqual(f.downloads,['sabeel-post-52.zip','sabeel-post-52-02.jpg']);assert.ok(calls.every(c=>!c.url.includes('generate')));
 });

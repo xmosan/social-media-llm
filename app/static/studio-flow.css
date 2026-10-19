@@ -82,10 +82,16 @@
 #newPostModal #studioDownloadHelp {font-size:13px;margin-bottom:0}
 #newPostModal #studioDownloadStatus:empty {display:none}
 #newPostModal #studioDownloadStatus {color:#173e32;font-weight:600}
-#newPostModal #studioIndividualDownloads {margin:12px 0}
-#newPostModal #studioIndividualDownloads[hidden] {display:none}
-#newPostModal #studioDownloadPages button {display:block;width:100%;text-align:left;min-height:44px;border-bottom:1px solid #e0e6dc}
-#newPostModal #studioDownloadAll {min-height:48px}
+#newPostModal #studioDownloadPages {display:grid;gap:10px;margin:16px 0}
+#newPostModal .cw-image-download {display:flex;align-items:center;gap:14px;width:100%;padding:12px;text-align:left;border:1px solid #b9cdbb;border-radius:14px;background:white;color:#173e32;min-height:92px;transition:background .15s,border-color .15s}
+#newPostModal .cw-image-download:hover {background:#edf3e8;border-color:#63836c}
+#newPostModal .cw-image-download:focus-visible {outline:3px solid #527a68;outline-offset:3px}
+#newPostModal .cw-image-download img {width:56px;height:70px;object-fit:contain;border-radius:5px;background:#eef1e8;flex:none}
+#newPostModal .cw-image-download strong {display:block;font-size:16px;line-height:1.4}
+#newPostModal .cw-image-download small {display:block;font-size:13px;color:#52685d;margin-top:5px}
+#newPostModal .cw-download-bundle {margin-top:20px;padding-top:14px;border-top:1px solid #d6dfcf;font-size:13px;color:#52685d}
+#newPostModal #studioDownloadAll {display:block;min-height:44px;text-align:left;color:#173e32;text-decoration:underline;text-underline-offset:3px}
+@media(prefers-reduced-motion:reduce) {#newPostModal .cw-image-download {transition:none}}
 
 #newPostModal .cw-search-recovery {padding:18px;background:#f2f5ec;border:1px solid #dbe4d4;border-radius:16px;display:grid;gap:12px}
 #newPostModal .cw-search-recovery h5 {font-size:19px;font-weight:650}

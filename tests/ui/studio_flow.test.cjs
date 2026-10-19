@@ -8,7 +8,7 @@ function setup({pages=1,format='feed_4_5',reviewed=true}={}) {
   el('cardActions').querySelector=()=>el('visualContinue');el('creatorGuided').hidden=true;
   const state={postId:null,busy:false,payload:{media_url:'https://cdn.test/a.jpg',post_format:format},pages:Array.from({length:pages},()=>({url:'https://cdn.test/a.jpg'})),dirty:false,reviewed};
   const api={busy:()=>pinBusy,snapshot:()=>pinState,reset(){pinState=null;return true},invalidate(){calls.push('invalidate')},save:async()=>{calls.push('savePin');return true},open:async(id,recovery)=>{calls.push({open:id,recovery});pinState=recovery||{post_id:id,revision:0,dirty:false,copy:{}};return true}};
-  const c={window:{createPinterestEditor:o=>{pinOptions=o;return api},studioShareSnapshot:()=>state,studioNotice:m=>calls.push({notice:m}),rememberStudio:()=>remembered++,setStudioShareTiming:t=>calls.push({timing:t}),persistStudioDraft:async()=>{saved++;return {id:51}},saveStudioDraft:async()=>calls.push('saveStudio'),switchStudioSection:n=>calls.push({step:n})},document:{getElementById:el,createElement:()=>el('dynamicDownload'+(++created)),querySelector:()=>({value:'later'}),querySelectorAll:()=>[]},location:{search:''},URLSearchParams,MutationObserver:class{constructor(cb){observer=cb}observe(){}}};
+  const c={window:{createPinterestEditor:o=>{pinOptions=o;return api},studioShareSnapshot:()=>state,studioNotice:m=>calls.push({notice:m}),rememberStudio:()=>remembered++,setStudioShareTiming:t=>calls.push({timing:t}),persistStudioDraft:async()=>{saved++;return {id:51}},saveStudioDraft:async()=>calls.push('saveStudio'),switchStudioSection:n=>calls.push({step:n}),closeNewPostModal:()=>calls.push('closeStudio')},document:{getElementById:el,createElement:()=>el('dynamicDownload'+(++created)),querySelector:()=>({value:'later'}),querySelectorAll:()=>[]},location:{search:''},URLSearchParams,MutationObserver:class{constructor(cb){observer=cb}observe(){}}};
   vm.runInNewContext(code,c);
   return {el,c,calls,state,api,events,refresh:()=>observer(),pinOptions:()=>pinOptions,saved:()=>saved,setBusy:v=>pinBusy=v,setPin:v=>pinState=v,remembered:()=>remembered};
 }
@@ -104,30 +104,40 @@ test('Download is a sharing destination with no connection, Pin save or publishi
  const f=setup();f.el('studioAccount').value='';f.c.window.downloadStudioImage=n=>f.calls.push({download:n});
  await f.c.window.chooseStudioDestination('download');
  assert.equal(f.saved(),0);assert.equal(f.el('studioInstagramPanel').hidden,true);assert.equal(f.el('studioPinterestPanel').hidden,true);
- assert.equal(f.el('studioDownloads').hidden,false);assert.equal(f.el('studioIndividualDownloads').hidden,true);
- assert.equal(f.el('studioStepNext').textContent,'Download image');assert.equal(f.el('studioStepNext').disabled,false);
- f.el('studioStepNext').onclick();assert.ok(f.calls.some(c=>c.download===1));assert.ok(!f.calls.includes('studioShareNowBtn'));
+ assert.equal(f.el('studioDownloads').hidden,false);
+ const image=f.el('studioDownloadPages').children[0];assert.equal(image.children[1].children[0].textContent,'Download image · JPG');
+ assert.equal(image.disabled,false);image.click();assert.ok(f.calls.some(c=>c.download===1));assert.ok(!f.calls.includes('studioShareNowBtn'));
+ assert.equal(f.el('studioStepNext').textContent,'Done');f.el('studioStepNext').onclick();assert.ok(f.calls.includes('closeStudio'));
 });
-test('sequence downloads retain every page and offer the complete ZIP as the main action',async()=>{
- const f=setup({pages:3,format:'story_9_16'});await f.c.window.chooseStudioDestination('download');
- assert.equal(f.el('studioDownloadPages').children.length,3);assert.equal(f.el('studioIndividualDownloads').hidden,false);
- assert.match(f.el('studioDownloadSummary').textContent,/3 full-resolution/);assert.equal(f.el('studioStepNext').textContent,'Download all images · ZIP');
- f.el('studioStepNext').onclick();assert.ok(f.calls.includes('studioDownloadAll'));assert.equal(f.saved(),0);
+test('every sequence image is directly downloadable with a preview and ZIP remains optional',async()=>{
+ const f=setup({pages:3,format:'story_9_16'});f.c.window.downloadStudioImage=n=>f.calls.push({download:n});
+ await f.c.window.chooseStudioDestination('download');
+ const buttons=f.el('studioDownloadPages').children;assert.equal(buttons.length,3);
+ buttons.forEach((button,index)=>{
+   assert.equal(button.children[0].src,f.state.pages[index].url);
+   assert.equal(button.children[1].children[0].textContent,`Download image ${index+1} · JPG`);
+   assert.match(button.children[1].children[1].textContent,/1080 × 1920/);button.click();
+ });
+ assert.deepEqual(f.calls.filter(c=>c.download).map(c=>c.download),[1,2,3]);
+ assert.match(f.el('studioDownloadSummary').textContent,/3 full-quality/);assert.equal(f.el('studioDownloadAll').disabled,false);
+ assert.equal(f.el('studioDownloadAll').classList.contains('cw-mirrored-action'),false);
+ assert.equal(f.el('studioStepNext').textContent,'Done');assert.equal(f.saved(),0);
 });
-test('dirty and missing designs or busy downloads cannot trigger another export',async()=>{
+test('dirty and missing designs or busy downloads disable all image and ZIP controls',async()=>{
  const f=setup();await f.c.window.chooseStudioDestination('download');
  for(const change of [{dirty:true},{busy:true},{payload:{media_url:null}}]) {
   const old={...f.state};Object.assign(f.state,change);f.refresh();
-  assert.equal(f.el('studioStepNext').disabled,true);assert.equal(f.el('studioDownloadAll').disabled,true);
-  const count=f.calls.length;f.el('studioStepNext').onclick();assert.equal(f.calls.length,count);Object.assign(f.state,old);
+  assert.equal(f.el('studioDownloadPages').children[0].disabled,true);assert.equal(f.el('studioDownloadAll').disabled,true);
+  if(change.busy) {assert.equal(f.el('studioStepNext').disabled,true);const count=f.calls.length;f.el('studioStepNext').onclick();assert.equal(f.calls.length,count);}
+  Object.assign(f.state,old);
  }
- f.refresh();assert.equal(f.el('studioStepNext').disabled,false);
+ f.refresh();assert.equal(f.el('studioDownloadPages').children[0].disabled,false);assert.equal(f.el('studioDownloadAll').disabled,false);
 });
 test('Download choice survives recovery and resets for a fresh post',async()=>{
  const f=setup();await f.c.window.chooseStudioDestination('download');
  const saved=f.c.window.readStudioSharing();assert.equal(saved.destination,'download');
  f.c.window.resetStudioSharing();assert.equal(f.el('studioDownloads').hidden,true);
- f.c.window.restoreStudioSharing(saved);f.refresh();assert.equal(f.el('studioDownloads').hidden,false);assert.equal(f.el('studioStepNext').textContent,'Download image');
+ f.c.window.restoreStudioSharing(saved);f.refresh();assert.equal(f.el('studioDownloads').hidden,false);assert.equal(f.el('studioStepNext').textContent,'Done');
 });
 test('switching through Download keeps unsaved Pinterest details and Instagram caption',async()=>{
  const f=setup();await f.c.window.chooseStudioDestination('pinterest');
