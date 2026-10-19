@@ -198,7 +198,7 @@ def layout_card(segments, *, serif=False, family="editorial", layout="bilingual"
     for i, seg in enumerate(segments):
         seg.setdefault("role", "reference" if i == 0 and len(segments) > 1 else "source")
     if family in SCENE_FAMILIES and any(len(s["text"]) > (80 if s["role"] == "source_arabic" else 100) for s in segments):
-        # Established continuation sizes (67px English / 57px Arabic), never a
+        # Established continuation sizes (57px translation / 57px Arabic), never a
         # shrink-to-fit loop. Attribution stays beside the source, above scenery.
         segments = [dict(s, sequence_page=True) for s in segments]
     order = ["source_translation", "source_arabic", "source", "reflection", "reference"]
@@ -269,6 +269,9 @@ def layout_card(segments, *, serif=False, family="editorial", layout="bilingual"
         for seg in typeset_segments:
             text, role = str(seg["text"]), seg["role"]
             base, minimum = {"reference": (38, 36), "source_arabic": (82 if short else 68, 56),
+                             # Translation is reading copy, not a competing headline.
+                             # A fixed floor and chapter scale preserve phone readability.
+                             "source_translation": (76 if short else 68, 56),
                              "narration_context": (44, 42),
                              "reflection": (46, 42)}.get(role, (104 if short else 80, 52))
             size = max(minimum, round(base * scale))
@@ -277,7 +280,9 @@ def layout_card(segments, *, serif=False, family="editorial", layout="bilingual"
             font = load_font(text, size, serif=use_serif or needs_arabic_font)
             ornaments = seg.get("quran_ornaments") if role == "source_arabic" else None
             lines = wrap_quran(text, font, width - 2 * margin, ornaments) if ornaments else wrap(text, font, width - 2 * margin)
-            leading = round(size * (.36 if needs_arabic_font else .30))
+            # Mixed English/Arabic honorifics still use the shaping font, with
+            # the same relaxed translation rhythm as plain English.
+            leading = round(size * (.42 if role == "source_translation" else .36 if needs_arabic_font else .30))
             block_height = sum(line["height"] for line in lines) + max(0, len(lines)-1) * leading
             label = None
             label_text = seg.get("label") or ("Reflection" if role == "reflection" else None)

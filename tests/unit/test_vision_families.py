@@ -25,12 +25,14 @@ class VisionFamilyTests(unittest.TestCase):
         with patch.dict('sys.modules',{'app.services.image_card':card}), patch.object(renderer,'generate_background') as provider:
             results=assess_visual_fit(source,brand_kit=brand)['families']
             by_id={r['family']:r for r in results}
-            self.assertFalse(by_id['emerald_forest']['available'])
-            self.assertIn('Quiet Nature',by_id['emerald_forest']['reason'])
-            for family in ('luxury_editorial','midnight_oasis','minimal_paper','editorial'):
+            # Refined translation type now fits this previously rejected source.
+            # Eligibility must follow the actual compositor, not a stale length ban.
+            for family in ('emerald_forest','luxury_editorial','midnight_oasis','minimal_paper','editorial'):
                 self.assertTrue(by_id[family]['available'])
-            with self.assertRaises(typography.CardTypographyError):
-                card.generate_quote_card(card_message=source,style='emerald_forest',brand_kit=brand,allow_sequence=True,render_metadata={})
+            with tempfile.TemporaryDirectory() as directory, patch('app.config.build_public_media_url',side_effect=lambda name,local_path:local_path):
+                card.generate_quote_card(card_message=source,style='emerald_forest',brand_kit=brand,
+                    background_image=Image.new('RGB',(1080,1350),(235,231,219)),
+                    allow_sequence=True,render_metadata={},output_dir=directory)
             provider.assert_not_called()
         self.assertEqual(source,before)
 
