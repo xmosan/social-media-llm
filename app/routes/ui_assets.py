@@ -1273,11 +1273,14 @@ STUDIO_SCRIPTS_JS = r"""
     window.downloadStudioFile = async function(page=null) {
         if(studioSaveBusy || studioDownloadBusy) return;
         const button=document.getElementById('studioDownloadAll');
+        const downloadStatus=document.getElementById('studioDownloadStatus');
+        const setDownloadStatus=message=>{ (downloadStatus || document.getElementById('studioSaveStatus')).textContent=message; };
+        if(downloadStatus) downloadStatus.textContent='Preparing full-resolution download…';
         try {
             const post=window.studioSharingSubmitted?.() ? {id:studioPostId} : await persistStudioDraft();
-            if(!post?.id) return;
+            if(!post?.id) { if(downloadStatus) downloadStatus.textContent=document.getElementById('studioSaveStatus').textContent; return; }
             studioDownloadBusy=true; if(button) button.disabled=true;
-            document.getElementById('studioSaveStatus').textContent='Preparing full-resolution download…';
+            setDownloadStatus('Preparing full-resolution download…');
             const path=page===null ? `/posts/${post.id}/export` : `/posts/${post.id}/images/${page}/download`;
             const response=await fetch(path,{signal:AbortSignal.timeout(90000)});
             if(!response.ok) { const error=await response.json().catch(()=>({})); throw Error(error.detail || 'Download could not be prepared. Your saved images are safe; try again.'); }
@@ -1286,8 +1289,8 @@ STUDIO_SCRIPTS_JS = r"""
             const blob=await response.blob(), url=URL.createObjectURL(blob), link=document.createElement('a');
             link.href=url; link.download=page===null ? `sabeel-post-${post.id}.zip` : `sabeel-post-${post.id}-${String(page).padStart(2,'0')}.jpg`;
             document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
-            document.getElementById('studioSaveStatus').textContent='Download ready. Check your browser’s downloads or Files. On a phone, open the image and choose Save Image to add it to Photos.';
-        } catch(e) { document.getElementById('studioSaveStatus').textContent=e.message; }
+            setDownloadStatus('Download ready. Check your browser’s downloads or Files. On a phone, open the image and choose Save Image to add it to Photos.');
+        } catch(e) { setDownloadStatus(e.message); }
         finally {studioDownloadBusy=false;if(button) button.disabled=false;}
     };
     window.exportStudioSequence = () => window.downloadStudioFile();
@@ -2982,31 +2985,31 @@ STUDIO_COMPONENTS_HTML = """
 <div id="newPostModal" role="dialog" aria-modal="true" aria-label="Create a post" data-workspace="{workspace_key}" class="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[100] flex items-end md:items-center justify-center p-0 md:p-10 hidden">
     <div class="w-full h-[100dvh] md:h-full md:max-w-7xl rounded-none md:rounded-[3rem] overflow-hidden flex flex-col md:flex-row animate-in slide-in-from-bottom md:zoom-in duration-500 border-0 border-t md:border border-brand/5 shadow-2xl bg-white">
       
-      <!-- Studio Sidebar -->
-      <div class="w-full md:w-80 bg-brand/5 border-b md:border-b-0 md:border-r border-brand/5 flex flex-col pt-4 md:pt-12 px-4 md:px-8 pb-4 md:pb-0 z-50 shrink-0">
+      <!-- Studio navigation -->
+      <div class="cw-studio-header w-full md:w-80 bg-brand/5 border-b md:border-b-0 md:border-r border-brand/5 flex flex-col pt-4 md:pt-12 px-4 md:px-8 pb-4 md:pb-0 z-50 shrink-0">
         <div>
           <h3 class="text-xl md:text-3xl font-bold text-brand tracking-tighter italic">Sabeel <br class="hidden md:block"><span class="text-accent">Studio</span></h3>
           <p class="text-[9px] font-bold text-text-muted uppercase tracking-[0.3em] mt-2">Create a reminder</p>
         </div>
         
-        <div class="flex md:flex-col justify-between md:justify-start gap-3 md:gap-6 mt-4 md:mt-12 md:flex-1">
-          <button type="button" id="navStep1" class="studio-nav-step active flex flex-col md:flex-row items-center gap-1 md:gap-4 cursor-pointer" onclick="switchStudioSection(1)">
+        <nav class="cw-studio-steps flex md:flex-col gap-3 md:gap-3 mt-4 md:mt-12" aria-label="Post creation steps">
+          <button type="button" id="navStep1" aria-controls="studioSection1" aria-current="step" class="studio-nav-step active" onclick="switchStudioSection(1)">
              <div class="w-8 h-8 rounded-full border-2 border-brand flex items-center justify-center text-[10px] font-bold text-white bg-brand shadow-lg shadow-brand/20 nav-num">1</div>
              <div class="text-[8px] md:text-xs font-bold uppercase text-brand tracking-widest nav-text">Source</div>
           </button>
-          <button type="button" id="navStep2" class="studio-nav-step flex flex-col md:flex-row items-center gap-1 md:gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(2)">
+          <button type="button" id="navStep2" aria-controls="studioSection2" aria-current="false" class="studio-nav-step" onclick="switchStudioSection(2)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">2</div>
              <div class="text-[8px] md:text-xs font-bold uppercase tracking-widest nav-text">Visual</div>
           </button>
-          <button type="button" id="navStep3" class="studio-nav-step flex flex-col md:flex-row items-center gap-1 md:gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(3)">
+          <button type="button" id="navStep3" aria-controls="studioSection3" aria-current="false" class="studio-nav-step" onclick="switchStudioSection(3)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">3</div>
              <div class="text-[8px] md:text-xs font-bold uppercase tracking-widest nav-text">Caption</div>
           </button>
-          <button type="button" id="navStep4" class="studio-nav-step flex flex-col md:flex-row items-center gap-1 md:gap-4 cursor-pointer text-text-muted transition-all hover:translate-x-1" onclick="switchStudioSection(4)">
+          <button type="button" id="navStep4" aria-controls="studioSection4" aria-current="false" class="studio-nav-step" onclick="switchStudioSection(4)">
              <div class="w-8 h-8 rounded-full border-2 border-brand/10 flex items-center justify-center text-[10px] font-bold nav-num">4</div>
              <div class="text-[8px] md:text-xs font-bold uppercase tracking-widest nav-text">Share</div>
           </button>
-        </div>
+        </nav>
       </div>
 
       <button type="button" onclick="closeNewPostModal()" aria-label="Close Studio" class="absolute top-4 right-4 md:top-6 md:right-6 z-[110] w-10 h-10 rounded-full bg-white border border-brand/10 flex items-center justify-center text-brand hover:bg-cream transition-all">
@@ -3025,7 +3028,6 @@ STUDIO_COMPONENTS_HTML = """
         <div class="flex-1 overflow-y-auto p-6 md:p-12 pb-32 custom-scrollbar">
           <div class="cw-save-row flex flex-wrap items-center gap-3 mb-6 text-sm">
               <button type="button" id="studioSaveDraftButton" onclick="saveStudioDraft()" title="Save without scheduling or publishing" class="px-4 py-2 border border-brand/20 rounded-xl">Save draft</button>
-              <details class="cw-draft-menu" id="studioDownloads"><summary>↓ Download</summary><div><strong>Full-quality images</strong><p>Original resolution. No extra image generation. Download every page for a complete sequence.</p><div id="studioDownloadPages"></div><button id="studioDownloadAll" type="button" onclick="exportStudioSequence()">All images + source · ZIP</button><p id="studioDownloadHelp">Create a design to download your images.</p></div></details>
               <span id="creatorSaveState" role="status" aria-live="polite"></span><span id="studioSaveStatus" role="status" aria-live="polite" class="text-brand/70"></span>
           </div>
           <div id="studioSection1" class="studio-section space-y-10 animate-in slide-in-from-right-8 duration-500">
@@ -3380,13 +3382,22 @@ STUDIO_COMPONENTS_HTML = """
             <!-- Phase Header -->
             <div>
               <h4 id="studioShareTitle" class="text-3xl font-bold text-brand">Ready to share?</h4>
-              <p class="text-sm text-text-muted mt-2">Choose where this post goes. Nothing publishes until you confirm.</p>
+              <p class="text-sm text-text-muted mt-2">Publish to a connected account or download your images. Nothing publishes until you confirm.</p>
             </div>
 
-            <fieldset class="cw-destinations"><legend>Share to</legend>
+            <fieldset class="cw-destinations"><legend>How would you like to share?</legend>
               <label><input type="radio" name="studioDestination" value="instagram" checked onchange="chooseStudioDestination('instagram')"> <img class="cw-platform-icon" src="/static/icons/instagram.svg" alt="" width="22" height="22" aria-hidden="true"> Instagram</label>
               <label><input type="radio" name="studioDestination" value="pinterest" onchange="chooseStudioDestination('pinterest')"> <img class="cw-platform-icon" src="/static/icons/pinterest.svg" alt="" width="22" height="22" aria-hidden="true"> Pinterest</label>
+              <label><input type="radio" name="studioDestination" value="download" onchange="chooseStudioDestination('download')"> <svg class="cw-platform-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 15v5h14v-5"/></svg> Download</label>
             </fieldset>
+            <section id="studioDownloads" class="cw-download-panel" aria-labelledby="studioDownloadTitle" hidden>
+              <h5 id="studioDownloadTitle">Save your images</h5>
+              <p id="studioDownloadSummary">Your images at their original resolution.</p>
+              <details id="studioIndividualDownloads"><summary>Choose individual images</summary><div id="studioDownloadPages"></div></details>
+              <button id="studioDownloadAll" class="cw-secondary" type="button" onclick="exportStudioSequence()">Images + source notes · ZIP</button>
+              <p id="studioDownloadHelp">Create a design to download your images.</p>
+              <p id="studioDownloadStatus" role="status" aria-live="polite"></p>
+            </section>
             <div id="studioPinterestPanel" class="pin-editor" hidden><p id="studioPinterestStatus" role="status"></p><button type="button" id="studioPinterestRetry" hidden class="cw-secondary" onclick="chooseStudioDestination('pinterest')">Try again</button><div id="studioPinterestEditor" hidden><!-- PINTEREST_EDITOR --></div></div>
             <div id="studioInstagramPanel">
             <div class="cw-share-grid grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
@@ -3781,7 +3792,7 @@ APP_LAYOUT_HTML = """<!doctype html>
     .text-brand {{ color: var(--brand) !important; }}
     .border-brand {{ border-color: var(--brand) !important; }}
   </style>
-<link rel="stylesheet" href="/static/creator-workspace.css?v=live-1"><link rel="stylesheet" href="/static/studio-flow.css?v=paper-1">
+<link rel="stylesheet" href="/static/creator-workspace.css?v=share-2"><link rel="stylesheet" href="/static/studio-flow.css?v=share-2">
 <link rel="stylesheet" href="/static/studio-design.css?v=1"><link rel="stylesheet" href="/static/workspace-refresh.css?v=1">
 </head>
 <body class="min-h-screen">

@@ -28,11 +28,15 @@
 #newPostModal .pin-editor .save-bar {display:flex;align-items:center;justify-content:space-between;gap:16px;margin:20px 0;border-top:1px solid #d8e1d3;padding-top:14px}
 #newPostModal .pin-editor .save-bar p {font-size:13px}
 #newPostModal .pin-editor .notice {padding:14px;background:#f7f0e1;border-radius:12px}
-#newPostModal .cw-destinations {display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:22px}
+#newPostModal .cw-destinations {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:22px}
 #newPostModal .cw-destinations legend {font-weight:650;margin-bottom:10px}
-#newPostModal .cw-destinations label {display:flex;align-items:center;gap:10px;min-height:52px;padding:12px;border:1px solid #bdccbf;border-radius:14px;font-size:15px}
+#newPostModal .cw-destinations label {position:relative;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;min-height:80px;padding:12px 8px;border:1px solid #bdccbf;border-radius:14px;font-size:14px;cursor:pointer;transition:background-color .16s,border-color .16s,transform .12s}
 #newPostModal .cw-destinations label:has(:checked) {background:#e9f0e2;border-color:#65826b}
-#newPostModal .cw-destinations input {width:18px;height:18px;accent-color:#173e32}
+#newPostModal .cw-destinations input {position:absolute;width:1px;height:1px;opacity:0}
+#newPostModal .cw-destinations label:has(:focus-visible) {outline:2px solid #527762;outline-offset:3px}
+#newPostModal .cw-destinations label:has(:disabled) {opacity:.55;cursor:not-allowed}
+#newPostModal .cw-destinations label:active:not(:has(:disabled)) {transform:scale(.98)}
+@media(prefers-reduced-motion:reduce) {#newPostModal .cw-destinations label {transition:none;transform:none!important}}
 #newPostModal #studioInstagramPanel {margin-top:20px}
 #newPostModal .cw-mirrored-action {display:none!important}
 #newPostModal .cw-step-bar {display:flex;gap:12px;padding:12px 20px max(12px,env(safe-area-inset-bottom));border-top:1px solid #dbe3d7;background:#fff;flex-shrink:0;z-index:5}
@@ -71,7 +75,15 @@
 #newPostModal .pin-editor .availability summary {min-height:44px;padding:10px 0}
 #newPostModal .pin-editor .availability > p:empty {display:none}
 
-#newPostModal #studioDownloads > div {max-height:min(65dvh,480px);overflow:auto;width:min(300px,calc(100vw - 40px))}
+#newPostModal .cw-download-panel {padding:20px;border:1px solid #d6dfcf;border-radius:18px;background:#f7f9f2}
+#newPostModal .cw-download-panel[hidden] {display:none}
+#newPostModal .cw-download-panel h5 {font-size:21px;font-weight:650}
+#newPostModal .cw-download-panel p {font-size:14px;line-height:1.6;color:#52685d;margin:10px 0 16px}
+#newPostModal #studioDownloadHelp {font-size:13px;margin-bottom:0}
+#newPostModal #studioDownloadStatus:empty {display:none}
+#newPostModal #studioDownloadStatus {color:#173e32;font-weight:600}
+#newPostModal #studioIndividualDownloads {margin:12px 0}
+#newPostModal #studioIndividualDownloads[hidden] {display:none}
 #newPostModal #studioDownloadPages button {display:block;width:100%;text-align:left;min-height:44px;border-bottom:1px solid #e0e6dc}
 #newPostModal #studioDownloadAll {min-height:48px}
 
