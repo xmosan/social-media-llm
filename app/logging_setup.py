@@ -17,7 +17,8 @@ from .config import settings
 request_id_var = contextvars.ContextVar("request_id", default=None)
 
 # Secrets to redact
-SECRETS = ["token", "secret", "password", "key", "authorization", "cookie"]
+SECRETS = ["token", "secret", "password", "key", "authorization", "cookie",
+           "owner_mfa", "recovery_code", "otp", "verification_code"]
 
 def redact_log_value(value, key=""):
     if any(s in key.lower() for s in SECRETS):

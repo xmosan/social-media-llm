@@ -62,6 +62,13 @@ def login(
             user.active_org_id = membership.org_id
             db.commit()
 
+    if is_platform_owner(user):
+        from app.security.owner_mfa import issue_challenge
+        issue_challenge(db, user, response)
+        clear_legacy_domain_cookie(response)
+        response.delete_cookie("access_token", path="/", httponly=True, secure=True, samesite="lax")
+        return {"mfa_required": True, "next": "/auth/owner-security"}
+
     access_token = create_user_access_token(user)
     
     # Set HttpOnly cookie for web clients
@@ -120,6 +127,8 @@ def register(
 
 @router.post("/logout")
 def logout(response: Response) -> dict[str, str]:
+    from app.security.owner_mfa import clear_challenge
+    clear_challenge(response)
     clear_legacy_domain_cookie(response)
     response.delete_cookie(
         key="access_token",
