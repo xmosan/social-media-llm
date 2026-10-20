@@ -134,7 +134,7 @@ def studio_generate_card_message(data: dict, db: Session = Depends(get_db),
         raise
     except Exception as e:
         logger.error(f"[STUDIO] Card Message generation failed: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return JSONResponse(status_code=500, content={"error": "Sabeel could not complete this request. Your saved work is kept. Please try again."})
 
 
 @router.post("/generate-caption", dependencies=[Depends(require_user)])
@@ -178,7 +178,7 @@ def studio_generate_caption(data: dict, db: Session = Depends(get_db),
             raise
         except Exception as e:
             logger.error(f"[STUDIO] Hadith caption generation failed: {e}")
-            return JSONResponse(status_code=500, content={"error": str(e)})
+            return JSONResponse(status_code=500, content={"error": "Sabeel could not complete this request. Your saved work is kept. Please try again."})
 
     # ── Quran: bypass DB re-search if payload is complete ─────────────────────
     # This is the critical source-drift fix.
@@ -217,7 +217,7 @@ def studio_generate_caption(data: dict, db: Session = Depends(get_db),
         raise
     except Exception as e:
         logger.error(f"[STUDIO] Caption generation failed: {e}")
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        return JSONResponse(status_code=500, content={"error": "Sabeel could not complete this request. Your saved work is kept. Please try again."})
 
 
 @router.post("/visual-fit", dependencies=[Depends(require_user)])

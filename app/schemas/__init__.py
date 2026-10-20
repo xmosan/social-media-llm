@@ -427,7 +427,6 @@ class MediaAssetOut(BaseModel):
     org_id: int
     ig_account_id: int | None = None
     url: str
-    storage_path: str | None = None
     tags: list[str] = Field(default_factory=list)
     created_at: datetime
 

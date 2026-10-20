@@ -54,6 +54,36 @@ class PostgresChecks(unittest.TestCase):
         self.db.commit()
         return post.id
 
+    def test_connection_encryption_migration_is_repeatable_and_preserves_posts(self):
+        from scripts.encrypt_instagram_tokens import migrate
+        from app.security.connection_tokens import PREFIX, open_token
+        post_id = self.post()
+        with engine.begin() as connection:
+            connection.execute(text("UPDATE ig_accounts SET access_token='legacy-synthetic-only' WHERE id=1"))
+            self.assertEqual(migrate(connection)["remaining_legacy"], 1)
+            self.assertEqual(migrate(connection, apply=True)["upgraded"], 1)
+            self.assertEqual(migrate(connection, apply=True)["upgraded"], 0)
+            stored = connection.execute(text("SELECT access_token FROM ig_accounts WHERE id=1")).scalar_one()
+            self.assertTrue(stored.startswith(PREFIX))
+            self.assertEqual(open_token(stored), "legacy-synthetic-only")
+        self.db.expire_all()
+        self.assertEqual(self.db.get(IGAccount, 1).access_token, "legacy-synthetic-only")
+        self.assertEqual(self.db.get(Post, post_id).status, "drafted")
+        self.assertEqual(self.db.get(Post, post_id).ig_account_id, 1)
+
+    def test_credential_migration_rolls_back_all_changes_on_corruption(self):
+        from scripts.encrypt_instagram_tokens import migrate
+        with engine.begin() as connection:
+            connection.execute(text("UPDATE ig_accounts SET access_token='legacy-synthetic-only' WHERE id=1"))
+            connection.execute(text("""INSERT INTO ig_accounts (id, org_id, name, ig_user_id, access_token)
+                VALUES (2, 1, 'Fixture', '2', 'sabeel:ig:v1:corrupted')"""))
+        with self.assertRaises(ValueError):
+            with engine.begin() as connection:
+                migrate(connection, apply=True)
+        with engine.connect() as connection:
+            self.assertEqual(connection.execute(text("SELECT access_token FROM ig_accounts WHERE id=1")).scalar_one(),
+                             "legacy-synthetic-only")
+
     def test_workspace_draft_migration_preserves_legacy_posts_and_is_repeatable(self):
         from scripts.migrate_workspace_drafts import migrate
         post_id = self.post()

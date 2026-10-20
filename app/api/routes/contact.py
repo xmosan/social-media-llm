@@ -8,6 +8,7 @@ from app.schemas.inbound_message import ContactMessageRequest
 from app.services.email import send_contact_acknowledgment
 from app.config import settings
 from app.security.rbac import require_superadmin
+from app.services.usage_limits import check_public_submission
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ async def submit_contact(payload: ContactMessageRequest, db: Session = Depends(g
     if payload.source == "creator_pilot":
         raise HTTPException(422, "Use the signed-in creator feedback form.")
     email_clean = payload.email.lower().strip()
+    check_public_submission("contact", email_clean)
     
     try:
         # 1. Save to DB

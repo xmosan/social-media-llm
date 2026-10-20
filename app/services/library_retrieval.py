@@ -38,6 +38,7 @@ def retrieve_relevant_chunks(db: Session, org_id: int, query: str, k: int = 5, t
     entries = db.query(ContentItem, ContentSource.name)\
         .join(ContentSource, ContentItem.source_id == ContentSource.id)\
         .filter(or_(ContentItem.org_id == org_id, ContentItem.org_id == None))\
+        .filter(ContentItem.owner_user_id == None)\
         .all()
         
     for entry, src_name in entries:

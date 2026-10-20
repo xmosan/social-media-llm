@@ -80,7 +80,8 @@ def get_current_user(
         return None
 
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM],
+                             options={"require": ["exp", "sub"]})
         user_id = payload.get("sub")
         if not isinstance(user_id, str) or len(user_id) > 10 or not user_id.isascii() or not user_id.isdecimal():
             return None

@@ -76,6 +76,27 @@ def check_auth_attempt(identity=None):
         raise UsageLimitError("Sign-in is temporarily unavailable. Please try again shortly.", 503) from None
 
 
+def check_public_submission(kind, identity):
+    """Shared across replicas; bound anonymous mail/storage abuse without IP trust."""
+    if kind not in {"contact", "waitlist"}:
+        raise ValueError("Unknown public form")
+    try:
+        with _session() as db, db.begin():
+            now = _now(db)
+            start = now.replace(minute=0, second=0, microsecond=0)
+            retry = (start + timedelta(hours=1) - now).total_seconds()
+            digest = hmac.new(settings.secret_key.encode(),
+                              str(identity).strip().casefold()[:320].encode(), hashlib.sha256).hexdigest()
+            message = "Too many submissions. Please wait before trying again."
+            _increment(db, f"public:{kind}:global", start, 100, message, retry)
+            _increment(db, f"public:{kind}:identity:{digest}", start, 3, message, retry)
+            db.execute(text("DELETE FROM usage_buckets WHERE window_start < :cutoff"),
+                       {"cutoff": now - timedelta(days=7)})
+    except SQLAlchemyError:
+        logger.error("public_form_limit_storage_unavailable")
+        raise UsageLimitError("This form is temporarily unavailable. Please try again shortly.", 503) from None
+
+
 def reserve(kind):
     scope = current_scope.get()
     if not scope or not isinstance(scope.org_id, int) or scope.org_id <= 0:

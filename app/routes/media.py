@@ -1,8 +1,8 @@
 # Copyright (c) 2026 Mohammed Hassan. All rights reserved.
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
-import os, shutil
-from uuid import uuid4
+import os
+from pathlib import Path
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -12,6 +12,7 @@ from ..models import MediaAsset
 from ..schemas import MediaAssetOut, MediaAssetCreate
 from ..security.rbac import get_current_org_id
 from ..security.ownership import require_account
+from ..security.uploads import save_image_upload
 from datetime import datetime, timezone
 
 router = APIRouter(prefix="/media-assets", tags=["media"])
@@ -54,21 +55,16 @@ def upload_media_asset(
         require_account(db, org_id, ig_account_id)
     if image.content_type not in {"image/png", "image/jpeg", "image/jpg", "image/webp"}:
         raise HTTPException(status_code=400, detail="Use a PNG, JPG, or WEBP image")
-    _ensure_uploads_dir()
-    
-    extension = {"image/png": ".png", "image/webp": ".webp"}.get(image.content_type, ".jpg")
-    filename = f"lib_{uuid4().hex}{extension}"
-    local_path = os.path.join(settings.uploads_dir, filename)
-
-    with open(local_path, "wb") as f:
-        shutil.copyfileobj(image.file, f)
-
-    public_url = f"{settings.public_base_url}/uploads/{filename}"
-    
     try:
         tags_list = json.loads(tags)
-    except:
-        tags_list = []
+        if (not isinstance(tags_list, list) or len(tags_list) > 30
+                or any(not isinstance(t, str) or len(t) > 100 for t in tags_list)):
+            raise ValueError()
+    except (ValueError, TypeError):
+        raise HTTPException(422, "Use up to 30 short text tags.") from None
+    _ensure_uploads_dir()
+    filename, local_path = save_image_upload(image, settings.uploads_dir, "lib")
+    public_url = f"{settings.public_base_url}/uploads/{filename}"
 
     new_asset = MediaAsset(
         org_id=org_id,
@@ -92,11 +88,12 @@ def delete_media_asset(
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
     
-    if asset.storage_path and os.path.exists(asset.storage_path):
+    local = Path(asset.storage_path).resolve() if asset.storage_path else None
+    if local and local.is_relative_to(Path(settings.uploads_dir).resolve()) and local.is_file():
         try:
-            os.remove(asset.storage_path)
+            local.unlink()
         except Exception as e:
-            print(f"Error removing file: {e}")
+            pass  # A failed local cleanup must not expose server paths.
 
     db.delete(asset)
     db.commit()

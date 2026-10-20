@@ -15,6 +15,7 @@ from app.schemas.waitlist import WaitlistJoinRequest
 from app.security.rbac import require_superadmin, OWNER_HEADERS
 from app.models import User
 from app.services.email import send_email
+from app.services.usage_limits import check_public_submission
 
 logger = logging.getLogger(__name__)
 
@@ -32,16 +33,13 @@ async def waitlist_join(
     """
     # 1. Normalize email
     email_clean = payload.email.lower().strip()
+    check_public_submission("waitlist", email_clean)
+    accepted = {"ok": True, "message": "Thank you. Your waitlist request has been received."}
     
     # 2. Check if already exists
     existing = db.query(WaitlistEntry).filter(WaitlistEntry.email == email_clean).first()
     if existing:
-        return {
-            "ok": True,
-            "message": "You're already on the waitlist.",
-            "already_exists": True,
-            "id": existing.id
-        }
+        return accepted
     
     # 3. Extract Metadata from Headers & Params
     ip_addr = request.client.host if request.client else None
@@ -71,7 +69,7 @@ async def waitlist_join(
         db.commit()
         db.refresh(new_entry)
         
-        logger.info(f"✅ Waitlist: New entry for {email_clean} (ID: {new_entry.id}) Source: {payload.source} UTM: {utm_source}")
+        logger.info("waitlist_entry_saved id=%s", new_entry.id)
         
         # 5. Email Confirmation (Non-blocking)
         try:
@@ -87,12 +85,7 @@ async def waitlist_join(
         except Exception as email_err:
             logger.error(f"Failed to send waitlist confirmation email: {email_err}")
             
-        return {
-            "ok": True,
-            "message": "Successfully joined the waitlist.",
-            "already_exists": False,
-            "id": new_entry.id
-        }
+        return accepted
     except Exception as e:
         db.rollback()
         logger.error(f"Error saving waitlist entry: {e}")
@@ -150,7 +143,7 @@ def export_waitlist_csv(db: Session = Depends(get_db)):
     
     writer.writeheader()
     for e in entries:
-        writer.writerow({
+        row = {
             "id": e.id,
             "email": e.email,
             "name": e.name or "",
@@ -162,7 +155,12 @@ def export_waitlist_csv(db: Session = Depends(get_db)):
             "utm_medium": e.utm_medium or "",
             "utm_campaign": e.utm_campaign or "",
             "referrer": e.referrer or ""
-        })
+        }
+        # Spreadsheet software can execute formula-like values from public forms.
+        writer.writerow({key: ("'" + value if isinstance(value, str)
+                               and (value.lstrip().startswith(("=", "+", "-", "@"))
+                                    or value.startswith(("\t", "\r", "\n")))
+                               else value) for key, value in row.items()})
     
     output.seek(0)
     

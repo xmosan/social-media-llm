@@ -3,6 +3,9 @@
 
 STUDIO_SCRIPTS_JS = r"""
 <script>;
+function escapeMarkup(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 (function() {
     'use strict';
     try {
@@ -1896,15 +1899,15 @@ STUDIO_SCRIPTS_JS = r"""
                     const orbDot  = ORB_DOTS[p.family] || 'bg-brand/20';
                     const dnaId   = p.id;   // string key OR integer — both safe as data-attr
                     return `
-                    <div data-dna-id="${dnaId}" data-dna-key="${p.key}" data-dna-family="${p.family}"
+                    <div data-dna-id="${escapeMarkup(dnaId)}" data-dna-key="${escapeMarkup(p.key)}" data-dna-family="${escapeMarkup(p.family)}"
                          onclick="selectV2StyleDna(this)"
                          class="auto-style-card cursor-pointer bg-cream/30 border border-brand/5 rounded-2xl p-4 hover:border-brand/30 hover:shadow-lg transition-all duration-200 flex flex-col items-center text-center group">
                         <div class="w-10 h-10 rounded-full bg-gradient-to-br ${orbGrad} flex items-center justify-center mb-3 shadow-inner group-hover:scale-110 transition-transform duration-200">
                             <div class="w-3 h-3 rounded-full ${orbDot} animate-pulse"></div>
                         </div>
-                        <div class="text-[10px] uppercase font-black tracking-widest text-brand mb-1">${p.label}</div>
-                        <div class="text-[8px] text-text-muted font-bold leading-tight italic">${p.atmosphere}</div>
-                        <div class="text-[8px] text-text-muted/70 font-bold leading-tight mt-0.5">${p.tone_style}</div>
+                        <div class="text-[10px] uppercase font-black tracking-widest text-brand mb-1">${escapeMarkup(p.label)}</div>
+                        <div class="text-[8px] text-text-muted font-bold leading-tight italic">${escapeMarkup(p.atmosphere)}</div>
+                        <div class="text-[8px] text-text-muted/70 font-bold leading-tight mt-0.5">${escapeMarkup(p.tone_style)}</div>
                     </div>
                     `;
                 };
@@ -1928,7 +1931,7 @@ STUDIO_SCRIPTS_JS = r"""
             chipContainer.innerHTML = pool.map((t, i) => `
                 <span class="px-3 py-1.5 bg-brand/10 border border-brand/20 rounded-full text-[9px] font-bold text-brand uppercase tracking-widest flex items-center gap-2 animate-in zoom-in duration-200">
                     <span class="w-1.5 h-1.5 rounded-full bg-accent flex-shrink-0"></span>
-                    <span>${t}</span>
+                    <span>${escapeMarkup(t)}</span>
                     <button type="button" onclick="removeTopicChip(${i})" class="w-3.5 h-3.5 rounded-full bg-brand/20 hover:bg-rose-500 hover:text-white flex items-center justify-center text-brand transition-all flex-shrink-0" title="Remove">
                         <svg class="w-2 h-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
@@ -2071,15 +2074,15 @@ STUDIO_SCRIPTS_JS = r"""
                     <div class="grid grid-cols-2 gap-x-8 gap-y-3">
                         <div class="flex flex-col">
                             <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Topic Pool</span>
-                            <span class="text-[11px] font-black text-brand line-clamp-1 italic mt-1">"${topicSummary}"</span>
+                            <span class="text-[11px] font-black text-brand line-clamp-1 italic mt-1">"${escapeMarkup(topicSummary)}"</span>
                         </div>
                         <div class="flex flex-col">
                             <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Style DNA</span>
-                            <span class="text-[11px] font-black text-brand mt-1">${dnaLabel}</span>
+                            <span class="text-[11px] font-black text-brand mt-1">${escapeMarkup(dnaLabel)}</span>
                         </div>
                         <div class="flex flex-col">
                             <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Frequency</span>
-                            <span class="text-[11px] font-black text-brand mt-1">${cadence === 'daily' ? 'Daily Stream' : 'Weekly Sync'} @ ${timeStr}</span>
+                            <span class="text-[11px] font-black text-brand mt-1">${cadence === 'daily' ? 'Daily Stream' : 'Weekly Sync'} @ ${escapeMarkup(timeStr)}</span>
                         </div>
                         <div class="flex flex-col">
                             <span class="text-[8px] font-bold text-text-muted uppercase tracking-widest leading-none">Volume & Spacing</span>
@@ -2311,15 +2314,15 @@ STUDIO_SCRIPTS_JS = r"""
                                     <span class="w-1.5 h-1.5 rounded-full ${badgeColor} animate-pulse"></span>
                                     <span class="text-[9px] font-black text-brand uppercase tracking-widest">${badgeText}</span>
                                 </div>
-                                <div class="text-[10px] font-bold text-text-muted italic ml-3.5">Topic: ${topicLabel} • Vision: ${data.style_name}</div>
+                                <div class="text-[10px] font-bold text-text-muted italic ml-3.5">Topic: ${escapeMarkup(topicLabel)} • Vision: ${escapeMarkup(data.style_name)}</div>
                             </div>
-                            <span class="text-[9px] font-black text-brand/20 uppercase tracking-tighter">Sample ${data.sample_index}</span>
+                            <span class="text-[9px] font-black text-brand/20 uppercase tracking-tighter">Sample ${escapeMarkup(data.sample_index)}</span>
                         </div>
                         
                         <!-- Visual Area -->
                         <div class="aspect-square bg-gray-100 relative group-hover:scale-[1.01] transition-transform duration-700">
                              ${data.visual_url ? `
-                                <img src="${data.visual_url}" class="w-full h-full object-contain" alt="Post Preview">
+                                <img src="${escapeMarkup(data.visual_url)}" class="w-full h-full object-contain" alt="Post Preview">
                              ` : `
                                 <div class="w-full h-full flex flex-col items-center justify-center p-8 text-center space-y-3 opacity-60">
                                     <div class="w-16 h-16 rounded-2xl bg-brand/5 border border-brand/10 flex items-center justify-center">
@@ -2339,14 +2342,14 @@ STUDIO_SCRIPTS_JS = r"""
                         <div class="p-6 space-y-4">
                              <div class="bg-brand/[0.02] border-l-4 border-brand/10 p-4 rounded-r-2xl">
                                  <p class="text-[11px] text-brand font-black leading-relaxed italic line-clamp-3">
-                                    "${data.caption || 'Insight flowing from the selected wisdom pool...'}"
+                                    "${escapeMarkup(data.caption || 'Insight flowing from the selected wisdom pool...')}"
                                  </p>
-                                 <div class="text-[9px] font-black text-brand uppercase tracking-widest text-right mt-3 opacity-60">— ${data.source_reference || 'Reflection'}</div>
+                                 <div class="text-[9px] font-black text-brand uppercase tracking-widest text-right mt-3 opacity-60">— ${escapeMarkup(data.source_reference || 'Reflection')}</div>
                              </div>
 
                              ${data.hashtags && data.hashtags.length > 0 ? `
                              <div class="pt-2 flex flex-wrap gap-1.5">
-                                 ${data.hashtags.slice(0, 5).map(h => `<span class="px-2 py-0.5 bg-brand/[0.03] rounded-md text-[8px] font-bold text-brand uppercase tracking-tighter opacity-50 hover:opacity-100 transition-opacity cursor-default">#${h}</span>`).join('')}
+                                 ${data.hashtags.slice(0, 5).map(h => `<span class="px-2 py-0.5 bg-brand/[0.03] rounded-md text-[8px] font-bold text-brand uppercase tracking-tighter opacity-50 hover:opacity-100 transition-opacity cursor-default">#${escapeMarkup(h)}</span>`).join('')}
                              </div>` : ''}
                         </div>
                     </div>

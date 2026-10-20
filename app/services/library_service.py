@@ -3,7 +3,7 @@
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from typing import Optional
 from app.models import ContentSource, ContentItem
 from app.schemas import ContentItemCreate
@@ -107,7 +107,7 @@ def create_library_entry(db: Session, org_id: Optional[int], data: ContentItemCr
     db.refresh(item)
 from app.models import ContentSource, ContentItem, LibraryTopicSynonym
 
-def suggest_library_topics(db: Session, text: str, max_results: int = 5):
+def suggest_library_topics(db: Session, text: str, max_results: int = 5, *, org_id=None, user_id=None):
     """
     Suggests the best matching library topics based on input text.
     Uses layered scoring: Exact Match > Synonym Match > Partial Match.
@@ -122,7 +122,10 @@ def suggest_library_topics(db: Session, text: str, max_results: int = 5):
     
     # Get all distinct topics (slugs) from ContentItem
     # In a real app with many topics, we'd cache this or use a search index.
-    all_items = db.query(ContentItem.topic, ContentItem.topics_slugs).all()
+    all_items = db.query(ContentItem.topic, ContentItem.topics_slugs).filter(
+        or_(ContentItem.org_id == org_id, ContentItem.org_id.is_(None)),
+        or_(ContentItem.owner_user_id.is_(None), ContentItem.owner_user_id == user_id),
+    ).all()
     unique_topics = {} # slug -> display_name
     for item in all_items:
         if item.topic:

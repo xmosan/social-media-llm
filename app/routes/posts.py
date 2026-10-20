@@ -25,6 +25,7 @@ from ..services.automation_runner import resolve_media_url
 from ..security.rbac import get_current_org_id
 from ..security.ownership import require_account, require_content_item, require_media, draft_account_id
 from ..security.auth import get_current_user
+from ..security.uploads import save_image_upload
 from ..logging_setup import log_event
 router = APIRouter(prefix="/posts", tags=["posts"])
 def _utcnow():
@@ -166,12 +167,8 @@ def intake_post(
         if image.content_type not in ("image/png", "image/jpeg", "image/jpg", "image/webp"):
             raise HTTPException(status_code=400, detail=f"File type '{image.content_type}' is not supported. Use PNG, JPG, or WEBP.")
         
-        extension = {"image/png": ".png", "image/webp": ".webp"}.get(image.content_type, ".jpg")
-        filename = f"upload_{uuid4().hex}{extension}"
-        local_path = os.path.join(settings.uploads_dir, filename)
+        filename, local_path = save_image_upload(image, settings.uploads_dir)
         try:
-            with open(local_path, "wb") as f:
-                shutil.copyfileobj(image.file, f)
             from app.config import build_public_media_url
             public_url = build_public_media_url(filename, local_path=local_path)
             print(f"[INTAKE] Upload saved. media_url={public_url}")
@@ -252,10 +249,7 @@ async def preview_render(
     
     # 1. Resolve Background
     if visual_mode == "upload" and image:
-        temp_fn = f"prev_up_{int(_utcnow().timestamp())}.jpg"
-        temp_path = os.path.join(settings.uploads_dir, temp_fn)
-        with open(temp_path, "wb") as f:
-            shutil.copyfileobj(image.file, f)
+        _, temp_path = save_image_upload(image, settings.uploads_dir, "preview")
         background_local_path = temp_path
     
     elif visual_mode == "ai_background":
@@ -598,11 +592,7 @@ def attach_media(
     _ensure_uploads_dir()
     if image.content_type not in {"image/png", "image/jpeg", "image/jpg", "image/webp"}:
         raise HTTPException(status_code=400, detail="Use a PNG, JPG, or WEBP image")
-    extension = {"image/png": ".png", "image/webp": ".webp"}.get(image.content_type, ".jpg")
-    filename = f"manual_{uuid4().hex}{extension}"
-    local_path = os.path.join(settings.uploads_dir, filename)
-    with open(local_path, "wb") as f:
-        shutil.copyfileobj(image.file, f)
+    filename, local_path = save_image_upload(image, settings.uploads_dir, "manual")
     public_url = f"{settings.public_base_url}/uploads/{filename}"
     post.media_url = public_url
     

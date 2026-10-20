@@ -96,43 +96,7 @@ def debug_llm_test(
     db: Session = Depends(get_db),
     org_id: int = Depends(get_current_org_id)
 ):
-    """Smoke test for LLM generation with optional grounding."""
-    try:
-        # Step 1: Try to find any grounded content in the library for this topic
-        chunks = retrieve_relevant_chunks(db, org_id, query=topic, k=1)
-        extra_context = {}
-        grounding_meta = None
-        
-        if chunks:
-            chunk = chunks[0]
-            grounding_meta = {
-                "source": chunk.get("source"),
-                "item_type": chunk.get("item_type", "reference"),
-                "text": chunk.get("text")
-            }
-            extra_context = {
-                "mode": "grounded_library",
-                "snippet": {
-                    "text": chunk.get("text"),
-                    "reference": chunk.get("source"),
-                    "source": chunk.get("source"),
-                    "item_type": chunk.get("item_type")
-                }
-            }
-
-        res = generate_topic_caption(topic=topic, style=style, extra_context=extra_context)
-        
-        # Inject grounding meta into the response for the UI to show
-        if grounding_meta:
-            res["grounding"] = grounding_meta
-        else:
-            res["grounding"] = {"item_type": "reflection", "source": "General Wisdom"}
-            
-        return res
-    except UsageLimitError:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    raise HTTPException(410, "Use the reviewed Studio generation flow instead.")
 
 @router.post("/v2/simulate")
 def simulate_v2_growth_plan(

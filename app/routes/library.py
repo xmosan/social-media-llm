@@ -20,6 +20,7 @@ from app.services.library_service import (
 )
 from app.security.auth import require_user
 from app.models import User
+from app.security.ownership import require_content_item
 
 router = APIRouter(prefix="/api/library", tags=["library"])
 
@@ -29,10 +30,10 @@ router = APIRouter(prefix="/api/library", tags=["library"])
 def list_library_sources(
     scope: Optional[str] = None,
     db: Session = Depends(get_db),
-    user: User = Depends(require_user)
+    user: User = Depends(require_user),
+    org_id: int = Depends(get_current_org_id)
 ):
     """Lists accessible manual library sources with optional scope filter."""
-    org_id = user.active_org_id
     q = db.query(ContentSource)
     if scope == "global":
         q = q.filter(ContentSource.org_id == None)
@@ -46,17 +47,16 @@ def list_library_sources(
 @router.get("/topics")
 def list_library_topics(
     db: Session = Depends(get_db),
-    user: User = Depends(require_user)
+    user: User = Depends(require_user),
+    org_id: int = Depends(get_current_org_id)
 ):
     """Returns top topics across merged dataset."""
-    org_id = user.active_org_id
     items = db.query(ContentItem).filter(
         or_(
             ContentItem.org_id == org_id if org_id else False,
-            ContentItem.org_id == None,
-            ContentItem.owner_user_id == user.id
+            ContentItem.org_id == None
         )
-    ).all()
+    ).filter(or_(ContentItem.owner_user_id.is_(None), ContentItem.owner_user_id == user.id)).all()
     
     counts = {}
     for it in items:
@@ -75,10 +75,10 @@ def list_library_entries(
     item_type: Optional[str] = None,
     scope: Optional[str] = None,
     db: Session = Depends(get_db),
-    user: User = Depends(require_user)
+    user: User = Depends(require_user),
+    org_id: int = Depends(get_current_org_id)
 ):
     """Lists entries with unified scope filtering."""
-    org_id = user.active_org_id
     if scope == "global":
         q = db.query(ContentItem).filter(ContentItem.org_id == None)
     elif scope == "org":
@@ -87,10 +87,10 @@ def list_library_entries(
         q = db.query(ContentItem).filter(
             or_(
                 ContentItem.org_id == org_id,
-                ContentItem.org_id == None,
-                ContentItem.owner_user_id == user.id
+                ContentItem.org_id == None
             )
         )
+    q = q.filter(or_(ContentItem.owner_user_id.is_(None), ContentItem.owner_user_id == user.id))
     if source_id:
         q = q.filter(ContentItem.source_id == source_id)
     if topic:
@@ -101,69 +101,19 @@ def list_library_entries(
         q = q.filter(ContentItem.item_type == item_type)
     results = q.order_by(ContentItem.created_at.desc()).all()
     
-    # --- DEFENSIVE NORMALIZATION & DIAGNOSTICS ---
-    normalized = []
-    stats = {"total": len(results), "quran": 0, "missing_text": 0, "missing_ref": 0}
-    
-    for item in results:
-        # Counters
-        if item.item_type == "quran": stats["quran"] += 1
-        if not item.text: stats["missing_text"] += 1
-        if not item.title and not item.reference: stats["missing_ref"] += 1
-        
-        # Safe Object Construction
-        entry_meta = item.meta or {}
-        normalized.append({
-            "id": item.id,
-            "item_type": item.item_type or "note",
-            "title": item.title or item.reference or "Untitled Entry",
-            "reference": item.reference or item.title or "Untitled Entry",
-            "text": item.text or "Content unavailable",
-            "arabic_text": item.arabic_text or "",
-            "topics": item.topics or [],
-            "topics_slugs": item.topics_slugs or [],
-            "meta": entry_meta,
-            "created_at": item.created_at,
-            "owner_user_id": item.owner_user_id,
-            "org_id": item.org_id,
-            "source_id": item.source_id
-        })
-
-    print(f"📡 [LIBRARY] Returning {stats['total']} entries. Quran: {stats['quran']} | Missing Text: {stats['missing_text']} | Missing Ref: {stats['missing_ref']}")
-    return normalized
+    return results
 
 @router.get("/entries/{item_id}", response_model=ContentItemOut)
 def get_library_entry(
     item_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(require_user)
+    user: User = Depends(require_user),
+    org_id: int = Depends(get_current_org_id)
 ):
     """Retrieves a single library entry by ID with scoping checks."""
-    org_id = user.active_org_id
-    item = db.query(ContentItem).filter(ContentItem.id == item_id).first()
-    
-    if not item:
-        raise HTTPException(status_code=404, detail="Library entry not found")
-        
-    # Scoping check: must be global, owned by user, or in user's active org
-    if item.org_id is not None and item.org_id != org_id and item.owner_user_id != user.id:
-        raise HTTPException(status_code=403, detail="Access denied to this library entry")
-        
-    return {
-        "id": item.id,
-        "item_type": item.item_type or "note",
-        "title": item.title or item.reference or "Untitled Entry",
-        "reference": item.reference or item.title or "Untitled Entry",
-        "text": item.text or "Content unavailable",
-        "arabic_text": item.arabic_text or "",
-        "topics": item.topics or [],
-        "topics_slugs": item.topics_slugs or [],
-        "meta": item.meta or {},
-        "created_at": item.created_at,
-        "owner_user_id": item.owner_user_id,
-        "org_id": item.org_id,
-        "source_id": item.source_id
-    }
+    item = require_content_item(db, org_id, item_id, user_id=user.id)
+
+    return item
 
 @router.post("/entries", response_model=ContentItemOut)
 def add_library_entry(
@@ -180,14 +130,13 @@ def update_library_entry(
     id: int,
     data: ContentItemUpdate,
     db: Session = Depends(get_db),
-    org_id: int = Depends(get_current_org_id)
+    org_id: int = Depends(get_current_org_id),
+    user: User = Depends(require_user),
 ):
     """Updates an existing library entry."""
-    item = db.query(ContentItem).filter(ContentItem.id == id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Entry not found")
-    if item.org_id is not None and item.org_id != org_id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    item = require_content_item(db, org_id, id, user_id=user.id)
+    if item.org_id is None:
+        raise HTTPException(403, "Shared sources are read-only here. Make a workspace copy to edit.")
     
     update_data = data.dict(exclude_unset=True)
     if any(k in update_data for k in ["item_type", "text", "arabic_text", "meta"]):
@@ -213,14 +162,13 @@ def update_library_entry(
 def delete_library_entry(
     id: int,
     db: Session = Depends(get_db),
-    org_id: int = Depends(get_current_org_id)
+    org_id: int = Depends(get_current_org_id),
+    user: User = Depends(require_user),
 ):
     """Deletes a library entry."""
-    item = db.query(ContentItem).filter(ContentItem.id == id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Entry not found")
-    if item.org_id is not None and item.org_id != org_id:
-        raise HTTPException(status_code=403, detail="Access denied")
+    item = require_content_item(db, org_id, id, user_id=user.id)
+    if item.org_id is None:
+        raise HTTPException(403, "Shared sources are read-only here. Make a workspace copy to edit.")
     db.delete(item)
     db.commit()
     return {"status": "success"}
@@ -229,16 +177,11 @@ def delete_library_entry(
 def clone_library_entry(
     id: int,
     db: Session = Depends(get_db),
-    org_id: int = Depends(get_current_org_id)
+    org_id: int = Depends(get_current_org_id),
+    user: User = Depends(require_user),
 ):
     """Clones a global library entry into the user's active organization."""
-    item = db.query(ContentItem).filter(ContentItem.id == id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Entry not found")
-    
-    # Must be global or same org
-    if item.org_id is not None and item.org_id != org_id:
-        raise HTTPException(status_code=403, detail="Cannot clone entries from other organizations")
+    item = require_content_item(db, org_id, id, user_id=user.id)
 
     # Determine target source (cloning a global item might need a local equivalent of the source)
     # For simplicity, we clone the record but keep it in the SAME source ID if it's a manual-library source
@@ -247,6 +190,7 @@ def clone_library_entry(
     
     new_item = ContentItem(
         org_id=org_id,
+        owner_user_id=user.id,
         source_id=item.source_id,
         item_type=item.item_type,
         title=item.title,
@@ -269,30 +213,33 @@ def clone_library_entry(
 def get_topic_suggestions(
     data: TopicSuggestRequest,
     db: Session = Depends(get_db),
-    user: User = Depends(require_user)
+    user: User = Depends(require_user),
+    org_id: int = Depends(get_current_org_id),
 ):
     """Returns ranked topic suggestions for a given text prompt."""
-    suggestions = suggest_library_topics(db, data.text, data.max)
+    suggestions = suggest_library_topics(db, data.text, data.max, org_id=org_id, user_id=user.id)
     return {"suggestions": suggestions}
 
 @router.post("/suggest-entries", response_model=List[ContentItemOut])
 def suggest_library_entries_endpoint(
     data: TopicSuggestRequest,
     db: Session = Depends(get_db),
-    org_id: int = Depends(get_current_org_id)
+    org_id: int = Depends(get_current_org_id),
+    user: User = Depends(require_user),
 ):
     """Returns actual library items (ContentItems) suggested for a given text prompt."""
     from sqlalchemy import cast, String, or_
     from sqlalchemy.sql.expression import false
     
-    suggestions = suggest_library_topics(db, data.text, data.max)
+    suggestions = suggest_library_topics(db, data.text, data.max, org_id=org_id, user_id=user.id)
     slugs = [s.slug for s in suggestions]
     
     if not slugs:
         return []
         
     stmt = db.query(ContentItem).filter(
-        or_(ContentItem.org_id == org_id, ContentItem.org_id == None)
+        or_(ContentItem.org_id == org_id, ContentItem.org_id == None),
+        or_(ContentItem.owner_user_id.is_(None), ContentItem.owner_user_id == user.id),
     )
     
     or_cond = false()
@@ -379,8 +326,12 @@ async def upload_document(
     org_id: int = Depends(get_current_org_id)
 ):
     """Uploads a PDF or TXT file to the library."""
-    content = await file.read()
-    filename = file.filename
+    content = await file.read(10 * 1024 * 1024 + 1)
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(413, "Use a source document smaller than 10 MB.")
+    filename = file.filename or ""
+    if not filename.lower().endswith((".pdf", ".txt")):
+        raise HTTPException(422, "Use a PDF or plain-text document.")
     source_type = "pdf" if filename.lower().endswith(".pdf") else "text"
     
     doc_title = title or filename
@@ -478,7 +429,8 @@ async def track_user_interaction(
 @router.get("/recommendations")
 async def get_library_recommendations(
     db: Session = Depends(get_db),
-    user: User = Depends(require_user)
+    user: User = Depends(require_user),
+    org_id: int = Depends(get_current_org_id)
 ):
     from app.models import UserInteraction
     # 1. Get user's recent interacted topics
@@ -489,8 +441,7 @@ async def get_library_recommendations(
     
     recent_topics = list(set([i.entity_id for i in recent_interactions if i.entity_id]))
     
-    org_id = user.active_org_id
-    base_q = db.query(ContentItem).filter(
+    base_q = db.query(ContentItem).filter(or_(ContentItem.owner_user_id.is_(None), ContentItem.owner_user_id == user.id)).filter(
         or_(
             ContentItem.org_id == org_id if org_id else False,
             ContentItem.org_id == None
@@ -516,7 +467,7 @@ async def get_library_recommendations(
     # 3. Fill the rest with System Defaults
     if len(recommendations) < 6:
         defaults = db.query(ContentItem).filter(
-            ContentItem.org_id == None
+            ContentItem.org_id == None, ContentItem.owner_user_id.is_(None)
         ).order_by(ContentItem.use_count.desc()).limit(10).all()
         for d in defaults:
             if d not in recommendations and len(recommendations) < 6:
@@ -539,13 +490,13 @@ async def get_library_recommendations(
 async def suggest_library_entries(
     query: str,
     db: Session = Depends(get_db),
-    user: User = Depends(require_user)
+    user: User = Depends(require_user),
+    org_id: int = Depends(get_current_org_id)
 ):
     if not query or len(query.strip()) < 2:
         return []
     
-    org_id = user.active_org_id
-    base_q = db.query(ContentItem).filter(
+    base_q = db.query(ContentItem).filter(or_(ContentItem.owner_user_id.is_(None), ContentItem.owner_user_id == user.id)).filter(
         or_(
             ContentItem.org_id == org_id if org_id else False,
             ContentItem.org_id == None

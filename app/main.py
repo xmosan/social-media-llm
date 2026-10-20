@@ -12,6 +12,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 import uuid
 import mimetypes
+import re
 
 # Enforce strict MIME mappings for Meta transparency
 mimetypes.add_type('image/jpeg', '.jpg')
@@ -28,7 +29,7 @@ from .routes import posts, admin, orgs, ig_accounts, automations, library, media
 from .api.routes import waitlist, contact, admin_panel
 from .services.scheduler import start_scheduler
 from .logging_setup import setup_logging, request_id_var, log_event
-from .security.rbac import get_current_org_id
+from .security.rbac import get_current_org_id, require_superadmin
 from .security.usage_context import UsageContextMiddleware
 from .services.usage_limits import UsageLimitError
 
@@ -89,9 +90,9 @@ if missing_vars:
 
 app = FastAPI(
     title="Sabeel - Multi-tenant SaaS",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None
 )
 
 @app.get("/api-test")
@@ -100,7 +101,8 @@ def api_test():
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+        supplied_id = request.headers.get("X-Request-ID", "")
+        req_id = supplied_id if re.fullmatch(r"[a-zA-Z0-9_-]{1,64}", supplied_id) else str(uuid.uuid4())
         token = request_id_var.set(req_id)
         start_time = time.time()
         
@@ -192,20 +194,21 @@ app.add_middleware(ComingSoonMiddleware)
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 app.add_middleware(UsageContextMiddleware)
+from app.security.http_boundary import HTTPBoundaryMiddleware
+app.add_middleware(HTTPBoundaryMiddleware, public_url=settings.public_base_url)
 
 # NO OP - Removing first duplicate handler to clean up.
 
-@app.get("/api/debug-automations")
+@app.get("/api/debug-automations", dependencies=[Depends(require_superadmin)])
 def api_debug_automations(db: Session = Depends(get_db), org_id: int = Depends(get_current_org_id)):
     from app.models import TopicAutomation
     autos = db.query(TopicAutomation).filter(TopicAutomation.org_id == org_id).all()
     return [{"id": a.id, "name": a.name, "topic": a.topic_prompt, "last_error": a.last_error} for a in autos]
 
-@app.get("/api/debug-env")
+@app.get("/api/debug-env", dependencies=[Depends(require_superadmin)])
 def api_debug_env(org_id: int = Depends(get_current_org_id)):
     return {
         "openai_api_key_set": bool(settings.openai_api_key),
-        "openai_api_key_len": len(settings.openai_api_key) if settings.openai_api_key else 0,
         "database_url_scheme": settings.database_url.split(":")[0] if settings.database_url else None
     }
 
@@ -278,7 +281,7 @@ async def api_build_quote_message(req: QuoteCardBuildRequest, db: Session = Depe
         raise
     except Exception as e:
         logger.error(f"Error building card message: {e}")
-        return JSONResponse(status_code=500, content={"detail": str(e)})
+        return JSONResponse(status_code=500, content={"detail": "Sabeel could not complete this request. Please try again."})
 
 class CaptionGenerateRequest(BaseModel):
     source_type: str
@@ -324,7 +327,7 @@ async def api_generate_caption(req: CaptionGenerateRequest, db: Session = Depend
         raise
     except Exception as e:
         logger.error(f"Error generating caption: {e}")
-        return JSONResponse(status_code=500, content={"detail": str(e)})
+        return JSONResponse(status_code=500, content={"detail": "Sabeel could not complete this request. Please try again."})
 
 # --- LEGACY ENDPOINTS ---
 
@@ -354,7 +357,7 @@ async def api_generate_quote_card(data: dict, db: Session = Depends(get_db),
     except Exception as e:
         import traceback
         print(f"\n❌ [API] generate-quote-card EXCEPTION:\n{traceback.format_exc()}")
-        return JSONResponse(status_code=500, content={"error": str(e)[:200]})
+        return JSONResponse(status_code=500, content={"error": "The visual could not be completed. Please try again."})
 
 @app.get("/ready")
 def readiness_check():
@@ -371,18 +374,11 @@ static_absolute_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 
 @app.get("/uploads/{filename}")
 async def serve_upload_forced(filename: str):
     from fastapi.responses import FileResponse
-    full_path = os.path.join(settings.uploads_dir, filename)
-    if not os.path.exists(full_path):
-        # DEEP 404 DIAGNOSTIC (Black Box logging for Railway)
-        print(f"❌ [MEDIA_404] File not found: {full_path}")
-        print(f"   - Current Working Directory: {os.getcwd()}")
-        try:
-            files = sorted(os.listdir(settings.uploads_dir))
-            print(f"   - Recent local files in {settings.uploads_dir}: {files[-5:]}")
-        except Exception as e:
-            print(f"   - Could not list contents of {settings.uploads_dir}: {e}")
-        
-        raise HTTPException(status_code=404, detail=f"File not found on server at {full_path}")
+    from pathlib import Path
+    directory = Path(settings.uploads_dir).resolve()
+    full_path = (directory / filename).resolve()
+    if full_path.parent != directory or not full_path.is_file():
+        raise HTTPException(status_code=404, detail="Image not found.")
     # Force correct MIME type regardless of extension sniffing
     content_type = "image/jpeg" if filename.endswith((".jpg", ".jpeg")) else ("image/png" if filename.endswith(".png") else "application/octet-stream")
     
@@ -485,6 +481,17 @@ def on_shutdown():
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+@app.exception_handler(StarletteHTTPException)
+async def safe_http_exception_handler(request: Request, exc: StarletteHTTPException):
+    from fastapi.exception_handlers import http_exception_handler
+    if exc.status_code == 500:
+        # Older handlers sometimes include SQL/provider exception text in detail.
+        logger.error("request_failed path=%s", request.url.path)
+        return JSONResponse(status_code=500, content={
+            "detail": "This request could not be completed. Your saved work is kept; please try again."
+        })
+    return await http_exception_handler(request, exc)
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     # If it's a specific HTTP error or validation error, let FastAPI's default handlers deal with it
@@ -492,8 +499,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         raise exc
     
     # Otherwise, it's a true unexpected error
-    logger.error(f"UNEXPECTED ERROR: {exc}", exc_info=True)
-    log_startup(f"GLOBAL ERROR: {exc}")
+    logger.error("unexpected_request_error type=%s", type(exc).__name__)
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal Server Error"}
