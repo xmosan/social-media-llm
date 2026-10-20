@@ -6,7 +6,7 @@ from starlette.datastructures import Headers, MutableHeaders
 from starlette.responses import JSONResponse
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-UPLOAD_PATHS = {"/media-assets", "/posts/intake", "/posts/preview", "/api/library/upload"}
+UPLOAD_PATHS = {"/media-assets", "/posts/intake", "/posts/preview_render", "/api/library/upload"}
 
 
 def origin(value, *, referer=False):

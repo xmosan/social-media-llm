@@ -28,10 +28,11 @@ class HTTPBoundaryTests(unittest.TestCase):
         app = FastAPI()
         self.calls = []
         @app.api_route("/action", methods=["GET", "POST", "PATCH", "DELETE"])
+        @app.post("/posts/preview_render")
         async def action(request: Request):
             self.calls.append(await request.body())
             return {"ok": True}
-        app.add_middleware(HTTPBoundaryMiddleware, public_url="https://app.example.test", body_limit=64)
+        app.add_middleware(HTTPBoundaryMiddleware, public_url="https://app.example.test", body_limit=64, upload_limit=128)
         self.client = TestClient(app)
         self.addCleanup(self.client.close)
 
@@ -60,6 +61,11 @@ class HTTPBoundaryTests(unittest.TestCase):
         self.assertEqual(response.headers["cache-control"], "no-store")
         self.assertEqual(response.headers["x-content-type-options"], "nosniff")
         self.assertEqual(response.headers["x-frame-options"], "DENY")
+
+    def test_legacy_preview_keeps_the_bounded_image_upload_allowance(self):
+        self.assertEqual(self.client.post("/posts/preview_render", content=b"x" * 65).status_code, 200)
+        self.assertEqual(self.client.post("/posts/preview_render", content=b"x" * 129).status_code, 413)
+        self.assertEqual(len(self.calls), 1)
 
     def test_chunked_body_without_content_length_stops_before_handler(self):
         called, output = [], []
