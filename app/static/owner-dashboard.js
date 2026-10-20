@@ -104,6 +104,14 @@
         throw new Error("Sign in with the owner account to continue.");
       }
       if (res.status === 403) {
+        if (res.headers?.get("X-Sabeel-Owner-Verification")) {
+          $("notice").replaceChildren(
+            el("span", "Verify owner access again, then return here and retry the action. "),
+            link("Verify owner access", "/auth/owner-security"),
+          );
+          $("notice").hidden = false;
+          throw new Error("Owner verification is required. Use the verification link above.");
+        }
         const denied = await res.json().catch(() => ({}));
         if (
           denied.detail === "This area is available only to the Sabeel owner."

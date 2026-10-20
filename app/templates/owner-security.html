@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Owner protection · Sabeel Studio</title>
+  <link rel="stylesheet" href="/static/owner-security.css">
+  <script defer src="/static/owner-security.js"></script>
+</head>
+<body>
+  <main>
+    <a class="brand" href="/app">sabeel <span>studio</span></a>
+    <p class="eyebrow">PRIVATE OWNER ACCESS</p>
+    <h1>Protect your workspace.</h1>
+    <p id="intro">Checking your sign-in…</p>
+    <p id="message" role="status" hidden></p>
+    <section id="sign-in" hidden>
+      <p>Sign in with your owner account to continue. Setup requires a fresh sign-in.</p>
+      <a class="primary" href="/login">Sign in securely</a>
+    </section>
+    <section id="enroll" hidden>
+      <h2>Add your authenticator</h2>
+      <p>Use an authenticator app to create a changing six-digit code. Keep it separate from your Sabeel password.</p>
+      <button id="start" type="button">Set up authenticator</button>
+      <div id="setup" hidden>
+        <img id="qr" alt="Scan this code with your authenticator app" width="260" height="260">
+        <details><summary>Set up on this phone instead</summary>
+          <p>Add a time-based account named Sabeel Studio in your authenticator and enter this key.</p>
+          <code id="setup-key"></code>
+        </details>
+        <p>Never send the setup key or verification codes to anyone.</p>
+      </div>
+    </section>
+    <form id="verification" hidden>
+      <label for="code">Authenticator code or recovery code</label>
+      <input id="code" type="text" autocomplete="one-time-code" maxlength="64" required
+             spellcheck="false" autocapitalize="none" aria-describedby="code-help">
+      <p id="code-help">Enter the six-digit code from your authenticator. Each code can be used once.</p>
+      <button id="verify" type="submit">Verify and continue</button>
+      <a class="secondary" href="/login">Start sign-in again</a>
+    </form>
+    <section id="recovery" hidden>
+      <h2>Save your recovery codes</h2>
+      <p>These replace your authenticator if you lose access to it. Each works once, after your normal sign-in. Keep them in your password manager or another safe place.</p>
+      <ul id="codes"></ul>
+      <label class="check"><input id="saved" type="checkbox"> I saved these codes somewhere safe.</label>
+      <button id="finish" type="button" disabled>Continue to dashboard</button>
+      <p>Codes are shown only here. Leaving this page hides them. If needed, your authenticator can create a new set.</p>
+    </section>
+    <section id="manage" hidden>
+      <h2>Owner verification is on</h2>
+      <p>Your owner sign-in requires a second factor. Owner sessions last up to eight hours; sensitive actions require verification within the last fifteen minutes.</p>
+      <p id="remaining"></p>
+      <button id="reauth" type="button">Verify owner access again</button>
+      <details>
+        <summary>Recovery and other sessions</summary>
+        <p>To replace recovery codes, verify above, then use the next authenticator code. This signs out other sessions and invalidates the previous recovery codes.</p>
+        <form id="replace-codes">
+          <label for="replacement-code">New authenticator code</label>
+          <input id="replacement-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required>
+          <button type="submit">Replace recovery codes</button>
+        </form>
+        <p>Sign out other devices if a session may be exposed. This device stays signed in.</p>
+        <button id="revoke" class="secondary" type="button">Sign out other sessions</button>
+      </details>
+      <a class="secondary" href="/admin">Back to dashboard</a>
+    </section>
+  </main>
+</body>
+</html>

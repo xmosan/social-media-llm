@@ -85,7 +85,7 @@ class LoginTests(DatabaseCase):
     def test_logout_clears_legacy_google_domain_and_current_host_cookies(self):
         response=self.client.post('/auth/logout')
         cookies=response.headers.get_list('set-cookie')
-        self.assertEqual(len(cookies),2)
+        self.assertEqual(len(cookies),3)
         self.assertTrue(any('Domain=app.sabeelstudio.com' in value for value in cookies))
         self.assertTrue(any('Domain=' not in value for value in cookies))
         self.assertTrue(all('Max-Age=0' in value for value in cookies))

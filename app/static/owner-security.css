@@ -1,0 +1,29 @@
+:root { color-scheme:light; font-family:system-ui,-apple-system,sans-serif; color:#183d31; background:#f5f5ed; }
+* { box-sizing:border-box; }
+body { margin:0; padding:24px 16px 56px; }
+main { width:min(100%,540px); margin:0 auto; padding:28px; background:#fff; border:1px solid #dce3d8; border-radius:24px; }
+.brand { color:#123d2e; text-decoration:none; font-size:24px; font-weight:750; }
+.brand span { color:#73836c; font-weight:400; }
+.eyebrow { margin-top:38px; letter-spacing:.14em; font-size:11px; font-weight:750; }
+h1 { font-family:Georgia,serif; font-size:36px; line-height:1.12; margin:16px 0; }
+h2 { font-size:21px; }
+p { line-height:1.6; color:#51645a; }
+section, form { margin-top:24px; }
+label { display:block; font-weight:650; margin:18px 0 8px; }
+input:not([type=checkbox]) { width:100%; min-height:52px; padding:12px; border:1px solid #a8b9ad; border-radius:12px; font:20px ui-monospace,monospace; }
+button,.primary,.secondary { display:block; width:100%; min-height:48px; margin:16px 0; padding:14px 18px; border:1px solid #183d31; border-radius:12px; text-align:center; font:650 16px system-ui; cursor:pointer; color:white; background:#183d31; text-decoration:none; }
+.secondary { background:white; color:#183d31; border-color:#c3cfc5; }
+button:disabled { opacity:.45; cursor:default; }
+:focus-visible { outline:3px solid #729980; outline-offset:4px; }
+details { padding:16px; border:1px solid #dce3d8; border-radius:12px; margin:18px 0; }
+summary { cursor:pointer; font-weight:650; }
+#qr { display:block; width:min(100%,260px); height:auto; margin:16px auto; }
+#setup-key { display:block; overflow-wrap:anywhere; padding:12px 0; }
+#codes { list-style:none; padding:12px; background:#f3f6f0; border-radius:12px; }
+#codes li { font:14px/2 ui-monospace,monospace; overflow-wrap:anywhere; }
+.check { display:flex; gap:10px; align-items:flex-start; font-weight:500; }
+.check input { width:22px; height:22px; flex:none; margin:0; }
+#message { border-left:3px solid #8e6940; padding:12px; background:#fff8ed; }
+[hidden] { display:none!important; }
+@media(max-width:380px) { main { padding:20px; } h1 { font-size:30px; } }
+@media(prefers-reduced-motion:no-preference) { button { transition:background .15s ease; } }

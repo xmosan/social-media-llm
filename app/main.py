@@ -410,6 +410,8 @@ app.include_router(media.router)
 from .routes import admin_diag
 app.include_router(admin_diag.router)
 app.include_router(auth.router)
+from app.routes import owner_security
+app.include_router(owner_security.router)
 from .routes import tester_access
 app.include_router(tester_access.router)
 from .routes import creator_feedback

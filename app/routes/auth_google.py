@@ -97,6 +97,14 @@ async def google_auth(request: Request, db: Session = Depends(get_db)):
     except IntegrityError:
         db.rollback()
         raise HTTPException(409, "Sign-in changed while processing. Please start again.") from None
+    from app.security.rbac import is_platform_owner
+    if is_platform_owner(user):
+        from app.security.owner_mfa import issue_challenge
+        response = RedirectResponse(url="/auth/owner-security", status_code=303)
+        issue_challenge(db, user, response)
+        clear_legacy_domain_cookie(response)
+        response.delete_cookie("access_token", path="/", httponly=True, secure=True, samesite="lax")
+        return response
     expires = timedelta(days=7)
     access_token = create_user_access_token(user, expires_delta=expires)
     response = RedirectResponse(url="/app")

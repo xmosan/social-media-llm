@@ -65,7 +65,8 @@ class HTTPBoundaryMiddleware:
                     or headers.get("sec-fetch-site") == "cross-site"):
                 return await reject(403, "Open this page in Sabeel before continuing.")
             if supplied is None and ("access_token=" in headers.get("cookie", "")
-                                     or "session=" in headers.get("cookie", "")):
+                                     or "session=" in headers.get("cookie", "")
+                                     or "owner_challenge=" in headers.get("cookie", "")):
                 # Older same-origin browser clients may supply Referer instead.
                 if origin(headers.get("referer", ""), referer=True) != self.expected:
                     return await reject(403, "Open this page in Sabeel before continuing.")

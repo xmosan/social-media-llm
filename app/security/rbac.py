@@ -132,6 +132,10 @@ def require_superadmin(user: User | None = Depends(get_current_user), request: R
         )
     if response is not None:
         response.headers.update(OWNER_HEADERS)
+    if request is not None and (request.method not in {"GET", "HEAD", "OPTIONS"}
+                                or request.url.path == "/admin/download-backup"):
+        from app.security.owner_mfa import require_recent
+        require_recent(request, user)
     if request is not None and request.method not in {"GET", "HEAD", "OPTIONS"} and request.cookies.get("access_token"):
         try:
             expected = urlsplit(settings.public_base_url)

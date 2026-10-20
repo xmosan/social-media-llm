@@ -479,7 +479,8 @@ LOGIN_HTML = """<!doctype html>
         });
 
         if (res.ok) {
-          window.location.href = '/app';
+          const data = await res.json();
+          window.location.href = data.mfa_required ? '/auth/owner-security' : '/app';
         } else {
           const data = await res.json();
           errorMsg.textContent = data.detail || "Invalid credentials";
