@@ -4,6 +4,7 @@
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse
 from app.security.auth import require_user
+from app.security.rbac import get_current_org_id
 from app.models import User
 from .ui_assets import APP_LAYOUT_HTML, STUDIO_SCRIPTS_JS, STUDIO_COMPONENTS_HTML
 
@@ -273,12 +274,12 @@ window.HadithLib = {
       const items = (data && data.items) ? data.items : [];
 
       status.textContent = items.length
-        ? `${items.length} result${items.length !== 1 ? 's' : ''} for "${q}"` + (this._activeCollection ? ` · ${this._activeCollection}` : '')
+        ? `${items.length} result${items.length !== 1 ? 's' : ''} for "${escapeMarkup(q)}"` + (this._activeCollection ? ` · ${this._activeCollection}` : '')
         : '';
       status.classList.toggle('hidden', !items.length);
 
       if (!items.length) {
-        grid.innerHTML = `<div class="py-16 text-center"><div class="text-3xl mb-3">🔍</div><div class="text-sm font-bold text-brand/25 uppercase tracking-widest">No Hadith found for "${q}"</div><div class="text-xs text-brand/15 mt-1 italic">Try a different keyword or broaden the collection</div></div>`;
+        grid.innerHTML = `<div class="py-16 text-center"><div class="text-3xl mb-3">🔍</div><div class="text-sm font-bold text-brand/25 uppercase tracking-widest">No Hadith found for "${escapeMarkup(q)}"</div><div class="text-xs text-brand/15 mt-1 italic">Try a different keyword or broaden the collection</div></div>`;
         return;
       }
 
@@ -548,10 +549,10 @@ window.QuranBrowser = {
       const items = await res.json();
       const arr = Array.isArray(items) ? items : [];
       if (!arr.length) {
-        el.innerHTML = '<div class="px-8 py-12 text-center text-brand/25 text-sm italic">No verses found for &ldquo;' + q + '&rdquo;</div>';
+        el.innerHTML = '<div class="px-8 py-12 text-center text-brand/25 text-sm italic">No verses found for &ldquo;' + escapeMarkup(q) + '&rdquo;</div>';
         return;
       }
-      el.innerHTML = '<div class="px-8 py-3 text-[10px] font-black uppercase tracking-widest text-brand/40">' + arr.length + ' result' + (arr.length !== 1 ? 's' : '') + ' for &ldquo;' + q + '&rdquo;</div>' +
+      el.innerHTML = '<div class="px-8 py-3 text-[10px] font-black uppercase tracking-widest text-brand/40">' + arr.length + ' result' + (arr.length !== 1 ? 's' : '') + ' for &ldquo;' + escapeMarkup(q) + '&rdquo;</div>' +
         arr.map(v => this.renderVerse(v, v.surah_name_en || '')).join('');
     } catch(e) {
       el.innerHTML = '<div class="px-8 py-12 text-center text-rose-400 text-sm">Search failed. Please try again.</div>';
@@ -598,8 +599,8 @@ window.WisdomLib = {
         return;
       }
       grid.innerHTML = items.map(item => {
-        const txt = (item.content || item.text || item.translation_text || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-        const ref = (item.reference || item.title || 'Archive').replace(/"/g, '&quot;');
+        const txt = escapeMarkup(item.content || item.text || item.translation_text || '');
+        const ref = escapeMarkup(item.reference || item.title || 'Archive');
         const id = String(item.id || '');
         return '<div class="wisdom-card"><div class="text-sm leading-relaxed text-text-main italic mb-4">&ldquo;' + txt + '&rdquo;</div><div class="flex items-center justify-between pt-3 border-t border-brand/5"><span class="text-[9px] font-black uppercase tracking-widest text-brand/40">' + ref + '</span><button data-id="' + id + '" data-text="' + txt + '" data-ref="' + ref + '" onclick="WisdomLib.handleToStudio(this)" class="btn-use text-[8px]">Use in Studio</button></div></div>';
       }).join('');
@@ -630,8 +631,8 @@ window.OrgLib = {
         return;
       }
       grid.innerHTML = items.map(item => {
-        const txt = (item.content || item.text || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-        const ref = (item.title || 'Document').replace(/"/g, '&quot;');
+        const txt = escapeMarkup(item.content || item.text || '');
+        const ref = escapeMarkup(item.title || 'Document');
         const id = String(item.id || '');
         return '<div class="wisdom-card"><div class="text-sm leading-relaxed text-text-main italic mb-4">&ldquo;' + txt + '&rdquo;</div><div class="flex items-center justify-between pt-3 border-t border-brand/5"><span class="text-[9px] font-black uppercase tracking-widest text-brand/40">' + ref + '</span><button data-id="' + id + '" data-text="' + txt + '" data-ref="' + ref + '" onclick="OrgLib.handleToStudio(this)" class="btn-use text-[8px]">Use in Studio</button></div></div>';
       }).join('');
@@ -655,8 +656,8 @@ from app.db import get_db
 from sqlalchemy.orm import Session
 from app.models import Org
 
-@router.get("/library", response_class=HTMLResponse)
-@router.get("/app/library", response_class=HTMLResponse)
+@router.get("/library", response_class=HTMLResponse, dependencies=[Depends(get_current_org_id)])
+@router.get("/app/library", response_class=HTMLResponse, dependencies=[Depends(get_current_org_id)])
 async def neural_library_page(request: Request, user: User = Depends(require_user), db: Session = Depends(get_db)):
     org = db.query(Org).filter(Org.id == user.active_org_id).first()
     org_name = org.name if org else "Foundation"

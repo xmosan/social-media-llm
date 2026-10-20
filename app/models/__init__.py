@@ -146,6 +146,8 @@ class ApiKey(Base):
 
     org = relationship("Org", back_populates="api_keys")
 
+from app.security.connection_tokens import EncryptedInstagramToken
+
 class IGAccount(Base):
     __tablename__ = "ig_accounts"
     id = Column(Integer, primary_key=True, index=True)
@@ -154,7 +156,7 @@ class IGAccount(Base):
     
     ig_user_id = Column(String, nullable=False)
     username = Column(String, nullable=True)
-    access_token = Column(Text, nullable=False)
+    access_token = Column(EncryptedInstagramToken(), nullable=False)
     
     # NEW: OAuth Metadata
     fb_page_id = Column(String, nullable=True)

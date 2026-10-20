@@ -40,7 +40,8 @@ class OwnerDashboardChecks(unittest.TestCase):
         self.db.add(IGAccount(id=1,org_id=2,name='Fixture',ig_user_id='123',access_token='synthetic-only',active=True))
         self.db.commit()
         self.app=FastAPI()
-        for router in (public.router,admin.router,admin_panel.router,admin_diag.router,admin_backup.router,waitlist.router,tester_access.router,creator_feedback.router,admin_library.router,auth.router):self.app.include_router(router)
+        self.registered_routers = (public.router,admin.router,admin_panel.router,admin_diag.router,admin_backup.router,waitlist.router,tester_access.router,creator_feedback.router,admin_library.router,auth.router)
+        for router in self.registered_routers:self.app.include_router(router)
         self.app.dependency_overrides[get_db]=lambda:self.db
         self.client=TestClient(self.app,base_url=ORIGIN);self.addCleanup(self.client.close)
         scheduler.reload_automation_jobs.reset_mock()
@@ -48,7 +49,7 @@ class OwnerDashboardChecks(unittest.TestCase):
     def headers(self,id=1):return {'Authorization':'Bearer '+create_access_token({'sub':str(id)})}
 
     def test_single_dashboard_owner_access_private_headers_and_self_hosted_assets(self):
-        self.assertEqual(sum(r.path=='/admin' for r in self.app.routes),1)
+        self.assertEqual(sum(getattr(r, 'path', None)=='/admin' for router in self.registered_routers for r in router.routes),1)
         r=self.client.get('/admin',headers=self.headers())
         self.assertEqual(r.status_code,200);self.assertIn('Owner dashboard',r.text)
         self.assertNotIn('Strategic Control',r.text);self.assertNotIn('cdn.tailwindcss',r.text)

@@ -1,69 +1,28 @@
+"""Owner-only checks of canonical public publishing media."""
 from fastapi import APIRouter, Depends, Query, HTTPException
-from typing import Optional
 import requests
-import os
-from app.config import settings
-from app.logging_setup import log_event
 from app.models import User
 from app.security.rbac import require_superadmin
+from app.services.publish_media import is_durable_media_url
+from app.logging_setup import log_event
 
 router = APIRouter(prefix="/api/admin/diag", tags=["admin-diag"])
 
 @router.get("/media-diagnostic")
-def media_diagnostic(
-    url: str = Query(..., description="The full URL to check"),
-    current_user: User = Depends(require_superadmin)
-):
-    """
-    Simulates a Meta crawler fetch to verify image reachability and integrity.
-    """
-    results = {
-        "url": url,
-        "absolute": url.startswith("https://"),
-        "timestamp": str(os.times()),
-        "diagnostics": {}
-    }
-
-    log_event("media_diag_start", url=url)
-
+def media_diagnostic(url: str = Query(..., max_length=2048),
+                     current_user: User = Depends(require_superadmin)):
+    if not is_durable_media_url(url):
+        raise HTTPException(422, "Choose a Cloudinary publishing image from Sabeel.")
     try:
-        # Pre-check: is it a local-mapped URL?
-        if "/uploads/" in url:
-            filename = url.split("/uploads/")[-1]
-            abs_path = os.path.join(settings.uploads_dir, filename)
-            results["diagnostics"]["local_file_found"] = os.path.exists(abs_path)
-            if results["diagnostics"]["local_file_found"]:
-                results["diagnostics"]["local_path"] = abs_path
-                results["diagnostics"]["local_size"] = os.path.getsize(abs_path)
-
-        # Meta Simulation
-        headers = {"User-Agent": "facebookexternalhit/1.1"}
-        resp = requests.get(url, headers=headers, timeout=10, stream=True)
-        
-        results["status_code"] = resp.status_code
-        results["content_type"] = resp.headers.get("Content-Type", "None")
-        results["content_length"] = resp.headers.get("Content-Length", 0)
-        
-        if resp.status_code == 200:
-            # Read first 8 bytes for magic number check
-            first_bytes = resp.raw.read(8)
-            hex_sig = first_bytes.hex()
-            results["magic_bytes"] = hex_sig
-            
-            is_jpeg = hex_sig.startswith("ffd8ff")
-            is_png = hex_sig.startswith("89504e47")
-            
-            results["is_valid_image"] = is_jpeg or is_png
-            results["format"] = "JPEG" if is_jpeg else ("PNG" if is_png else "Unknown")
-            
-            if "text/html" in results["content_type"].lower():
-                results["is_html_error"] = True
-                results["is_valid_image"] = False
-
-        log_event("media_diag_success", url=url, status=resp.status_code, valid=results.get("is_valid_image"))
-
-    except Exception as e:
-        results["error"] = str(e)
-        log_event("media_diag_error", url=url, error=str(e))
-
-    return results
+        with requests.get(url, headers={"User-Agent": "facebookexternalhit/1.1"},
+                          timeout=(3, 8), stream=True, allow_redirects=False) as response:
+            signature = response.raw.read(8) if response.status_code == 200 else b""
+            jpeg, png = signature.startswith(b"\xff\xd8\xff"), signature.startswith(b"\x89PNG\r\n\x1a\n")
+            return {"status_code": response.status_code,
+                    "content_type": response.headers.get("Content-Type", ""),
+                    "content_length": response.headers.get("Content-Length", ""),
+                    "is_valid_image": jpeg or png,
+                    "format": "JPEG" if jpeg else "PNG" if png else "Unknown"}
+    except requests.RequestException:
+        log_event("media_diag_unavailable", level="warning")
+        raise HTTPException(502, "The publishing image could not be reached. Try again shortly.") from None

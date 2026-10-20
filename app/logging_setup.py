@@ -9,6 +9,7 @@ import queue
 import requests
 import json
 import time
+import re
 from datetime import datetime, timezone
 from pythonjsonlogger import jsonlogger
 from .config import settings
@@ -17,6 +18,23 @@ request_id_var = contextvars.ContextVar("request_id", default=None)
 
 # Secrets to redact
 SECRETS = ["token", "secret", "password", "key", "authorization", "cookie"]
+
+def redact_log_value(value, key=""):
+    if any(s in key.lower() for s in SECRETS):
+        return "***REDACTED***"
+    if key.lower() in {"exc_info", "stack_info", "traceback"}:
+        return "***REDACTED EXCEPTION***"
+    if isinstance(value, dict):
+        return {str(k): redact_log_value(v, str(k)) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [redact_log_value(v) for v in value]
+    if isinstance(value, str):
+        value = re.sub(r"(?i)(bearer\s+)[^\s,;\"']+", r"\1[REDACTED]", value)
+        value = re.sub(r"(?i)((?:access_token|refresh_token|client_secret|password|api_key|authorization)[\"']?\s*[:=]\s*[\"']?)[^&\s,;\"'}]+",
+                       r"\1[REDACTED]", value)
+        value = re.sub(r"(://)[^/\s:@]+:[^/\s@]+@", r"\1[REDACTED]@", value)
+        value = re.sub(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b", "[REDACTED JWT]", value)
+    return value
 
 class RedactingJsonFormatter(jsonlogger.JsonFormatter):
     def add_fields(self, log_record, record, message_dict):
@@ -40,8 +58,7 @@ class RedactingJsonFormatter(jsonlogger.JsonFormatter):
         
         # Redact secrets
         for key, value in list(log_record.items()):
-            if any(s in key.lower() for s in SECRETS) and isinstance(value, str):
-                log_record[key] = "***REDACTED***"
+            log_record[key] = redact_log_value(value, key)
 
 class AxiomHandler(logging.Handler):
     """Ships logs to Axiom via HTTP in the background."""

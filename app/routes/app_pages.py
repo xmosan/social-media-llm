@@ -238,6 +238,9 @@ ONBOARDING_HTML = """<!doctype html>
       });
     }
 
+    function escapeMarkup(value) {
+      return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
     function renderStep() {
       const card = document.getElementById('onboarding-card');
       updateProgress();
@@ -249,7 +252,7 @@ ONBOARDING_HTML = """<!doctype html>
             <h3 class="text-4xl font-black italic text-white tracking-tight">Name your workspace.</h3>
             <p class="text-muted text-sm font-medium">This is where your brands and teams will live.</p>
             <div class="pt-4">
-              <input type="text" id="orgName" value="${onboardingData.orgName}" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. Acme Marketing">
+              <input type="text" id="orgName" value="${escapeMarkup(onboardingData.orgName)}" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. Acme Marketing">
             </div>
           </div>
           <button onclick="nextStep()" class="w-full bg-indigo-500 py-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-indigo-500/20">Continue &rarr;</button>
@@ -292,11 +295,11 @@ ONBOARDING_HTML = """<!doctype html>
             <div class="space-y-4 pt-4">
               <div class="space-y-1">
                 <label class="text-[10px] font-black uppercase tracking-widest text-muted">Core Topic/Theme</label>
-                <input type="text" id="autoTopic" value="${onboardingData.autoTopic}" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. Daily Motivation & Productivity">
+                <input type="text" id="autoTopic" value="${escapeMarkup(onboardingData.autoTopic)}" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="e.g. Daily Motivation & Productivity">
               </div>
               <div class="space-y-1">
                 <label class="text-[10px] font-black uppercase tracking-widest text-muted">Daily Posting Time</label>
-                <input type="time" id="autoTime" value="${onboardingData.autoTime}" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                <input type="time" id="autoTime" value="${escapeMarkup(onboardingData.autoTime)}" class="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
               </div>
             </div>
           </div>
@@ -311,9 +314,9 @@ ONBOARDING_HTML = """<!doctype html>
             <h2 class="text-sm font-black text-indigo-400 uppercase tracking-widest">Step 4</h2>
             <h3 class="text-4xl font-black italic text-white tracking-tight">System Ready.</h3>
             <div class="bg-indigo-500/10 border border-indigo-500/20 p-8 rounded-[2rem] space-y-4">
-               <div class="flex justify-between text-[10px] font-black uppercase tracking-widest"><span>Workspace</span> <span class="text-white">${onboardingData.orgName}</span></div>
-               <div class="flex justify-between text-[10px] font-black uppercase tracking-widest"><span>Intelligence</span> <span class="text-white">${onboardingData.contentMode}</span></div>
-               <div class="flex justify-between text-[10px] font-black uppercase tracking-widest"><span>Schedule</span> <span class="text-white">Daily @ ${onboardingData.autoTime}</span></div>
+               <div class="flex justify-between text-[10px] font-black uppercase tracking-widest"><span>Workspace</span> <span class="text-white">${escapeMarkup(onboardingData.orgName)}</span></div>
+               <div class="flex justify-between text-[10px] font-black uppercase tracking-widest"><span>Intelligence</span> <span class="text-white">${escapeMarkup(onboardingData.contentMode)}</span></div>
+               <div class="flex justify-between text-[10px] font-black uppercase tracking-widest"><span>Schedule</span> <span class="text-white">Daily @ ${escapeMarkup(onboardingData.autoTime)}</span></div>
             </div>
             <p class="text-text-muted text-center text-xs font-medium">Click finish to activate your content engine.</p>
           </div>
@@ -427,26 +430,26 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
                 acc_list_items += f"""
                 <div onclick="setActiveAccount('{a.id}')" class="flex items-center justify-between p-3 rounded-xl hover:bg-brand/5 cursor-pointer transition-all group">
                     <div class="flex items-center gap-3">
-                        <img src="{acc_avatar}" onerror="this.src='{fallback_avatar_base}{safe_name}'" class="w-8 h-8 rounded-full border border-brand/10 shadow-sm object-cover">
+                        <img src="{html.escape(str(acc_avatar or ""))}" onerror="this.onerror=null;this.src='{fallback_avatar_base}Studio'" class="w-8 h-8 rounded-full border border-brand/10 shadow-sm object-cover">
                         <div class="flex flex-col">
-                            <span class="text-[11px] font-black text-brand group-hover:translate-x-0.5 transition-transform">@{a.username}</span>
-                            <span class="text-[9px] font-bold text-brand/30 uppercase tracking-widest leading-none">{(a.name[:15] + '...') if a.name and len(a.name) > 15 else (a.name or 'Sabeel Platform')}</span>
+                            <span class="text-[11px] font-black text-brand group-hover:translate-x-0.5 transition-transform">@{html.escape(str(a.username or ""))}</span>
+                            <span class="text-[9px] font-bold text-brand/30 uppercase tracking-widest leading-none">{html.escape((a.name[:15] + '...') if a.name and len(a.name) > 15 else (a.name or 'Sabeel Platform'))}</span>
                         </div>
                     </div>
                     {active_indicator}
                 </div>
                 """
             
-            active_avatar = active_acc.profile_picture_url if (active_acc and active_acc.profile_picture_url and "http" in active_acc.profile_picture_url) else f"{fallback_avatar_base}{active_acc.username if active_acc else 'Studio'}"
+            active_avatar = active_acc.profile_picture_url if (active_acc and active_acc.profile_picture_url and "http" in active_acc.profile_picture_url) else f"{fallback_avatar_base}{html.escape(active_acc.username or '') if active_acc else 'Studio'}"
             switcher_html = f"""
             <div class="relative inline-block text-left" id="accountSwitcherRoot" style="z-index: 99999;">
                 <button onclick="toggleAccountSwitcher(event)" type="button" id="switcherToggleButton" class="relative flex items-center gap-3 p-2 pr-4 bg-white border border-brand/10 rounded-2xl transition-all shadow-sm group hover:border-brand/30">
                     <div class="relative">
-                        <img src="{active_avatar}" onerror="this.src='{fallback_avatar_base}{active_acc.username if active_acc else 'Studio'}'" class="w-9 h-9 rounded-full border-2 border-brand/5 shadow-inner object-cover bg-brand/5">
+                        <img src="{html.escape(str(active_avatar or ""))}" onerror="this.onerror=null;this.src='{fallback_avatar_base}Studio'" class="w-9 h-9 rounded-full border-2 border-brand/5 shadow-inner object-cover bg-brand/5">
                         <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
                     </div>
                     <div class="hidden md:flex flex-col items-start pr-2">
-                        <span class="text-[10px] font-black text-brand tracking-tight">@{active_acc.username if active_acc else 'Studio'}</span>
+                        <span class="text-[10px] font-black text-brand tracking-tight">@{html.escape(active_acc.username or '') if active_acc else 'Studio'}</span>
                         <span class="text-[8px] font-bold text-brand/30 uppercase tracking-widest">Active Platform</span>
                     </div>
                     <svg class="w-3.5 h-3.5 text-brand/30 group-hover:text-brand/60 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"/></svg>
@@ -486,7 +489,7 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
             """
             
             # Global account options for modals
-            account_options = "".join([f'<option value="{a.id}" {"selected" if active_acc and a.id == active_acc.id else ""}>@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in accs])
+            account_options = "".join([f'<option value="{a.id}" {"selected" if active_acc and a.id == active_acc.id else ""}>@{html.escape(str(a.username or ""))} ({html.escape(a.name or "Sabeel Studio")})</option>' for a in accs])
         else:
             switcher_html = f"""
             <div class="flex items-center gap-2 relative z-[9999]">
@@ -520,8 +523,8 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
     return APP_LAYOUT_HTML.format(
         title=title,
         content=content,
-        user_name=user.name or user.email,
-        org_name=org.name if org else "Personal Workspace",
+        user_name=html.escape(user.name or user.email or ""),
+        org_name=html.escape(org.name if org else "Personal Workspace"),
         admin_link=('<a href="/admin" class="text-[10px] font-black uppercase tracking-widest nav-link py-5 text-rose-400 hover:text-white transition-colors">Admin</a>' if is_platform_owner(user) else ""),
         active_dashboard=active_map["dashboard"],
         active_calendar=active_map["calendar"],
@@ -538,7 +541,7 @@ def render_app_page(title, content, user, org, active_tab, db: Session = None, e
         org_id=str(org.id if org else 0)
     )
 
-@router.get("/app", response_class=HTMLResponse)
+@router.get("/app", response_class=HTMLResponse, dependencies=[Depends(get_current_org_id)])
 async def app_dashboard_page(
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -595,7 +598,7 @@ def _calendar_post_time(post, display_tz):
     return value.astimezone(display_tz)
 
 
-@router.get("/app/calendar", response_class=HTMLResponse)
+@router.get("/app/calendar", response_class=HTMLResponse, dependencies=[Depends(get_current_org_id)])
 async def app_calendar_page(
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -832,7 +835,7 @@ async def app_calendar_page(
     </div>
     """
     
-    account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in all_accs])
+    account_options = "".join([f'<option value="{a.id}">@{html.escape(str(a.username or ""))} ({html.escape(a.name or "Sabeel Studio")})</option>' for a in all_accs])
     if not all_accs:
         account_options = '<option value="">No accounts connected</option>'
         
@@ -858,7 +861,7 @@ async def app_calendar_page(
         }
     )
 
-@router.get("/app/automations", response_class=HTMLResponse)
+@router.get("/app/automations", response_class=HTMLResponse, dependencies=[Depends(get_current_org_id)])
 async def app_automations_page(
     user: User = Depends(require_user),
     db: Session = Depends(get_db)
@@ -879,7 +882,7 @@ async def app_automations_page(
     ).all()
     
     # Fetch accounts for "New Automation" selection
-    account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name})</option>' for a in all_accs])
+    account_options = "".join([f'<option value="{a.id}">@{html.escape(str(a.username or ""))} ({html.escape(str(a.name or ""))})</option>' for a in all_accs])
     if not all_accs:
         account_options = '<option value="">No accounts connected</option>'
     
@@ -934,7 +937,7 @@ async def app_automations_page(
             </div>
             <div class="min-w-0 space-y-3">
               <div class="flex items-center gap-4">
-                <h3 class="text-2xl font-black text-brand tracking-tight italic">{a.name}</h3>
+                <h3 class="text-2xl font-black text-brand tracking-tight italic">{html.escape(str(a.name or ""))}</h3>
                 <button onclick="toggleAuto(event, {a.id}, {str(not a.enabled).lower()})" class="px-3 py-1.5 {status_bg} {status_color} rounded-xl text-[9px] font-black uppercase tracking-[0.2em] border border-brand/5 hover:scale-105 transition-all">{status_label}</button>
                 
                 <div class="flex items-center gap-2 px-3 py-1 bg-brand/[0.02] border border-brand/5 rounded-full">
@@ -942,7 +945,7 @@ async def app_automations_page(
                     <span class="text-[9px] font-bold uppercase tracking-widest {perf_color}">{perf_label}</span>
                 </div>
               </div>
-              <p class="text-[13px] text-text-muted font-medium line-clamp-1 italic max-w-xl opacity-80 group-hover:opacity-100 transition-opacity">"{a.topic_prompt}"</p>
+              <p class="text-[13px] text-text-muted font-medium line-clamp-1 italic max-w-xl opacity-80 group-hover:opacity-100 transition-opacity">"{html.escape(str(a.topic_prompt or ""))}"</p>
               
               <div class="flex flex-wrap gap-8 pt-2">
                 <div class="flex items-center gap-6">
@@ -966,7 +969,7 @@ async def app_automations_page(
                   </div>
                 </div>
               </div>
-              {f'<p class="text-[9px] text-rose-500 font-bold italic mt-2 border-l-2 border-rose-100 pl-3">Error Log: {a.last_error[:100]}...</p>' if a.last_error else ''}
+              {f'<p class="text-[9px] text-rose-500 font-bold italic mt-2 border-l-2 border-rose-100 pl-3">Error Log: {html.escape(str(a.last_error[:100] or ""))}...</p>' if a.last_error else ''}
             </div>
           </div>
 
@@ -1012,7 +1015,7 @@ async def app_automations_page(
     </div>
     """
 
-    account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in all_accs])
+    account_options = "".join([f'<option value="{a.id}">@{html.escape(str(a.username or ""))} ({html.escape(a.name or "Sabeel Studio")})</option>' for a in all_accs])
     if not all_accs:
         account_options = '<option value="">No accounts connected</option>'
         
@@ -1038,7 +1041,7 @@ async def app_automations_page(
         }
     )
 
-@router.get("/app/media", response_class=HTMLResponse)
+@router.get("/app/media", response_class=HTMLResponse, dependencies=[Depends(get_current_org_id)])
 async def app_media_page(
     user: User = Depends(require_user),
     db: Session = Depends(get_db)
@@ -1063,9 +1066,9 @@ async def app_media_page(
     for m in media:
         media_html += f"""
         <div class="card overflow-hidden group/media relative">
-            <img src="{m.url}" class="w-full h-48 object-cover">
+            <img src="{html.escape(str(m.url or ""))}" class="w-full h-48 object-cover">
             <div class="absolute inset-0 bg-brand/40 opacity-0 group-hover/media:opacity-100 transition-opacity flex items-center justify-center gap-3">
-                <button onclick="window.open('{m.url}', '_blank')" class="p-3 bg-white text-brand rounded-full hover:scale-110 transition-transform shadow-xl">
+                <button onclick="window.open('{html.escape(str(m.url or ""))}', '_blank')" class="p-3 bg-white text-brand rounded-full hover:scale-110 transition-transform shadow-xl">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-width="2"/><path d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" stroke-width="2"/></svg>
                 </button>
             </div>
@@ -1106,7 +1109,7 @@ async def app_media_page(
     </div>
     """
     
-    account_options = "".join([f'<option value="{a.id}">@{a.username} ({a.name or "Sabeel Studio"})</option>' for a in all_accs])
+    account_options = "".join([f'<option value="{a.id}">@{html.escape(str(a.username or ""))} ({html.escape(a.name or "Sabeel Studio")})</option>' for a in all_accs])
     if not all_accs:
         account_options = '<option value="">No accounts connected</option>'
         

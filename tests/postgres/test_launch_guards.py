@@ -67,6 +67,25 @@ class LaunchPostgresChecks(unittest.TestCase):
         self.assertEqual(self.count(),3)
         with Session(engine) as db:self.assertEqual(db.query(AIUsageLease).count(),0)
 
+    def test_anonymous_form_limit_is_atomic_and_hides_recipient(self):
+        barrier = threading.Barrier(8)
+        def attempt(_):
+            barrier.wait(timeout=10)
+            try:
+                limits.check_public_submission("contact", "Fixture@example.test")
+                return 200
+            except limits.UsageLimitError as error:
+                return error.status_code
+        with ThreadPoolExecutor(8) as pool:
+            results = list(pool.map(attempt, range(8)))
+        self.assertEqual(results.count(200), 3)
+        self.assertEqual(results.count(429), 5)
+        with Session(engine) as db:
+            counters = db.query(UsageBucket).all()
+            self.assertTrue(all("example" not in row.key for row in counters))
+            self.assertTrue(all(row.attempts == 3 for row in counters))
+        limits.check_public_submission("waitlist", "Fixture@example.test")
+
     def test_concurrency_denial_spends_nothing_and_crashed_lease_expires(self):
         with self.overrides(ai_workspace_concurrency=1),workspace_usage(1):
             lease=limits.reserve('image')

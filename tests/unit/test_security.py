@@ -161,6 +161,10 @@ class AccessTests(DatabaseCase):
     def headers(self, user_id=2):
         return {"Authorization": "Bearer " + create_access_token({"sub": str(user_id)})}
 
+    def test_signed_session_without_expiration_is_rejected(self):
+        token = jwt.encode({"sub": "2"}, settings.secret_key, algorithm="HS256")
+        self.assertEqual(self.client.get("/whoami", headers={"Authorization": "Bearer " + token}).status_code, 401)
+
     def test_cookie_and_bearer_login_work(self):
         self.assertEqual(self.client.get("/whoami", headers=self.headers()).json(), {"id": 2})
         self.client.cookies.set("access_token", create_access_token({"sub": "1"}))
@@ -235,7 +239,9 @@ class AccessTests(DatabaseCase):
         self.assertEqual(data["items"][0]["email"], "synthetic@example.test")
 
     def test_public_waitlist_join_remains_available_with_email_mocked(self):
-        response = self.client.post("/api/waitlist/join", json={"email": "new@example.com", "source": "test"})
+        with patch.object(waitlist, "check_public_submission") as budget:
+            response = self.client.post("/api/waitlist/join", json={"email": "new@example.com", "source": "test"})
+            budget.assert_called_once_with("waitlist", "new@example.com")
         self.assertEqual(response.status_code, 200, response.text)
         self.assertTrue(response.json()["ok"])
         email.send_email.assert_awaited_once()

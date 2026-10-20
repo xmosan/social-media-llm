@@ -1,13 +1,13 @@
 # Copyright (c) 2026 Mohammed Hassan. All rights reserved.
 # Proprietary and confidential. Unauthorized copying, modification, distribution, or use is prohibited.
 
-import requests
 from bs4 import BeautifulSoup
 import io
 import re
 from typing import List, Dict
 from sqlalchemy.orm import Session
 from app.models import SourceDocument, SourceChunk
+from app.security.public_fetch import fetch_public_document
 import logging
 
 logger = logging.getLogger(__name__)
@@ -28,28 +28,31 @@ def chunk_text(text: str, chunk_size: int = 1000, overlap: int = 150) -> List[st
 
 def extract_text_from_pdf(content: bytes) -> str:
     """Extracts text from PDF bytes using pypdf."""
+    from fastapi import HTTPException
     try:
         from pypdf import PdfReader
-        reader = PdfReader(io.BytesIO(content))
-        text = ""
-        for page in reader.pages:
-            text += page.extract_text() + "\n"
-        return text.strip()
     except ImportError:
-        logger.error("pypdf not installed. Cannot extract text from PDF.")
-        return "[Error: pypdf not installed]"
-    except Exception as e:
-        logger.error(f"Error extracting PDF: {e}")
-        return f"[Error extracting PDF: {e}]"
+        raise HTTPException(503, "PDF import is unavailable. Paste the source text instead.") from None
+    try:
+        reader = PdfReader(io.BytesIO(content))
+        if reader.is_encrypted or len(reader.pages) > 100:
+            raise ValueError()
+        pages, size = [], 0
+        for page in reader.pages:
+            value = page.extract_text() or ""
+            size += len(value)
+            if size > 500_000:
+                raise ValueError()
+            pages.append(value)
+        return "\n".join(pages).strip()
+    except Exception:
+        raise HTTPException(422, "Use an unencrypted PDF up to 100 pages, or paste the relevant text.") from None
 
 def extract_text_from_url(url: str) -> str:
     """Fetches URL and extracts readable text."""
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        
-        soup = BeautifulSoup(response.text, 'html.parser')
+        content = fetch_public_document(url)
+        soup = BeautifulSoup(content, 'html.parser')
         
         # Remove script and style elements
         for script in soup(["script", "style"]):
@@ -66,9 +69,13 @@ def extract_text_from_url(url: str) -> str:
         text = '\n'.join(chunk for chunk in chunks if chunk)
         
         return text
-    except Exception as e:
-        logger.error(f"Error extracting URL {url}: {e}")
-        return f"[Error extracting URL: {e}]"
+    except ValueError as error:
+        from fastapi import HTTPException
+        raise HTTPException(422, str(error)) from None
+    except Exception:
+        from fastapi import HTTPException
+        logger.error("source_url_import_failed")
+        raise HTTPException(422, "The page could not be imported. Paste the source text instead.") from None
 
 def ingest_document(db: Session, org_id: int, title: str, source_type: str, content: str = None, file_bytes: bytes = None, url: str = None) -> SourceDocument:
     """Handles the ingestion of a new document into the library."""
@@ -82,6 +89,10 @@ def ingest_document(db: Session, org_id: int, title: str, source_type: str, cont
     elif source_type == "url" and url:
         raw_text = extract_text_from_url(url)
     
+    if not raw_text.strip() or len(raw_text) > 500_000:
+        from fastapi import HTTPException
+        raise HTTPException(422, "Provide readable source text up to 500,000 characters.")
+
     # Create the document record
     doc = SourceDocument(
         org_id=org_id,

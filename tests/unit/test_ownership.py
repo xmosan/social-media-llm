@@ -175,7 +175,11 @@ class OwnershipTests(DatabaseCase):
         self.assertEqual(list(Path(settings.uploads_dir).iterdir()), [])
 
     def test_upload_does_not_use_client_filename_as_path(self):
-        result = self.client.post("/media-assets", data={"ig_account_id": 1}, files={"image": ("../../escape.jpg", b"fixture", "image/jpeg")})
+        import io
+        from PIL import Image
+        data = io.BytesIO()
+        Image.new("RGB", (32, 32), "white").save(data, "JPEG")
+        result = self.client.post("/media-assets", data={"ig_account_id": 1}, files={"image": ("../../escape.jpg", data.getvalue(), "image/jpeg")})
         self.assertEqual(result.status_code, 200, result.text)
         asset = self.db.get(MediaAsset, result.json()["id"])
         self.assertEqual(Path(asset.storage_path).parent, Path(settings.uploads_dir))

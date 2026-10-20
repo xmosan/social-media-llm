@@ -986,7 +986,7 @@ COMING_SOON_HTML = """<!doctype html>
 
 @router.get("/privacy", response_class=HTMLResponse)
 def privacy_page(request: Request):
-    return templates.TemplateResponse("privacy.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="privacy.html", context={})
 
 @router.get("/terms", response_class=HTMLResponse)
 def terms_page():
@@ -1037,7 +1037,7 @@ def register_page(error: Optional[str] = None):
 
 @router.get("/admin", response_class=HTMLResponse, dependencies=[Depends(require_superadmin)])
 async def get_admin_dashboard(request: Request):
-    return templates.TemplateResponse("admin.html", {"request": request}, headers={
+    return templates.TemplateResponse(request=request, name="admin.html", context={}, headers={
         **OWNER_HEADERS, "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"})
 
 @router.get("/demo", response_class=HTMLResponse)
@@ -1101,4 +1101,4 @@ def api_debug_automations(db: Session = Depends(get_db)):
 
 @router.get("/terms", response_class=HTMLResponse)
 def terms_page(request: Request):
-    return templates.TemplateResponse("terms.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="terms.html", context={})

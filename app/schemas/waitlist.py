@@ -1,13 +1,13 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 
 class WaitlistJoinRequest(BaseModel):
     email: EmailStr
-    name: Optional[str] = None
+    name: Optional[str] = Field(default=None, max_length=100)
     wants_updates: bool = True
-    source: str = "homepage"
+    source: str = Field(default="homepage", max_length=100)
     
     # Optional UTM fields in payload
-    utm_source: Optional[str] = None
-    utm_medium: Optional[str] = None
-    utm_campaign: Optional[str] = None
+    utm_source: Optional[str] = Field(default=None, max_length=200)
+    utm_medium: Optional[str] = Field(default=None, max_length=200)
+    utm_campaign: Optional[str] = Field(default=None, max_length=200)
