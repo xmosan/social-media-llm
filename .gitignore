@@ -21,6 +21,13 @@ tunnel.log
 __pycache__/
 *.pyc
 .env
+.env.*
+!.env.example
+!.env.sample
+*.dump
+*.sql.gz
+*.key
+local_lib/
 Token.env
 .venv_fix/
 renders/

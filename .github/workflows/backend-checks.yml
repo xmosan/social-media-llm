@@ -28,6 +28,11 @@ jobs:
         run: node --test tests/ui/*.test.cjs
       - name: Check installed runtime dependencies
         run: docker run --rm --network none --entrypoint python sabeel-backend:ci -m pip check
+      - name: Audit the exact installed production dependencies
+        run: |
+          docker run --rm --network none --entrypoint python sabeel-backend:ci -m pip freeze > /tmp/sabeel-runtime.txt
+          python -m pip install pip-audit==2.10.1
+          python -m pip_audit --requirement /tmp/sabeel-runtime.txt --disable-pip --no-deps
       - name: Run isolated backend checks in the production image
         run: docker run --rm --network none --entrypoint python sabeel-backend:ci -B tests/run_security_checks.py
       - name: Add a disposable PostgreSQL server to the test image
